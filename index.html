@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>우리집 안심중개 — 부산 인테리어 안심 매칭 플랫폼</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232f6fed' d='M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4Z'/%3E%3Cpath fill='%23fff' d='m10.6 14.8-2.4-2.4-1.4 1.4 3.8 3.8 7-7-1.4-1.4-5.6 5.6Z'/%3E%3C/svg%3E">
+    <!-- Pretendard Variable 웹폰트: 안정적인 cdnjs(Cloudflare) 경로 + 비차단(non-blocking) 로딩
+         → 폰트 요청이 느리거나 막혀도 페이지 렌더링은 절대 멈추지 않고, 즉시 대체 폰트로 정상 표시됨 -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="stylesheet" as="style" crossorigin
+          href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/variable/pretendardvariable-dynamic-subset.min.css"
+          media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" crossorigin
+              href="https://cdnjs.cloudflare.com/ajax/libs/pretendard/1.3.9/variable/pretendardvariable-dynamic-subset.min.css">
+    </noscript>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { 50:'#eef3ff',100:'#dde7ff',200:'#b9cdff',400:'#4c7bff',500:'#2f6fed',600:'#2158c9',700:'#1a459e',900:'#122c66' },
+                        ink: { 50:'#f4f6fa',100:'#e4e8f0',200:'#cbd2e0',300:'#a2acbe',400:'#7c869a',500:'#5b657a',700:'#2a3448',800:'#1b2436',900:'#10182a',950:'#0b1220' },
+                        gold: { 50:'#fbf3e2',100:'#f6e6c2',500:'#b8862c',600:'#93691f' },
+                        emeraldCustom: '#11a670',
+                        roseCustom: '#e04553',
+                        amberCustom: '#d97a06'
+                    },
+                    fontFamily: { sans: ['Pretendard Variable','Pretendard','-apple-system','BlinkMacSystemFont','system-ui','Roboto','Helvetica Neue','Segoe UI','Apple SD Gothic Neo','Noto Sans KR','Malgun Gothic','sans-serif'] },
+                    borderRadius: { none:'0px', sm:'0px', DEFAULT:'0px', md:'0px', lg:'0px', xl:'0px', '2xl':'0px', '3xl':'0px', '4xl':'0px', full:'0px' }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="premium_theme.css">
+</head>
+<body class="h-full text-ink-900 flex flex-col font-sans antialiased">
+
+    <!-- ================= 상단 네비게이션 (GNB) ================= -->
+    <nav class="bg-white/90 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-2.5 sm:gap-3 cursor-pointer wj-focusable" onclick="switchPanel('home-panel')" role="button" tabindex="0" aria-label="홈으로 이동">
+                    <span class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center shrink-0" style="box-shadow:var(--shadow-brand)">
+                        <i data-lucide="shield-check" class="w-5 h-5"></i>
+                    </span>
+                    <div class="leading-none">
+                        <span class="text-[15px] sm:text-lg font-black tracking-tight text-ink-950">우리집 <span class="text-brand-500">안심중개</span></span>
+                        <p class="hidden sm:block text-[9px] text-ink-400 font-extrabold uppercase tracking-widest mt-1">Busan Safety Matching Platform</p>
+                    </div>
+                </div>
+
+                <div class="hidden md:flex items-center bg-white p-1.5 rounded-2xl gap-0.5">
+                    <button type="button" id="tab-home-panel" onclick="switchPanel('home-panel')" class="gnb-tab active"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> 홈</button>
+                    <button type="button" id="tab-client-panel" onclick="switchPanel('client-panel')" class="gnb-tab"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i> 간편 견적 신청</button>
+                    <button type="button" id="tab-partner-search-panel" onclick="switchPanel('partner-search-panel')" class="gnb-tab"><i data-lucide="search" class="w-3.5 h-3.5"></i> 인증 파트너 탐색</button>
+                    <button type="button" id="tab-client-mypage-panel" onclick="switchPanel('client-mypage-panel')" class="gnb-tab"><i data-lucide="user" class="w-3.5 h-3.5"></i> 마이페이지</button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="openB2BAccessModal()" class="btn btn-sm btn-secondary gnb-login-btn" aria-haspopup="dialog">
+                        <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">파트너 / 매니저 로그인</span>
+                        <span class="sm:hidden">B2B</span>
+                    </button>
+                </div>
+            </div>
+            <div class="md:hidden flex items-center gap-1 pb-2.5 overflow-x-auto custom-scroll">
+                <button type="button" id="tab-home-panel-m" onclick="switchPanel('home-panel')" class="gnb-tab active shrink-0">홈</button>
+                <button type="button" onclick="switchPanel('client-panel')" class="gnb-tab shrink-0">견적 신청</button>
+                <button type="button" onclick="switchPanel('partner-search-panel')" class="gnb-tab shrink-0">파트너 탐색</button>
+                <button type="button" onclick="switchPanel('client-mypage-panel')" class="gnb-tab shrink-0">마이페이지</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+        <!-- ================================================================ 1. HOME PANEL ================================================================ -->
+        <section id="home-panel" class="space-y-6 transition-all duration-300">
+            <div class="space-y-4 text-left">
+                <h1 class="type-display">
+                    우리 집이 궁금한 모습으로<br class="hidden sm:inline">
+                    <span class="text-brand-600">완공되는 순간까지</span>
+                </h1>
+                <p class="text-sm text-ink-500 font-medium leading-relaxed max-w-xl">
+                    검증된 부산 1군 인테리어 시공사의 투명한 비교 견적과 전속 1:1 지정 상담을 한 곳에서. 시공 전 과정을 안심하고 맡기세요.
+                </p>
+            </div>
+
+            <!-- 상단 히어로: 좌측 업체 광고 슬라이더(renderHeroPortfolioSlider, 최대 5개, 현재는 평점순 자동 선정 — 추후 광고/계약 건수 기준으로 교체 예정) + 우측 이벤트 슬라이더(renderHomeEventSlider) -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div id="hero-portfolio-slider-container" class="hero-ad-card lg:col-span-2"></div>
+                <div id="home-event-slider-container" class="hero-ad-card lg:col-span-1"></div>
+            </div>
+
+            <div class="space-y-5 text-left pt-1">
+                <div class="text-center max-w-xl mx-auto space-y-1.5">
+                    <span class="type-eyebrow text-brand-600">HOW IT WORKS</span>
+                    <h2 class="text-lg sm:text-xl font-black text-ink-950">어떻게 진행되나요?</h2>
+                    <p class="text-[13px] text-ink-500 font-medium leading-relaxed">본인인증부터 계약까지, 딱 3단계면 끝나요.</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 sm:gap-4 items-stretch">
+                    <div class="surface surface-flush p-5 space-y-3 relative overflow-hidden">
+                        <h3 class="text-sm font-black text-ink-950">본인인증</h3>
+                        <p class="text-[13px] text-ink-500 font-medium leading-relaxed">휴대폰 실명 인증으로 허위 신청·위장 수급을 막고, 안전하게 견적 신청서를 시작해요.</p>
+                    </div>
+                    <div class="flex items-center justify-center text-ink-300 font-black text-lg rotate-90 sm:rotate-0" aria-hidden="true">→</div>
+                    <div class="surface surface-flush p-5 space-y-3 relative overflow-hidden">
+                        <h3 class="text-sm font-black text-ink-950">자동 매칭</h3>
+                        <p class="text-[13px] text-ink-500 font-medium leading-relaxed">공간 정보와 일정·예산만 입력하면, 부산 1군 인증 파트너 3~5개사가 자동으로 입찰 비교돼요.</p>
+                    </div>
+                    <div class="flex items-center justify-center text-ink-300 font-black text-lg rotate-90 sm:rotate-0" aria-hidden="true">→</div>
+                    <div class="surface surface-flush p-5 space-y-3 relative overflow-hidden">
+                        <h3 class="text-sm font-black text-ink-950">안심 계약</h3>
+                        <p class="text-[13px] text-ink-500 font-medium leading-relaxed">비교 견적 중 마음에 드는 파트너와 계약하고, 3년 무상 하자보증까지 받아요.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div onclick="switchPanel('client-panel')" class="surface surface-flush p-4 hover:bg-ink-50 transition-all cursor-pointer group flex items-center justify-between wj-focusable" role="button" tabindex="0">
+                        <div class="space-y-1 text-left">
+                            <span class="type-eyebrow text-brand-600">선착순 안심 매칭</span>
+                            <h3 class="text-sm font-black text-ink-950">간편 안심 견적 신청하기 →</h3>
+                            <p class="text-[12px] text-ink-500 font-medium">3~5개사 자동 입찰 비교 &amp; 3년 하자보증</p>
+                        </div>
+                        <div class="w-9 h-9 rounded-xl bg-brand-50 group-hover:bg-brand-500 text-brand-600 group-hover:text-white flex items-center justify-center transition-all shrink-0 ml-2">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <div onclick="handleHome1on1Click()" class="surface surface-flush p-4 hover:bg-ink-50 transition-all cursor-pointer group flex items-center justify-between wj-focusable" role="button" tabindex="0">
+                        <div class="space-y-1 text-left">
+                            <span class="type-eyebrow text-ink-500">전속 1:1 지정 상담</span>
+                            <h3 class="text-sm font-black text-ink-950">우수 파트너 1:1 지정하기 →</h3>
+                            <p class="text-[12px] text-ink-500 font-medium">자동 매칭 완료 후 우수 시공사 단독 지정</p>
+                        </div>
+                        <div class="w-9 h-9 rounded-xl bg-ink-100 group-hover:bg-ink-950 text-ink-700 group-hover:text-white flex items-center justify-center transition-all shrink-0 ml-2">
+                            <i data-lucide="building" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="surface-flat surface-flush p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4" style="background:var(--brand-50)">
+                    <p class="text-[13px] sm:text-sm font-bold text-ink-800 leading-relaxed flex-1">
+                        <span class="text-brand-700 font-black">TIP.</span> 2단계 자동 매칭이 끝난 뒤에도 끝이 아니에요 — 비교 견적 중 마음에 쏙 드는 파트너가 있다면 <span class="text-brand-700 font-black">1:1 지정 상담</span>을 추가로 신청해서 그 파트너와 전속으로 진행할 수 있어요.
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="surface surface-flush p-4 text-center space-y-1">
+                    <p class="text-lg sm:text-xl font-black text-ink-950">1,240+</p>
+                    <p class="text-[11px] text-ink-400 font-extrabold">누적 안심 계약</p>
+                </div>
+                <div class="surface surface-flush p-4 text-center space-y-1">
+                    <p class="text-lg sm:text-xl font-black text-ink-950">98.4%</p>
+                    <p class="text-[11px] text-ink-400 font-extrabold">하자보증 이행률</p>
+                </div>
+                <div class="surface surface-flush p-4 text-center space-y-1">
+                    <p class="text-lg sm:text-xl font-black text-ink-950">3년</p>
+                    <p class="text-[11px] text-ink-400 font-extrabold">무상 하자 보증</p>
+                </div>
+                <div class="surface surface-flush p-4 text-center space-y-1">
+                    <p class="text-lg sm:text-xl font-black text-ink-950">부산 1군</p>
+                    <p class="text-[11px] text-ink-400 font-extrabold">종합면허 인증사</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================ 2. CLIENT PANEL ================================================================ -->
+        <section id="client-panel" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 transition-all duration-300">
+            <div class="lg:col-span-7 surface-lg surface p-6 sm:p-8 space-y-6 text-left">
+                <div class="space-y-3">
+                    <span class="type-eyebrow text-brand-600">클라이언트 안심 신청서</span>
+                    <h2 class="type-display text-2xl sm:text-3xl">부산 안심 인테리어 견적 신청</h2>
+                    <p class="text-sm text-ink-500 font-medium leading-relaxed">본인인증 → 공간 정보 → 일정·예산, 3단계면 견적 신청이 끝나요.</p>
+                    <div class="step-indicator pt-2">
+                        <div class="step-dot active" id="step-dot-1"></div>
+                        <div class="step-dot" id="step-dot-2"></div>
+                        <div class="step-dot" id="step-dot-3"></div>
+                    </div>
+                    <div class="flex justify-between text-[11px] font-bold text-ink-400">
+                        <span class="step-label current" id="step-label-1">1. 본인인증</span>
+                        <span class="step-label" id="step-label-2">2. 공간 정보</span>
+                        <span class="step-label" id="step-label-3">3. 일정·예산</span>
+                    </div>
+                </div>
+
+                <form id="matching-form" class="space-y-6 text-left" onsubmit="event.preventDefault();">
+                <div id="qstep-1" class="qstep">
+                    <div id="form-auth-card" class="surface-flat p-5 space-y-4 text-left transition-all duration-300" style="background:var(--brand-50);border-color:var(--brand-100)">
+                        <div class="flex items-center gap-2">
+                            <span class="w-7 h-7 rounded-lg bg-brand-500 text-white flex items-center justify-center shrink-0"><i data-lucide="user" class="w-4 h-4"></i></span>
+                            <span class="text-xs font-black text-ink-800">1단계 · 로그인 또는 회원가입 (견적 신청 전 필수)</span>
+                        </div>
+
+                        <div id="form-auth-unverified" class="space-y-4">
+                            <div class="segmented">
+                                <button type="button" id="form-tab-login" onclick="switchClientAuthTab('login', true)" class="active">로그인</button>
+                                <button type="button" id="form-tab-signup" onclick="switchClientAuthTab('signup', true)">회원가입</button>
+                            </div>
+
+                            <div id="form-login-pane" class="space-y-3">
+                                <div><label class="field-label">아이디 <span class="req">*</span></label>
+                                    <input type="text" id="form-login-id" placeholder="가입 시 등록한 아이디" class="input"></div>
+                                <div><label class="field-label">비밀번호 <span class="req">*</span></label>
+                                    <input type="password" id="form-login-pw" placeholder="비밀번호" class="input"></div>
+                                <button type="button" onclick="loginClientWithId(true)" class="btn btn-primary btn-block">로그인</button>
+                                <p class="text-[11px] text-ink-500 font-semibold text-center">아직 계정이 없으신가요? <button type="button" onclick="switchClientAuthTab('signup', true)" class="text-brand-600 font-black underline bg-transparent border-0 cursor-pointer">회원가입</button></p>
+                            </div>
+
+                            <div id="form-signup-pane" class="hidden space-y-3">
+                                <p class="text-[11px] text-ink-500 font-bold leading-relaxed">
+                                    💡 허위 신청이나 위장 수급 예방을 위한 실명 본인인증 단계입니다. 휴대폰 번호로 가상 인증번호를 전송합니다.
+                                </p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div><label class="field-label">성함 <span class="req">*</span></label>
+                                        <input type="text" id="form-client-name" placeholder="실명 입력" class="input"></div>
+                                    <div><label class="field-label">휴대폰 연락처 <span class="req">*</span></label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="form-client-phone" oninput="handlePhoneInput(this)" placeholder="010-0000-0000" maxlength="13" class="input">
+                                            <button type="button" onclick="sendClientAuthCode()" class="btn btn-dark btn-sm shrink-0">인증요청</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="form-auth-code-wrapper" class="hidden space-y-1 pt-1">
+                                    <label class="field-label">보안 코드 4자리 입력 <span class="req">*</span></label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="form-client-code" placeholder="가상 SMS 인증코드 입력" maxlength="4" class="input text-center tracking-widest">
+                                        <button type="button" onclick="verifyClientSignupPhone()" class="btn btn-primary btn-sm shrink-0">인증 완료</button>
+                                    </div>
+                                </div>
+
+                                <div id="form-signup-account-fields" class="hidden space-y-3 pt-2 border-t border-brand-100">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div><label class="field-label">사용할 아이디 <span class="req">*</span></label>
+                                            <input type="text" id="form-signup-id" placeholder="영문/숫자 아이디" class="input"></div>
+                                        <div><label class="field-label">비밀번호 <span class="req">*</span></label>
+                                            <input type="password" id="form-signup-pw" placeholder="비밀번호" class="input"></div>
+                                    </div>
+                                    <div><label class="field-label">비밀번호 확인 <span class="req">*</span></label>
+                                        <input type="password" id="form-signup-pw2" placeholder="비밀번호 다시 입력" class="input"></div>
+                                    <button type="button" onclick="submitClientSignup()" class="btn btn-dark btn-block">가입하고 시작하기</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="form-auth-verified" class="hidden p-4 bg-white border border-emerald-200 rounded-xl flex justify-between items-center">
+                            <div class="flex items-center gap-2.5 text-xs font-black" style="color:var(--emerald-600)">
+                                <i data-lucide="shield-check" class="w-5 h-5"></i>
+                                <span id="form-verified-user-info">로그인 완료: 홍길동 (busanhome)</span>
+                            </div>
+                            <button type="button" onclick="performClientLogout()" class="text-[11px] font-bold text-roseCustom hover:underline bg-transparent border-0 cursor-pointer">로그아웃</button>
+                        </div>
+                    </div>
+                </div><!-- /qstep-1 -->
+
+                <div id="form-details-section" class="space-y-6">
+                    <div id="qstep-2" class="qstep hidden space-y-6">
+                        <div><label class="field-label">시공 상세 주소 <span class="req">*</span></label>
+                            <input type="text" id="client-address" oninput="updateFormState('clientAddress', this.value)" placeholder="부산시 수영구 광안동 광안아파트 101동 201호" class="input"></div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><label class="field-label">공간 구분</label>
+                                <div class="segmented">
+                                    <button type="button" id="space-residential" onclick="updateFormState('spaceType', 'residential')" class="active">주거 공간</button>
+                                    <button type="button" id="space-commercial" onclick="updateFormState('spaceType', 'commercial')">상업 공간</button>
+                                </div></div>
+                            <div><label class="field-label">시공 범위</label>
+                                <div class="segmented">
+                                    <button type="button" id="work-all" onclick="updateFormState('workType', 'all')" class="active">전체 시공</button>
+                                    <button type="button" id="work-partial" onclick="updateFormState('workType', 'partial')">부분 시공</button>
+                                </div></div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div><label class="field-label">공사 면적 (평수) <span class="req">*</span></label>
+                                <div class="relative">
+                                    <input type="number" id="client-pyung" oninput="handlePyungChange(this.value)" placeholder="예: 32" class="input pr-24">
+                                    <span id="m2-indicator" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-ink-400 font-extrabold bg-white px-2 py-0.5 rounded-lg border border-ink-100">0.0 ㎡ 환산</span>
+                                </div></div>
+                            <div><label class="field-label">공사 예정지 거주 여부</label>
+                                <select id="client-vacancy" onchange="updateFormState('vacancy', this.value)" class="select">
+                                    <option value="empty" selected>공실</option>
+                                    <option value="living">거주 중</option>
+                                </select></div>
+                        </div>
+
+                        <button type="button" onclick="goToClientStep(3)" class="btn btn-dark btn-lg btn-block">다음: 일정·예산 입력 →</button>
+                    </div><!-- /qstep-2 -->
+
+                    <div id="qstep-3" class="qstep hidden space-y-6">
+                        <div class="space-y-2">
+                            <label class="field-label">희망 착공일 선택 <span class="req">*</span></label>
+                            <div class="surface-flat p-4 space-y-3">
+                                <div class="flex justify-between items-center px-1">
+                                    <button type="button" onclick="changeMonth(-1)" class="btn btn-ghost btn-sm" aria-label="이전 달"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                                    <span id="calendar-title" class="text-sm font-black text-ink-800">2026년 7월</span>
+                                    <button type="button" onclick="changeMonth(1)" class="btn btn-ghost btn-sm" aria-label="다음 달"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                                </div>
+                                <div class="grid grid-cols-7 text-center text-[10px] text-ink-400 font-extrabold border-b border-ink-100 pb-2">
+                                    <span class="text-roseCustom">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="text-brand-500">토</span>
+                                </div>
+                                <div id="calendar-days" class="grid grid-cols-7 gap-1 min-h-[190px]"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div class="space-y-3">
+                                <label class="field-label">선착순 매칭 제한 인원</label>
+                                <div class="grid grid-cols-2 bg-ink-100 p-1 rounded-2xl gap-1">
+                                    <button type="button" id="limit-3" onclick="updateFormState('partnerCountLimit', 3)" class="py-3 text-xs font-bold rounded-xl transition-all bg-white text-ink-950 border-0 cursor-pointer flex flex-col items-center justify-center gap-0.5" style="box-shadow:var(--shadow-1)">
+                                        <span class="font-extrabold text-ink-950">3개사 매칭</span>
+                                        <span class="text-[9px] text-ink-400 font-semibold leading-none">빠른 매칭 추천</span>
+                                    </button>
+                                    <button type="button" id="limit-5" onclick="updateFormState('partnerCountLimit', 5)" class="py-3 text-xs font-bold rounded-xl transition-all text-ink-500 hover:text-ink-950 border-0 bg-transparent cursor-pointer flex flex-col items-center justify-center gap-0.5">
+                                        <span class="font-semibold">5개사 매칭</span>
+                                        <span class="text-[9px] text-ink-400 font-semibold leading-none">다채로운 비교</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <label class="field-label mb-0">공사 예정 금액</label>
+                                    <span id="budget-text" class="text-sm font-black text-brand-600">1,500 만원</span>
+                                </div>
+                                <div class="relative pt-2">
+                                    <input type="range" id="client-budget-slider" min="1000" max="10000" step="100" value="1500" oninput="handleBudgetChange(this.value)" class="w-full h-1.5 bg-ink-200 rounded-lg appearance-none cursor-pointer accent-brand-500">
+                                    <div class="flex justify-between text-[10px] text-ink-400 font-extrabold px-1 mt-1.5">
+                                        <span>1,000 만원</span><span>1억 원 이상</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button type="button" onclick="goToClientStep(2)" class="btn btn-secondary btn-lg">← 이전</button>
+                            <button type="button" onclick="triggerMatchingSim()" class="btn btn-primary btn-lg flex-1"><i data-lucide="wand2" class="w-4 h-4"></i> 안심 견적 의뢰 완료하기</button>
+                        </div>
+                    </div><!-- /qstep-3 -->
+                </div><!-- /form-details-section -->
+                </form>
+            </div>
+
+            <div class="lg:col-span-5 space-y-6 text-left">
+                <div class="surface surface-lg p-6 sm:p-7 space-y-5">
+                    <h3 class="text-xs font-black text-ink-400 uppercase tracking-widest">나의 실시간 안심 리포트</h3>
+
+                    <div id="matching-simulation-area" class="hidden py-8 text-center space-y-4">
+                        <div class="relative w-16 h-16 mx-auto">
+                            <div class="absolute inset-0 rounded-full border-4 border-ink-100"></div>
+                            <div class="absolute inset-0 rounded-full border-4 border-brand-500 border-t-transparent animate-spin"></div>
+                            <div class="absolute inset-0 flex items-center justify-center text-brand-500"><i data-lucide="cpu" class="w-6 h-6"></i></div>
+                        </div>
+                        <div class="space-y-1">
+                            <h4 class="text-xs font-black text-ink-800">안심 정보 자동 가림막 가동 중...</h4>
+                            <p class="text-[10px] text-ink-400 font-semibold leading-relaxed">부산 1군 실내건축 종합면허사 대상<br>안전 계약 배정 경쟁을 활성화하고 있습니다.</p>
+                        </div>
+                        <div class="w-48 mx-auto bg-ink-100 rounded-full h-1.5 overflow-hidden">
+                            <div id="matching-progress-bar" class="bg-brand-500 h-full transition-all duration-300" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div id="matching-success-area" class="space-y-4">
+                        <div class="p-4 rounded-2xl flex items-center gap-3" style="background:var(--brand-50)">
+                            <span class="w-10 h-10 rounded-xl bg-brand-500 text-white flex items-center justify-center shrink-0"><i data-lucide="shield-check" class="w-5 h-5"></i></span>
+                            <div class="text-xs">
+                                <h4 class="font-extrabold text-ink-950 leading-tight">안심 결제 보증 연동 작동 중</h4>
+                                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed mt-0.5">하자보증보험 이행증권 100% 무상 가입 연동</p>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-ink-100 pt-4 space-y-3.5">
+                            <div class="flex justify-between items-center text-xs"><span class="font-bold text-ink-400">의뢰인 성명</span><span id="report-client-info" class="font-extrabold text-ink-800">인증 미완료</span></div>
+                            <div class="flex justify-between items-start text-xs gap-4"><span class="font-bold text-ink-400 shrink-0">시공 상세 주소지</span><span id="report-client-address" class="font-extrabold text-ink-800 text-right leading-relaxed max-w-[200px] truncate">미입력</span></div>
+                            <div class="flex justify-between items-center text-xs"><span class="font-bold text-ink-400">공간 및 유형</span><span id="report-space" class="font-extrabold text-ink-800">주거 공간</span></div>
+                            <div class="flex justify-between items-center text-xs"><span class="font-bold text-ink-400">시공 형태</span><span id="report-work" class="font-extrabold text-ink-800">전체 시공</span></div>
+                            <div class="flex justify-between items-center text-xs"><span class="font-bold text-ink-400">시공 면적</span><span id="report-area" class="font-extrabold text-ink-800">0평</span></div>
+                            <div class="flex justify-between items-center text-xs"><span class="font-bold text-ink-400">배정사 선착순 제한</span><span id="report-partner-limit" class="font-extrabold text-ink-800">3개 업체</span></div>
+                            <div class="flex justify-between items-center text-xs"><span class="font-bold text-ink-400">착공 예정일</span><span id="report-date" class="font-extrabold text-ink-800">착공일 미선택</span></div>
+                            <div class="flex justify-between items-center text-xs"><span class="font-bold text-ink-400">공실 상태</span><span id="report-vacancy" class="font-extrabold text-ink-800">공실</span></div>
+                            <div class="flex justify-between items-center text-xs border-t border-dashed border-ink-100 pt-3"><span class="font-bold text-ink-400">공사 희망 예산</span><span id="report-budget" class="font-black text-brand-600 text-sm">1,500 만원</span></div>
+                        </div>
+
+                        <div id="report-contract-badge-container" class="hidden border-t border-ink-100 pt-4 space-y-2">
+                            <div class="p-3 rounded-2xl flex items-center gap-3" style="background:var(--emerald-50);color:var(--emerald-600)">
+                                <i data-lucide="party-popper" class="w-4 h-4 animate-bounce"></i>
+                                <span id="report-contract-partner" class="text-xs font-black">시공 계약 합의서 날인 완료</span>
+                            </div>
+                            <div class="p-3 surface-flat flex justify-between items-center text-[10px]">
+                                <span class="text-ink-500 font-extrabold flex items-center gap-1"><i data-lucide="file-text" class="w-3.5 h-3.5 text-ink-400"></i> 안심 거래 상태</span>
+                                <span id="report-contract-upload-status" class="text-ink-700 font-extrabold">계약서 업로드 대기</span>
+                            </div>
+                            <div id="review-action-container"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================ 3. PARTNER SEARCH PANEL ================================================================ -->
+        <section id="partner-search-panel" class="hidden space-y-6 transition-all duration-300">
+            <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-5">
+                    <div class="space-y-1">
+                        <span class="badge badge-brand">우리집 안심 중개 우수 파트너스</span>
+                        <h3 class="text-base sm:text-lg font-black text-ink-950 flex items-center gap-2 mt-1">
+                            <i data-lucide="building" class="w-5 h-5 text-brand-500"></i>
+                            <span>부산 우수 안심 파트너사 포트폴리오 및 1:1 상담</span>
+                        </h3>
+                    </div>
+                    <div class="relative w-full sm:w-64">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                        <input type="text" id="partner-search-input" oninput="renderPartnerSearchGrid()" placeholder="시공사 이름 또는 지역 검색..." class="input pl-8">
+                    </div>
+                </div>
+                <div id="partner-search-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2"></div>
+            </div>
+        </section>
+
+        <!-- ================================================================ 4. CLIENT MYPAGE PANEL ================================================================ -->
+        <section id="client-mypage-panel" class="hidden transition-all duration-300 space-y-8">
+            <div id="client-mypage-gateway" class="max-w-md mx-auto my-12 surface surface-lg p-6 sm:p-8 space-y-6 text-left">
+                <div class="space-y-2 text-center">
+                    <span class="w-12 h-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center mx-auto" style="box-shadow:var(--shadow-brand)"><i data-lucide="user-check" class="w-6 h-6"></i></span>
+                    <h3 class="text-lg font-black text-ink-950 tracking-tight pt-1">고객 안심 마이페이지</h3>
+                    <p class="text-xs text-ink-500 font-medium leading-relaxed">가입하신 아이디로 로그인하여 안전 정산 내역 및 보증서 현황을 조회합니다.</p>
+                </div>
+                <form class="space-y-4" onsubmit="event.preventDefault();">
+                    <div><label class="field-label">아이디 <span class="req">*</span></label><input type="text" id="login-id" placeholder="가입 시 등록한 아이디" class="input"></div>
+                    <div><label class="field-label">비밀번호 <span class="req">*</span></label><input type="password" id="login-pw" placeholder="비밀번호" class="input"></div>
+                    <button type="button" onclick="loginClientWithId(false)" class="btn btn-primary btn-lg btn-block">로그인</button>
+                    <p class="text-[11px] text-ink-500 font-semibold text-center">아직 계정이 없으신가요? <button type="button" onclick="switchPanel('client-panel')" class="text-brand-600 font-black underline bg-transparent border-0 cursor-pointer">견적 신청에서 회원가입</button></p>
+                </form>
+            </div>
+
+            <div id="client-mypage-dashboard" class="hidden space-y-6 text-left">
+                <div class="surface p-4 sm:p-5 flex flex-wrap justify-between items-center gap-4 text-left">
+                    <div class="space-y-1">
+                        <h4 class="text-sm sm:text-base font-black text-ink-950 flex items-center gap-2"><i data-lucide="user" class="w-4 h-4 text-brand-500"></i> 고객 마이페이지</h4>
+                        <p class="text-[10px] text-ink-400 font-extrabold flex items-center gap-1"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-brand-500"></i> 안심 거래 및 의뢰 이력 조회</p>
+                    </div>
+                </div>
+
+                <div id="client-mypage-subtab-history-view" class="grid grid-cols-1 lg:grid-cols-12 gap-6 transition-all duration-300">
+                    <div class="lg:col-span-4 surface surface-lg p-5 space-y-4 flex flex-col">
+                        <div class="border-b border-ink-100 pb-3.5">
+                            <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="clipboard-list" class="w-4 h-4 text-brand-500"></i> 나의 안심 중개 의뢰이력</h4>
+                        </div>
+                        <div id="client-mypage-estimates-container" class="space-y-3 max-h-[500px] overflow-y-auto pr-1 custom-scroll flex-1"></div>
+                    </div>
+                    <div class="lg:col-span-8 space-y-6">
+                        <div id="client-mypage-detail-empty" class="surface surface-lg p-12 text-center space-y-3">
+                            <span class="w-12 h-12 rounded-2xl bg-ink-100 text-ink-400 flex items-center justify-center mx-auto"><i data-lucide="info" class="w-6 h-6"></i></span>
+                            <h5 class="text-xs font-bold text-ink-600">추적할 인테리어 의뢰건을 좌측에서 지정해 주세요.</h5>
+                        </div>
+                        <div id="client-mypage-detail-board" class="hidden surface surface-lg p-6 sm:p-8 space-y-6"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================ 5. PARTNER PANEL (B2B) ================================================================ -->
+        <section id="partner-panel" class="hidden transition-all duration-300">
+            <div id="partner-gateway-container" class="max-w-md mx-auto my-12 text-left">
+                <div id="partner-login-card" class="surface surface-lg p-6 sm:p-8 space-y-6">
+                    <div class="space-y-2 text-center">
+                        <span class="w-12 h-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center mx-auto" style="box-shadow:var(--shadow-brand)"><i data-lucide="building" class="w-6 h-6"></i></span>
+                        <h3 class="text-lg font-black text-ink-950 tracking-tight pt-1">파트너 센터 로그인</h3>
+                        <p class="text-xs text-ink-500 font-medium">검증된 시공 파트너사 전속 계정으로 인증하세요.</p>
+                    </div>
+                    <form class="space-y-4" onsubmit="event.preventDefault();">
+                        <div><label class="field-label">파트너 마스터 아이디</label><input type="text" id="partner-login-id" placeholder="아이디 입력 (orukdo)" class="input"></div>
+                        <div><label class="field-label">안심 마스터 비밀번호</label><input type="password" id="partner-pw" placeholder="비밀번호 입력 (아무거나)" class="input"></div>
+                        <p id="login-error-msg" class="hidden text-[11px] text-roseCustom font-bold leading-tight">⚠️ 아이디 또는 비밀번호가 일치하지 않습니다.</p>
+                        <button type="button" onclick="validatePartnerLogin()" class="btn btn-primary btn-lg btn-block">안전 마스터 계정 로그인</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="partner-console" class="hidden space-y-6">
+                <div class="surface p-4 sm:p-5 flex flex-wrap justify-between items-center gap-4 text-left">
+                    <div class="space-y-1"><h4 id="partner-header-title" class="text-sm sm:text-base font-black text-ink-950 flex items-center gap-2">파워 파트너스 콘솔</h4></div>
+                    <div id="partner-console-tab-bar" class="flex items-center flex-wrap bg-ink-50 p-1 rounded-xl gap-1 border border-ink-100"></div>
+                </div>
+
+                <div id="partner-mode-orders-view" class="grid grid-cols-1 lg:grid-cols-12 gap-6 transition-all duration-300">
+                    <div class="lg:col-span-5 surface surface-lg p-5 space-y-4 text-left">
+                        <div class="flex justify-between items-center border-b border-ink-100 pb-3.5">
+                            <span id="partner-live-order-badge" class="text-xs font-black text-ink-800 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-roseCustom animate-ping"></span> 실시간 수급 오더 분석 중</span>
+                        </div>
+                        <div id="partner-order-stream-list" class="space-y-3.5 max-h-[500px] overflow-y-auto pr-1 custom-scroll"></div>
+                    </div>
+                    <div class="lg:col-span-7 space-y-6">
+                        <div id="partner-audit-empty" class="surface surface-lg p-12 text-center space-y-3">
+                            <span class="w-12 h-12 rounded-2xl bg-ink-100 text-ink-400 flex items-center justify-center mx-auto"><i data-lucide="folder-search" class="w-6 h-6"></i></span>
+                            <h5 class="text-xs font-bold text-ink-600">심사할 수급 오더가 선택되지 않았습니다</h5>
+                        </div>
+                        <div id="partner-audit-details" class="hidden surface surface-lg p-6 sm:p-8 text-left space-y-6"></div>
+                    </div>
+                </div>
+
+                <div id="partner-mode-contracts-view" class="hidden space-y-6 transition-all duration-300"></div>
+
+                <div id="partner-mode-myinfo-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-4">
+                            <div>
+                                <span class="badge badge-brand">내 정보 & 브랜딩 패널</span>
+                                <h4 class="text-sm sm:text-base font-black text-ink-950 tracking-tight mt-1 flex items-center gap-1.5"><i data-lucide="badge-check" class="w-4 h-4 text-brand-500"></i> 업체 대표 홍보 멘트 및 대표 슬라이드 관리</h4>
+                            </div>
+                            <button type="button" onclick="savePartnerProfileInfo()" class="btn btn-primary">수정 저장</button>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                            <div class="lg:col-span-6 space-y-4">
+                                <div><label class="field-label">업체 한줄 대표 홍보 슬로건</label><input type="text" id="partner-promo-slogan" class="input"></div>
+                                <div><label class="field-label">고객 대상 상세 안내 및 브랜딩 소개글</label><textarea id="partner-promo-text" class="textarea h-32"></textarea></div>
+                            </div>
+                            <div class="lg:col-span-6 space-y-3 surface-flat p-4 sm:p-5 text-left">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-black text-ink-800">대표 사진 슬라이드 미리보기</span>
+                                    <button type="button" onclick="triggerPartnerHeroImagePicker()" class="btn btn-dark btn-sm">사진 추가</button>
+                                    <input type="file" id="partner-hero-image-input" accept="image/*" class="hidden" onchange="handlePartnerHeroImageUpload(this)">
+                                </div>
+                                <div class="relative h-48 rounded-xl overflow-hidden bg-ink-200 flex items-center justify-center">
+                                    <img id="partner-hero-slide-img" src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&auto=format&fit=crop&q=60" class="w-full h-full object-cover">
+                                    <button type="button" onclick="prevPartnerHeroSlide()" class="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-ink-950/60 text-white border-0 cursor-pointer"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                                    <button type="button" onclick="nextPartnerHeroSlide()" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-ink-950/60 text-white border-0 cursor-pointer"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                                    <button type="button" onclick="deleteCurrentPartnerHeroSlide()" class="absolute top-2 right-2 px-2.5 py-1 bg-roseCustom/90 text-white rounded-lg text-[9px] font-black border-0 cursor-pointer">삭제</button>
+                                    <span id="partner-hero-slide-counter" class="absolute bottom-2 left-2 px-2 py-0.5 bg-ink-950/80 text-white rounded-md text-[9px]">1 / 1</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="partner-mode-portfolio-view" class="hidden space-y-6">
+                    <div id="portfolio-list-subview" class="space-y-6">
+                        <div class="flex justify-between items-center pt-2">
+                            <span id="partner-port-count-badge" class="text-xs font-extrabold text-ink-500 bg-white px-4 py-2.5 rounded-2xl border border-ink-100" style="box-shadow:var(--shadow-1)">등록된 시공사례 개수</span>
+                            <button type="button" onclick="openPortfolioEditor(null)" class="btn btn-primary btn-lg">새 시공 포트폴리오 작성</button>
+                        </div>
+                        <div id="partner-console-portfolio-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2"></div>
+                    </div>
+
+                    <div id="portfolio-editor-subview" class="hidden w-full space-y-6 text-left">
+                        <div class="flex justify-between items-center pb-1">
+                            <h4 id="portfolio-editor-heading" class="text-sm sm:text-base font-black text-ink-950">새 포트폴리오 스토리 작성</h4>
+                            <button type="button" onclick="closePortfolioEditor()" class="btn btn-ghost btn-sm">닫기</button>
+                        </div>
+                        <form class="grid grid-cols-1 gap-6 items-start" onsubmit="event.preventDefault();">
+                            <div class="surface surface-lg p-6 sm:p-8 space-y-6" style="box-shadow:var(--shadow-2)">
+                                <div class="grid grid-cols-1 sm:grid-cols-[1fr_110px_150px] gap-3">
+                                    <div><label class="field-label">제목</label><input type="text" id="editor-title" placeholder="제목을 입력하세요" class="input text-sm font-black"></div>
+                                    <div><label class="field-label">평형</label><input type="number" id="editor-pyung" placeholder="평수" class="input"></div>
+                                    <div><label class="field-label">시공 유형</label>
+                                        <select id="editor-category" class="select">
+                                            <option value="">선택 안 함</option>
+                                            <option value="apartment">아파트</option>
+                                            <option value="house">주택</option>
+                                            <option value="commercial">상가·사무실</option>
+                                            <option value="etc">기타</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="field-label">한 줄 소개</label>
+                                    <textarea id="editor-desc" rows="2" placeholder="카드와 목록에 노출될 짧은 소개를 적어주세요." class="input resize-none"></textarea>
+                                </div>
+
+                                <div class="space-y-2 pt-3 border-t border-ink-100">
+                                    <label class="field-label mb-0">다른 사이트 포트폴리오 링크로 가져오기 <span class="text-ink-300 font-semibold">— 선택 사항</span></label>
+                                    <div class="flex gap-2">
+                                        <input type="url" id="portfolio-import-url" placeholder="네이버 블로그, 인스타그램 등 포트폴리오 링크를 붙여넣어보세요" class="input text-sm">
+                                        <button type="button" onclick="importPortfolioFromUrl()" class="btn btn-secondary btn-sm shrink-0" id="portfolio-import-btn">가져오기</button>
+                                    </div>
+                                    <p class="field-hint" id="portfolio-import-hint">링크의 대표 사진과 제목, 소개글을 자동으로 불러와 아래 내용 맨 앞에 채워드려요. 가져온 뒤에는 자유롭게 수정할 수 있어요.</p>
+                                </div>
+
+                                <div class="space-y-3 pt-3 border-t border-ink-100">
+                                    <label class="field-label mb-0">포트폴리오 내용 <span class="text-ink-300 font-semibold">— 네이버 블로그처럼 사진과 글을 자유롭게 섞어서 작성해요</span></label>
+                                    <p class="field-hint">툴바로 사진을 추가하고, 본문 아무 곳이나 클릭해서 바로 글을 이어 적을 수 있어요. 사진은 적당한 크기로 자동 압축되고(가로/세로 모두 지원), 두 장을 한 번에 선택하면 나란히 배치돼요. 사진에 마우스를 올리면 나오는 위/아래 버튼으로 순서를 옮길 수 있어요. 본문에서 맨 처음 나오는 사진이 대표 사진으로 쓰여요.</p>
+                                    <div class="blog-editor-toolbar" id="portfolio-editor-toolbar">
+                                        <button type="button" class="blog-editor-tool" onmousedown="event.preventDefault()" onclick="triggerPortfolioImageInsert()" title="사진 삽입"><i data-lucide="image-plus" class="w-4 h-4"></i><span>사진</span></button>
+                                        <span class="blog-editor-divider"></span>
+                                        <button type="button" class="blog-editor-tool" data-cmd="justifyLeft" onmousedown="event.preventDefault()" onclick="applyPortfolioEditorCommand('justifyLeft')" title="왼쪽 정렬"><i data-lucide="align-left" class="w-4 h-4"></i></button>
+                                        <button type="button" class="blog-editor-tool" data-cmd="justifyCenter" onmousedown="event.preventDefault()" onclick="applyPortfolioEditorCommand('justifyCenter')" title="가운데 정렬"><i data-lucide="align-center" class="w-4 h-4"></i></button>
+                                        <button type="button" class="blog-editor-tool" data-cmd="justifyRight" onmousedown="event.preventDefault()" onclick="applyPortfolioEditorCommand('justifyRight')" title="오른쪽 정렬"><i data-lucide="align-right" class="w-4 h-4"></i></button>
+                                        <span class="blog-editor-divider"></span>
+                                        <button type="button" class="blog-editor-tool" onmousedown="event.preventDefault()" onclick="insertPortfolioQuote()" title="인용구"><i data-lucide="quote" class="w-4 h-4"></i></button>
+                                        <button type="button" class="blog-editor-tool" onmousedown="event.preventDefault()" onclick="insertPortfolioDivider()" title="구분선"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                                        <input type="file" id="portfolio-body-image-input" accept="image/*" multiple class="hidden" onchange="handlePortfolioBodyImageInsert(event)">
+                                    </div>
+                                    <div id="portfolio-body-editor" class="blog-body-editor blog-body-content" contenteditable="true" data-placeholder="이곳을 클릭해서 사진과 글을 자유롭게 적어보세요. 네이버 블로그를 쓰는 것처럼요." oninput="onPortfolioBodyEditorInput()" onkeyup="updatePortfolioToolbarActiveState()" onmouseup="updatePortfolioToolbarActiveState()" onclick="event.target===this && this.focus()" onfocus="try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch(err) {}"></div>
+                                </div>
+
+                                <button type="button" onclick="submitPartnerPortfolio()" class="btn btn-primary btn-lg btn-block"><span id="port-submit-btn-text">안심 포트폴리오 스토리 발행하기</span></button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================ 6. ADMIN PANEL ================================================================ -->
+        <section id="admin-panel" class="hidden space-y-6">
+            <div id="admin-gateway-container" class="max-w-md mx-auto my-12 text-left">
+                <div id="admin-login-card" class="surface surface-lg p-6 sm:p-8 space-y-6">
+                    <div class="space-y-2 text-center">
+                        <span class="w-12 h-12 rounded-2xl bg-ink-950 text-white flex items-center justify-center mx-auto" style="box-shadow:var(--shadow-dark)"><i data-lucide="shield-alert" class="w-6 h-6"></i></span>
+                        <h3 class="text-lg font-black text-ink-950 tracking-tight pt-1">매니저 센터 로그인</h3>
+                        <p class="text-xs text-ink-500 font-medium">관리자 전용 보안 인증이 필요합니다.</p>
+                    </div>
+                    <form class="space-y-4" onsubmit="event.preventDefault();">
+                        <div><label class="field-label">매니저 아이디</label><input type="text" id="admin-login-id" placeholder="아이디 입력 (admin)" class="input"></div>
+                        <div><label class="field-label">매니저 비밀번호</label><input type="password" id="admin-login-pw" placeholder="비밀번호 입력 (1234)" class="input"></div>
+                        <p id="admin-login-error-msg" class="hidden text-[11px] text-roseCustom font-bold leading-tight">⚠️ 매니저 계정 정보가 일치하지 않습니다.</p>
+                        <button type="button" onclick="validateManagerLogin()" class="btn btn-dark btn-lg btn-block">매니저 인증 및 관제센터 입장</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="admin-console" class="hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                    <div class="kpi-card" style="--accent:var(--brand-500)"><span class="text-[10px] text-ink-400 font-extrabold uppercase block mb-2">안심 계약 총 체결액</span><h4 class="text-xl sm:text-2xl font-black text-ink-950" id="admin-kpi-gmv">₩ 0 만원</h4></div>
+                    <div class="kpi-card" style="--accent:var(--amber-500)"><span class="text-[10px] text-ink-400 font-extrabold uppercase block mb-2">보증 유치 볼륨</span><h4 class="text-xl sm:text-2xl font-black text-ink-950" id="admin-kpi-escrow">₩ 0 만원</h4></div>
+                    <div class="kpi-card" style="--accent:var(--emerald-500)"><span class="text-[10px] text-ink-400 font-extrabold uppercase block mb-2">안심 중개 플랫폼 매출액</span><h4 class="text-xl sm:text-2xl font-black text-ink-950" id="admin-kpi-revenue">₩ 0 만원</h4></div>
+                </div>
+
+                <div class="surface p-4 sm:p-5 flex flex-wrap justify-between items-center gap-3 text-left">
+                    <h4 class="text-sm font-black text-ink-950 flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4"></i> 매니저 센터 콘솔</h4>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <div id="admin-console-tab-bar" class="flex items-center flex-wrap bg-ink-50 p-1 rounded-xl gap-1 border border-ink-100"></div>
+                        <button type="button" onclick="managerLogout()" class="btn btn-ghost btn-sm"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> 로그아웃</button>
+                    </div>
+                </div>
+
+                <div id="admin-mode-allocation-view" class="space-y-6 transition-all duration-300"><div id="admin-order-allocation-container"></div></div>
+
+                <div id="admin-mode-monitor-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg p-6 space-y-4 text-left">
+                        <div class="flex flex-wrap justify-between items-center gap-3 border-b border-ink-100 pb-4">
+                            <h4 class="text-sm font-black text-ink-800">업체별 실시간 안심 거래 모니터링 보드</h4>
+                            <input type="text" id="admin-partner-search" oninput="renderAdminPartnerMonitor()" placeholder="업체명 검색..." class="input w-56">
+                        </div>
+                        <div id="admin-partner-monitor-list" class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2"></div>
+                    </div>
+                </div>
+
+                <div id="admin-mode-blacklist-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg overflow-hidden text-left" style="border-color:var(--rose-100,#f8d3d5)">
+                        <div class="px-6 py-5 border-b" style="background:var(--rose-50);border-color:#f6d3d5"><h4 class="text-sm font-black text-roseCustom">삼진아웃 규정 영구 제명 불량 사업자 격리 DB</h4></div>
+                        <div class="overflow-x-auto"><table class="table-clean"><tbody id="admin-blacklist-tbody"></tbody></table></div>
+                    </div>
+                </div>
+
+                <div id="admin-mode-logs-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg overflow-hidden text-left">
+                        <div class="px-6 py-5 border-b border-ink-100 bg-ink-50/60"><h4 class="text-sm font-black text-ink-800">통합 플랫폼 실시간 관제 스트림 로그</h4></div>
+                        <div class="overflow-x-auto"><table class="table-clean"><tbody id="admin-log-tbody"></tbody></table></div>
+                    </div>
+                </div>
+
+                <div id="admin-mode-display-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg p-6 space-y-5 text-left">
+                        <div class="border-b border-ink-100 pb-4 space-y-1">
+                            <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="image" class="w-4 h-4"></i> 히어로 업체 광고 슬라이더 관리</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">홈 상단 히어로 좌측 슬라이더에 노출할 업체와 시공사례를 최대 5개까지 직접 선정할 수 있어요. 등록이 없으면 평점 높은 순으로 자동 노출됩니다.</p>
+                        </div>
+                        <div class="flex flex-wrap items-end gap-2">
+                            <div class="flex-1 min-w-[160px] space-y-1.5">
+                                <label class="text-[11px] font-black text-ink-500">업체 선택</label>
+                                <select id="admin-hero-add-partner" onchange="renderAdminHeroPortfolioOptions()" class="input"></select>
+                            </div>
+                            <div class="flex-1 min-w-[160px] space-y-1.5">
+                                <label class="text-[11px] font-black text-ink-500">시공사례 선택</label>
+                                <select id="admin-hero-add-portfolio" class="input"></select>
+                            </div>
+                            <button type="button" onclick="addFeaturedHeroPartner()" class="btn btn-primary btn-sm shrink-0"><i data-lucide="plus" class="w-3.5 h-3.5"></i> 슬라이더에 추가</button>
+                        </div>
+                        <div class="flex items-center justify-between pt-1">
+                            <h5 class="text-xs font-black text-ink-700">현재 등록된 노출 순서</h5>
+                            <span id="admin-hero-featured-count" class="badge badge-neutral">0 / 5</span>
+                        </div>
+                        <div id="admin-hero-featured-list" class="space-y-2"></div>
+                    </div>
+
+                    <div class="surface surface-lg p-6 space-y-5 text-left">
+                        <div class="border-b border-ink-100 pb-4 flex flex-wrap justify-between items-center gap-3">
+                            <div class="space-y-1">
+                                <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="megaphone" class="w-4 h-4"></i> 이벤트 광고판(팜플렛) 관리</h4>
+                                <p class="text-[11px] text-ink-500 font-medium">홈 상단 히어로 우측 이벤트 슬라이더에 노출되는 팜플렛을 등록·수정·삭제합니다.</p>
+                            </div>
+                            <button type="button" onclick="openPamphletEditor()" class="btn btn-primary btn-sm shrink-0"><i data-lucide="plus" class="w-3.5 h-3.5"></i> 새 팜플렛 추가</button>
+                        </div>
+                        <div id="admin-pamphlet-list" class="space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ================= MODALS ================= -->
+
+    <div id="b2b-access-modal" class="hidden modal-overlay" style="z-index:200">
+        <div id="b2b-access-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-6 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-1"><span class="badge badge-neutral">B2B Portal</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">기업 및 매니저 로그인</h3></div>
+                <button type="button" onclick="closeB2BAccessModal()" class="btn btn-ghost btn-sm px-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <button type="button" onclick="accessB2BPanel('partner-panel')" class="w-full p-4 rounded-2xl border border-ink-100 hover:border-brand-500 bg-ink-50 hover:bg-white transition-all flex items-center justify-between text-left cursor-pointer group">
+                    <div class="flex items-center gap-3">
+                        <span class="p-3 rounded-xl bg-brand-50 text-brand-600 group-hover:bg-brand-500 group-hover:text-white transition-all"><i data-lucide="building" class="w-5 h-5"></i></span>
+                        <div><h4 class="text-xs font-black text-ink-950">파트너 센터</h4><p class="text-[10px] text-ink-500 font-medium">수급 오더 확인, 즉시 입찰 및 계약서 관리</p></div>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-ink-400 group-hover:text-brand-500 transition-colors"></i>
+                </button>
+                <button type="button" onclick="accessB2BPanel('admin-panel')" class="w-full p-4 rounded-2xl border border-ink-100 hover:border-ink-800 bg-ink-50 hover:bg-white transition-all flex items-center justify-between text-left cursor-pointer group">
+                    <div class="flex items-center gap-3">
+                        <span class="p-3 rounded-xl bg-ink-200 text-ink-800 group-hover:bg-ink-950 group-hover:text-white transition-all"><i data-lucide="line-chart" class="w-5 h-5"></i></span>
+                        <div><h4 class="text-xs font-black text-ink-950">매니저 센터</h4><p class="text-[10px] text-ink-500 font-medium">고액 오더 직할 배정, 실시간 모니터링 및 블랙리스트 관리</p></div>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-4 h-4 text-ink-400 group-hover:text-ink-950 transition-colors"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pamphlet-detail-modal" class="hidden modal-overlay p-0 sm:p-4" style="z-index:300">
+        <div id="pamphlet-detail-modal-card" class="modal-card modal-full w-full h-full sm:h-[94vh] sm:w-[94vw] sm:max-w-none overflow-hidden flex flex-col toss-modal-content">
+            <div class="p-6 border-b border-ink-100 flex justify-between items-center shrink-0 text-left bg-white">
+                <div class="flex items-center gap-2"><span class="badge badge-brand">AD</span><h3 class="text-xs font-extrabold text-ink-500">광고 · 이벤트 상세</h3></div>
+                <button type="button" onclick="closePamphletDetail()" class="btn btn-ghost btn-sm"><i data-lucide="arrow-left" class="w-4 h-4"></i> 뒤로가기</button>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scroll bg-ink-50/60">
+                <div class="max-w-4xl mx-auto">
+                    <img id="pamphlet-detail-img" src="" alt="">
+                    <div class="p-6 md:p-10 space-y-6 text-center">
+                        <h2 id="pamphlet-detail-title" class="text-xl md:text-3xl font-black text-ink-950 leading-tight tracking-tight">광고 제목</h2>
+                        <p id="pamphlet-detail-body" class="text-xs md:text-sm text-ink-600 leading-relaxed font-semibold surface p-5 md:p-6 text-left whitespace-pre-line max-w-3xl mx-auto"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="client-partner-profile-modal" class="hidden modal-overlay p-0 sm:p-4" style="z-index:200">
+        <div id="client-partner-profile-modal-card" class="modal-card modal-full w-full h-full sm:h-[94vh] sm:w-[94vw] sm:max-w-none overflow-hidden flex flex-col toss-modal-content text-left">
+            <div class="p-6 border-b border-ink-100 flex justify-between items-center shrink-0 bg-white">
+                <div class="flex items-center gap-3">
+                    <span class="w-10 h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center shrink-0" style="box-shadow:var(--shadow-brand)"><i data-lucide="verified" class="w-5 h-5"></i></span>
+                    <div><h3 id="profile-partner-name" class="text-base sm:text-lg font-black text-ink-950">시공 파트너</h3><p class="text-[10px] text-ink-500 font-extrabold flex items-center gap-1 mt-0.5"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-brand-500"></i> 부산 지역 우수 안심 보증 심사 통과 기업</p></div>
+                </div>
+                <button type="button" onclick="closeClientPartnerProfile()" class="btn btn-secondary btn-sm"><i data-lucide="x" class="w-4 h-4"></i> 닫기</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 bg-ink-50 custom-scroll">
+                <div class="surface p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
+                    <div class="space-y-2 max-w-2xl">
+                        <span class="badge badge-brand">우리집 안심 추천 우수사</span>
+                        <h2 id="profile-partner-name-hero" class="text-2xl font-black text-ink-950 tracking-tight">파트너 상호명</h2>
+                        <p id="profile-partner-slogan-hero" class="text-xs font-extrabold text-brand-600">부산 최고의 하이엔드 전문 시공 브랜드</p>
+                        <p id="profile-partner-promo-hero" class="text-xs text-ink-500 font-semibold leading-relaxed">검증된 종합건설 실내건축 종합면허사로, 3억 원 규모 하자이행보증 무상 가동 혜택 적용 대상지입니다.</p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+                        <div class="flex items-center gap-3 surface-flat p-4">
+                            <span class="text-gold-500 text-2xl font-black">★</span>
+                            <div class="text-left leading-none"><span id="profile-rating-avg" class="text-xl font-black text-ink-950">5.0</span><span class="text-[10px] text-ink-400 font-bold block mt-1">종합 안심 평점</span></div>
+                        </div>
+                        <button type="button" id="profile-hero-1on1-btn" class="btn btn-dark btn-lg">1:1 상담 신청하기</button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    <div class="lg:col-span-7 space-y-4"><h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="image" class="w-4 h-4 text-brand-500"></i> 실제 완공 안심 시공사례</h4><div id="profile-portfolios-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-6"></div></div>
+                    <div class="lg:col-span-5 space-y-4"><h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="message-square" class="w-4 h-4 text-amberCustom"></i> 실제 안심 거래 고객 리뷰</h4><div id="profile-reviews-list" class="space-y-4 surface p-6 max-h-[600px] overflow-y-auto custom-scroll"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="portfolio-blog-modal" class="hidden modal-overlay p-0 sm:p-4" style="z-index:300">
+        <div id="portfolio-blog-modal-card" class="modal-card modal-full w-full h-full sm:h-[94vh] sm:w-[94vw] sm:max-w-none overflow-hidden flex flex-col toss-modal-content">
+            <div class="p-6 border-b border-ink-100 flex justify-between items-center shrink-0 text-left bg-white">
+                <div class="flex items-center gap-2"><span id="blog-modal-pyung" class="article-header-badge">32평 시공 사례</span><span class="text-[11px] text-ink-300">|</span><h3 id="blog-modal-partner-name" class="text-xs font-extrabold text-ink-500">시공사 이름</h3></div>
+                <button type="button" onclick="closePortfolioBlogDetail()" class="btn btn-ghost btn-sm"><i data-lucide="arrow-left" class="w-4 h-4"></i> 뒤로가기</button>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scroll bg-ink-50/60">
+                <div class="portfolio-detail-col p-6 md:p-10 space-y-8 text-left">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span id="blog-modal-category-badge" class="badge badge-brand hidden"></span>
+                    </div>
+                    <h2 class="text-xl md:text-3xl font-black text-ink-950 leading-tight tracking-tight" id="blog-modal-title">시공기 제목</h2>
+                    <p class="blog-lead-text" id="blog-modal-overview">전체 공사 개요</p>
+                    <div id="blog-modal-scenes-feed" class="blog-body-content"></div>
+                </div>
+            </div>
+            <div class="p-4 sm:p-5 border-t border-ink-100 shrink-0 bg-white flex items-center justify-center gap-3">
+                <button type="button" id="blog-modal-like-btn" onclick="handleBlogLikeClick()" class="blog-like-btn shrink-0"><i data-lucide="heart" class="w-3.5 h-3.5"></i> 좋아요 <span id="blog-modal-like-count">0</span></button>
+                <button type="button" id="blog-modal-cta-btn" class="btn btn-dark btn-lg flex-1 max-w-md">이 파트너와 1:1 상담 신청하기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="lightbox-modal" class="hidden fixed inset-0 z-[500] lightbox-backdrop backdrop-blur-md flex items-center justify-center p-2 sm:p-6 transition-all duration-300" onclick="closeLightbox()">
+        <button type="button" onclick="closeLightbox()" class="absolute top-4 right-4 text-white hover:text-ink-200 bg-black/50 p-3 rounded-full border border-white/20 z-20 transition-all cursor-pointer"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <button type="button" id="lightbox-prev-btn" onclick="prevLightboxPhoto(event)" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 text-white hover:text-ink-200 bg-black/60 hover:bg-black/80 p-3 sm:p-4 rounded-full border border-white/20 z-20 transition-all cursor-pointer flex items-center justify-center select-none shadow-xl"><i data-lucide="chevron-left" class="w-6 h-6 sm:w-8 sm:h-8"></i></button>
+        <button type="button" id="lightbox-next-btn" onclick="nextLightboxPhoto(event)" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 text-white hover:text-ink-200 bg-black/60 hover:bg-black/80 p-3 sm:p-4 rounded-full border border-white/20 z-20 transition-all cursor-pointer flex items-center justify-center select-none shadow-xl"><i data-lucide="chevron-right" class="w-6 h-6 sm:w-8 sm:h-8"></i></button>
+        <div class="relative max-w-full max-h-full flex flex-col items-center justify-center p-2 overflow-hidden" onclick="event.stopPropagation()">
+            <div class="overflow-visible rounded-2xl flex items-center justify-center p-1">
+                <img id="lightbox-img" src="" onclick="toggleLightboxZoom(event)" class="max-w-[92vw] max-h-[82vh] object-contain rounded-2xl shadow-2xl transition-transform duration-75 select-none cursor-zoom-in" style="user-select: none; -webkit-user-drag: none;">
+            </div>
+        </div>
+    </div>
+
+    <div id="pamphlet-editor-modal" class="hidden modal-overlay p-0 sm:p-4" style="z-index:300">
+        <div id="pamphlet-editor-modal-card" class="modal-card modal-full w-full h-full sm:h-[94vh] sm:w-[94vw] sm:max-w-none overflow-hidden flex flex-col toss-modal-content">
+            <div class="p-6 border-b border-ink-100 flex justify-between items-center shrink-0 bg-white">
+                <div class="space-y-1"><span class="badge badge-neutral">노출 관리</span><h3 id="pamphlet-editor-title" class="text-base sm:text-lg font-black text-ink-950 tracking-tight mt-1">새 광고 팜플렛 추가</h3></div>
+                <button type="button" onclick="closePamphletEditor()" class="btn btn-secondary btn-sm"><i data-lucide="x" class="w-4 h-4"></i> 닫기</button>
+            </div>
+            <div class="flex-1 overflow-y-auto custom-scroll bg-ink-50/60 p-6 md:p-10">
+                <form class="space-y-8 max-w-5xl mx-auto text-left" onsubmit="event.preventDefault(); savePamphlet();">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-1.5">
+                            <label class="text-xs font-black text-ink-700">제목</label>
+                            <input type="text" id="pamphlet-form-title" placeholder="광고/이벤트 제목" class="input">
+                        </div>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-black text-ink-700">상세 내용</label>
+                        <textarea id="pamphlet-form-detail" rows="4" placeholder="상세 페이지에 노출될 설명을 자유롭게 적어주세요." class="input resize-none"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-2 border-t border-ink-100">
+                        <div class="space-y-3 pt-6">
+                            <label class="text-xs font-black text-ink-700 flex items-center gap-1.5"><i data-lucide="image-plus" class="w-4 h-4"></i> 광고판 이미지 (홈 화면에 작게 노출)</label>
+                            <div id="pamphlet-live-preview" class="event-banner"></div>
+                            <p class="text-[11px] font-black text-brand-600">권장 크기: 800 × 960px 내외 (약 5:6 비율, 세로형)</p>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <label class="btn btn-secondary btn-sm cursor-pointer">
+                                    <i data-lucide="upload" class="w-3.5 h-3.5"></i> 이미지 업로드
+                                    <input type="file" id="pamphlet-form-img-file" accept="image/*" class="hidden" onchange="handlePamphletImageUpload(event)">
+                                </label>
+                                <button type="button" id="pamphlet-form-img-remove-btn" onclick="removePamphletDraftImage()" class="btn btn-ghost btn-sm text-roseCustom hidden"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 이미지 제거</button>
+                            </div>
+                            <p class="text-[11px] text-ink-400 font-semibold leading-relaxed">미리캔버스 등에서 문구까지 완성한 광고판용 이미지를 위 권장 크기에 맞춰 만들어 그대로 업로드하세요.</p>
+                        </div>
+                        <div class="space-y-3 pt-6">
+                            <label class="text-xs font-black text-ink-700 flex items-center gap-1.5"><i data-lucide="image" class="w-4 h-4"></i> 상세페이지 이미지 (클릭 시 큰 화면에 노출)</label>
+                            <div id="pamphlet-detail-live-preview"></div>
+                            <p class="text-[11px] font-black text-brand-600">권장 크기: 1600 × 900px (16:9 비율, 가로 와이드)</p>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <label class="btn btn-secondary btn-sm cursor-pointer">
+                                    <i data-lucide="upload" class="w-3.5 h-3.5"></i> 이미지 업로드
+                                    <input type="file" id="pamphlet-form-detailimg-file" accept="image/*" class="hidden" onchange="handlePamphletDetailImageUpload(event)">
+                                </label>
+                                <button type="button" id="pamphlet-form-detailimg-remove-btn" onclick="removePamphletDetailDraftImage()" class="btn btn-ghost btn-sm text-roseCustom hidden"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 이미지 제거</button>
+                            </div>
+                            <p class="text-[11px] text-ink-400 font-semibold leading-relaxed">따로 만든 큰 팜플렛 이미지를 위 권장 크기에 맞춰 업로드하세요. 등록하지 않으면 광고판 이미지가 대신 노출됩니다.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 pt-2 border-t border-ink-100 max-w-md">
+                        <button type="button" onclick="closePamphletEditor()" class="btn btn-ghost flex-1">취소</button>
+                        <button type="submit" class="btn btn-primary flex-1"><i data-lucide="check" class="w-4 h-4"></i> 저장</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="write-review-modal" class="hidden modal-overlay" style="z-index:200">
+        <div id="write-review-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-6 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-1"><h3 class="text-base font-black text-ink-950">솔직 후기 작성</h3><p id="write-review-project-name" class="text-[10px] text-ink-400 font-mono">프로젝트 번호: WJ-2026-XXXX</p></div>
+                <button type="button" onclick="closeReviewWriteModal()" class="btn btn-ghost btn-sm px-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form class="space-y-5" onsubmit="event.preventDefault();">
+                <div><label class="field-label">후기 작성</label><textarea id="input-review-text" placeholder="솔직한 후기를 남겨주세요. (최소 10자 이상)" class="textarea h-28"></textarea></div>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="field-label mb-0">현장 및 완공 사진 첨부 (선택)</label>
+                        <button type="button" onclick="document.getElementById('input-review-photo-file').click()" class="btn btn-dark btn-sm">사진 추가</button>
+                        <input type="file" id="input-review-photo-file" accept="image/*" multiple class="hidden" onchange="handleReviewPhotoUpload(this)">
+                    </div>
+                    <div id="review-photo-preview-grid" class="grid grid-cols-4 gap-2 pt-1"></div>
+                </div>
+                <button type="button" onclick="submitClientReview()" class="btn btn-primary btn-lg btn-block">정직한 안심 리뷰 등록하기</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="review-detail-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="review-detail-modal-card" class="modal-card w-full max-w-lg p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5">
+                    <div class="flex items-center gap-2"><h3 id="review-detail-client" class="text-base font-black text-ink-950">고객님 후기</h3><span id="review-detail-stars" class="text-gold-500 font-extrabold text-xs">★★★★★ (5.0)</span></div>
+                    <p id="review-detail-date" class="text-[10px] text-ink-400 font-semibold">작성일: -</p>
+                </div>
+                <button type="button" onclick="closeReviewDetailModal()" class="btn btn-ghost btn-sm px-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-4 max-h-[60vh] overflow-y-auto custom-scroll pr-1">
+                <p id="review-detail-text" class="text-xs text-ink-700 font-semibold leading-relaxed surface-flat p-4 whitespace-pre-line"></p>
+                <div id="review-detail-photos-wrapper" class="space-y-2">
+                    <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5"><i data-lucide="image" class="w-3.5 h-3.5 text-brand-500"></i> 현장 사진 (<span id="review-detail-photo-count">0</span>)</h5>
+                    <div id="review-detail-photos-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5"></div>
+                </div>
+            </div>
+            <div class="pt-2 border-t border-ink-100"><button type="button" onclick="closeReviewDetailModal()" class="btn btn-dark btn-block">확인 완료 및 닫기</button></div>
+        </div>
+    </div>
+
+    <!-- 중앙 팝업 알림 (토스트) -->
+    <div id="custom-toast" class="fixed inset-0 flex items-center justify-center bg-ink-950/40 backdrop-blur-sm z-[600] hidden transition-all duration-300">
+        <div id="custom-toast-card" class="bg-white rounded-[28px] w-[calc(100%-32px)] max-w-sm p-6 space-y-5 text-center transform scale-95 opacity-0 transition-all duration-200 relative" style="box-shadow:var(--shadow-3)">
+            <button type="button" onclick="closeToast()" class="absolute top-4 right-4 btn btn-ghost btn-sm px-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <div class="space-y-3 pt-4 pb-2">
+                <span id="custom-toast-icon" class="toast-icon-wrap bg-brand-50 text-brand-500"><i data-lucide="bell" class="w-6 h-6"></i></span>
+                <p id="custom-toast-msg" class="text-[13px] sm:text-sm font-bold text-ink-800 leading-relaxed break-keep whitespace-pre-line">알림 메시지입니다.</p>
+            </div>
+            <button type="button" onclick="closeToast()" class="btn btn-dark btn-block">확인</button>
+        </div>
+    </div>
+
+    <!-- 실시간 토스트 스택 (비차단형) -->
+    <div id="toast-stack" class="fixed top-4 right-4 z-[650] flex flex-col gap-2 items-end pointer-events-none"></div>
+
+    <footer class="bg-white border-t border-ink-100 py-8 mt-12 text-center text-xs text-ink-400 font-medium">
+        <div class="max-w-7xl mx-auto px-4 space-y-2">
+            <p class="font-bold text-ink-600">우리집 안심 중개 — 부산 지역 하이엔드 실내건축 가이드</p>
+            <p class="text-[10px] text-ink-400">Copyright © 2026 WOORI-HOUSE Safety Brokerage Platform. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="config_state.js"></script>
+    <script src="utils_ui.js"></script>
+    <script src="cms.js"></script>
+    <script src="partner_panel.js"></script>
+    <script src="client_panel.js"></script>
+</body>
+</html>

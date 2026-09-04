@@ -1,0 +1,631 @@
+/**
+ * ====================================================================
+ * [premium_theme.css] 우리집 안심중개 — 프로덕션 디자인 시스템
+ * 토큰(색/타이포/그림자/모션) + 재사용 컴포넌트 클래스
+ * ====================================================================
+ */
+
+/* ---------------------------------------------------------------
+ * 1. 디자인 토큰
+ * --------------------------------------------------------------- */
+:root {
+    /* 브랜드 */
+    --ink-950: #0b1220;
+    --ink-900: #10182a;
+    --ink-800: #1b2436;
+    --ink-700: #2a3448;
+    --ink-500: #5b657a;
+    --ink-400: #7c869a;
+    --ink-300: #a2acbe;
+    --ink-200: #cbd2e0;
+    --ink-100: #e4e8f0;
+    --ink-50:  #f4f6fa;
+    --paper:   #fbfbfd;
+
+    --brand-50:  #eef3ff;
+    --brand-100: #dde7ff;
+    --brand-200: #b9cdff;
+    --brand-400: #4c7bff;
+    --brand-500: #2f6fed;
+    --brand-600: #2158c9;
+    --brand-700: #1a459e;
+    --brand-900: #122c66;
+
+    --gold-50:  #fbf3e2;
+    --gold-100: #f6e6c2;
+    --gold-500: #b8862c;
+    --gold-600: #93691f;
+
+    --emerald-50: #e7f8f1;
+    --emerald-500: #11a670;
+    --emerald-600: #0c8459;
+
+    --amber-50: #fef3e0;
+    --amber-500: #d97a06;
+    --amber-600: #b3620a;
+
+    --rose-50: #fdecec;
+    --rose-500: #e04553;
+    --rose-600: #c1303d;
+
+    /* 라운드 — 전부 직각(0)으로 통일 */
+    --r-xs: 0px;
+    --r-sm: 0px;
+    --r-md: 0px;
+    --r-lg: 0px;
+    --r-xl: 0px;
+    --r-2xl: 0px;
+    --r-pill: 0px;
+
+    /* 그림자 */
+    --shadow-1: 0 1px 2px rgba(11,18,32,.04), 0 1px 1px rgba(11,18,32,.03);
+    --shadow-2: 0 6px 20px rgba(11,18,32,.06), 0 2px 6px rgba(11,18,32,.04);
+    --shadow-3: 0 18px 48px rgba(11,18,32,.12), 0 6px 18px rgba(11,18,32,.06);
+    --shadow-brand: 0 14px 32px -8px rgba(47,111,237,.38);
+    --shadow-dark: 0 14px 32px -8px rgba(11,18,32,.35);
+
+    /* 모션 */
+    --ease-out: cubic-bezier(.16,1,.3,1);
+    --ease-spring: cubic-bezier(.34,1.56,.64,1);
+    --dur-fast: .16s;
+    --dur-base: .24s;
+    --dur-slow: .4s;
+}
+
+/* ---------------------------------------------------------------
+ * 2. 전역 리셋 & 타이포그래피
+ * --------------------------------------------------------------- */
+* { box-sizing: border-box; }
+
+/* 전체 디자인: 라운드 코너 전면 제거 — Tailwind rounded-* 유틸리티, JS로 동적 삽입되는
+   요소, 하드코딩된 50%/99px 값 등 출처와 무관하게 모든 모서리를 직각으로 강제 통일 */
+*, *::before, *::after {
+    border-radius: 0 !important;
+}
+
+html { -webkit-tap-highlight-color: transparent; }
+
+body {
+    background-color: var(--ink-50) !important;
+    color: var(--ink-900);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
+    text-rendering: optimizeLegibility;
+}
+
+/* 홈 화면일 때만 배경을 흰색으로 — 다른 패널(견적신청/파트너탐색/마이페이지 등)은 기존 배경 유지 */
+body:has(#home-panel:not(.hidden)) {
+    background-color: #fff !important;
+}
+
+::selection { background: var(--brand-200); color: var(--ink-950); }
+
+.type-eyebrow {
+    font-size: 12.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.type-display {
+    font-size: 28px;
+    line-height: 1.16;
+    letter-spacing: -0.025em;
+    font-weight: 900;
+    color: var(--ink-950);
+}
+@media (min-width: 640px) {
+    .type-display { font-size: 40px; }
+}
+.type-serif-num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+/* 스크롤바 */
+.custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scroll::-webkit-scrollbar-track { background: transparent; }
+.custom-scroll::-webkit-scrollbar-thumb { background: var(--ink-200); border-radius: 0; }
+.custom-scroll::-webkit-scrollbar-thumb:hover { background: var(--ink-300); }
+
+/* 텍스트 라인 클램프 */
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* 포커스 링 (접근성) */
+.wj-focusable:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--brand-500);
+    outline-offset: 2px;
+    border-radius: var(--r-xs);
+}
+
+/* ---------------------------------------------------------------
+ * 3. 표면 (카드 / 서페이스)
+ * --------------------------------------------------------------- */
+.surface {
+    background: #ffffff;
+    border: 1px solid var(--ink-100);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-1);
+}
+.surface-lg { border-radius: var(--r-2xl); }
+.surface-flush { border: none !important; box-shadow: none !important; background: #fff !important; }
+.surface-flat {
+    background: var(--ink-50);
+    border: 1px solid var(--ink-100);
+    border-radius: var(--r-md);
+}
+.surface-hover {
+    transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out);
+}
+.surface-hover:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-3);
+    border-color: var(--ink-200);
+}
+/* 홈 상단 GNB 전용: 파트너/매니저 로그인 버튼 배경을 흰색으로 (다른 화면의 .btn-secondary 버튼엔 영향 없음) */
+.gnb-login-btn { background: #fff !important; }
+.gnb-login-btn:hover { background: var(--ink-50) !important; }
+
+.wj-dark-card {
+    background: linear-gradient(155deg, var(--ink-900) 0%, #060a13 100%);
+    color: #fff;
+    border-radius: var(--r-xl);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.06);
+}
+.wj-dark-card::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(120% 100% at 100% 0%, rgba(47,111,237,.25) 0%, rgba(47,111,237,0) 55%);
+    pointer-events: none;
+}
+
+/* ---------------------------------------------------------------
+ * 4. 버튼
+ * --------------------------------------------------------------- */
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    font-weight: 800; font-size: 13px; line-height: 1;
+    border: 0; border-radius: var(--r-md);
+    padding: 13px 18px;
+    cursor: pointer; user-select: none;
+    transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out), opacity var(--dur-base);
+    white-space: nowrap;
+}
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.btn-sm { padding: 8px 13px; font-size: 11.5px; border-radius: var(--r-sm); }
+.btn-lg { padding: 16px 22px; font-size: 14px; border-radius: var(--r-lg); }
+.btn-block { width: 100%; }
+
+.btn-primary { background: var(--brand-500); color: #fff; box-shadow: var(--shadow-brand); }
+.btn-primary:hover { background: var(--brand-600); }
+
+.btn-dark { background: var(--ink-950); color: #fff; box-shadow: var(--shadow-dark); }
+.btn-dark:hover { background: #000; }
+
+.btn-secondary { background: var(--ink-100); color: var(--ink-800); }
+.btn-secondary:hover { background: var(--ink-200); }
+
+.btn-soft-brand { background: var(--brand-50); color: var(--brand-700); }
+.btn-soft-brand:hover { background: var(--brand-100); }
+
+.btn-ghost { background: transparent; color: var(--ink-500); padding-left: 4px; padding-right: 4px; box-shadow: none; }
+.btn-ghost:hover { color: var(--ink-900); }
+
+.btn-danger { background: var(--rose-50); color: var(--rose-600); }
+.btn-danger:hover { background: #fbdadc; }
+
+.btn-outline { background: #fff; color: var(--ink-800); border: 1px solid var(--ink-200); }
+.btn-outline:hover { border-color: var(--ink-400); background: var(--ink-50); }
+
+/* ---------------------------------------------------------------
+ * 5. 폼 요소
+ * --------------------------------------------------------------- */
+.field-label {
+    display: block; font-size: 12px; font-weight: 800; color: var(--ink-700); margin-bottom: 6px;
+}
+.field-label .req { color: var(--rose-500); }
+.field-hint { font-size: 11px; color: var(--ink-400); font-weight: 600; margin-top: 5px; }
+
+.input, .select, .textarea {
+    width: 100%;
+    background: var(--ink-50);
+    border: 1.5px solid var(--ink-100);
+    border-radius: var(--r-sm);
+    padding: 12px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-900);
+    transition: border-color var(--dur-base), background var(--dur-base), box-shadow var(--dur-base);
+}
+.input::placeholder, .textarea::placeholder { color: var(--ink-300); font-weight: 600; }
+.input:focus, .select:focus, .textarea:focus {
+    outline: none; background: #fff; border-color: var(--brand-500);
+    box-shadow: 0 0 0 4px var(--brand-50);
+}
+.textarea { resize: none; }
+
+/* 세그먼트 컨트롤 */
+.segmented {
+    background: var(--ink-100);
+    padding: 4px;
+    border-radius: var(--r-md);
+    display: inline-flex;
+    width: 100%;
+    gap: 2px;
+}
+.segmented button, .segmented .seg-btn {
+    flex: 1;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    font-weight: 800;
+    border: 0; background: transparent; cursor: pointer;
+    border-radius: calc(var(--r-md) - 4px);
+    color: var(--ink-500);
+    transition: all var(--dur-base) var(--ease-out);
+}
+.segmented button.active, .segmented .seg-btn.active {
+    background: #fff;
+    color: var(--brand-600);
+    box-shadow: var(--shadow-1);
+}
+
+/* 스텝 인디케이터 */
+.step-indicator { display: flex; align-items: center; gap: 6px; }
+.step-dot { flex: 1; height: 4px; border-radius: 99px; background: var(--ink-100); transition: background var(--dur-slow) var(--ease-out); }
+.step-dot.done, .step-dot.active { background: var(--brand-500); }
+.step-label { font-size: 10.5px; font-weight: 800; color: var(--ink-300); }
+.step-label.current { color: var(--brand-600); }
+
+/* ---------------------------------------------------------------
+ * 6. 배지 / 칩
+ * --------------------------------------------------------------- */
+.badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: var(--r-pill);
+    font-size: 10px; font-weight: 800; letter-spacing: .01em;
+    white-space: nowrap;
+}
+.badge-dot { width: 6px; height: 6px; border-radius: 99px; }
+.badge-neutral { background: var(--ink-100); color: var(--ink-700); }
+.badge-brand { background: var(--brand-50); color: var(--brand-700); }
+.badge-gold { background: var(--gold-50); color: var(--gold-600); }
+.badge-emerald { background: var(--emerald-50); color: var(--emerald-600); }
+.badge-amber { background: var(--amber-50); color: var(--amber-600); }
+.badge-rose { background: var(--rose-50); color: var(--rose-600); }
+.badge-dark { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.18); }
+
+.chip-cert {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--gold-50); color: var(--gold-600);
+    padding: 3px 9px; border-radius: var(--r-pill);
+    font-size: 9.5px; font-weight: 900;
+}
+
+/* ---------------------------------------------------------------
+ * 7. GNB 탭
+ * --------------------------------------------------------------- */
+.gnb-tab {
+    padding: 9px 14px; font-size: 13px; font-weight: 700; border-radius: var(--r-sm);
+    color: var(--ink-500); display: flex; align-items: center; gap: 6px; border: 0; cursor: pointer;
+    background: transparent; transition: all var(--dur-base) var(--ease-out);
+}
+.gnb-tab:hover { color: var(--ink-900); }
+.gnb-tab.active { background: #fff; color: var(--ink-950); box-shadow: var(--shadow-1); font-weight: 800; }
+
+/* ---------------------------------------------------------------
+ * 8. 히어로 광고/이벤트 슬라이더 (좌: 업체 광고, 우: 이벤트) — 동일한 카드 규격 공유
+ * --------------------------------------------------------------- */
+.hero-ad-card {
+    position: relative; border-radius: var(--r-2xl); overflow: hidden;
+    height: 350px; background: var(--ink-100); box-shadow: var(--shadow-2);
+}
+@media (min-width: 640px) { .hero-ad-card { height: 460px; } }
+
+/* 관리자 편집창의 광고판 미리보기 — 실제 등록 창(포스터 이미지 업로드 카드)과 비슷한 크기로 고정 노출. */
+#pamphlet-live-preview.event-banner { height: 300px; }
+
+/* 상세페이지 배너(큰 와이드 이미지) 및 편집창의 상세페이지 이미지 미리보기 — 항상 16:9 비율로 통일해서
+ * 어떤 사진을 올려도 프레임이 일정하게 나온다. */
+#pamphlet-detail-img, #pamphlet-detail-live-preview {
+    width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
+}
+#pamphlet-detail-live-preview { position: relative; overflow: hidden; border-radius: var(--r-2xl); background: var(--ink-100); }
+
+.hero-ad-card > img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;
+}
+.hero-ad-overlay {
+    position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(0deg, rgba(6,9,16,.85) 0%, rgba(6,9,16,.38) 45%, rgba(6,9,16,0) 72%);
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 18px; cursor: pointer;
+}
+@media (min-width: 640px) { .hero-ad-overlay { padding: 26px; } }
+
+/* 슬라이드 좌우 대형 내비게이션 버튼 (좌/우 광고·이벤트 카드 공용)
+ * z-index를 카드 내부 콘텐츠(최대 z-10)보다 확실히 높여 클릭이 가로채이지 않도록 함.
+ * 마우스 호버 지원 기기에서는 평소엔 숨겨두고 카드에 마우스를 올리면 나타남
+ * (터치 기기는 호버가 없으므로 항상 노출). */
+.hero-nav-btn {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 40px; height: 40px; border-radius: 999px; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(11,18,32,.38); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    color: #fff; border: 1px solid rgba(255,255,255,.22);
+    cursor: pointer; transition: background var(--dur-slow) var(--ease-out), opacity var(--dur-slow) var(--ease-out);
+}
+.hero-nav-btn:hover { background: rgba(11,18,32,.62); }
+.hero-nav-btn.left { left: 12px; }
+.hero-nav-btn.right { right: 12px; }
+@media (min-width: 640px) {
+    .hero-nav-btn { width: 52px; height: 52px; }
+    .hero-nav-btn.left { left: 18px; }
+    .hero-nav-btn.right { right: 18px; }
+}
+@media (hover: hover) {
+    .hero-nav-btn { opacity: 0; }
+    .hero-ad-card:hover .hero-nav-btn,
+    .hero-nav-btn:focus-visible { opacity: 1; }
+}
+
+/* ---------------------------------------------------------------
+ * 9. 포트폴리오 카드 — 매거진 스타일 그리드 타일
+ * --------------------------------------------------------------- */
+.portfolio-card {
+    background: #fff; border-radius: var(--r-xl); overflow: hidden;
+    border: 1px solid var(--ink-100); box-shadow: var(--shadow-1);
+    transition: all var(--dur-slow) var(--ease-out); cursor: pointer;
+}
+.portfolio-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-3); border-color: var(--ink-200); }
+/* 어떤 사진을 올려도 카드 비율이 항상 일정하게 유지되도록 고정 비율(aspect-ratio) 사용 —
+ * 컨테이너 폭이 유동적인 그리드에서도 크롭이 예측 가능하다. */
+.portfolio-img { position: relative; overflow: hidden; aspect-ratio: 4 / 3; background: var(--ink-100); }
+.portfolio-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .7s var(--ease-out); }
+.portfolio-card:hover .portfolio-img img { transform: scale(1.06); }
+.portfolio-img::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(0deg, rgba(6,9,16,.4) 0%, rgba(6,9,16,0) 42%);
+    opacity: 0; transition: opacity var(--dur-slow) var(--ease-out); pointer-events: none;
+}
+.portfolio-card:hover .portfolio-img::after { opacity: 1; }
+
+/* ---------------------------------------------------------------
+ * 9b. 포트폴리오 본문 콘텐츠 — 작성 화면(.blog-body-editor)과 고객이 보는 상세 화면
+ * (#blog-modal-scenes-feed)이 똑같은 .blog-body-content 규칙을 공유한다.
+ * 네이버 블로그처럼 사진과 글이 한 문서 안에서 자유 순서로 흐르는 구성이며,
+ * 사진은 테두리/둥근 모서리 없이 원본 비율 그대로 노출한다(가로/세로 모두).
+ * 사진이 화면 폭에 맞춰 과하게 커지지 않도록, 작성 화면(.blog-body-editor)과 고객이
+ * 보는 상세 화면(#blog-modal-scenes-feed를 감싸는 wrapper)을 모두 네이버 블로그의
+ * 기본 문서 너비(780px)로 맞춰뒀다 — 사진은 이 안에서 100% 폭으로 채워지므로 두 화면의
+ * 사진 크기가 항상 똑같다.
+ * --------------------------------------------------------------- */
+/* 고객이 보는 상세 페이지의 제목/개요/본문을 모두 감싸는 컨테이너 — 네이버 블로그 기본
+ * 문서 너비(780px)로 제한해 사진 크기가 작성 화면(.blog-body-editor)과 항상 똑같게 한다.
+ * (Tailwind의 임의값 클래스 대신 일반 CSS로 둬서 항상 안정적으로 적용되게 했다.) */
+.portfolio-detail-col { max-width: 780px; margin-left: auto; margin-right: auto; }
+
+.blog-lead-text {
+    border-left: 3px solid var(--brand-500); padding-left: 18px;
+    font-size: 14px; line-height: 1.75; font-weight: 700; color: var(--ink-700); text-align: left;
+}
+
+.blog-body-content { text-align: left; font-size: 14px; font-weight: 600; color: var(--ink-700); line-height: 1.85; }
+.blog-body-content p { margin: 0 0 14px; white-space: pre-wrap; }
+.blog-body-content p:last-child { margin-bottom: 0; }
+/* 브라우저가 Enter 입력에 <p> 대신 <div>로 새 줄을 만드는 경우에 대비한 안전장치 —
+ * <p>와 똑같은 줄 간격을 갖도록 해서 문단 사이 간격이 갑자기 좁아 보이지 않게 한다. */
+.blog-body-content > div { margin: 0 0 14px; white-space: pre-wrap; }
+.blog-body-content > div:last-child { margin-bottom: 0; }
+.blog-body-content img {
+    max-width: 100%; width: 100%; height: auto; border-radius: 0; border: none;
+    display: block; margin: 4px 0 14px; background: var(--ink-100);
+}
+/* 확대(돋보기) 커서는 실제로 클릭하면 확대되는 고객용 상세 화면에서만 보여준다 —
+ * 작성 화면에서는 클릭해도 확대되지 않으므로(사진 위/아래 이동·삭제 버튼만 뜬다)
+ * 돋보기 커서 대신 기본 커서를 쓴다. */
+#blog-modal-scenes-feed img { cursor: zoom-in; }
+/* 사진 두 장을 한 줄에 나란히 배치하는 "듀오" 레이아웃 — 여러 장을 한 번에 선택해 삽입하면
+ * 자동으로 묶인다. 이 경우에만 높이를 맞추기 위해 aspect-ratio + object-fit:cover를 쓴다
+ * (사진 한 장짜리는 원본 비율 그대로 유지). */
+.blog-body-content .blog-img-row { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 14px; }
+.blog-body-content .blog-img-row img { width: 100%; height: 100%; aspect-ratio: 1 / 1; object-fit: cover; margin: 0; }
+.blog-body-content .blog-img-wrap { position: relative; display: block; }
+.blog-body-content hr { border: none; border-top: 1.5px solid var(--ink-200); margin: 22px 0; }
+.blog-body-content blockquote {
+    border-left: 3px solid var(--brand-500); padding-left: 16px; margin: 16px 0;
+    color: var(--ink-600); font-weight: 700;
+}
+/* 본문 기본 글자 두께(600)와 뚜렷하게 구분되도록 굵게는 확실히 더 굵은 두께를 쓴다. */
+.blog-body-content strong, .blog-body-content b { font-weight: 900; }
+
+.blog-like-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 14px; border-radius: var(--r-pill);
+    background: var(--ink-50); border: 1px solid var(--ink-100);
+    font-size: 12px; font-weight: 800; color: var(--ink-600);
+    cursor: pointer; transition: all var(--dur-base) var(--ease-out);
+}
+.blog-like-btn:hover { background: var(--rose-50); border-color: #f6d3d5; color: var(--rose-600); }
+.blog-like-btn.liked { background: var(--rose-50); border-color: #f6d3d5; color: var(--rose-600); }
+.blog-like-btn.liked i { fill: currentColor; }
+
+/* ---------------------------------------------------------------
+ * 9c. 포트폴리오 작성/수정 에디터 — 네이버 블로그 에디터처럼 상단 툴바 + 클릭하면
+ * 바로 쓸 수 있는 본문 캔버스로 구성한다. 본문은 .blog-body-content를 그대로 상속하므로
+ * "쓰는 화면 = 보이는 화면"이 자동으로 성립한다.
+ * --------------------------------------------------------------- */
+/* 네이버 블로그 에디터의 기본 문서 너비(보통 폭 780px)와 맞춰 사진이 화면을 꽉 채우며
+ * 과도하게 커지지 않도록 툴바+캔버스를 이 너비로 제한하고 가운데 정렬한다. 아래 사진/듀오행
+ * 규칙은 .blog-body-content를 공유하므로 이 컨테이너 폭 안에서 자동으로 같은 비율로 줄어든다. */
+.blog-editor-toolbar {
+    display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+    padding: 8px; border: 1px solid var(--ink-100); border-radius: var(--r-lg) var(--r-lg) 0 0;
+    background: var(--ink-50);
+    max-width: 780px; margin: 0 auto;
+}
+.blog-editor-tool {
+    display: flex; align-items: center; gap: 4px; padding: 7px 9px; border-radius: var(--r-md);
+    border: none; background: transparent; color: var(--ink-600); font-size: 11px; font-weight: 700; cursor: pointer;
+    transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+.blog-editor-tool:hover { background: var(--ink-100); color: var(--ink-900); }
+.blog-editor-tool.is-active { background: var(--brand-100); color: var(--brand-700); }
+.blog-editor-divider { width: 1px; height: 20px; background: var(--ink-200); margin: 0 4px; }
+
+.blog-body-editor {
+    min-height: 320px; border: 1px solid var(--ink-100); border-top: none;
+    border-radius: 0 0 var(--r-lg) var(--r-lg); padding: 16px; outline: none;
+    max-width: 780px; margin: 0 auto;
+}
+.blog-body-editor:focus { border-color: var(--brand-300); }
+.blog-body-editor:empty::before {
+    content: attr(data-placeholder); color: var(--ink-300); font-weight: 600; pointer-events: none;
+}
+.blog-body-editor .blog-img-wrap .blog-img-remove-btn {
+    position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(6,9,16,.6); color: #fff; border: none; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; opacity: 0; transition: opacity var(--dur-base) var(--ease-out); z-index: 2;
+}
+.blog-body-editor .blog-img-wrap:hover .blog-img-remove-btn { opacity: 1; }
+
+/* 사진(또는 나란히 배치된 듀오 묶음)마다 마우스를 올리면 나오는 위/아래 이동 버튼 —
+ * 단일 사진은 .blog-img-wrap 왼쪽 위, 듀오 묶음은 .blog-img-row 왼쪽 위에 함께 표시된다. */
+.blog-body-editor .blog-img-move-controls {
+    position: absolute; top: 8px; left: 8px; display: flex; flex-direction: column; gap: 4px;
+    opacity: 0; transition: opacity var(--dur-base) var(--ease-out); z-index: 2;
+}
+.blog-body-editor .blog-img-wrap:hover .blog-img-move-controls,
+.blog-body-editor .blog-img-row:hover .blog-img-move-controls { opacity: 1; }
+.blog-img-move-btn {
+    width: 26px; height: 26px; border-radius: 50%; background: rgba(6,9,16,.6); color: #fff;
+    border: none; display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: background var(--dur-base) var(--ease-out);
+}
+.blog-img-move-btn:hover { background: rgba(6,9,16,.85); }
+.portfolio-caption-overlay {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 16px; z-index: 2; color: #fff;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(6,9,16,.78) 100%);
+}
+
+/* ---------------------------------------------------------------
+ * 10. 모달
+ * --------------------------------------------------------------- */
+.modal-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(8,12,22,.62); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+/* Tailwind's .hidden utility and this stylesheet have equal specificity; this
+   higher-specificity override guarantees .hidden always wins regardless of
+   <link>/<script> load order. Scoped to .modal-overlay only (not a blanket
+   .hidden{display:none!important}) so it never fights Tailwind's responsive
+   show/hide pairs elsewhere (hidden md:flex, sm:hidden, etc.). */
+.modal-overlay.hidden { display: none !important; }
+.modal-card {
+    background: #fff; border-radius: var(--r-2xl); border: 1px solid var(--ink-100);
+    box-shadow: var(--shadow-3);
+    transform: scale(.96); opacity: 0;
+    transition: transform var(--dur-base) var(--ease-spring), opacity var(--dur-base) var(--ease-out);
+}
+.modal-card.modal-open { transform: scale(1); opacity: 1; }
+.modal-full { border-radius: 0; }
+@media (min-width: 640px) { .modal-full { border-radius: var(--r-2xl); } }
+
+@keyframes tossSlideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.toss-modal-content { animation: tossSlideUp .32s var(--ease-out) forwards; }
+
+/* ---------------------------------------------------------------
+ * 11. 아티클(시공기) / 스펙칩
+ * --------------------------------------------------------------- */
+.article-header-badge { background: var(--brand-50); color: var(--brand-600); padding: 4px 10px; border-radius: var(--r-xs); font-size: 11px; font-weight: 800; }
+.article-spec-chip {
+    background: var(--ink-50); border: 1px solid var(--ink-100); padding: 12px 14px; border-radius: var(--r-md);
+    font-size: 11.5px; color: var(--ink-500); display: flex; flex-direction: column; gap: 3px;
+}
+.article-spec-chip .val { font-weight: 900; color: var(--ink-950); font-size: 13px; }
+
+/* ---------------------------------------------------------------
+ * 12. 빈 상태 / 스켈레톤
+ * --------------------------------------------------------------- */
+.empty-state { text-align: center; padding: 56px 24px; }
+.empty-state .icon-wrap {
+    width: 52px; height: 52px; border-radius: var(--r-md); background: var(--ink-100); color: var(--ink-400);
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;
+}
+
+@keyframes wjPulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+.skeleton { background: var(--ink-100); border-radius: var(--r-sm); animation: wjPulse 1.4s ease-in-out infinite; }
+
+/* ---------------------------------------------------------------
+ * 13. 테이블
+ * --------------------------------------------------------------- */
+.table-clean { width: 100%; text-align: left; border-collapse: collapse; }
+.table-clean thead th {
+    font-size: 10.5px; font-weight: 800; color: var(--ink-400); text-transform: uppercase; letter-spacing: .04em;
+    padding: 12px 20px; background: var(--ink-50); border-bottom: 1px solid var(--ink-100);
+}
+.table-clean tbody td { padding: 14px 20px; font-size: 12px; font-weight: 700; color: var(--ink-700); }
+.table-clean tbody tr { border-bottom: 1px solid var(--ink-100); transition: background var(--dur-fast); }
+.table-clean tbody tr:hover { background: var(--ink-50); }
+.table-clean tbody tr:last-child { border-bottom: 0; }
+
+/* ---------------------------------------------------------------
+ * 14. 이벤트 슬라이더 배너
+ * --------------------------------------------------------------- */
+.event-banner { position: relative; border-radius: var(--r-2xl); overflow: hidden; cursor: pointer; min-height: 190px; }
+.event-banner .glow-a { position: absolute; right: -32px; bottom: -32px; width: 190px; height: 190px; border-radius: 50%; background: rgba(255,255,255,.1); filter: blur(30px); pointer-events: none; }
+.event-banner .glow-b { position: absolute; right: 28%; top: -40px; width: 145px; height: 145px; border-radius: 50%; background: rgba(76,123,255,.25); filter: blur(22px); pointer-events: none; }
+
+/* 팜플렛에 사진을 등록한 경우: 사진을 배경 전체에 채우고 그 위에 텍스트를 얹는 포스터형 레이아웃
+ * (관리자 콘솔 > 노출 관리 > 팜플렛 편집에서 사진 업로드 시 적용) */
+.event-banner .event-banner-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+.event-banner .event-banner-scrim {
+    position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(180deg, rgba(6,9,16,.80) 0%, rgba(6,9,16,.20) 34%, rgba(6,9,16,.06) 58%, rgba(6,9,16,.62) 100%);
+}
+
+/* ---------------------------------------------------------------
+ * 15. 반응형 유틸
+ * --------------------------------------------------------------- */
+@media (min-width: 640px) { .type-display-lg { font-size: 44px; } }
+
+/* KPI 카드 */
+.kpi-card { background: #fff; border-radius: var(--r-lg); padding: 22px; border: 1px solid var(--ink-100); box-shadow: var(--shadow-1); position: relative; }
+.kpi-card::before { content: ''; position: absolute; left: 0; top: 16px; bottom: 16px; width: 3px; border-radius: 3px; background: var(--accent, var(--brand-500)); }
+
+/* 라이트박스 */
+.lightbox-backdrop { background: rgba(4,6,12,.94); }
+
+/* 알림 아이콘 래퍼 */
+.toast-icon-wrap { width: 50px; height: 50px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.03); }
+
+/* ---------------------------------------------------------------
+ * 16. 안심 계약 진행상황 스테퍼 — 파트너 오더 상세 모달과 관리자 파트너 성과 모달이
+ * 공유한다 (renderPartnerContractProgressStepperHtml). 입찰 참여 → 계약 매칭 확정 →
+ * 계약서 업로드 → 견적서 업로드 → 수수료 결제 순서를 한눈에 보여준다.
+ * --------------------------------------------------------------- */
+.contract-stepper { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.contract-step { display: flex; align-items: center; gap: 6px; }
+.contract-step:not(:last-child)::after {
+    content: ''; width: 14px; height: 1.5px; background: var(--ink-200); margin-left: 6px; display: inline-block;
+}
+.contract-step-dot {
+    width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 900; background: var(--ink-100); color: var(--ink-400); flex-shrink: 0;
+    transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+.contract-step-label { font-size: 10px; font-weight: 800; color: var(--ink-400); white-space: nowrap; }
+.contract-step.current .contract-step-dot { background: var(--brand-500); color: #fff; }
+.contract-step.current .contract-step-label { color: var(--ink-900); }
+.contract-step.done .contract-step-dot { background: var(--emerald-500); color: #fff; }
+.contract-step.done .contract-step-label { color: var(--ink-700); }
