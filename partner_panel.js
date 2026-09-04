@@ -218,7 +218,8 @@ function renderPartnerSearchGrid() {
     const input = document.getElementById('partner-search-input');
     const query = input ? input.value.trim().toLowerCase() : '';
 
-    const partners = window.AppState.partners || [];
+    // 입점 심사 대기(pending)·제명(banned) 파트너는 고객 대상 공개 탐색 페이지에 노출하지 않는다.
+    const partners = (window.AppState.partners || []).filter(p => p.status !== 'pending' && p.status !== 'banned');
     const filtered = partners.filter(p => !query || p.name.toLowerCase().includes(query) || (p.promoSlogan && p.promoSlogan.toLowerCase().includes(query)));
 
     if (filtered.length === 0) {
@@ -268,19 +269,22 @@ function switchAdminMode(mode) {
     window.AppState.adminConsoleMode = mode;
     const tabBar = document.getElementById('admin-console-tab-bar');
     if (tabBar) {
+        const pendingCount = (window.AppState.partners || []).filter(p => p.status === 'pending').length;
         const tabs = [
             ['allocation', '💰 수동 오더 배정관'], ['monitor', '🏢 파트너 모니터링'],
+            ['applications', `🧾 파트너 가입 심사${pendingCount > 0 ? ` (${pendingCount})` : ''}`],
             ['blacklist', '🛡️ 삼진아웃 블랙리스트 DB'], ['logs', '📋 플랫폼 관제 로그'],
             ['display', '🖼️ 노출 관리']
         ];
         tabBar.innerHTML = tabs.map(([id, label]) => `<button type="button" id="btn-admin-view-${id}" onclick="switchAdminMode('${id}')" class="gnb-tab ${mode === id ? 'active' : ''}">${label}</button>`).join('');
     }
 
-    ['allocation', 'monitor', 'blacklist', 'logs', 'display'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
+    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
     document.getElementById(`admin-mode-${mode}-view`)?.classList.remove('hidden');
 
     if (mode === 'allocation') renderAdminOrderAllocation();
     else if (mode === 'monitor') renderAdminPartnerMonitor();
+    else if (mode === 'applications') renderAdminPartnerApplications();
     else if (mode === 'blacklist') renderBlacklistDb();
     else if (mode === 'logs') syncAuditLogs();
     else if (mode === 'display') renderAdminDisplayManager();
@@ -384,6 +388,16 @@ function validatePartnerLogin() {
             if (errorMsg) { errorMsg.innerText = "❌ 삼진아웃제 규정에 따라 영구 제명 처리된 불량 사업자망 계정입니다."; errorMsg.classList.remove('hidden'); }
             return;
         }
+        if (partner.status === 'pending') {
+            showToast("⏳ 아직 매니저 센터의 입점 심사가 진행 중인 계정입니다. 사업자등록증 확인 후 승인되면 로그인하실 수 있어요.", "info");
+            if (errorMsg) { errorMsg.innerText = "⏳ 입점 신청 검토 대기 중입니다. 승인 완료 후 로그인해 주세요."; errorMsg.classList.remove('hidden'); }
+            return;
+        }
+        if (partner.status === 'rejected') {
+            showToast(`❌ 입점 신청이 반려되었습니다.${partner.rejectReason ? ' 사유: ' + partner.rejectReason : ''}`, "warning");
+            if (errorMsg) { errorMsg.innerText = "❌ 입점 신청이 반려된 계정입니다."; errorMsg.classList.remove('hidden'); }
+            return;
+        }
         window.AppState.partnerLoggedIn = true;
         window.AppState.partnerName = partner.name;
         errorMsg?.classList.add('hidden');
@@ -403,6 +417,83 @@ function partnerLogout() {
     document.getElementById('partner-audit-empty')?.classList.remove('hidden');
     document.getElementById('partner-audit-details')?.classList.add('hidden');
     showToast('안전하게 로그아웃 되었습니다.', 'info');
+}
+
+/* ----------------------------------------------------------------
+ * 파트너 입점 신청 (회원가입) — 사업자등록증 업로드 후 매니저 승인 대기(status: 'pending')
+ * 상태로 등록되며, 매니저 콘솔 > 파트너 가입 심사 탭에서 승인/거절 처리한다.
+ * ---------------------------------------------------------------- */
+function switchPartnerAuthTab(tab) {
+    const loginTabBtn = document.getElementById('partner-tab-login');
+    const signupTabBtn = document.getElementById('partner-tab-signup');
+    const loginPane = document.getElementById('partner-login-pane');
+    const signupPane = document.getElementById('partner-signup-pane');
+    if (!loginTabBtn || !signupTabBtn || !loginPane || !signupPane) return;
+
+    if (tab === 'signup') {
+        signupTabBtn.classList.add('active'); loginTabBtn.classList.remove('active');
+        signupPane.classList.remove('hidden'); loginPane.classList.add('hidden');
+    } else {
+        loginTabBtn.classList.add('active'); signupTabBtn.classList.remove('active');
+        loginPane.classList.remove('hidden'); signupPane.classList.add('hidden');
+    }
+}
+
+let _partnerSignupBizCertDraft = null;
+
+function triggerPartnerBizCertUpload() {
+    document.getElementById('partner-signup-bizcert-input')?.click();
+}
+
+function handlePartnerBizCertUpload(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) { showToast('파일 용량은 15MB 이하로 올려주세요.', 'warning'); return; }
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+        showToast('이미지 또는 PDF 파일만 업로드할 수 있어요.', 'warning'); return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        _partnerSignupBizCertDraft = { name: file.name, uploadedAt: new Date().toLocaleString('ko-KR'), dataUrl: e.target.result };
+        safeUpdateText('partner-signup-bizcert-filename', `📎 ${file.name}`);
+        showToast('사업자등록증이 첨부되었습니다.', 'success');
+    };
+    reader.onerror = () => showToast('파일을 읽는 중 문제가 발생했습니다. 다시 시도해주세요.', 'error');
+    reader.readAsDataURL(file);
+}
+
+function submitPartnerSignup() {
+    const company = document.getElementById('partner-signup-company')?.value.trim();
+    const phone = document.getElementById('partner-signup-phone')?.value.trim();
+    const bizNum = document.getElementById('partner-signup-biznum')?.value.trim();
+    const idVal = document.getElementById('partner-signup-id')?.value.trim();
+    const pwVal = document.getElementById('partner-signup-pw')?.value;
+    const pw2Val = document.getElementById('partner-signup-pw2')?.value;
+
+    if (!company || !phone || !bizNum || !idVal || !pwVal || !pw2Val) {
+        showToast('필수 항목을 모두 입력해 주세요.', 'warning'); return;
+    }
+    if (pwVal !== pw2Val) { showToast('비밀번호가 일치하지 않습니다.', 'warning'); return; }
+    if (window.AppState.partners.some(p => p.id === idVal)) { showToast('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.', 'warning'); return; }
+    if (!_partnerSignupBizCertDraft) { showToast('사업자등록증 파일을 첨부해 주세요.', 'warning'); return; }
+
+    const now = new Date().toLocaleString('ko-KR');
+    window.AppState.partners.push({
+        name: company, id: idVal, pw: pwVal, bizFile: bizNum, phone,
+        rating: 5.0, strikeCount: 0, status: 'pending', suspensionEndDate: null, isCertified: false,
+        appliedAt: now, bizCertDoc: _partnerSignupBizCertDraft,
+        portfolios: [], reviews: []
+    });
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'SIGNUP_REQUEST', `'${company}'(${idVal}) 입점 신청 접수 — 매니저 승인 대기.`, 'INFO');
+    showToast(`입점 신청이 접수되었습니다!\n매니저 센터 검토 후 승인되면 로그인하실 수 있어요.`, 'success');
+
+    _partnerSignupBizCertDraft = null;
+    ['partner-signup-company', 'partner-signup-phone', 'partner-signup-biznum', 'partner-signup-id', 'partner-signup-pw', 'partner-signup-pw2'].forEach(id => safeUpdateValue(id, ''));
+    safeUpdateText('partner-signup-bizcert-filename', '선택된 파일 없음');
+    switchPartnerAuthTab('login');
 }
 
 function renderPartnerOrderList() {
@@ -1166,6 +1257,96 @@ function togglePartnerCertification(partnerName) {
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
 }
 
+/* ----------------------------------------------------------------
+ * 매니저 콘솔 > 파트너 가입 심사 (입점 신청 승인/거절)
+ * ---------------------------------------------------------------- */
+function isImageBizCertDoc(doc) {
+    if (!doc || !doc.dataUrl) return false;
+    if (doc.dataUrl.startsWith('data:application/pdf')) return false;
+    if (doc.dataUrl.startsWith('data:image')) return true;
+    return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(doc.name || doc.dataUrl);
+}
+
+function renderAdminPartnerApplications() {
+    const container = document.getElementById('admin-partner-applications-list');
+    if (!container) return;
+
+    const pending = (window.AppState.partners || []).filter(p => p.status === 'pending');
+    if (pending.length === 0) {
+        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap" style="background:var(--emerald-50);color:var(--emerald-600)"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">현재 심사 대기 중인 입점 신청이 없습니다.</p></div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = pending.map(p => {
+        const doc = p.bizCertDoc;
+        const isImg = isImageBizCertDoc(doc);
+        const docPreview = doc
+            ? (isImg
+                ? `<img src="${doc.dataUrl}" alt="사업자등록증" class="w-full h-40 object-cover rounded-xl border border-ink-100 cursor-pointer" onclick="viewPartnerBizCertDoc('${p.id}')">`
+                : `<button type="button" onclick="viewPartnerBizCertDoc('${p.id}')" class="btn btn-secondary btn-sm btn-block"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> ${doc.name || '첨부파일'} 열기</button>`)
+            : `<div class="p-3 bg-rose-50 rounded-xl border border-dashed border-roseCustom/40 text-center"><p class="text-[10px] text-roseCustom font-bold">첨부된 사업자등록증이 없습니다.</p></div>`;
+
+        return `
+            <div class="surface p-5 space-y-4 text-left flex flex-col justify-between">
+                <div class="space-y-3">
+                    <div class="flex justify-between items-start gap-2">
+                        <div class="space-y-1">
+                            <span class="badge badge-amber">심사 대기</span>
+                            <h4 class="text-sm font-black text-ink-950">${p.name}</h4>
+                            <p class="text-[10px] text-ink-400 font-mono">신청일시: ${p.appliedAt || '-'}</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-[11px] font-bold text-ink-600 bg-ink-50 p-3 rounded-xl border border-ink-100">
+                        <span>아이디: <b class="text-ink-900">${p.id}</b></span>
+                        <span>연락처: <b class="text-ink-900">${p.phone || '-'}</b></span>
+                        <span class="col-span-2">사업자등록번호: <b class="text-ink-900 font-mono">${p.bizFile || '-'}</b></span>
+                    </div>
+                    <div class="space-y-1.5">
+                        <span class="text-[11px] font-black text-ink-500">사업자등록증</span>
+                        ${docPreview}
+                    </div>
+                </div>
+                <div class="pt-3 border-t border-ink-100 space-y-2">
+                    <input type="text" id="partner-app-reject-reason-${p.id}" placeholder="거절 사유 (선택 입력)" class="input text-xs">
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="approvePartnerApplication('${p.id}')" class="btn btn-primary btn-sm flex-1">✅ 승인</button>
+                        <button type="button" onclick="rejectPartnerApplication('${p.id}')" class="btn btn-secondary btn-sm flex-1">❌ 거절</button>
+                    </div>
+                </div>
+            </div>`;
+    }).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function viewPartnerBizCertDoc(partnerId) {
+    const partner = (window.AppState.partners || []).find(p => p.id === partnerId);
+    const doc = partner ? partner.bizCertDoc : null;
+    if (!doc || !doc.dataUrl) { showToast('업로드된 사업자등록증을 찾을 수 없습니다.', 'warning'); return; }
+    window.open(doc.dataUrl, '_blank');
+}
+
+function approvePartnerApplication(partnerId) {
+    const partner = (window.AppState.partners || []).find(p => p.id === partnerId);
+    if (!partner) return;
+    partner.status = 'active';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_APPROVE', `[입점 승인] '${partner.name}'(${partner.id}) 파트너 계정을 승인했습니다.`, 'SUCCESS');
+    showToast(`✅ [${partner.name}] 파트너사의 입점을 승인했습니다.`, 'success');
+    switchAdminMode('applications');
+}
+
+function rejectPartnerApplication(partnerId) {
+    const partner = (window.AppState.partners || []).find(p => p.id === partnerId);
+    if (!partner) return;
+    const reasonInput = document.getElementById(`partner-app-reject-reason-${partnerId}`);
+    const reason = reasonInput ? reasonInput.value.trim() : '';
+    partner.status = 'rejected';
+    partner.rejectReason = reason || '매니저 센터 검토 결과 반려';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_REJECT', `[입점 거절] '${partner.name}'(${partner.id}) 입점 신청을 거절했습니다. 사유: ${partner.rejectReason}`, 'WARNING');
+    showToast(`❌ [${partner.name}] 파트너사의 입점 신청을 거절했습니다.`, 'info');
+    switchAdminMode('applications');
+}
+
 function renderBlacklistDb() {
     const tbody = document.getElementById('admin-blacklist-tbody');
     if (!tbody) return;
@@ -1529,4 +1710,12 @@ window.triggerPartnerDocUpload = triggerPartnerDocUpload;
 window.handlePartnerDocUpload = handlePartnerDocUpload;
 window.openUploadedPartnerDoc = openUploadedPartnerDoc;
 window.payPartnerCommission = payPartnerCommission;
+window.switchPartnerAuthTab = switchPartnerAuthTab;
+window.triggerPartnerBizCertUpload = triggerPartnerBizCertUpload;
+window.handlePartnerBizCertUpload = handlePartnerBizCertUpload;
+window.submitPartnerSignup = submitPartnerSignup;
+window.renderAdminPartnerApplications = renderAdminPartnerApplications;
+window.viewPartnerBizCertDoc = viewPartnerBizCertDoc;
+window.approvePartnerApplication = approvePartnerApplication;
+window.rejectPartnerApplication = rejectPartnerApplication;
 window.savePartnerFinalContractAmount = savePartnerFinalContractAmount;

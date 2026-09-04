@@ -468,15 +468,56 @@
                 <div id="partner-login-card" class="surface surface-lg p-6 sm:p-8 space-y-6">
                     <div class="space-y-2 text-center">
                         <span class="w-12 h-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center mx-auto" style="box-shadow:var(--shadow-brand)"><i data-lucide="building" class="w-6 h-6"></i></span>
-                        <h3 class="text-lg font-black text-ink-950 tracking-tight pt-1">파트너 센터 로그인</h3>
-                        <p class="text-xs text-ink-500 font-medium">검증된 시공 파트너사 전속 계정으로 인증하세요.</p>
+                        <h3 class="text-lg font-black text-ink-950 tracking-tight pt-1">파트너 센터</h3>
+                        <p class="text-xs text-ink-500 font-medium">검증된 시공 파트너사 전속 계정으로 인증하거나, 새로 입점을 신청하세요.</p>
                     </div>
-                    <form class="space-y-4" onsubmit="event.preventDefault();">
-                        <div><label class="field-label">파트너 마스터 아이디</label><input type="text" id="partner-login-id" placeholder="아이디 입력 (orukdo)" class="input"></div>
-                        <div><label class="field-label">안심 마스터 비밀번호</label><input type="password" id="partner-pw" placeholder="비밀번호 입력 (아무거나)" class="input"></div>
-                        <p id="login-error-msg" class="hidden text-[11px] text-roseCustom font-bold leading-tight">⚠️ 아이디 또는 비밀번호가 일치하지 않습니다.</p>
-                        <button type="button" onclick="validatePartnerLogin()" class="btn btn-primary btn-lg btn-block">안전 마스터 계정 로그인</button>
-                    </form>
+
+                    <div class="segmented">
+                        <button type="button" id="partner-tab-login" onclick="switchPartnerAuthTab('login')" class="active">로그인</button>
+                        <button type="button" id="partner-tab-signup" onclick="switchPartnerAuthTab('signup')">파트너 입점 신청</button>
+                    </div>
+
+                    <div id="partner-login-pane" class="space-y-4">
+                        <form class="space-y-4" onsubmit="event.preventDefault();">
+                            <div><label class="field-label">파트너 마스터 아이디</label><input type="text" id="partner-login-id" placeholder="아이디 입력 (orukdo)" class="input"></div>
+                            <div><label class="field-label">안심 마스터 비밀번호</label><input type="password" id="partner-pw" placeholder="비밀번호 입력 (아무거나)" class="input"></div>
+                            <p id="login-error-msg" class="hidden text-[11px] text-roseCustom font-bold leading-tight">⚠️ 아이디 또는 비밀번호가 일치하지 않습니다.</p>
+                            <button type="button" onclick="validatePartnerLogin()" class="btn btn-primary btn-lg btn-block">안전 마스터 계정 로그인</button>
+                            <p class="text-[11px] text-ink-500 font-semibold text-center">아직 입점 계정이 없으신가요? <button type="button" onclick="switchPartnerAuthTab('signup')" class="text-brand-600 font-black underline bg-transparent border-0 cursor-pointer">입점 신청하기</button></p>
+                        </form>
+                    </div>
+
+                    <div id="partner-signup-pane" class="hidden space-y-4">
+                        <p class="text-[11px] text-ink-500 font-bold leading-relaxed">💡 사업자등록증을 첨부해 입점을 신청하시면, 매니저 센터 검토 후 승인된 계정으로 로그인하실 수 있어요.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div><label class="field-label">업체명 <span class="req">*</span></label>
+                                <input type="text" id="partner-signup-company" placeholder="상호명 입력" class="input"></div>
+                            <div><label class="field-label">담당자 연락처 <span class="req">*</span></label>
+                                <input type="text" id="partner-signup-phone" oninput="handlePhoneInput(this)" placeholder="010-0000-0000" maxlength="13" class="input"></div>
+                        </div>
+                        <div><label class="field-label">사업자등록번호 <span class="req">*</span></label>
+                            <input type="text" id="partner-signup-biznum" placeholder="000-00-00000" class="input"></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div><label class="field-label">사용할 아이디 <span class="req">*</span></label>
+                                <input type="text" id="partner-signup-id" placeholder="영문/숫자 아이디" class="input"></div>
+                            <div><label class="field-label">비밀번호 <span class="req">*</span></label>
+                                <input type="password" id="partner-signup-pw" placeholder="비밀번호" class="input"></div>
+                        </div>
+                        <div><label class="field-label">비밀번호 확인 <span class="req">*</span></label>
+                            <input type="password" id="partner-signup-pw2" placeholder="비밀번호 다시 입력" class="input"></div>
+
+                        <div class="space-y-2 pt-2 border-t border-ink-100">
+                            <label class="field-label mb-0">사업자등록증 첨부 <span class="req">*</span></label>
+                            <input type="file" id="partner-signup-bizcert-input" accept="image/*,application/pdf" class="hidden" onchange="handlePartnerBizCertUpload(this)">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <button type="button" onclick="triggerPartnerBizCertUpload()" class="btn btn-secondary btn-sm shrink-0">파일 선택</button>
+                                <span id="partner-signup-bizcert-filename" class="text-[11px] text-ink-500 font-semibold">선택된 파일 없음</span>
+                            </div>
+                            <p class="field-hint">이미지 또는 PDF 파일, 15MB 이하로 업로드해 주세요.</p>
+                        </div>
+
+                        <button type="button" onclick="submitPartnerSignup()" class="btn btn-dark btn-block">입점 신청서 제출하기</button>
+                    </div>
                 </div>
             </div>
 
@@ -646,6 +687,16 @@
                             <input type="text" id="admin-partner-search" oninput="renderAdminPartnerMonitor()" placeholder="업체명 검색..." class="input w-56">
                         </div>
                         <div id="admin-partner-monitor-list" class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2"></div>
+                    </div>
+                </div>
+
+                <div id="admin-mode-applications-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg p-6 space-y-5 text-left">
+                        <div class="border-b border-ink-100 pb-4 space-y-1">
+                            <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="file-check-2" class="w-4 h-4"></i> 파트너 입점 신청 심사</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">사업자등록증을 확인하고 입점 신청을 승인하거나 거절할 수 있어요. 승인 시 즉시 로그인 가능한 정식 파트너 계정으로 전환됩니다.</p>
+                        </div>
+                        <div id="admin-partner-applications-list" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
                     </div>
                 </div>
 

@@ -182,7 +182,17 @@ window.AppState = {
         { name: '해운대 마린 디자인데크', id: 'marine', pw: '1234', bizFile: '605-88-12345', rating: 4.9, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
         { name: '수영 스페이스 하우징', id: 'suyeong', pw: '1234', bizFile: '617-81-99881', rating: 4.8, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
         { name: '연제 더샵 아키텍처', id: 'yeonje', pw: '1234', bizFile: '602-86-77112', rating: 4.7, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
-        { name: '사상 서부산 스튜디오', id: 'sasang', pw: '1234', bizFile: '609-82-33445', rating: 4.6, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] }
+        { name: '사상 서부산 스튜디오', id: 'sasang', pw: '1234', bizFile: '609-82-33445', rating: 4.6, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
+
+        // 입점 신청 후 매니저 승인을 기다리는 파트너 예시 (status: 'pending'). 승인/거절은
+        // 매니저 콘솔 > 파트너 가입 심사 탭에서 처리한다 (approvePartnerApplication/rejectPartnerApplication 참고).
+        {
+            name: '해운대 클래스 인테리어', id: 'haeundaeclass', pw: 'temp1234', bizFile: '621-05-77812',
+            phone: '010-2233-9981', rating: 5.0, strikeCount: 0, status: 'pending', suspensionEndDate: null, isCertified: false,
+            appliedAt: '2026.09.02 14:20',
+            bizCertDoc: { name: '사업자등록증_해운대클래스.jpg', uploadedAt: '2026.09.02 14:20', dataUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&auto=format&fit=crop&q=80' },
+            portfolios: [], reviews: []
+        }
     ],
 
     orders: [
