@@ -509,6 +509,17 @@ function performClientLogout() {
     showToast("로그아웃 되었습니다.", "info");
 }
 
+/* 상단 내비게이션의 '고객 로그인' 버튼 — 파트너/매니저 로그인 버튼 옆에서
+ * 견적 신청 흐름과 별개로 언제든 고객 로그인/마이페이지에 바로 진입할 수 있게 한다. */
+function handleClientLoginNavClick() {
+    if (window.AppState.clientAuth && window.AppState.clientAuth.loggedIn) {
+        switchPanel('client-mypage-panel');
+    } else {
+        switchPanel('client-panel');
+        if (typeof goToClientStep === 'function') goToClientStep(1);
+    }
+}
+
 function toggleClientAuthUI() {
     const auth = window.AppState.clientAuth;
     const gateway = document.getElementById('client-mypage-gateway');
@@ -516,6 +527,11 @@ function toggleClientAuthUI() {
     const unverifiedCard = document.getElementById('form-auth-unverified');
     const verifiedCard = document.getElementById('form-auth-verified');
     const verifiedUserInfo = document.getElementById('form-verified-user-info');
+
+    const navLabel = document.getElementById('nav-client-login-label');
+    const navLabelM = document.getElementById('nav-client-login-label-m');
+    if (navLabel) navLabel.innerText = auth.loggedIn ? `${auth.name}님` : '고객 로그인';
+    if (navLabelM) navLabelM.innerText = auth.loggedIn ? `${auth.name}님` : '로그인';
 
     if (auth.loggedIn) {
         unverifiedCard?.classList.add('hidden');
@@ -998,6 +1014,7 @@ window.submitClientSignup = submitClientSignup;
 window.loginClientWithId = loginClientWithId;
 window.performClientLogout = performClientLogout;
 window.toggleClientAuthUI = toggleClientAuthUI;
+window.handleClientLoginNavClick = handleClientLoginNavClick;
 window.renderClientMyPage = renderClientMyPage;
 window.selectMyPageEstimate = selectMyPageEstimate;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
