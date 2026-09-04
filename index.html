@@ -707,7 +707,7 @@
                         <div><label class="field-label">매니저 비밀번호</label><input type="password" id="admin-login-pw" placeholder="비밀번호 입력 (1234)" class="input"></div>
                         <p id="admin-login-error-msg" class="hidden text-[11px] text-roseCustom font-bold leading-tight">⚠️ 매니저 계정 정보가 일치하지 않습니다.</p>
                         <button type="button" onclick="validateManagerLogin()" class="btn btn-dark btn-lg btn-block">매니저 인증 및 관제센터 입장</button>
-                        <p class="text-[10px] text-ink-400 font-semibold text-center leading-relaxed">데모 계정 · 최고관리자: admin / 1234&nbsp;&nbsp;|&nbsp;&nbsp;파트너 매니저: manager1 / 1234</p>
+                        <p class="text-[10px] text-ink-400 font-semibold text-center leading-relaxed">데모 최고관리자 계정: admin / 1234&nbsp;&nbsp;|&nbsp;&nbsp;파트너 매니저 계정은 고객 회원가입 후 &lsquo;직원 권한 관리&rsquo; 탭에서 부여할 수 있어요</p>
                     </form>
                 </div>
             </div>
@@ -796,6 +796,25 @@
                             <button type="button" onclick="openPamphletEditor()" class="btn btn-primary btn-sm shrink-0"><i data-lucide="plus" class="w-3.5 h-3.5"></i> 새 팜플렛 추가</button>
                         </div>
                         <div id="admin-pamphlet-list" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <div id="admin-mode-staff-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg p-6 space-y-5 text-left">
+                        <div class="border-b border-ink-100 pb-4 space-y-1">
+                            <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="user-cog" class="w-4 h-4"></i> 직원 권한 관리</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">직원은 일반 고객으로 회원가입한 뒤, 아이디를 검색해 매니저 권한(최고관리자/파트너 매니저)을 부여할 수 있어요.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="text" id="admin-staff-search-input" placeholder="고객 아이디로 검색 (예: busanhome)" class="input flex-1" onkeydown="if(event.key==='Enter') searchClientForManagerGrant()">
+                            <button type="button" onclick="searchClientForManagerGrant()" class="btn btn-dark btn-sm shrink-0">검색</button>
+                        </div>
+                        <div id="admin-staff-search-result"></div>
+                    </div>
+
+                    <div class="surface surface-lg p-6 space-y-4 text-left">
+                        <h5 class="text-xs font-black text-ink-700">현재 매니저 권한 보유 계정</h5>
+                        <div id="admin-staff-granted-list" class="space-y-2"></div>
                     </div>
                 </div>
             </div>

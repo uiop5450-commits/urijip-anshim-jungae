@@ -298,14 +298,14 @@ const ALL_ADMIN_TABS = [
     ['allocation', '💰 수동 오더 배정관'], ['monitor', '🏢 파트너 모니터링'],
     ['applications', '🧾 파트너 가입 심사'],
     ['blacklist', '🛡️ 삼진아웃 블랙리스트 DB'], ['logs', '📋 플랫폼 관제 로그'],
-    ['display', '🖼️ 노출 관리']
+    ['display', '🖼️ 노출 관리'], ['staff', '👥 직원 권한 관리']
 ];
 
 // 'super_admin'은 전체 탭에 접근 가능. 'partner_manager'는 고액 오더 배정(재무),
-// 시스템 로그, 마케팅 노출 관리처럼 상위 권한이 필요한 영역은 제외하고
-// 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
+// 시스템 로그, 마케팅 노출 관리, 직원 권한 부여처럼 상위 권한이 필요한 영역은
+// 제외하고 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
 const ROLE_TAB_ACCESS = {
-    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display'],
+    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff'],
     partner_manager: ['monitor', 'applications', 'blacklist']
 };
 
@@ -331,7 +331,7 @@ function switchAdminMode(mode) {
         tabBar.innerHTML = tabs.map(([id, label]) => `<button type="button" id="btn-admin-view-${id}" onclick="switchAdminMode('${id}')" class="gnb-tab ${mode === id ? 'active' : ''}">${label}</button>`).join('');
     }
 
-    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
+    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
     document.getElementById(`admin-mode-${mode}-view`)?.classList.remove('hidden');
 
     const kpiGrid = document.getElementById('admin-kpi-grid');
@@ -343,6 +343,7 @@ function switchAdminMode(mode) {
     else if (mode === 'blacklist') renderBlacklistDb();
     else if (mode === 'logs') syncAuditLogs();
     else if (mode === 'display') renderAdminDisplayManager();
+    else if (mode === 'staff') renderAdminStaffManager();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -361,20 +362,20 @@ function validateManagerLogin() {
         return;
     }
 
-    const manager = (window.AppState.managers || []).find(m => m.id === idVal && m.pw === pwVal);
-    if (!manager) {
-        if (errorMsg) { errorMsg.innerText = "⚠️ 매니저 계정 정보가 일치하지 않습니다."; errorMsg.classList.remove('hidden'); }
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === idVal && a.pw === pwVal);
+    if (!account || !account.managerRole) {
+        if (errorMsg) { errorMsg.innerText = "⚠️ 매니저 권한이 없는 계정이거나 아이디·비밀번호가 일치하지 않습니다."; errorMsg.classList.remove('hidden'); }
         return;
     }
 
     window.AppState.managerLoggedIn = true;
-    window.AppState.managerName = manager.name;
-    window.AppState.managerRole = manager.role;
+    window.AppState.managerName = account.name;
+    window.AppState.managerRole = account.managerRole;
     errorMsg?.classList.add('hidden');
     toggleManagerConsoleVisibility();
-    const roleLabel = manager.role === 'super_admin' ? '최고관리자' : '파트너 매니저';
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'AUTH', `'${manager.name}'(${roleLabel}) 매니저 계정 접속 승인.`, 'SUCCESS');
-    showToast(`${roleLabel} '${manager.name}'님, 매니저 센터 대시보드에 진입했습니다.`, "success");
+    const roleLabel = account.managerRole === 'super_admin' ? '최고관리자' : '파트너 매니저';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'AUTH', `'${account.name}'(${roleLabel}) 매니저 계정 접속 승인.`, 'SUCCESS');
+    showToast(`${roleLabel} '${account.name}'님, 매니저 센터 대시보드에 진입했습니다.`, "success");
 }
 
 function managerLogout() {
@@ -1422,6 +1423,86 @@ function rejectPartnerApplication(partnerId) {
     switchAdminMode('applications');
 }
 
+/* ----------------------------------------------------------------
+ * 매니저 콘솔 > 직원 권한 관리 (super_admin 전용)
+ * 직원은 별도 계정 없이 일반 고객으로 회원가입한 뒤, 여기서 아이디를 검색해
+ * 매니저 권한(super_admin/partner_manager)을 부여하거나 회수한다.
+ * ---------------------------------------------------------------- */
+function renderAdminStaffManager() {
+    const resultEl = document.getElementById('admin-staff-search-result');
+    if (resultEl) resultEl.innerHTML = '';
+    const input = document.getElementById('admin-staff-search-input');
+    if (input) input.value = '';
+    renderAdminStaffGrantedList();
+}
+
+function searchClientForManagerGrant() {
+    const input = document.getElementById('admin-staff-search-input');
+    const resultEl = document.getElementById('admin-staff-search-result');
+    if (!input || !resultEl) return;
+    const idVal = input.value.trim();
+    if (!idVal) { showToast('검색할 고객 아이디를 입력해 주세요.', 'warning'); return; }
+
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === idVal);
+    if (!account) {
+        resultEl.innerHTML = `<div class="p-4 bg-rose-50 rounded-xl border border-dashed border-roseCustom/40 text-center"><p class="text-xs text-roseCustom font-bold">'${idVal}' 아이디로 가입된 고객 계정을 찾을 수 없습니다.</p></div>`;
+        return;
+    }
+
+    const roleLabel = account.managerRole === 'super_admin' ? '최고관리자' : account.managerRole === 'partner_manager' ? '파트너 매니저' : '일반 고객';
+    resultEl.innerHTML = `
+        <div class="surface-flat p-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="space-y-0.5">
+                <p class="text-sm font-black text-ink-950">${account.name} <span class="text-ink-400 font-bold text-xs">(${account.id})</span></p>
+                <p class="text-[11px] text-ink-500 font-bold">연락처 ${account.phone || '-'} · 현재 권한: <b>${roleLabel}</b></p>
+            </div>
+            <div class="flex items-center gap-1.5 flex-wrap">
+                <button type="button" onclick="grantManagerRole('${account.id}', 'partner_manager')" class="btn btn-secondary btn-sm">파트너 매니저 부여</button>
+                <button type="button" onclick="grantManagerRole('${account.id}', 'super_admin')" class="btn btn-dark btn-sm">최고관리자 부여</button>
+                ${account.managerRole ? `<button type="button" onclick="revokeManagerRole('${account.id}')" class="btn btn-secondary btn-sm">권한 회수</button>` : ''}
+            </div>
+        </div>`;
+}
+
+function grantManagerRole(clientId, role) {
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === clientId);
+    if (!account) return;
+    account.managerRole = role;
+    const roleLabel = role === 'super_admin' ? '최고관리자' : '파트너 매니저';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'STAFF_GRANT', `'${account.name}'(${account.id}) 계정에 ${roleLabel} 권한을 부여했습니다.`, 'SUCCESS');
+    showToast(`✅ [${account.name}]님에게 ${roleLabel} 권한을 부여했습니다.`, 'success');
+    searchClientForManagerGrant();
+    renderAdminStaffGrantedList();
+}
+
+function revokeManagerRole(clientId) {
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === clientId);
+    if (!account) return;
+    account.managerRole = null;
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'STAFF_REVOKE', `'${account.name}'(${account.id}) 계정의 매니저 권한을 회수했습니다.`, 'WARNING');
+    showToast(`[${account.name}]님의 매니저 권한을 회수했습니다.`, 'info');
+    searchClientForManagerGrant();
+    renderAdminStaffGrantedList();
+}
+
+function renderAdminStaffGrantedList() {
+    const listEl = document.getElementById('admin-staff-granted-list');
+    if (!listEl) return;
+    const granted = (window.AppState.clientAccounts || []).filter(a => a.managerRole);
+    if (granted.length === 0) {
+        listEl.innerHTML = `<p class="text-xs text-ink-400 font-bold text-center py-6">매니저 권한이 부여된 계정이 없습니다.</p>`;
+        return;
+    }
+    listEl.innerHTML = granted.map(a => `
+        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl">
+            <div class="space-y-0.5">
+                <p class="text-xs font-black text-ink-900">${a.name} <span class="text-ink-400 font-bold">(${a.id})</span></p>
+                <span class="badge ${a.managerRole === 'super_admin' ? 'badge-brand' : 'badge-neutral'}">${a.managerRole === 'super_admin' ? '최고관리자' : '파트너 매니저'}</span>
+            </div>
+            <button type="button" onclick="revokeManagerRole('${a.id}')" class="btn btn-secondary btn-sm">권한 회수</button>
+        </div>`).join('');
+}
+
 function renderBlacklistDb() {
     const tbody = document.getElementById('admin-blacklist-tbody');
     if (!tbody) return;
@@ -1797,4 +1878,8 @@ window.pauseHeroAutoplay = pauseHeroAutoplay;
 window.resumeHeroAutoplay = resumeHeroAutoplay;
 window.pauseHomeEventAutoplay = pauseHomeEventAutoplay;
 window.resumeHomeEventAutoplay = resumeHomeEventAutoplay;
+window.renderAdminStaffManager = renderAdminStaffManager;
+window.searchClientForManagerGrant = searchClientForManagerGrant;
+window.grantManagerRole = grantManagerRole;
+window.revokeManagerRole = revokeManagerRole;
 window.savePartnerFinalContractAmount = savePartnerFinalContractAmount;

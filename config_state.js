@@ -149,14 +149,6 @@ window.AppState = {
         }
     ],
 
-    // 매니저 센터 로그인 계정. role에 따라 접근 가능한 콘솔 탭이 달라진다
-    // (switchAdminMode의 ROLE_TAB_ACCESS 참고). 'super_admin'은 전체 메뉴,
-    // 'partner_manager'는 파트너 모니터링/가입 심사/블랙리스트만 접근 가능하다.
-    managers: [
-        { id: 'admin', pw: '1234', name: '박서준 대표', role: 'super_admin' },
-        { id: 'manager1', pw: '1234', name: '김민지 매니저', role: 'partner_manager' }
-    ],
-
     partners: [
         {
             name: '오륙도 디자인 실내건축', id: 'orukdo', pw: '1234', bizFile: '602-23-45601',
@@ -301,8 +293,14 @@ window.AppState = {
     ]
 };
 
+// 매니저 권한(managerRole)은 별도 계정 없이 고객 계정에 부여된다 — 직원도 일반
+// 고객처럼 회원가입한 뒤, 매니저 센터 > 직원 권한 관리 탭에서 최고관리자가 아이디를
+// 검색해 'super_admin' 또는 'partner_manager' 권한을 부여/회수한다
+// (grantManagerRole/revokeManagerRole, switchAdminMode의 ROLE_TAB_ACCESS 참고).
+// 아래 'admin' 계정은 최초 부여자가 있어야 하므로 미리 심어둔 부트스트랩 최고관리자다.
 window.AppState.clientAccounts = [
-    { id: 'busanhome', pw: '1234', name: '김도경', phone: '010-1234-5678' }
+    { id: 'busanhome', pw: '1234', name: '김도경', phone: '010-1234-5678', managerRole: null },
+    { id: 'admin', pw: '1234', name: '박서준 대표', phone: '010-0000-0000', managerRole: 'super_admin' }
 ];
 
 window.CONFIG = CONFIG;
