@@ -57,6 +57,7 @@
                     <button type="button" id="tab-home-panel" onclick="switchPanel('home-panel')" class="gnb-tab active"><i data-lucide="sparkles" class="w-3.5 h-3.5"></i> 홈</button>
                     <button type="button" id="tab-client-panel" onclick="switchPanel('client-panel')" class="gnb-tab"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i> 간편 견적 신청</button>
                     <button type="button" id="tab-partner-search-panel" onclick="switchPanel('partner-search-panel')" class="gnb-tab"><i data-lucide="search" class="w-3.5 h-3.5"></i> 인증 파트너 탐색</button>
+                    <button type="button" id="tab-community-panel" onclick="switchPanel('community-panel')" class="gnb-tab"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> 커뮤니티</button>
                     <button type="button" id="tab-client-mypage-panel" onclick="switchPanel('client-mypage-panel')" class="gnb-tab"><i data-lucide="user" class="w-3.5 h-3.5"></i> 마이페이지</button>
                 </div>
 
@@ -72,6 +73,7 @@
                 <button type="button" id="tab-home-panel-m" onclick="switchPanel('home-panel')" class="gnb-tab active shrink-0">홈</button>
                 <button type="button" onclick="switchPanel('client-panel')" class="gnb-tab shrink-0">견적 신청</button>
                 <button type="button" onclick="switchPanel('partner-search-panel')" class="gnb-tab shrink-0">파트너 탐색</button>
+                <button type="button" onclick="switchPanel('community-panel')" class="gnb-tab shrink-0">커뮤니티</button>
                 <button type="button" onclick="switchPanel('client-mypage-panel')" class="gnb-tab shrink-0">마이페이지</button>
             </div>
         </div>
@@ -417,6 +419,52 @@
                     </div>
                 </div>
                 <div id="partner-search-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2"></div>
+            </div>
+        </section>
+
+        <!-- ================================================================ 3.5 COMMUNITY PANEL ================================================================ -->
+        <section id="community-panel" class="hidden space-y-6 transition-all duration-300">
+            <div id="community-list-subview" class="space-y-6">
+                <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-5">
+                        <div class="space-y-1">
+                            <span class="badge badge-brand">이웃과 나누는 이야기</span>
+                            <h3 class="text-base sm:text-lg font-black text-ink-950 flex items-center gap-2 mt-1">
+                                <i data-lucide="message-circle" class="w-5 h-5 text-brand-500"></i>
+                                <span>인테리어 커뮤니티 · 팁 공유</span>
+                            </h3>
+                        </div>
+                        <button type="button" onclick="openCommunityWrite()" class="btn btn-primary"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> 글쓰기</button>
+                    </div>
+                    <div id="community-category-tabs" class="flex items-center flex-wrap gap-1.5"></div>
+                    <div id="community-post-list" class="grid grid-cols-1 gap-3 pt-2"></div>
+                </div>
+            </div>
+
+            <div id="community-detail-subview" class="hidden space-y-4">
+                <button type="button" onclick="closeCommunityDetail()" class="btn btn-ghost btn-sm"><i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> 목록으로</button>
+                <div class="surface surface-lg p-6 sm:p-8 text-left" id="community-detail-content"></div>
+            </div>
+
+            <div id="community-write-subview" class="hidden space-y-6">
+                <div class="surface surface-lg p-6 sm:p-8 space-y-5 text-left">
+                    <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                        <h4 class="text-sm sm:text-base font-black text-ink-950">새 글 작성</h4>
+                        <button type="button" onclick="closeCommunityWrite()" class="btn btn-ghost btn-sm">닫기</button>
+                    </div>
+                    <div><label class="field-label">카테고리</label>
+                        <select id="community-write-category" class="select">
+                            <option value="tip">인테리어 팁</option>
+                            <option value="talk">자유 이야기</option>
+                            <option value="qna">Q&amp;A</option>
+                        </select>
+                    </div>
+                    <div><label class="field-label">제목 <span class="req">*</span></label>
+                        <input type="text" id="community-write-title" placeholder="제목을 입력하세요" class="input"></div>
+                    <div><label class="field-label">내용 <span class="req">*</span></label>
+                        <textarea id="community-write-content" rows="8" placeholder="내용을 입력하세요" class="textarea"></textarea></div>
+                    <button type="button" onclick="submitCommunityPost()" class="btn btn-primary btn-block">등록하기</button>
+                </div>
             </div>
         </section>
 

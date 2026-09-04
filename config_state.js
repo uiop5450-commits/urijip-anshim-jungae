@@ -67,6 +67,50 @@ window.AppState = {
     },
     notifications: [],
 
+    // 커뮤니티 게시판(인테리어 팁/자유 이야기/Q&A) 게시글. category는 'tip'|'talk'|'qna'
+    // (client_panel.js의 COMMUNITY_CATEGORIES 참고). 글쓰기·좋아요·댓글은 고객 로그인 필요.
+    communityPosts: [
+        {
+            id: 'cm-seed-1', category: 'tip',
+            title: '베란다 확장할 때 꼭 체크해야 할 결로 방지 팁',
+            authorName: '한지수', authorId: 'seed-user-1',
+            content: '베란다 확장 공사 견적 받아보니 업체마다 단열재 두께가 천차만별이더라고요. 저희 집은 결로 때문에 고생해서 이번엔 열교차단재랑 우레탄폼 이중 시공으로 넣었는데 확실히 겨울에 냄새랑 곰팡이가 덜해요. 확장 계획 있으신 분들은 견적서에 단열재 스펙(두께, 재질)까지 꼭 명시해달라고 요청하시는 걸 추천드려요.',
+            date: '2026-08-18', likedBy: ['seed-user-2', 'seed-user-3'],
+            comments: [
+                { authorName: '박서연', authorId: 'seed-user-2', text: '완전 공감이요! 저도 결로 때문에 재시공한 적 있어서 이 팁 진짜 유용하네요.', date: '2026-08-19' }
+            ]
+        },
+        {
+            id: 'cm-seed-2', category: 'tip',
+            title: '소형 평수 주방, 상부장 없이도 수납 넉넉하게 쓰는 법',
+            authorName: '김도윤', authorId: 'seed-user-4',
+            content: '18평 신혼집이라 주방이 좁아서 상부장을 없애고 오픈 선반 + 하부장 서랍 위주로 설계했어요. 답답한 느낌도 덜하고, 자주 쓰는 그릇은 선반에 진열하듯 두니까 오히려 인테리어 포인트가 되더라고요. 다만 먼지 관리는 좀 신경 써야 해요.',
+            date: '2026-08-22', likedBy: ['seed-user-1'],
+            comments: []
+        },
+        {
+            id: 'cm-seed-3', category: 'qna',
+            title: '입주 전 사전점검, 인테리어 시공은 언제부터 시작하는 게 좋을까요?',
+            authorName: '이하은', authorId: 'seed-user-5',
+            content: '다음 달 신축 아파트 입주 예정인데, 사전점검 하자보수 끝나기 전에 인테리어 업체 미팅부터 잡아도 될지 궁금합니다. 다들 어느 시점에 견적 신청하셨나요?',
+            date: '2026-08-25', likedBy: [],
+            comments: [
+                { authorName: '한지수', authorId: 'seed-user-1', text: '저는 사전점검 끝나자마자 바로 견적 신청했어요! 미리 상담만 받아두고 계약은 하자보수 확인 후에 하시는 걸 추천드려요.', date: '2026-08-25' },
+                { authorName: '김도윤', authorId: 'seed-user-4', text: '동의합니다. 상담은 미리 여러 곳 받아보시는 게 비교하기 좋더라고요.', date: '2026-08-26' }
+            ]
+        },
+        {
+            id: 'cm-seed-4', category: 'talk',
+            title: '드디어 3개월 대장정 끝내고 입주했어요 🎉',
+            authorName: '정민준', authorId: 'seed-user-6',
+            content: '견적 비교하고 계약하고 시공 끝날 때까지 정말 우여곡절 많았는데, 오늘 드디어 입주했습니다. 여기서 견적 비교하고 파트너사 후기 참고했던 게 정말 도움 많이 됐어요. 다들 좋은 시공사 만나셔서 예쁜 집 완성하시길 바라요!',
+            date: '2026-08-29', likedBy: ['seed-user-1', 'seed-user-2', 'seed-user-4'],
+            comments: [
+                { authorName: '이하은', authorId: 'seed-user-5', text: '축하드려요!! 완공 사진도 올려주세요 ㅠㅠ', date: '2026-08-29' }
+            ]
+        }
+    ],
+
     blacklistDb: [
         {
             company: '(주)바가지 날림 인프라',

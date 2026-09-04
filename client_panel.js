@@ -803,6 +803,180 @@ function submitClientReview() {
 function clearSignatureCanvas() {}
 function submitSignatureCanvas() {}
 
+/* ----------------------------------------------------------------
+ * 커뮤니티 — 인테리어 팁 공유 / 자유 이야기 / Q&A 게시판
+ * 글쓰기·좋아요·댓글은 고객 로그인이 필요하고, 목록·상세 열람은 누구나 가능하다.
+ * ---------------------------------------------------------------- */
+const COMMUNITY_CATEGORIES = { tip: '인테리어 팁', talk: '자유 이야기', qna: 'Q&A' };
+let communityActiveCategory = 'all';
+
+function renderCommunityList() {
+    const tabsEl = document.getElementById('community-category-tabs');
+    if (tabsEl) {
+        const cats = [['all', '전체'], ...Object.entries(COMMUNITY_CATEGORIES)];
+        tabsEl.innerHTML = cats.map(([id, label]) =>
+            `<button type="button" onclick="setCommunityCategory('${id}')" class="gnb-tab ${communityActiveCategory === id ? 'active' : ''}">${label}</button>`
+        ).join('');
+    }
+
+    document.getElementById('community-list-subview')?.classList.remove('hidden');
+    document.getElementById('community-detail-subview')?.classList.add('hidden');
+    document.getElementById('community-write-subview')?.classList.add('hidden');
+
+    const listEl = document.getElementById('community-post-list');
+    if (!listEl) return;
+    const posts = (window.AppState.communityPosts || [])
+        .filter(p => communityActiveCategory === 'all' || p.category === communityActiveCategory)
+        .slice()
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (posts.length === 0) {
+        listEl.innerHTML = `<p class="text-xs text-ink-400 font-bold py-12 text-center">등록된 글이 없습니다. 첫 번째 글을 남겨보세요!</p>`;
+        return;
+    }
+
+    listEl.innerHTML = posts.map(p => `
+        <div class="surface-flat p-5 flex items-start justify-between gap-4 hover:border-ink-300 transition-all cursor-pointer text-left" onclick="openCommunityDetail('${p.id}')">
+            <div class="space-y-1.5 flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-brand">${COMMUNITY_CATEGORIES[p.category] || '자유 이야기'}</span>
+                    <span class="text-[10px] text-ink-400 font-bold">${p.date}</span>
+                </div>
+                <h4 class="text-sm font-black text-ink-950 truncate">${p.title}</h4>
+                <p class="text-xs text-ink-500 font-medium truncate">${maskName(p.authorName)}</p>
+            </div>
+            <div class="flex flex-col items-end gap-1.5 text-[11px] text-ink-400 font-bold shrink-0">
+                <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i> ${(p.likedBy || []).length}</span>
+                <span class="flex items-center gap-1"><i data-lucide="message-square" class="w-3 h-3"></i> ${(p.comments || []).length}</span>
+            </div>
+        </div>
+    `).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function setCommunityCategory(cat) {
+    communityActiveCategory = cat;
+    renderCommunityList();
+}
+
+function openCommunityDetail(postId) {
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post) return;
+
+    document.getElementById('community-list-subview')?.classList.add('hidden');
+    document.getElementById('community-write-subview')?.classList.add('hidden');
+    document.getElementById('community-detail-subview')?.classList.remove('hidden');
+
+    const myId = window.AppState.clientAuth && window.AppState.clientAuth.loggedIn ? window.AppState.clientAuth.id : null;
+    const liked = !!(myId && (post.likedBy || []).includes(myId));
+
+    const commentsHtml = (post.comments || []).length > 0
+        ? post.comments.map(c => `
+            <div class="p-3.5 bg-ink-50 rounded-xl space-y-1">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black text-ink-800">${maskName(c.authorName)}</span>
+                    <span class="text-[10px] text-ink-400 font-bold">${c.date}</span>
+                </div>
+                <p class="text-xs text-ink-700 font-medium leading-relaxed">${c.text.replace(/</g, '&lt;')}</p>
+            </div>`).join('')
+        : `<p class="text-xs text-ink-400 font-bold text-center py-6">아직 댓글이 없어요. 첫 댓글을 남겨보세요!</p>`;
+
+    const contentEl = document.getElementById('community-detail-content');
+    if (contentEl) {
+        contentEl.innerHTML = `
+            <div class="space-y-3 border-b border-ink-100 pb-5">
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
+                    <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${maskName(post.authorName)}</span>
+                </div>
+                <h3 class="text-lg font-black text-ink-950">${post.title}</h3>
+            </div>
+            <p class="text-sm text-ink-700 font-medium leading-relaxed whitespace-pre-line py-2">${post.content.replace(/</g, '&lt;')}</p>
+            <div class="flex items-center gap-2 pt-2">
+                <button type="button" onclick="toggleCommunityLike('${post.id}')" class="btn ${liked ? 'btn-primary' : 'btn-secondary'} btn-sm"><i data-lucide="heart" class="w-3.5 h-3.5"></i> 좋아요 ${(post.likedBy || []).length}</button>
+            </div>
+            <div class="pt-5 border-t border-ink-100 space-y-3">
+                <h5 class="text-xs font-black text-ink-800">댓글 ${(post.comments || []).length}개</h5>
+                <div class="space-y-2">${commentsHtml}</div>
+                <div class="flex gap-2 pt-1">
+                    <input type="text" id="community-comment-input" placeholder="따뜻한 댓글을 남겨주세요" class="input flex-1">
+                    <button type="button" onclick="submitCommunityComment('${post.id}')" class="btn btn-dark btn-sm shrink-0">등록</button>
+                </div>
+            </div>
+        `;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+
+function closeCommunityDetail() {
+    renderCommunityList();
+}
+
+function requireClientLoginForCommunity() {
+    if (window.AppState.clientAuth && window.AppState.clientAuth.loggedIn) return true;
+    showToast('로그인 후 이용할 수 있어요. 간편 견적 신청 탭에서 로그인해 주세요.', 'warning');
+    switchPanel('client-panel');
+    return false;
+}
+
+function openCommunityWrite() {
+    if (!requireClientLoginForCommunity()) return;
+    document.getElementById('community-list-subview')?.classList.add('hidden');
+    document.getElementById('community-detail-subview')?.classList.add('hidden');
+    document.getElementById('community-write-subview')?.classList.remove('hidden');
+    safeUpdateValue('community-write-title', '');
+    safeUpdateValue('community-write-content', '');
+}
+
+function closeCommunityWrite() {
+    renderCommunityList();
+}
+
+function submitCommunityPost() {
+    if (!requireClientLoginForCommunity()) return;
+    const category = document.getElementById('community-write-category')?.value || 'talk';
+    const title = document.getElementById('community-write-title')?.value.trim();
+    const content = document.getElementById('community-write-content')?.value.trim();
+    if (!title || !content) { showToast('제목과 내용을 모두 입력해 주세요.', 'warning'); return; }
+
+    const auth = window.AppState.clientAuth;
+    const post = {
+        id: 'cm-' + Date.now(), category, title, authorName: auth.name, authorId: auth.id,
+        content, date: new Date().toISOString().split('T')[0], likedBy: [], comments: []
+    };
+    if (!window.AppState.communityPosts) window.AppState.communityPosts = [];
+    window.AppState.communityPosts.unshift(post);
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_POST', `'${auth.name}' 고객님이 커뮤니티에 새 글을 등록했습니다. (${title})`, 'SUCCESS');
+    showToast('글이 등록되었습니다!', 'success');
+    communityActiveCategory = 'all';
+    openCommunityDetail(post.id);
+}
+
+function toggleCommunityLike(postId) {
+    if (!requireClientLoginForCommunity()) return;
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post) return;
+    if (!post.likedBy) post.likedBy = [];
+    const myId = window.AppState.clientAuth.id;
+    const idx = post.likedBy.indexOf(myId);
+    if (idx >= 0) post.likedBy.splice(idx, 1); else post.likedBy.push(myId);
+    openCommunityDetail(postId);
+}
+
+function submitCommunityComment(postId) {
+    if (!requireClientLoginForCommunity()) return;
+    const input = document.getElementById('community-comment-input');
+    const text = input ? input.value.trim() : '';
+    if (!text) { showToast('댓글 내용을 입력해 주세요.', 'warning'); return; }
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post) return;
+    if (!post.comments) post.comments = [];
+    const auth = window.AppState.clientAuth;
+    post.comments.push({ authorName: auth.name, authorId: auth.id, text, date: new Date().toISOString().split('T')[0] });
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_COMMENT', `'${auth.name}' 고객님이 댓글을 남겼습니다.`, 'INFO');
+    openCommunityDetail(postId);
+}
+
 window.changeMonth = changeMonth;
 window.renderCalendar = renderCalendar;
 window.updateFormState = updateFormState;
@@ -838,3 +1012,13 @@ window.submitClientReview = submitClientReview;
 
 window.clearSignatureCanvas = clearSignatureCanvas;
 window.submitSignatureCanvas = submitSignatureCanvas;
+
+window.renderCommunityList = renderCommunityList;
+window.setCommunityCategory = setCommunityCategory;
+window.openCommunityDetail = openCommunityDetail;
+window.closeCommunityDetail = closeCommunityDetail;
+window.openCommunityWrite = openCommunityWrite;
+window.closeCommunityWrite = closeCommunityWrite;
+window.submitCommunityPost = submitCommunityPost;
+window.toggleCommunityLike = toggleCommunityLike;
+window.submitCommunityComment = submitCommunityComment;

@@ -28,7 +28,7 @@ function accessB2BPanel(panelId) { closeB2BAccessModal(); switchPanel(panelId); 
 
 function switchPanel(panelId) {
     window.AppState.currentPanel = panelId;
-    const panels = ['home-panel', 'client-panel', 'partner-search-panel', 'client-mypage-panel', 'partner-panel', 'admin-panel'];
+    const panels = ['home-panel', 'client-panel', 'partner-search-panel', 'community-panel', 'client-mypage-panel', 'partner-panel', 'admin-panel'];
 
     panels.forEach(p => {
         const el = document.getElementById(p);
@@ -44,6 +44,7 @@ function switchPanel(panelId) {
 
     if (panelId === 'home-panel') { renderHeroPortfolioSlider(); renderHomeEventSlider(); }
     if (panelId === 'partner-search-panel') renderPartnerSearchGrid();
+    if (panelId === 'community-panel' && typeof renderCommunityList === 'function') renderCommunityList();
     if (panelId === 'client-mypage-panel') {
         if (typeof toggleClientAuthUI === 'function') toggleClientAuthUI();
         if (window.AppState.clientAuth && window.AppState.clientAuth.loggedIn && typeof renderClientMyPage === 'function') renderClientMyPage();
