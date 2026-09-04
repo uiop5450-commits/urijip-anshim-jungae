@@ -60,7 +60,7 @@ function ensureToastStack() {
     if (!stack) {
         stack = document.createElement('div');
         stack.id = 'toast-stack';
-        stack.className = 'fixed top-4 right-4 z-[650] flex flex-col gap-2 items-end pointer-events-none';
+        stack.className = 'fixed top-6 left-1/2 -translate-x-1/2 z-[650] flex flex-col gap-2.5 items-center pointer-events-none';
         document.body.appendChild(stack);
     }
     return stack;
@@ -74,27 +74,27 @@ function showToast(message, type = 'info') {
     const item = document.createElement('div');
     item.setAttribute('role', 'status');
     item.setAttribute('aria-live', 'polite');
-    item.className = 'pointer-events-auto w-[min(360px,88vw)] bg-white rounded-2xl border border-ink-100 p-4 flex items-start gap-3 transform translate-x-4 opacity-0 transition-all duration-300';
+    item.className = 'pointer-events-auto w-[min(480px,92vw)] bg-white rounded-2xl border border-ink-100 p-5 flex items-start gap-3.5 transform -translate-y-3 opacity-0 transition-all duration-300';
     item.style.boxShadow = 'var(--shadow-3)';
     item.innerHTML = `
-        <span class="w-8 h-8 rounded-xl ${meta.bg} ${meta.fg} flex items-center justify-center shrink-0">
-            <i data-lucide="${meta.icon}" class="w-4 h-4"></i>
+        <span class="w-10 h-10 rounded-xl ${meta.bg} ${meta.fg} flex items-center justify-center shrink-0">
+            <i data-lucide="${meta.icon}" class="w-5 h-5"></i>
         </span>
-        <p class="text-xs font-bold text-ink-800 leading-relaxed flex-1 whitespace-pre-line pt-1">${message.replace(/</g, '&lt;')}</p>
+        <p class="text-sm font-bold text-ink-800 leading-relaxed flex-1 whitespace-pre-line pt-1.5">${message.replace(/</g, '&lt;')}</p>
         <button type="button" class="text-ink-300 hover:text-ink-600 bg-transparent border-0 cursor-pointer shrink-0 p-0.5" aria-label="알림 닫기">
-            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            <i data-lucide="x" class="w-4 h-4"></i>
         </button>
     `;
     stack.appendChild(item);
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
     requestAnimationFrame(() => {
-        item.classList.remove('translate-x-4', 'opacity-0');
+        item.classList.remove('-translate-y-3', 'opacity-0');
     });
 
     const dismiss = () => {
         if (!item.isConnected) return;
-        item.classList.add('translate-x-4', 'opacity-0');
+        item.classList.add('-translate-y-3', 'opacity-0');
         setTimeout(() => item.remove(), 260);
     };
 
