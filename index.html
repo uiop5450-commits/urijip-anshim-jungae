@@ -95,8 +95,8 @@
 
             <!-- 상단 히어로: 좌측 업체 광고 슬라이더(renderHeroPortfolioSlider, 최대 5개, 현재는 평점순 자동 선정 — 추후 광고/계약 건수 기준으로 교체 예정) + 우측 이벤트 슬라이더(renderHomeEventSlider) -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div id="hero-portfolio-slider-container" class="hero-ad-card lg:col-span-2"></div>
-                <div id="home-event-slider-container" class="hero-ad-card lg:col-span-1"></div>
+                <div id="hero-portfolio-slider-container" class="hero-ad-card lg:col-span-2" onmouseenter="pauseHeroAutoplay()" onmouseleave="resumeHeroAutoplay()"></div>
+                <div id="home-event-slider-container" class="hero-ad-card lg:col-span-1" onmouseenter="pauseHomeEventAutoplay()" onmouseleave="resumeHomeEventAutoplay()"></div>
             </div>
 
             <div class="space-y-5 text-left pt-1">

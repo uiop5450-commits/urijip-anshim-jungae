@@ -42,7 +42,8 @@ function switchPanel(panelId) {
         document.querySelectorAll(`[id^="tab-${p}"]`).forEach(tabEl => tabEl.classList.toggle('active', p === panelId));
     });
 
-    if (panelId === 'home-panel') { renderHeroPortfolioSlider(); renderHomeEventSlider(); }
+    if (panelId === 'home-panel') { renderHeroPortfolioSlider(); renderHomeEventSlider(); startHomeAutoplay(); }
+    else { stopHomeAutoplay(); }
     if (panelId === 'partner-search-panel') renderPartnerSearchGrid();
     if (panelId === 'community-panel' && typeof renderCommunityList === 'function') renderCommunityList();
     if (panelId === 'client-mypage-panel') {
@@ -129,6 +130,33 @@ function openPamphletDetail(pamphletId) {
 function closePamphletDetail() { closeModal('pamphlet-detail-modal', 'pamphlet-detail-modal-card'); }
 function nextHomeEvent(e) { if (e) e.stopPropagation(); const total = (window.AppState.pamphlets || []).length || 1; const current = window.AppState.currentHomeEventIndex || 0; window.AppState.currentHomeEventIndex = (current + 1) % total; renderHomeEventSlider(); }
 function prevHomeEvent(e) { if (e) e.stopPropagation(); const total = (window.AppState.pamphlets || []).length || 1; const current = window.AppState.currentHomeEventIndex || 0; window.AppState.currentHomeEventIndex = (current - 1 + total) % total; renderHomeEventSlider(); }
+
+/* ----------------------------------------------------------------
+ * 홈 히어로 슬라이더 / 이벤트 배너 자동 전환
+ * 두 슬라이더를 서로 다른 주기로 자동 넘김. 마우스를 올리면 일시정지,
+ * 벗어나면 재개. 홈 패널을 벗어날 때는 타이머를 정리해 백그라운드에서
+ * 계속 돌지 않도록 한다(switchPanel 참고).
+ * ---------------------------------------------------------------- */
+const HERO_AUTOPLAY_INTERVAL_MS = 5000;
+const HOME_EVENT_AUTOPLAY_INTERVAL_MS = 6000;
+let _heroAutoplayTimer = null;
+let _homeEventAutoplayTimer = null;
+
+function startHomeAutoplay() {
+    stopHomeAutoplay();
+    _heroAutoplayTimer = setInterval(() => nextHeroSlide(), HERO_AUTOPLAY_INTERVAL_MS);
+    _homeEventAutoplayTimer = setInterval(() => nextHomeEvent(), HOME_EVENT_AUTOPLAY_INTERVAL_MS);
+}
+
+function stopHomeAutoplay() {
+    if (_heroAutoplayTimer) { clearInterval(_heroAutoplayTimer); _heroAutoplayTimer = null; }
+    if (_homeEventAutoplayTimer) { clearInterval(_homeEventAutoplayTimer); _homeEventAutoplayTimer = null; }
+}
+
+function pauseHeroAutoplay() { if (_heroAutoplayTimer) { clearInterval(_heroAutoplayTimer); _heroAutoplayTimer = null; } }
+function resumeHeroAutoplay() { if (!_heroAutoplayTimer && window.AppState.currentPanel === 'home-panel') _heroAutoplayTimer = setInterval(() => nextHeroSlide(), HERO_AUTOPLAY_INTERVAL_MS); }
+function pauseHomeEventAutoplay() { if (_homeEventAutoplayTimer) { clearInterval(_homeEventAutoplayTimer); _homeEventAutoplayTimer = null; } }
+function resumeHomeEventAutoplay() { if (!_homeEventAutoplayTimer && window.AppState.currentPanel === 'home-panel') _homeEventAutoplayTimer = setInterval(() => nextHomeEvent(), HOME_EVENT_AUTOPLAY_INTERVAL_MS); }
 
 /* ----------------------------------------------------------------
  * 히어로 시공사례+업체 슬라이더 (최대 5개) / 파트너 탐색
@@ -1765,4 +1793,8 @@ window.renderAdminPartnerApplications = renderAdminPartnerApplications;
 window.viewPartnerBizCertDoc = viewPartnerBizCertDoc;
 window.approvePartnerApplication = approvePartnerApplication;
 window.rejectPartnerApplication = rejectPartnerApplication;
+window.pauseHeroAutoplay = pauseHeroAutoplay;
+window.resumeHeroAutoplay = resumeHeroAutoplay;
+window.pauseHomeEventAutoplay = pauseHomeEventAutoplay;
+window.resumeHomeEventAutoplay = resumeHomeEventAutoplay;
 window.savePartnerFinalContractAmount = savePartnerFinalContractAmount;
