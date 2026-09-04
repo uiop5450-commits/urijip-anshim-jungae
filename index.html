@@ -659,19 +659,20 @@
                         <div><label class="field-label">매니저 비밀번호</label><input type="password" id="admin-login-pw" placeholder="비밀번호 입력 (1234)" class="input"></div>
                         <p id="admin-login-error-msg" class="hidden text-[11px] text-roseCustom font-bold leading-tight">⚠️ 매니저 계정 정보가 일치하지 않습니다.</p>
                         <button type="button" onclick="validateManagerLogin()" class="btn btn-dark btn-lg btn-block">매니저 인증 및 관제센터 입장</button>
+                        <p class="text-[10px] text-ink-400 font-semibold text-center leading-relaxed">데모 계정 · 최고관리자: admin / 1234&nbsp;&nbsp;|&nbsp;&nbsp;파트너 매니저: manager1 / 1234</p>
                     </form>
                 </div>
             </div>
 
             <div id="admin-console" class="hidden space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                <div id="admin-kpi-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
                     <div class="kpi-card" style="--accent:var(--brand-500)"><span class="text-[10px] text-ink-400 font-extrabold uppercase block mb-2">안심 계약 총 체결액</span><h4 class="text-xl sm:text-2xl font-black text-ink-950" id="admin-kpi-gmv">₩ 0 만원</h4></div>
                     <div class="kpi-card" style="--accent:var(--amber-500)"><span class="text-[10px] text-ink-400 font-extrabold uppercase block mb-2">보증 유치 볼륨</span><h4 class="text-xl sm:text-2xl font-black text-ink-950" id="admin-kpi-escrow">₩ 0 만원</h4></div>
                     <div class="kpi-card" style="--accent:var(--emerald-500)"><span class="text-[10px] text-ink-400 font-extrabold uppercase block mb-2">안심 중개 플랫폼 매출액</span><h4 class="text-xl sm:text-2xl font-black text-ink-950" id="admin-kpi-revenue">₩ 0 만원</h4></div>
                 </div>
 
                 <div class="surface p-4 sm:p-5 flex flex-wrap justify-between items-center gap-3 text-left">
-                    <h4 class="text-sm font-black text-ink-950 flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4"></i> 매니저 센터 콘솔</h4>
+                    <h4 class="text-sm font-black text-ink-950 flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4"></i> 매니저 센터 콘솔 <span id="admin-manager-badge"></span></h4>
                     <div class="flex items-center gap-2 flex-wrap">
                         <div id="admin-console-tab-bar" class="flex items-center flex-wrap bg-ink-50 p-1 rounded-xl gap-1 border border-ink-100"></div>
                         <button type="button" onclick="managerLogout()" class="btn btn-ghost btn-sm"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> 로그아웃</button>

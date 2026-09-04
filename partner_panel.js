@@ -263,24 +263,50 @@ function renderPartnerSearchGrid() {
 }
 
 /* ----------------------------------------------------------------
- * 매니저(관리자) 콘솔
+ * 매니저(관리자) 콘솔 — 역할별 접근 권한(관리자모드 / 파트너 매니저 권한)
  * ---------------------------------------------------------------- */
+const ALL_ADMIN_TABS = [
+    ['allocation', '💰 수동 오더 배정관'], ['monitor', '🏢 파트너 모니터링'],
+    ['applications', '🧾 파트너 가입 심사'],
+    ['blacklist', '🛡️ 삼진아웃 블랙리스트 DB'], ['logs', '📋 플랫폼 관제 로그'],
+    ['display', '🖼️ 노출 관리']
+];
+
+// 'super_admin'은 전체 탭에 접근 가능. 'partner_manager'는 고액 오더 배정(재무),
+// 시스템 로그, 마케팅 노출 관리처럼 상위 권한이 필요한 영역은 제외하고
+// 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
+const ROLE_TAB_ACCESS = {
+    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display'],
+    partner_manager: ['monitor', 'applications', 'blacklist']
+};
+
+function getAdminAllowedTabs() {
+    const role = window.AppState.managerRole || 'super_admin';
+    return ROLE_TAB_ACCESS[role] || ROLE_TAB_ACCESS.super_admin;
+}
+
 function switchAdminMode(mode) {
+    const allowedTabs = getAdminAllowedTabs();
+    if (!allowedTabs.includes(mode)) {
+        showToast('이 메뉴는 최고관리자만 접근할 수 있어요.', 'warning');
+        mode = allowedTabs[0];
+    }
     window.AppState.adminConsoleMode = mode;
     const tabBar = document.getElementById('admin-console-tab-bar');
     if (tabBar) {
         const pendingCount = (window.AppState.partners || []).filter(p => p.status === 'pending').length;
-        const tabs = [
-            ['allocation', '💰 수동 오더 배정관'], ['monitor', '🏢 파트너 모니터링'],
-            ['applications', `🧾 파트너 가입 심사${pendingCount > 0 ? ` (${pendingCount})` : ''}`],
-            ['blacklist', '🛡️ 삼진아웃 블랙리스트 DB'], ['logs', '📋 플랫폼 관제 로그'],
-            ['display', '🖼️ 노출 관리']
-        ];
+        const tabs = ALL_ADMIN_TABS.filter(([id]) => allowedTabs.includes(id)).map(([id, label]) => {
+            const finalLabel = id === 'applications' && pendingCount > 0 ? `${label} (${pendingCount})` : label;
+            return [id, finalLabel];
+        });
         tabBar.innerHTML = tabs.map(([id, label]) => `<button type="button" id="btn-admin-view-${id}" onclick="switchAdminMode('${id}')" class="gnb-tab ${mode === id ? 'active' : ''}">${label}</button>`).join('');
     }
 
     ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
     document.getElementById(`admin-mode-${mode}-view`)?.classList.remove('hidden');
+
+    const kpiGrid = document.getElementById('admin-kpi-grid');
+    if (kpiGrid) kpiGrid.classList.toggle('hidden', window.AppState.managerRole === 'partner_manager');
 
     if (mode === 'allocation') renderAdminOrderAllocation();
     else if (mode === 'monitor') renderAdminPartnerMonitor();
@@ -301,20 +327,31 @@ function validateManagerLogin() {
     const idVal = idInput.value.trim();
     const pwVal = pwInput.value.trim();
 
-    if (idVal && pwVal) {
-        window.AppState.managerLoggedIn = true;
-        errorMsg?.classList.add('hidden');
-        toggleManagerConsoleVisibility();
-        if (typeof pushLog === 'function') pushLog('MANAGER', 'AUTH', `'${idVal}' 매니저 계정 접속 승인.`, 'SUCCESS');
-        showToast("매니저 센터 대시보드에 성공적으로 진입했습니다.", "success");
-    } else if (errorMsg) {
-        errorMsg.innerText = "⚠️ 매니저 아이디와 비밀번호를 모두 입력해주세요.";
-        errorMsg.classList.remove('hidden');
+    if (!idVal || !pwVal) {
+        if (errorMsg) { errorMsg.innerText = "⚠️ 매니저 아이디와 비밀번호를 모두 입력해주세요."; errorMsg.classList.remove('hidden'); }
+        return;
     }
+
+    const manager = (window.AppState.managers || []).find(m => m.id === idVal && m.pw === pwVal);
+    if (!manager) {
+        if (errorMsg) { errorMsg.innerText = "⚠️ 매니저 계정 정보가 일치하지 않습니다."; errorMsg.classList.remove('hidden'); }
+        return;
+    }
+
+    window.AppState.managerLoggedIn = true;
+    window.AppState.managerName = manager.name;
+    window.AppState.managerRole = manager.role;
+    errorMsg?.classList.add('hidden');
+    toggleManagerConsoleVisibility();
+    const roleLabel = manager.role === 'super_admin' ? '최고관리자' : '파트너 매니저';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'AUTH', `'${manager.name}'(${roleLabel}) 매니저 계정 접속 승인.`, 'SUCCESS');
+    showToast(`${roleLabel} '${manager.name}'님, 매니저 센터 대시보드에 진입했습니다.`, "success");
 }
 
 function managerLogout() {
     window.AppState.managerLoggedIn = false;
+    window.AppState.managerName = '';
+    window.AppState.managerRole = null;
     toggleManagerConsoleVisibility();
     showToast('매니저 센터에서 안전하게 로그아웃 되었습니다.', 'info');
 }
@@ -327,7 +364,16 @@ function toggleManagerConsoleVisibility() {
     if (window.AppState.managerLoggedIn) {
         gatewayBox.classList.add('hidden'); consoleBox.classList.remove('hidden');
         recalculateKPIs();
-        switchAdminMode(window.AppState.adminConsoleMode || 'allocation');
+
+        const badge = document.getElementById('admin-manager-badge');
+        if (badge) {
+            const isSuperAdmin = window.AppState.managerRole === 'super_admin';
+            badge.innerHTML = `<span class="badge ${isSuperAdmin ? 'badge-brand' : 'badge-neutral'}">${isSuperAdmin ? '👑 최고관리자' : '🧑‍💼 파트너 매니저'} · ${window.AppState.managerName}</span>`;
+        }
+
+        const allowedTabs = getAdminAllowedTabs();
+        const desiredMode = window.AppState.adminConsoleMode || 'allocation';
+        switchAdminMode(allowedTabs.includes(desiredMode) ? desiredMode : allowedTabs[0]);
     } else { consoleBox.classList.add('hidden'); gatewayBox.classList.remove('hidden'); }
 }
 

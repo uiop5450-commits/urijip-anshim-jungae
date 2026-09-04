@@ -44,6 +44,10 @@ window.AppState = {
     currentPanel: 'client-panel',
     partnerLoggedIn: false,
     partnerName: '',
+    managerLoggedIn: false,
+    managerName: '',
+    // 'super_admin'(전체 메뉴 접근) 또는 'partner_manager'(파트너 관련 메뉴만 접근, ROLE_TAB_ACCESS 참고)
+    managerRole: null,
     partnerConsoleMode: 'orders',
     portfolioRegisterMode: 'manual',
     portfolioSubMode: 'list',
@@ -99,6 +103,14 @@ window.AppState = {
             reason: '누적 옐로카드 3회 초과 (불성실 저가 자재 임의 교체 2회 + 무단 착공 지연 1회)',
             date: '2026-07-29'
         }
+    ],
+
+    // 매니저 센터 로그인 계정. role에 따라 접근 가능한 콘솔 탭이 달라진다
+    // (switchAdminMode의 ROLE_TAB_ACCESS 참고). 'super_admin'은 전체 메뉴,
+    // 'partner_manager'는 파트너 모니터링/가입 심사/블랙리스트만 접근 가능하다.
+    managers: [
+        { id: 'admin', pw: '1234', name: '박서준 대표', role: 'super_admin' },
+        { id: 'manager1', pw: '1234', name: '김민지 매니저', role: 'partner_manager' }
     ],
 
     partners: [
