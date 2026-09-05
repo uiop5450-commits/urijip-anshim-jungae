@@ -100,11 +100,15 @@ window.AppState = {
             ]
         },
         {
-            id: 'cm-seed-4', category: 'talk',
+            id: 'cm-seed-4', category: 'housewarming',
             title: '드디어 3개월 대장정 끝내고 입주했어요 🎉',
             authorName: '정민준', authorId: 'seed-user-6',
-            content: '견적 비교하고 계약하고 시공 끝날 때까지 정말 우여곡절 많았는데, 오늘 드디어 입주했습니다. 여기서 견적 비교하고 파트너사 후기 참고했던 게 정말 도움 많이 됐어요. 다들 좋은 시공사 만나셔서 예쁜 집 완성하시길 바라요!',
+            content: '견적 비교하고 계약하고 시공 끝날 때까지 정말 우여곡절 많았는데, 오늘 드디어 입주했습니다. 가구 배치까지 끝낸 거실이랑 주방 사진 올려요. 여기서 견적 비교하고 파트너사 후기 참고했던 게 정말 도움 많이 됐어요. 다들 좋은 시공사 만나셔서 예쁜 집 완성하시길 바라요!',
             date: '2026-08-29', likedBy: ['seed-user-1', 'seed-user-2', 'seed-user-4'],
+            images: [
+                'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=800&auto=format&fit=crop&q=80',
+                'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&auto=format&fit=crop&q=80'
+            ],
             comments: [
                 { authorName: '이하은', authorId: 'seed-user-5', text: '축하드려요!! 완공 사진도 올려주세요 ㅠㅠ', date: '2026-08-29' }
             ]

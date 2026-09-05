@@ -462,12 +462,21 @@
                             <option value="tip">인테리어 팁</option>
                             <option value="talk">자유 이야기</option>
                             <option value="qna">Q&amp;A</option>
+                            <option value="housewarming">집들이</option>
                         </select>
                     </div>
                     <div><label class="field-label">제목 <span class="req">*</span></label>
                         <input type="text" id="community-write-title" placeholder="제목을 입력하세요" class="input"></div>
                     <div><label class="field-label">내용 <span class="req">*</span></label>
                         <textarea id="community-write-content" rows="8" placeholder="내용을 입력하세요" class="textarea"></textarea></div>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="field-label mb-0">사진 첨부 <span class="text-ink-300 font-semibold">— 최대 6장, 집들이 글에 추천!</span></label>
+                            <input type="file" id="community-photo-input" accept="image/*" multiple class="hidden" onchange="handleCommunityPhotoUpload(this)">
+                            <button type="button" onclick="document.getElementById('community-photo-input').click()" class="btn btn-secondary btn-sm">사진 추가</button>
+                        </div>
+                        <div id="community-photo-preview-grid" class="grid grid-cols-3 sm:grid-cols-6 gap-2"></div>
+                    </div>
                     <button type="button" onclick="submitCommunityPost()" class="btn btn-primary btn-block">등록하기</button>
                 </div>
             </div>

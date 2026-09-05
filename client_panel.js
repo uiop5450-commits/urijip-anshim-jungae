@@ -823,8 +823,9 @@ function submitSignatureCanvas() {}
  * 커뮤니티 — 인테리어 팁 공유 / 자유 이야기 / Q&A 게시판
  * 글쓰기·좋아요·댓글은 고객 로그인이 필요하고, 목록·상세 열람은 누구나 가능하다.
  * ---------------------------------------------------------------- */
-const COMMUNITY_CATEGORIES = { tip: '인테리어 팁', talk: '자유 이야기', qna: 'Q&A' };
+const COMMUNITY_CATEGORIES = { tip: '인테리어 팁', talk: '자유 이야기', qna: 'Q&A', housewarming: '집들이' };
 let communityActiveCategory = 'all';
+let communityPhotoDrafts = [];
 
 function renderCommunityList() {
     const tabsEl = document.getElementById('community-category-tabs');
@@ -853,6 +854,7 @@ function renderCommunityList() {
 
     listEl.innerHTML = posts.map(p => `
         <div class="surface-flat p-5 flex items-start justify-between gap-4 hover:border-ink-300 transition-all cursor-pointer text-left" onclick="openCommunityDetail('${p.id}')">
+            ${p.images && p.images.length > 0 ? `<img src="${p.images[0]}" class="w-16 h-16 rounded-xl object-cover shrink-0 border border-ink-100">` : ''}
             <div class="space-y-1.5 flex-1 min-w-0">
                 <div class="flex items-center gap-2">
                     <span class="badge badge-brand">${COMMUNITY_CATEGORIES[p.category] || '자유 이야기'}</span>
@@ -908,6 +910,7 @@ function openCommunityDetail(postId) {
                 <h3 class="text-lg font-black text-ink-950">${post.title}</h3>
             </div>
             <p class="text-sm text-ink-700 font-medium leading-relaxed whitespace-pre-line py-2">${post.content.replace(/</g, '&lt;')}</p>
+            ${post.images && post.images.length > 0 ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 py-2">${post.images.map(src => `<img src="${src}" class="w-full aspect-square rounded-xl object-cover border border-ink-100">`).join('')}</div>` : ''}
             <div class="flex items-center gap-2 pt-2">
                 <button type="button" onclick="toggleCommunityLike('${post.id}')" class="btn ${liked ? 'btn-primary' : 'btn-secondary'} btn-sm"><i data-lucide="heart" class="w-3.5 h-3.5"></i> 좋아요 ${(post.likedBy || []).length}</button>
             </div>
@@ -942,10 +945,32 @@ function openCommunityWrite() {
     document.getElementById('community-write-subview')?.classList.remove('hidden');
     safeUpdateValue('community-write-title', '');
     safeUpdateValue('community-write-content', '');
+    communityPhotoDrafts = [];
+    const grid = document.getElementById('community-photo-preview-grid');
+    if (grid) grid.innerHTML = '';
 }
 
 function closeCommunityWrite() {
     renderCommunityList();
+}
+
+function handleCommunityPhotoUpload(input) {
+    if (!input.files || input.files.length === 0) return;
+    const grid = document.getElementById('community-photo-preview-grid');
+    Array.from(input.files).slice(0, 6 - communityPhotoDrafts.length).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            communityPhotoDrafts.push(e.target.result);
+            if (grid) {
+                const wrap = document.createElement('div');
+                wrap.className = 'relative aspect-square rounded-xl overflow-hidden border border-ink-100 bg-ink-50';
+                wrap.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+                grid.appendChild(wrap);
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+    input.value = '';
 }
 
 function submitCommunityPost() {
@@ -958,13 +983,15 @@ function submitCommunityPost() {
     const auth = window.AppState.clientAuth;
     const post = {
         id: 'cm-' + Date.now(), category, title, authorName: auth.name, authorId: auth.id,
-        content, date: new Date().toISOString().split('T')[0], likedBy: [], comments: []
+        content, date: new Date().toISOString().split('T')[0], likedBy: [], comments: [],
+        images: communityPhotoDrafts.slice()
     };
     if (!window.AppState.communityPosts) window.AppState.communityPosts = [];
     window.AppState.communityPosts.unshift(post);
     if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_POST', `'${auth.name}' 고객님이 커뮤니티에 새 글을 등록했습니다. (${title})`, 'SUCCESS');
     showToast('글이 등록되었습니다!', 'success');
     communityActiveCategory = 'all';
+    communityPhotoDrafts = [];
     openCommunityDetail(post.id);
 }
 
@@ -1037,5 +1064,6 @@ window.closeCommunityDetail = closeCommunityDetail;
 window.openCommunityWrite = openCommunityWrite;
 window.closeCommunityWrite = closeCommunityWrite;
 window.submitCommunityPost = submitCommunityPost;
+window.handleCommunityPhotoUpload = handleCommunityPhotoUpload;
 window.toggleCommunityLike = toggleCommunityLike;
 window.submitCommunityComment = submitCommunityComment;
