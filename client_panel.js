@@ -861,7 +861,7 @@ function renderCommunityList() {
                     <span class="text-[10px] text-ink-400 font-bold">${p.date}</span>
                 </div>
                 <h4 class="text-sm font-black text-ink-950 truncate">${p.title}</h4>
-                <p class="text-xs text-ink-500 font-medium truncate">${maskName(p.authorName)}</p>
+                <p class="text-xs text-ink-500 font-medium truncate">${p.authorId}</p>
             </div>
             <div class="flex flex-col items-end gap-1.5 text-[11px] text-ink-400 font-bold shrink-0">
                 <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i> ${(p.likedBy || []).length}</span>
@@ -892,7 +892,7 @@ function openCommunityDetail(postId) {
         ? post.comments.map(c => `
             <div class="p-3.5 bg-ink-50 rounded-xl space-y-1">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-black text-ink-800">${maskName(c.authorName)}</span>
+                    <span class="text-xs font-black text-ink-800">${c.authorId}</span>
                     <span class="text-[10px] text-ink-400 font-bold">${c.date}</span>
                 </div>
                 <p class="text-xs text-ink-700 font-medium leading-relaxed">${c.text.replace(/</g, '&lt;')}</p>
@@ -905,7 +905,7 @@ function openCommunityDetail(postId) {
             <div class="space-y-3 border-b border-ink-100 pb-5">
                 <div class="flex items-center gap-2">
                     <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
-                    <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${maskName(post.authorName)}</span>
+                    <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${post.authorId}</span>
                 </div>
                 <h3 class="text-lg font-black text-ink-950">${post.title}</h3>
             </div>
