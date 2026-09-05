@@ -451,7 +451,7 @@ textarea:focus-visible {
 .blog-like-btn {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 8px 14px; border-radius: var(--r-pill);
-    background: var(--ink-50); border: 1px solid var(--ink-100);
+    background: #fff; border: 1px solid var(--ink-100);
     font-size: 12px; font-weight: 800; color: var(--ink-600);
     cursor: pointer; transition: all var(--dur-base) var(--ease-out);
 }
@@ -462,6 +462,9 @@ textarea:focus-visible {
 
 /* 커뮤니티 등 다른 화면의 좋아요 버튼에도 재사용하는 공용 규칙 — 하트 아이콘만 색이 바뀐다. */
 .like-btn.liked svg { color: var(--rose-600); fill: currentColor; }
+/* 좋아요 버튼은 다른 .btn-secondary처럼 회색이 아니라 흰 배경으로 표시 */
+.like-btn { background: #fff !important; border: 1px solid var(--ink-100); }
+.like-btn:hover { background: var(--rose-50) !important; }
 
 /* ---------------------------------------------------------------
  * 9c. 포트폴리오 작성/수정 에디터 — 네이버 블로그 에디터처럼 상단 툴바 + 클릭하면
