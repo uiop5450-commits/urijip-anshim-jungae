@@ -513,7 +513,7 @@ function performClientLogout() {
  * 견적 신청 흐름과 별개로 언제든 고객 로그인/마이페이지에 바로 진입할 수 있게 한다. */
 function handleClientLoginNavClick() {
     if (window.AppState.clientAuth && window.AppState.clientAuth.loggedIn) {
-        switchPanel('client-mypage-panel');
+        performClientLogout();
     } else {
         switchPanel('client-panel');
         if (typeof goToClientStep === 'function') goToClientStep(1);
@@ -530,8 +530,8 @@ function toggleClientAuthUI() {
 
     const navLabel = document.getElementById('nav-client-login-label');
     const navLabelM = document.getElementById('nav-client-login-label-m');
-    if (navLabel) navLabel.innerText = auth.loggedIn ? `${auth.name}님` : '고객 로그인';
-    if (navLabelM) navLabelM.innerText = auth.loggedIn ? `${auth.name}님` : '로그인';
+    if (navLabel) navLabel.innerText = auth.loggedIn ? `${auth.name}님 로그아웃` : '고객 로그인';
+    if (navLabelM) navLabelM.innerText = auth.loggedIn ? '로그아웃' : '로그인';
 
     if (auth.loggedIn) {
         unverifiedCard?.classList.add('hidden');

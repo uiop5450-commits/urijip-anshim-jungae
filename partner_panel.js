@@ -26,6 +26,30 @@ function openB2BAccessModal() { openModal('b2b-access-modal', 'b2b-access-modal-
 function closeB2BAccessModal() { closeModal('b2b-access-modal', 'b2b-access-modal-card'); }
 function accessB2BPanel(panelId) { closeB2BAccessModal(); switchPanel(panelId); }
 
+/* 상단 '파트너 / 매니저 로그인' 버튼 — 파트너 또는 매니저로 로그인 중이면 로그아웃 버튼으로
+ * 동작하고, 아니면 기존처럼 B2B 선택 모달을 연다. */
+function handleB2BNavClick() {
+    if (window.AppState.partnerLoggedIn) partnerLogout();
+    else if (window.AppState.managerLoggedIn) managerLogout();
+    else openB2BAccessModal();
+}
+
+function updateB2BNavButton() {
+    const label = document.getElementById('nav-b2b-label');
+    const labelM = document.getElementById('nav-b2b-label-m');
+    if (!label || !labelM) return;
+    if (window.AppState.partnerLoggedIn) {
+        label.innerText = `${window.AppState.partnerName} 로그아웃`;
+        labelM.innerText = '로그아웃';
+    } else if (window.AppState.managerLoggedIn) {
+        label.innerText = `${window.AppState.managerName} 로그아웃`;
+        labelM.innerText = '로그아웃';
+    } else {
+        label.innerText = '파트너 / 매니저 로그인';
+        labelM.innerText = 'B2B';
+    }
+}
+
 function switchPanel(panelId) {
     window.AppState.currentPanel = panelId;
     const panels = ['home-panel', 'client-panel', 'partner-search-panel', 'community-panel', 'client-mypage-panel', 'partner-panel', 'admin-panel'];
@@ -424,6 +448,7 @@ function validateManagerLogin() {
     window.AppState.managerRole = account.managerRole;
     errorMsg?.classList.add('hidden');
     toggleManagerConsoleVisibility();
+    updateB2BNavButton();
     const roleLabel = account.managerRole === 'super_admin' ? '최고관리자' : '파트너 매니저';
     if (typeof pushLog === 'function') pushLog('MANAGER', 'AUTH', `'${account.name}'(${roleLabel}) 매니저 계정 접속 승인.`, 'SUCCESS');
     showToast(`${roleLabel} '${account.name}'님, 매니저 센터 대시보드에 진입했습니다.`, "success");
@@ -434,6 +459,7 @@ function managerLogout() {
     window.AppState.managerName = '';
     window.AppState.managerRole = null;
     toggleManagerConsoleVisibility();
+    updateB2BNavButton();
     showToast('매니저 센터에서 안전하게 로그아웃 되었습니다.', 'info');
 }
 
@@ -529,6 +555,7 @@ function validatePartnerLogin() {
         window.AppState.partnerName = partner.name;
         errorMsg?.classList.add('hidden');
         togglePartnerConsoleVisibility();
+        updateB2BNavButton();
         pushLog('PARTNER', 'AUTH', `'${partner.name}' 마스터 로그인 완료.`, 'SUCCESS');
         if (typeof switchPartnerMode === 'function') switchPartnerMode('orders');
     } else if (errorMsg) {
@@ -543,6 +570,7 @@ function partnerLogout() {
     togglePartnerConsoleVisibility();
     document.getElementById('partner-audit-empty')?.classList.remove('hidden');
     document.getElementById('partner-audit-details')?.classList.add('hidden');
+    updateB2BNavButton();
     showToast('안전하게 로그아웃 되었습니다.', 'info');
 }
 
@@ -1947,6 +1975,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
 window.switchPanel = switchPanel;
 window.openB2BAccessModal = openB2BAccessModal;
+window.handleB2BNavClick = handleB2BNavClick;
+window.updateB2BNavButton = updateB2BNavButton;
 window.closeB2BAccessModal = closeB2BAccessModal;
 window.accessB2BPanel = accessB2BPanel;
 window.renderHeroPortfolioSlider = renderHeroPortfolioSlider;
