@@ -456,8 +456,12 @@ textarea:focus-visible {
     cursor: pointer; transition: all var(--dur-base) var(--ease-out);
 }
 .blog-like-btn:hover { background: var(--rose-50); border-color: #f6d3d5; color: var(--rose-600); }
-.blog-like-btn.liked { background: var(--rose-50); border-color: #f6d3d5; color: var(--rose-600); }
-.blog-like-btn.liked i { fill: currentColor; }
+/* 좋아요 클릭 시 버튼 전체가 아니라 하트 아이콘만 빨갛게 채워지도록 함.
+ * lucide.createIcons()가 <i data-lucide="heart">를 실제 <svg>로 치환하므로 svg를 직접 지정한다. */
+.blog-like-btn.liked svg { color: var(--rose-600); fill: currentColor; }
+
+/* 커뮤니티 등 다른 화면의 좋아요 버튼에도 재사용하는 공용 규칙 — 하트 아이콘만 색이 바뀐다. */
+.like-btn.liked svg { color: var(--rose-600); fill: currentColor; }
 
 /* ---------------------------------------------------------------
  * 9c. 포트폴리오 작성/수정 에디터 — 네이버 블로그 에디터처럼 상단 툴바 + 클릭하면

@@ -1023,7 +1023,7 @@ function openCommunityDetail(postId) {
             <p class="text-sm text-ink-700 font-medium leading-relaxed whitespace-pre-line py-2">${post.content.replace(/</g, '&lt;')}</p>
             ${post.images && post.images.length > 0 ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 py-2">${post.images.map(src => `<img src="${src}" class="w-full aspect-square rounded-xl object-cover border border-ink-100">`).join('')}</div>` : ''}
             <div class="flex items-center gap-2 pt-2">
-                <button type="button" onclick="toggleCommunityLike('${post.id}')" class="btn ${liked ? 'btn-primary' : 'btn-secondary'} btn-sm"><i data-lucide="heart" class="w-3.5 h-3.5"></i> 좋아요 ${(post.likedBy || []).length}</button>
+                <button type="button" onclick="toggleCommunityLike('${post.id}')" class="btn btn-secondary btn-sm like-btn ${liked ? 'liked' : ''}"><i data-lucide="heart" class="w-3.5 h-3.5"></i> 좋아요 ${(post.likedBy || []).length}</button>
             </div>
             <div class="pt-5 border-t border-ink-100 space-y-3">
                 <h5 class="text-xs font-black text-ink-800">댓글 ${(post.comments || []).length}개</h5>
