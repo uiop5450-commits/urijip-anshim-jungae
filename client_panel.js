@@ -562,6 +562,7 @@ function renderClientMyPage() {
 
     const auth = window.AppState.clientAuth;
     if (!auth.loggedIn) return;
+    renderClientMyPagePosts();
 
     const allMyOrders = window.AppState.orders.filter(o => o.clientPhone === auth.phone);
 
@@ -640,6 +641,41 @@ function renderClientMyPage() {
     }
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 마이페이지 > 내가 쓴 커뮤니티 글. 카드를 클릭하면 해당 게시글 상세로 바로 이동한다. */
+function renderClientMyPagePosts() {
+    const container = document.getElementById('client-mypage-my-posts-container');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+
+    const myPosts = (window.AppState.communityPosts || []).filter(p => p.authorId === auth.id);
+    if (myPosts.length === 0) {
+        container.innerHTML = `<p class="text-xs text-ink-400 font-bold text-center py-6">아직 작성한 커뮤니티 글이 없습니다.</p>`;
+        return;
+    }
+
+    container.innerHTML = myPosts.map(p => `
+        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl cursor-pointer hover:bg-ink-100 transition-colors" onclick="jumpToMyCommunityPost('${p.id}')">
+            <div class="space-y-0.5 min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-brand">${COMMUNITY_CATEGORIES[p.category] || '자유 이야기'}</span>
+                    <span class="text-[10px] text-ink-400 font-bold">${p.date}</span>
+                </div>
+                <h5 class="text-xs font-black text-ink-950 truncate">${p.title}</h5>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] text-ink-400 font-bold shrink-0 ml-2">
+                <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i> ${(p.likedBy || []).length}</span>
+                <span class="flex items-center gap-1"><i data-lucide="message-square" class="w-3 h-3"></i> ${(p.comments || []).length}</span>
+            </div>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function jumpToMyCommunityPost(postId) {
+    switchPanel('community-panel');
+    openCommunityDetail(postId);
 }
 
 function selectMyPageEstimate(orderCode) {
@@ -1069,6 +1105,8 @@ window.toggleClientAuthUI = toggleClientAuthUI;
 window.handleClientLoginNavClick = handleClientLoginNavClick;
 window.renderClientMyPage = renderClientMyPage;
 window.setClientMyPageHistoryFilter = setClientMyPageHistoryFilter;
+window.renderClientMyPagePosts = renderClientMyPagePosts;
+window.jumpToMyCommunityPost = jumpToMyCommunityPost;
 window.selectMyPageEstimate = selectMyPageEstimate;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
