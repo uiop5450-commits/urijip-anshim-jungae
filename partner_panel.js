@@ -79,7 +79,7 @@ function buildPamphletCardHtml(evt, idx = 0, total = 1) {
         <span class="absolute bottom-4 right-4 sm:bottom-5 sm:right-5 z-10 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-black/35 backdrop-blur-md text-white border border-white/20">${idx + 1} / ${total}</span>`;
 }
 
-function renderHomeEventSlider() {
+function renderHomeEventSlider(direction) {
     const container = document.getElementById('home-event-slider-container');
     if (!container) return;
     const pamphlets = window.AppState.pamphlets || [];
@@ -95,10 +95,15 @@ function renderHomeEventSlider() {
     const currentIdx = window.AppState.currentHomeEventIndex;
     const evt = pamphlets[currentIdx];
 
-    container.innerHTML = `
-        <div onclick="openPamphletDetail('${evt.id}')" class="event-banner h-full group transition-all duration-300">${buildPamphletCardHtml(evt, currentIdx, total)}</div>
-        <button type="button" onclick="prevHomeEvent(event)" class="hero-nav-btn left" aria-label="이전 이벤트"><i data-lucide="chevron-left" class="w-5 h-5 sm:w-6 sm:h-6"></i></button>
-        <button type="button" onclick="nextHomeEvent(event)" class="hero-nav-btn right" aria-label="다음 이벤트"><i data-lucide="chevron-right" class="w-5 h-5 sm:w-6 sm:h-6"></i></button>`;
+    const frameHtml = `<div onclick="openPamphletDetail('${evt.id}')" class="event-banner h-full group transition-all duration-300">${buildPamphletCardHtml(evt, currentIdx, total)}</div>`;
+    swapSlideFrame(container, frameHtml, direction);
+
+    if (!container.querySelector('.hero-nav-btn.left')) {
+        const navHtml = `
+            <button type="button" onclick="prevHomeEvent(event)" class="hero-nav-btn left" aria-label="이전 이벤트"><i data-lucide="chevron-left" class="w-5 h-5 sm:w-6 sm:h-6"></i></button>
+            <button type="button" onclick="nextHomeEvent(event)" class="hero-nav-btn right" aria-label="다음 이벤트"><i data-lucide="chevron-right" class="w-5 h-5 sm:w-6 sm:h-6"></i></button>`;
+        container.insertAdjacentHTML('beforeend', navHtml);
+    }
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -128,8 +133,8 @@ function openPamphletDetail(pamphletId) {
     openModal('pamphlet-detail-modal', 'pamphlet-detail-modal-card');
 }
 function closePamphletDetail() { closeModal('pamphlet-detail-modal', 'pamphlet-detail-modal-card'); }
-function nextHomeEvent(e) { if (e) e.stopPropagation(); const total = (window.AppState.pamphlets || []).length || 1; const current = window.AppState.currentHomeEventIndex || 0; window.AppState.currentHomeEventIndex = (current + 1) % total; renderHomeEventSlider(); }
-function prevHomeEvent(e) { if (e) e.stopPropagation(); const total = (window.AppState.pamphlets || []).length || 1; const current = window.AppState.currentHomeEventIndex || 0; window.AppState.currentHomeEventIndex = (current - 1 + total) % total; renderHomeEventSlider(); }
+function nextHomeEvent(e) { if (e) e.stopPropagation(); const total = (window.AppState.pamphlets || []).length || 1; const current = window.AppState.currentHomeEventIndex || 0; window.AppState.currentHomeEventIndex = (current + 1) % total; renderHomeEventSlider('next'); }
+function prevHomeEvent(e) { if (e) e.stopPropagation(); const total = (window.AppState.pamphlets || []).length || 1; const current = window.AppState.currentHomeEventIndex || 0; window.AppState.currentHomeEventIndex = (current - 1 + total) % total; renderHomeEventSlider('prev'); }
 
 /* ----------------------------------------------------------------
  * 홈 히어로 슬라이더 / 이벤트 배너 자동 전환
@@ -137,8 +142,8 @@ function prevHomeEvent(e) { if (e) e.stopPropagation(); const total = (window.Ap
  * 벗어나면 재개. 홈 패널을 벗어날 때는 타이머를 정리해 백그라운드에서
  * 계속 돌지 않도록 한다(switchPanel 참고).
  * ---------------------------------------------------------------- */
-const HERO_AUTOPLAY_INTERVAL_MS = 5000;
-const HOME_EVENT_AUTOPLAY_INTERVAL_MS = 6000;
+const HERO_AUTOPLAY_INTERVAL_MS = 3000;
+const HOME_EVENT_AUTOPLAY_INTERVAL_MS = 3000;
 let _heroAutoplayTimer = null;
 let _homeEventAutoplayTimer = null;
 
@@ -194,7 +199,46 @@ function heroHiResSrc(url, targetWidth) {
     return out;
 }
 
-function renderHeroPortfolioSlider() {
+const SLIDE_TRANSITION_MS = 380;
+
+/* 슬라이드 프레임(이미지+오버레이)만 좌우로 밀어내며 교체하는 공용 헬퍼.
+ * 내비게이션 버튼·카운터처럼 매번 동일한 정적 요소는 그대로 두고, 콘텐츠 프레임만
+ * translateX + opacity로 애니메이션한다. direction이 없으면(최초 렌더 등) 애니메이션 없이 즉시 교체. */
+function swapSlideFrame(container, frameHtml, direction) {
+    const oldFrame = container.querySelector(':scope > .hero-slide-frame');
+    const newFrame = document.createElement('div');
+    newFrame.className = 'hero-slide-frame';
+    newFrame.style.position = 'absolute';
+    newFrame.style.inset = '0';
+    newFrame.innerHTML = frameHtml;
+
+    if (!direction || !oldFrame) {
+        if (oldFrame) oldFrame.remove();
+        container.insertBefore(newFrame, container.firstChild);
+        return;
+    }
+
+    const exitX = direction === 'next' ? '-100%' : '100%';
+    const enterX = direction === 'next' ? '100%' : '-100%';
+    oldFrame.style.transition = `transform ${SLIDE_TRANSITION_MS}ms ease, opacity ${SLIDE_TRANSITION_MS}ms ease`;
+    oldFrame.style.transform = `translateX(${exitX})`;
+    oldFrame.style.opacity = '0';
+
+    newFrame.style.transform = `translateX(${enterX})`;
+    newFrame.style.opacity = '0';
+    container.insertBefore(newFrame, container.firstChild);
+
+    // 강제 리플로우로 위 시작 위치를 브라우저가 먼저 반영하게 만든 뒤 전환을 건다.
+    // requestAnimationFrame은 탭이 백그라운드일 때 지연/생략될 수 있어 대신 이 방식을 쓴다.
+    void newFrame.offsetWidth;
+    newFrame.style.transition = `transform ${SLIDE_TRANSITION_MS}ms ease, opacity ${SLIDE_TRANSITION_MS}ms ease`;
+    newFrame.style.transform = 'translateX(0)';
+    newFrame.style.opacity = '1';
+
+    setTimeout(() => oldFrame.remove(), SLIDE_TRANSITION_MS + 40);
+}
+
+function renderHeroPortfolioSlider(direction) {
     const container = document.getElementById('hero-portfolio-slider-container');
     if (!container) return;
 
@@ -211,7 +255,7 @@ function renderHeroPortfolioSlider() {
     const slide = slides[idx];
     const safeName = slide.partnerName.replace(/'/g, "\\'");
 
-    container.innerHTML = `
+    const frameHtml = `
         <img src="${heroHiResSrc(slide.img, 1400)}" alt="${slide.title}">
         <div class="hero-ad-overlay" onclick="openPortfolioBlogDetail('${safeName}', ${slide.portIdx})" role="button" tabindex="0">
             <h2 class="text-base sm:text-2xl font-black text-white tracking-tight leading-snug line-clamp-2">${slide.title}</h2>
@@ -221,10 +265,17 @@ function renderHeroPortfolioSlider() {
                 <span class="text-white/60 font-medium">·</span>
                 <span class="text-white/80 font-semibold flex items-center gap-1 shrink-0"><span class="text-gold-400">★</span>${slide.rating.toFixed(1)}</span>
             </div>
-        </div>
-        <button type="button" onclick="prevHeroSlide(event)" class="hero-nav-btn left" aria-label="이전 시공사례"><i data-lucide="chevron-left" class="w-5 h-5 sm:w-6 sm:h-6"></i></button>
-        <button type="button" onclick="nextHeroSlide(event)" class="hero-nav-btn right" aria-label="다음 시공사례"><i data-lucide="chevron-right" class="w-5 h-5 sm:w-6 sm:h-6"></i></button>
-        <span class="absolute top-3 right-3 sm:top-4 sm:right-4 z-[2] text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-black/35 backdrop-blur-md text-white border border-white/20">${idx + 1} / ${total}</span>`;
+        </div>`;
+    swapSlideFrame(container, frameHtml, direction);
+
+    if (!container.querySelector('.hero-nav-btn.left')) {
+        const navHtml = `
+            <button type="button" onclick="prevHeroSlide(event)" class="hero-nav-btn left" aria-label="이전 시공사례"><i data-lucide="chevron-left" class="w-5 h-5 sm:w-6 sm:h-6"></i></button>
+            <button type="button" onclick="nextHeroSlide(event)" class="hero-nav-btn right" aria-label="다음 시공사례"><i data-lucide="chevron-right" class="w-5 h-5 sm:w-6 sm:h-6"></i></button>
+            <span id="hero-slide-counter" class="absolute top-3 right-3 sm:top-4 sm:right-4 z-[2] text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-black/35 backdrop-blur-md text-white border border-white/20"></span>`;
+        container.insertAdjacentHTML('beforeend', navHtml);
+    }
+    safeUpdateText('hero-slide-counter', `${idx + 1} / ${total}`);
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -232,13 +283,13 @@ function nextHeroSlide(e) {
     if (e) e.stopPropagation();
     const total = getFeaturedHeroSlides(5).length || 1;
     window.AppState.currentHeroSlideIndex = ((window.AppState.currentHeroSlideIndex || 0) + 1) % total;
-    renderHeroPortfolioSlider();
+    renderHeroPortfolioSlider('next');
 }
 function prevHeroSlide(e) {
     if (e) e.stopPropagation();
     const total = getFeaturedHeroSlides(5).length || 1;
     window.AppState.currentHeroSlideIndex = ((window.AppState.currentHeroSlideIndex || 0) - 1 + total) % total;
-    renderHeroPortfolioSlider();
+    renderHeroPortfolioSlider('prev');
 }
 
 function renderPartnerSearchGrid() {
