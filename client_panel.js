@@ -325,7 +325,7 @@ function renderClientBids(targetCode) {
                     <span class="font-extrabold text-ink-950 cursor-pointer hover:text-ink-600 hover:underline flex items-center gap-1.5" onclick="openPartnerPortfolioModal('${bid.partner}')">
                         <i data-lucide="building" class="w-3.5 h-3.5 text-ink-400"></i>
                         <span>${bid.partner}</span>
-                        ${partnerInfo && partnerInfo.isCertified ? `<span class="chip-cert"><span class="w-1.5 h-1.5 rounded-full bg-gold-500"></span> 인증</span>` : ''}
+                        ${partnerInfo && partnerInfo.isCertified ? `<span class="chip-cert"><span>👑</span> 인증</span>` : ''}
                         <span class="inline-flex items-center gap-1 text-[11px] font-extrabold text-ink-800 ml-1"><span class="text-gold-500">★</span><span>${ratingVal}</span><span class="text-ink-400 font-normal ml-0.5">(리뷰 ${reviewCount})</span></span>
                     </span>
                 </div>

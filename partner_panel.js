@@ -313,7 +313,7 @@ function renderPartnerSearchGrid() {
         const repImg = (p.heroImages && p.heroImages.length > 0) ? p.heroImages[0] : (samplePort ? samplePort.img : 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&auto=format&fit=crop&q=60');
         const slogan = p.promoSlogan || `${p.name} - 부산 지역 대표 인테리어`;
         const promo = p.promoText || p.desc || '검증된 1군 실내건축 종합면허 보유사입니다.';
-        const certifiedBadge = p.isCertified ? `<span class="chip-cert"><span class="w-1.5 h-1.5 rounded-full bg-gold-500"></span> 인증</span>` : '';
+        const certifiedBadge = p.isCertified ? `<span class="chip-cert"><span>👑</span> 인증</span>` : '';
 
         const card = document.createElement('div');
         card.className = "portfolio-card flex flex-col justify-between group";
@@ -1289,7 +1289,7 @@ function renderAdminPartnerMonitor() {
             <div class="space-y-3">
                 <div class="flex justify-between items-start gap-2">
                     <div class="space-y-1">
-                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><span class="w-1.5 h-1.5 rounded-full bg-gold-500"></span> 우리집 인증</span>` : ''}</div>
+                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><span>👑</span> 우리집 인증</span>` : ''}</div>
                         <h4 class="text-sm font-black text-ink-950">${p.name}</h4>
                         <p class="text-[10px] text-ink-400 font-mono">사업자 번호: ${p.bizFile || '미등록'}</p>
                     </div>
@@ -1375,7 +1375,7 @@ function openPartnerMetricsModal(partnerName) {
         <div id="admin-partner-metrics-modal-card" class="modal-card w-full max-w-2xl p-6 sm:p-8 space-y-6 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">
                 <div class="space-y-1">
-                    <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotColor}"></span>${statusText}</span>${partner.isCertified ? `<span class="chip-cert"><span class="w-1.5 h-1.5 rounded-full bg-gold-500"></span> 우리집 인증</span>` : ''}</div>
+                    <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotColor}"></span>${statusText}</span>${partner.isCertified ? `<span class="chip-cert"><span>👑</span> 우리집 인증</span>` : ''}</div>
                     <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight mt-1">${partner.name} - 경영 및 안심 거래 지표 분석</h3>
                     <p class="text-xs text-ink-500 font-medium">사업자 등록번호: ${partner.bizFile || '미등록'} | 누적 평점: ★ ${partner.rating ? partner.rating.toFixed(1) : '5.0'}</p>
                 </div>
