@@ -739,28 +739,63 @@ function submitPartnerBid() {
     showToast("⚡ 선착순 입찰에 참여했습니다!", "success");
 }
 
+/* 안심 계약·입찰 내역 상태 필터. 상태 뱃지를 클릭하면 해당 상태만 걸러서 볼 수 있다. */
+let partnerContractsStatusFilter = 'all';
+
+function getPartnerOrderStatusKey(order, partnerName) {
+    const isContracted = order.status === 'contracted' && order.acceptedPartner === partnerName;
+    if (isContracted) return 'contracted_mine';
+    if (order.status === 'contracted') return 'contracted_other';
+    return 'bidding';
+}
+
+function setPartnerContractsStatusFilter(statusKey) {
+    partnerContractsStatusFilter = statusKey;
+    renderPartnerContractsView();
+}
+
 function renderPartnerContractsView() {
     const container = document.getElementById('partner-mode-contracts-view');
     if (!container) return;
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
-    const myOrders = (window.AppState.orders || []).filter(o => o.bids && o.bids.some(b => b.partner === partnerName));
+    const allMyOrders = (window.AppState.orders || []).filter(o => o.bids && o.bids.some(b => b.partner === partnerName));
 
-    if (myOrders.length === 0) {
+    if (allMyOrders.length === 0) {
         container.innerHTML = `<div class="empty-state surface surface-lg"><span class="icon-wrap"><i data-lucide="file-x" class="w-5 h-5"></i></span><p class="text-xs text-ink-500 font-bold">참여 이력이 있는 입찰/계약 건이 없습니다.</p></div>`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
 
-    container.innerHTML = `<div class="surface surface-lg overflow-hidden"><div class="overflow-x-auto"><table class="table-clean">
+    const statusTabs = [
+        ['all', '전체', allMyOrders.length],
+        ['bidding', '입찰 심사중', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'bidding').length],
+        ['contracted_mine', '계약 체결', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'contracted_mine').length],
+        ['contracted_other', '타사 계약', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'contracted_other').length]
+    ];
+    const tabsHtml = statusTabs.map(([key, label, count]) =>
+        `<button type="button" onclick="setPartnerContractsStatusFilter('${key}')" class="gnb-tab ${partnerContractsStatusFilter === key ? 'active' : ''}">${label} (${count})</button>`
+    ).join('');
+
+    const myOrders = partnerContractsStatusFilter === 'all'
+        ? allMyOrders
+        : allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === partnerContractsStatusFilter);
+
+    const rowsHtml = myOrders.length > 0 ? myOrders.map(o => {
+        const myBid = o.bids.find(b => b.partner === partnerName);
+        const statusKey = getPartnerOrderStatusKey(o, partnerName);
+        const statusBadge = statusKey === 'contracted_mine' ? `<span class="badge badge-emerald">계약 체결</span>`
+            : statusKey === 'contracted_other' ? `<span class="badge badge-neutral">타사 계약</span>`
+            : `<span class="badge badge-amber">입찰 심사중</span>`;
+        // 이 목록에 뜨는 오더는 전부 우리가 이미 입찰에 참여한 건이므로(이미 안심 잠금해제 대상),
+        // selectOrderForAudit()의 "입찰 참여 시 개인정보 잠금해제" 규칙과 동일하게 고객명을 가리지 않는다.
+        return `<tr class="cursor-pointer hover:bg-ink-50 transition-colors" onclick="openPartnerOrderDetailModal('${o.code}')"><td class="font-mono">${o.code}</td><td class="font-black text-ink-950">${o.clientName}</td><td>${o.pyung}평</td><td onclick="event.stopPropagation(); setPartnerContractsStatusFilter('${statusKey}')" class="cursor-pointer" title="이 상태만 필터링">${statusBadge}</td><td class="font-black text-ink-950">₩ ${(myBid ? myBid.price : 0).toLocaleString()}만</td><td><span class="btn btn-outline btn-sm">상세보기</span></td></tr>`;
+    }).join('') : `<tr><td colspan="6" class="text-center text-ink-400 font-bold py-8">해당 상태의 오더가 없습니다.</td></tr>`;
+
+    container.innerHTML = `
+        <div class="flex items-center flex-wrap gap-1.5 bg-ink-50 p-1.5 rounded-xl border border-ink-100 mb-4">${tabsHtml}</div>
+        <div class="surface surface-lg overflow-hidden"><div class="overflow-x-auto"><table class="table-clean">
         <thead><tr><th>오더 번호</th><th>고객</th><th>면적</th><th>상태</th><th>금액</th><th></th></tr></thead>
-        <tbody>${myOrders.map(o => {
-            const myBid = o.bids.find(b => b.partner === partnerName);
-            const isContracted = o.status === 'contracted' && o.acceptedPartner === partnerName;
-            const statusBadge = isContracted ? `<span class="badge badge-emerald">계약 체결</span>` : (o.status === 'contracted' ? `<span class="badge badge-neutral">타사 계약</span>` : `<span class="badge badge-amber">입찰 심사중</span>`);
-            // 이 목록에 뜨는 오더는 전부 우리가 이미 입찰에 참여한 건이므로(이미 안심 잠금해제 대상),
-            // selectOrderForAudit()의 "입찰 참여 시 개인정보 잠금해제" 규칙과 동일하게 고객명을 가리지 않는다.
-            return `<tr class="cursor-pointer hover:bg-ink-50 transition-colors" onclick="openPartnerOrderDetailModal('${o.code}')"><td class="font-mono">${o.code}</td><td class="font-black text-ink-950">${o.clientName}</td><td>${o.pyung}평</td><td>${statusBadge}</td><td class="font-black text-ink-950">₩ ${(myBid ? myBid.price : 0).toLocaleString()}만</td><td><span class="btn btn-outline btn-sm">상세보기</span></td></tr>`;
-        }).join('')}</tbody>
+        <tbody>${rowsHtml}</tbody>
     </table></div></div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -1927,6 +1962,7 @@ window.selectOrderForAudit = selectOrderForAudit;
 window.togglePartnerConsoleVisibility = togglePartnerConsoleVisibility;
 window.renderPartnerOrderList = renderPartnerOrderList;
 window.renderPartnerContractsView = renderPartnerContractsView;
+window.setPartnerContractsStatusFilter = setPartnerContractsStatusFilter;
 window.recalculateKPIs = recalculateKPIs;
 window.syncAuditLogs = syncAuditLogs;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
