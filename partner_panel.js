@@ -654,7 +654,8 @@ function renderPartnerOrderList() {
                 <span class="badge badge-neutral"><span class="badge-dot ${slotsLeft === 1 ? 'bg-amberCustom' : 'bg-ink-400'}"></span>선착순 ${slotsLeft}개사 남음</span>
             </div>
             <h5 class="text-xs font-black text-ink-950">${maskName(order.clientName)} 고객님 (${order.pyung}평형)</h5>
-            <p class="text-[10px] text-ink-500 font-medium truncate">${maskAddress(order.clientAddress)}</p>`;
+            <p class="text-[10px] text-ink-500 font-medium truncate">${maskAddress(order.clientAddress)}</p>
+            <span class="badge badge-brand">희망예산 ₩ ${order.budget.toLocaleString()}만원</span>`;
         streamList.appendChild(item);
     });
 }
@@ -697,7 +698,7 @@ function selectOrderForAudit(code) {
             <div class="surface p-6 text-left">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div class="space-y-1.5">
-                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot bg-ink-500"></span> 우리집 안심 중개보증</span><span id="audit-code" class="text-xs font-mono font-bold text-ink-500 tracking-wider">${order.code}</span></div>
+                        <div class="flex items-center gap-2 flex-wrap"><span class="badge badge-neutral"><span class="badge-dot bg-ink-500"></span> 우리집 안심 중개보증</span><span id="audit-code" class="text-xs font-mono font-bold text-ink-500 tracking-wider">${order.code}</span><span class="badge badge-brand">희망예산 ₩ ${order.budget.toLocaleString()}만원</span></div>
                         <h4 class="text-base font-black text-ink-950 tracking-tight">${displayClientName}</h4>
                         <p class="text-xs text-ink-600 font-bold leading-relaxed max-w-md">${displayClientAddress}</p>
                     </div>
@@ -711,6 +712,7 @@ function selectOrderForAudit(code) {
                     <div class="article-spec-chip"><span>시공 형태</span><span class="val">${order.workType === 'all' ? '전체 시공' : '부분 시공'}</span></div>
                     <div class="article-spec-chip"><span>시공 면적</span><span class="val">${order.pyung}평</span></div>
                     <div class="article-spec-chip"><span>공실 여부</span><span class="val">${order.vacancy === 'empty' ? '공실' : '거주중'}</span></div>
+                    <div class="article-spec-chip"><span>고객 희망예산</span><span class="val">₩ ${order.budget.toLocaleString()}만원</span></div>
                 </div>
             </div>
 
