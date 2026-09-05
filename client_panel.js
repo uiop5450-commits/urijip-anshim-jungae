@@ -554,6 +554,14 @@ function setClientMyPageHistoryFilter(filterKey) {
     renderClientMyPage();
 }
 
+/* 마이페이지 상단 메인 탭 — '의뢰이력'과 '내가 쓴 글'을 완전히 분리된 화면으로 전환한다. */
+let clientMyPageActiveSubtab = 'history';
+
+function switchClientMyPageSubtab(tab) {
+    clientMyPageActiveSubtab = tab;
+    renderClientMyPage();
+}
+
 function renderClientMyPage() {
     const listContainer = document.getElementById('client-mypage-estimates-container');
     const detailEmpty = document.getElementById('client-mypage-detail-empty');
@@ -562,7 +570,18 @@ function renderClientMyPage() {
 
     const auth = window.AppState.clientAuth;
     if (!auth.loggedIn) return;
-    renderClientMyPagePosts();
+
+    const myPostsCount = (window.AppState.communityPosts || []).filter(p => p.authorId === auth.id).length;
+    const mainTabsEl = document.getElementById('client-mypage-main-tabs');
+    if (mainTabsEl) {
+        const mainTabs = [['history', '의뢰이력'], ['posts', `내가 쓴 글 (${myPostsCount})`]];
+        mainTabsEl.innerHTML = mainTabs.map(([key, label]) =>
+            `<button type="button" data-tab="${key}" onclick="switchClientMyPageSubtab('${key}')" class="gnb-tab ${clientMyPageActiveSubtab === key ? 'active' : ''}">${label}</button>`
+        ).join('');
+    }
+    document.getElementById('client-mypage-subtab-history-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'history');
+    document.getElementById('client-mypage-subtab-posts-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'posts');
+    if (clientMyPageActiveSubtab === 'posts') renderClientMyPagePosts();
 
     const allMyOrders = window.AppState.orders.filter(o => o.clientPhone === auth.phone);
 
@@ -1155,6 +1174,7 @@ window.toggleClientAuthUI = toggleClientAuthUI;
 window.handleClientLoginNavClick = handleClientLoginNavClick;
 window.renderClientMyPage = renderClientMyPage;
 window.setClientMyPageHistoryFilter = setClientMyPageHistoryFilter;
+window.switchClientMyPageSubtab = switchClientMyPageSubtab;
 window.renderClientMyPagePosts = renderClientMyPagePosts;
 window.jumpToMyCommunityPost = jumpToMyCommunityPost;
 window.selectMyPageEstimate = selectMyPageEstimate;
