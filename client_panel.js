@@ -545,6 +545,15 @@ function toggleClientAuthUI() {
     else { gateway?.classList.remove('hidden'); dashboard?.classList.add('hidden'); }
 }
 
+/* 의뢰이력 필터 — '1:1 지정 매칭'은 자동매칭 견적과 성격이 달라 따로 걸러볼 수 있게 한다. */
+let clientMyPageHistoryFilter = 'all';
+
+function setClientMyPageHistoryFilter(filterKey) {
+    clientMyPageHistoryFilter = filterKey;
+    window.AppState.selectedMyPageOrderCode = null;
+    renderClientMyPage();
+}
+
 function renderClientMyPage() {
     const listContainer = document.getElementById('client-mypage-estimates-container');
     const detailEmpty = document.getElementById('client-mypage-detail-empty');
@@ -554,7 +563,23 @@ function renderClientMyPage() {
     const auth = window.AppState.clientAuth;
     if (!auth.loggedIn) return;
 
-    const myOrders = window.AppState.orders.filter(o => o.clientPhone === auth.phone);
+    const allMyOrders = window.AppState.orders.filter(o => o.clientPhone === auth.phone);
+
+    const tabsEl = document.getElementById('client-mypage-history-tabs');
+    if (tabsEl) {
+        const tabs = [
+            ['all', '전체', allMyOrders.length],
+            ['auto', '자동매칭', allMyOrders.filter(o => !o.is1on1).length],
+            ['1on1', '1:1 지정 매칭', allMyOrders.filter(o => o.is1on1).length]
+        ];
+        tabsEl.innerHTML = tabs.map(([key, label, count]) =>
+            `<button type="button" onclick="setClientMyPageHistoryFilter('${key}')" class="gnb-tab ${clientMyPageHistoryFilter === key ? 'active' : ''}">${label} (${count})</button>`
+        ).join('');
+    }
+
+    const myOrders = clientMyPageHistoryFilter === 'all' ? allMyOrders
+        : clientMyPageHistoryFilter === '1on1' ? allMyOrders.filter(o => o.is1on1)
+        : allMyOrders.filter(o => !o.is1on1);
 
     if (myOrders.length === 0) {
         listContainer.innerHTML = `
@@ -1043,6 +1068,7 @@ window.performClientLogout = performClientLogout;
 window.toggleClientAuthUI = toggleClientAuthUI;
 window.handleClientLoginNavClick = handleClientLoginNavClick;
 window.renderClientMyPage = renderClientMyPage;
+window.setClientMyPageHistoryFilter = setClientMyPageHistoryFilter;
 window.selectMyPageEstimate = selectMyPageEstimate;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
