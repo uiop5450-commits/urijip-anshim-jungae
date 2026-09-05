@@ -938,6 +938,35 @@ function setCommunityCategory(cat) {
     renderCommunityList();
 }
 
+/* 열려 있는 대댓글 입력창을 '${postId}-${commentIndex}' 키로 하나만 추적한다. */
+let openReplyBoxKey = null;
+
+function toggleReplyBox(postId, commentIndex) {
+    if (!requireClientLoginForCommunity()) return;
+    const key = `${postId}-${commentIndex}`;
+    openReplyBoxKey = openReplyBoxKey === key ? null : key;
+    openCommunityDetail(postId);
+}
+
+function submitCommunityReply(postId, commentIndex) {
+    if (!requireClientLoginForCommunity()) return;
+    const input = document.getElementById(`community-reply-input-${commentIndex}`);
+    const text = input ? input.value.trim() : '';
+    if (!text) { showToast('답글 내용을 입력해 주세요.', 'warning'); return; }
+
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post || !post.comments || !post.comments[commentIndex]) return;
+    const comment = post.comments[commentIndex];
+    if (!comment.replies) comment.replies = [];
+
+    const auth = window.AppState.clientAuth;
+    comment.replies.push({ authorName: auth.name, authorId: auth.id, text, date: new Date().toISOString().split('T')[0] });
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPLY', `'${auth.name}' 고객님이 대댓글을 남겼습니다.`, 'INFO');
+
+    openReplyBoxKey = null;
+    openCommunityDetail(postId);
+}
+
 function openCommunityDetail(postId) {
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     if (!post) return;
@@ -950,14 +979,35 @@ function openCommunityDetail(postId) {
     const liked = !!(myId && (post.likedBy || []).includes(myId));
 
     const commentsHtml = (post.comments || []).length > 0
-        ? post.comments.map(c => `
+        ? post.comments.map((c, idx) => {
+            const repliesHtml = (c.replies || []).length > 0
+                ? `<div class="mt-2 ml-5 pl-3 border-l-2 border-ink-200 space-y-2">${c.replies.map(r => `
+                    <div class="space-y-0.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-black text-ink-800">${r.authorId}</span>
+                            <span class="text-[10px] text-ink-400 font-bold">${r.date}</span>
+                        </div>
+                        <p class="text-[11px] text-ink-700 font-medium leading-relaxed">${r.text.replace(/</g, '&lt;')}</p>
+                    </div>`).join('')}</div>`
+                : '';
+            const replyBoxHtml = openReplyBoxKey === `${post.id}-${idx}`
+                ? `<div class="mt-2 ml-5 flex gap-2">
+                        <input type="text" id="community-reply-input-${idx}" placeholder="대댓글을 입력하세요" class="input flex-1 text-xs">
+                        <button type="button" onclick="submitCommunityReply('${post.id}', ${idx})" class="btn btn-dark btn-sm shrink-0">등록</button>
+                   </div>`
+                : '';
+            return `
             <div class="p-3.5 bg-ink-50 rounded-xl space-y-1">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-black text-ink-800">${c.authorId}</span>
                     <span class="text-[10px] text-ink-400 font-bold">${c.date}</span>
                 </div>
                 <p class="text-xs text-ink-700 font-medium leading-relaxed">${c.text.replace(/</g, '&lt;')}</p>
-            </div>`).join('')
+                <button type="button" onclick="toggleReplyBox('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0">답글 달기</button>
+                ${repliesHtml}
+                ${replyBoxHtml}
+            </div>`;
+        }).join('')
         : `<p class="text-xs text-ink-400 font-bold text-center py-6">아직 댓글이 없어요. 첫 댓글을 남겨보세요!</p>`;
 
     const contentEl = document.getElementById('community-detail-content');
@@ -1131,3 +1181,5 @@ window.submitCommunityPost = submitCommunityPost;
 window.handleCommunityPhotoUpload = handleCommunityPhotoUpload;
 window.toggleCommunityLike = toggleCommunityLike;
 window.submitCommunityComment = submitCommunityComment;
+window.toggleReplyBox = toggleReplyBox;
+window.submitCommunityReply = submitCommunityReply;
