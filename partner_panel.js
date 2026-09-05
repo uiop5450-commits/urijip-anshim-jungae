@@ -1044,6 +1044,13 @@ function renderAdminOrderAllocation() {
                 <div><span class="badge badge-amber">High-Value Direct Allocation</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1 flex items-center gap-2"><span>7,000만원 이상 고액 오더 수동 배정관</span><span class="badge badge-brand">${targetOrders.length}건 대기 중</span></h3></div>
                 <div class="text-xs font-bold text-ink-500">실시간 보증 매칭 잔여 유치액: <span class="font-black text-ink-950">₩ ${(targetOrders.reduce((acc, cur) => acc + cur.budget, 0)).toLocaleString()}만원</span></div>
             </div>
+            <div class="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-ink-50 rounded-xl border border-ink-100">
+                <label class="flex items-center gap-2 text-xs font-black text-ink-700 cursor-pointer">
+                    <input type="checkbox" id="admin-order-select-all" onchange="toggleSelectAllOrders(this)" class="w-4 h-4">
+                    전체 오더 선택
+                </label>
+                <button type="button" onclick="bulkAutoAllocateSelectedOrders()" class="btn btn-primary btn-sm whitespace-nowrap">⚡ 선택 오더 일괄 자동배정</button>
+            </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">`;
 
     targetOrders.forEach(o => {
@@ -1060,7 +1067,13 @@ function renderAdminOrderAllocation() {
         html += `
             <div class="surface-flat p-5 space-y-3.5 hover:border-ink-300 transition-all text-left flex flex-col justify-between">
                 <div class="space-y-2">
-                    <div class="flex justify-between items-center text-xs"><span class="font-mono text-[11px] font-black text-ink-500 bg-white px-2 py-0.5 rounded border border-ink-200">${o.code}</span><span class="badge badge-brand">₩ ${o.budget.toLocaleString()} 만원</span></div>
+                    <div class="flex justify-between items-center text-xs">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" class="admin-order-select-checkbox w-4 h-4" data-order-code="${o.code}" onchange="syncSelectAllOrdersCheckbox()">
+                            <span class="font-mono text-[11px] font-black text-ink-500 bg-white px-2 py-0.5 rounded border border-ink-200">${o.code}</span>
+                        </label>
+                        <span class="badge badge-brand">₩ ${o.budget.toLocaleString()} 만원</span>
+                    </div>
                     <div class="space-y-1"><h4 class="text-sm font-black text-ink-950">${o.clientName} 고객님 (${o.pyung}평형 / ${o.spaceType === 'residential' ? '주거' : '상업'})</h4><p class="text-xs text-ink-600 font-bold leading-relaxed line-clamp-1"><i data-lucide="map-pin" class="w-3.5 h-3.5 inline text-ink-400"></i> ${o.clientAddress}</p></div>
                     <div class="grid grid-cols-2 gap-2 text-[10px] font-bold text-ink-500 bg-white p-2.5 rounded-xl border border-ink-100"><span>착공예정: ${o.preferredDate || '미정'}</span><span>공실여부: ${o.vacancy === 'empty' ? '공실' : '거주중'}</span></div>
                     ${assignedListHtml}
@@ -1078,6 +1091,34 @@ function renderAdminOrderAllocation() {
     html += `</div></div>`;
     container.innerHTML = html;
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function toggleSelectAllOrders(checkbox) {
+    document.querySelectorAll('.admin-order-select-checkbox').forEach(cb => { cb.checked = checkbox.checked; });
+}
+
+function syncSelectAllOrdersCheckbox() {
+    const all = Array.from(document.querySelectorAll('.admin-order-select-checkbox'));
+    const selectAll = document.getElementById('admin-order-select-all');
+    if (selectAll) selectAll.checked = all.length > 0 && all.every(cb => cb.checked);
+}
+
+/* 체크된 오더들을 한 번에 자동 배정한다. 각 오더는 autoAllocateOrderCore로 남은
+ * 슬롯만큼 평점 우수 인증 파트너를 채우고, 결과를 모아 한 번의 토스트/로그로 요약한다. */
+function bulkAutoAllocateSelectedOrders() {
+    const checked = Array.from(document.querySelectorAll('.admin-order-select-checkbox:checked')).map(cb => cb.dataset.orderCode);
+    if (checked.length === 0) { showToast('일괄 자동배정할 오더를 먼저 선택해 주세요.', 'warning'); return; }
+
+    let successCount = 0, skippedCount = 0;
+    checked.forEach(orderCode => {
+        const result = autoAllocateOrderCore(orderCode);
+        if (result && result.assignedCount > 0) successCount++; else skippedCount++;
+    });
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'BULK_AUTO_ALLOCATE', `[일괄 자동배정] 선택한 오더 ${checked.length}건 중 ${successCount}건 배정 완료.`, 'SUCCESS');
+    showToast(`🎉 선택한 오더 ${checked.length}건 중 ${successCount}건 일괄 자동배정을 완료했습니다!${skippedCount > 0 ? ` (${skippedCount}건은 이미 배정이 다 찼거나 배정 가능한 파트너가 없어 건너뜀)` : ''}`, 'success');
+    renderAdminOrderAllocation();
+    recalculateKPIs();
 }
 
 function allocateOrderToPartner(orderCode) {
@@ -1098,17 +1139,19 @@ function allocateOrderToPartner(orderCode) {
     showToast(`🎉 [${partnerName}] 파트너사에 고액 오더 배정이 완료되었습니다!`, "success");
 }
 
-function autoAllocateOrder(orderCode) {
+/* 오더 하나에 대해 남은 슬롯만큼 평점 우수 인증 파트너를 채워 배정하는 핵심 로직.
+ * 토스트/재렌더링은 호출부(autoAllocateOrder 단건, bulkAutoAllocateSelectedOrders 일괄)에서 처리한다. */
+function autoAllocateOrderCore(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
-    if (!order) return;
+    if (!order) return null;
 
     const currentMatchedCount = order.bids ? order.bids.length : 0;
     const totalSlotLimit = order.partnerCountLimit || 3;
     const slotsNeeded = totalSlotLimit - currentMatchedCount;
-    if (slotsNeeded <= 0) { showToast(`이미 목표 배정 인원(${totalSlotLimit}개사)이 모두 차있습니다.`, "info"); return; }
+    if (slotsNeeded <= 0) return { assignedCount: 0, reason: 'full' };
 
     let candidates = (window.AppState.partners || []).filter(p => p.status !== 'banned' && p.isCertified && !order.bids.some(b => b.partner === p.name));
-    if (candidates.length === 0) { showToast("배정 가능한 추가 인증 파트너사가 존재하지 않습니다.", "warning"); return; }
+    if (candidates.length === 0) return { assignedCount: 0, reason: 'no-candidates' };
 
     candidates.sort((a, b) => b.rating - a.rating);
     const selectedToAssign = candidates.slice(0, slotsNeeded);
@@ -1117,8 +1160,17 @@ function autoAllocateOrder(orderCode) {
     });
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'AUTO_ALLOCATE', `[자동 배정] 오더 ${orderCode} -> [${selectedToAssign.map(s => s.name).join(', ')}] ${selectedToAssign.length}개 인증 파트너사 일괄 자동 배정 완료.`, 'SUCCESS');
+    return { assignedCount: selectedToAssign.length, assignedNames: selectedToAssign.map(s => s.name) };
+}
+
+function autoAllocateOrder(orderCode) {
+    const result = autoAllocateOrderCore(orderCode);
+    if (!result) return;
+    if (result.reason === 'full') { showToast(`이미 목표 배정 인원이 모두 차있습니다.`, "info"); return; }
+    if (result.reason === 'no-candidates') { showToast("배정 가능한 추가 인증 파트너사가 존재하지 않습니다.", "warning"); return; }
+
     renderAdminOrderAllocation(); recalculateKPIs();
-    showToast(`🎉 ${selectedToAssign.length}개 인증 파트너사에 일괄 자동 배정이 성공적으로 완료되었습니다!`, "success");
+    showToast(`🎉 ${result.assignedCount}개 인증 파트너사에 일괄 자동 배정이 성공적으로 완료되었습니다!`, "success");
 }
 
 function renderAdminPartnerMonitor() {
@@ -1836,6 +1888,9 @@ window.resetPartnerStrikes = resetPartnerStrikes;
 window.togglePartnerCertification = togglePartnerCertification;
 window.renderBlacklistDb = renderBlacklistDb;
 window.autoAllocateOrder = autoAllocateOrder;
+window.toggleSelectAllOrders = toggleSelectAllOrders;
+window.syncSelectAllOrdersCheckbox = syncSelectAllOrdersCheckbox;
+window.bulkAutoAllocateSelectedOrders = bulkAutoAllocateSelectedOrders;
 window.allocateOrderToPartner = allocateOrderToPartner;
 window.renderHomeEventSlider = renderHomeEventSlider;
 window.openPamphletDetail = openPamphletDetail;
