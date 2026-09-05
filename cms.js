@@ -632,30 +632,46 @@ function requestDirectQuoteFromPortfolio(partnerName, portIdx = 0) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
 
+    // 1:1 지정 상담은 최초 견적서(baseOrder)의 주소/평형/예산 정보를 그대로 물려받되,
+    // 자동매칭 견적서와 뒤섞이지 않도록 is1on1 플래그를 가진 별도의 오더로 분리 생성한다
+    // (마이페이지 의뢰이력의 '자동매칭'/'1:1 지정 매칭' 필터, renderClientMyPage 참고).
     const baseOrder = userOrders[0];
-    const existingBid = baseOrder.bids.find(b => b.partner === partnerName);
-    if (existingBid) {
-        showToast(`이미 [${partnerName}] 파트너사의 견적이 신청서(${baseOrder.code})에 포함되어 있습니다.`, "info");
+    const existing1on1 = userOrders.find(o => o.is1on1 && o.targetPartner === partnerName);
+    if (existing1on1) {
+        showToast(`이미 [${partnerName}] 파트너사에게 1:1 지정 상담을 신청하셨습니다. (${existing1on1.code})`, "info");
         if (typeof switchPanel === 'function') switchPanel('client-mypage-panel');
-        if (typeof selectMyPageEstimate === 'function') selectMyPageEstimate(baseOrder.code);
+        if (typeof setClientMyPageHistoryFilter === 'function') setClientMyPageHistoryFilter('1on1');
+        if (typeof selectMyPageEstimate === 'function') selectMyPageEstimate(existing1on1.code);
         closeClientPartnerProfile(); closePortfolioBlogDetail();
         return;
     }
 
-    baseOrder.bids.push({
-        partner: partnerName,
-        price: Math.floor(baseOrder.budget * 0.96),
-        desc: `[1:1 전속 지정 상담] ${partnerName}에서 고객님의 실거주/공실 정보(${baseOrder.pyung}평형, 예산 ₩ ${baseOrder.budget.toLocaleString()}만원)를 바탕으로 전속 가견적서 및 단독 자재 컨설팅안을 발송했습니다.`,
-        verified: true, progress: 'bidding'
-    });
+    const newCode = `WJ-1ON1-${Date.now()}`;
+    const newOrder = {
+        code: newCode, clientName: baseOrder.clientName, clientPhone: baseOrder.clientPhone, clientAddress: baseOrder.clientAddress,
+        spaceType: baseOrder.spaceType, workType: baseOrder.workType, pyung: baseOrder.pyung, vacancy: baseOrder.vacancy,
+        preferredDate: baseOrder.preferredDate, partnerCountLimit: 1, budget: baseOrder.budget,
+        status: 'bidding', contractUploaded: false, commissionPaid: false, reviewWritten: false,
+        acceptedPartner: null, finalPrice: 0, excludedPartners: [],
+        is1on1: true, targetPartner: partnerName,
+        bids: [{
+            partner: partnerName,
+            price: Math.floor(baseOrder.budget * 0.96),
+            desc: `[1:1 전속 지정 상담] ${partnerName}에서 고객님의 실거주/공실 정보(${baseOrder.pyung}평형, 예산 ₩ ${baseOrder.budget.toLocaleString()}만원)를 바탕으로 전속 가견적서 및 단독 자재 컨설팅안을 발송했습니다.`,
+            verified: true, progress: 'bidding'
+        }],
+        contractDoc: null, estimateDoc: null
+    };
+    window.AppState.orders.unshift(newOrder);
 
     closeClientPartnerProfile(); closePortfolioBlogDetail();
-    if (typeof pushLog === 'function') pushLog('CLIENT', '1ON1_REQUEST', `[${auth.name}] 고객님이 기존 신청서(${baseOrder.code})에 [${partnerName}] 파트너를 1:1 단독 지정함.`, 'SUCCESS');
-    showToast(`⚡ 작성하신 견적서(${baseOrder.code})에 [${partnerName}] 1:1 전속 지정 상담이 성공적으로 연결되었습니다!`, 'success');
+    if (typeof pushLog === 'function') pushLog('CLIENT', '1ON1_REQUEST', `[${auth.name}] 고객님이 [${partnerName}] 파트너를 1:1 단독 지정 신청함. (${newCode})`, 'SUCCESS');
+    showToast(`⚡ [${partnerName}] 파트너사에게 1:1 전속 지정 상담을 신청했습니다! (${newCode})`, 'success');
 
     if (typeof switchPanel === 'function') switchPanel('client-mypage-panel');
     if (typeof renderClientMyPage === 'function') renderClientMyPage();
-    if (typeof selectMyPageEstimate === 'function') selectMyPageEstimate(baseOrder.code);
+    if (typeof setClientMyPageHistoryFilter === 'function') setClientMyPageHistoryFilter('1on1');
+    if (typeof selectMyPageEstimate === 'function') selectMyPageEstimate(newCode);
     if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
 }
 
