@@ -154,33 +154,32 @@ function syncFormStateUI() {
     safeUpdateText('report-date', fd.preferredDate || '선택 대기중');
     safeUpdateText('report-vacancy', fd.vacancy === 'living' ? '거주 중' : '공실');
 
+    // 견적 신청 패널(client-panel) 자체가 이제 switchPanel 단계에서 로그인 여부를
+    // 확인해 미로그인 시 client-login-panel로 보내므로, 여기 도달했다면 항상 로그인된
+    // 상태다. 예전엔 미로그인 시 이 영역을 흐리게 잠가뒀지만 더 이상 그럴 일이 없다.
     const detailSection = document.getElementById('form-details-section');
     if (detailSection) {
-        if (auth.loggedIn) {
-            detailSection.classList.remove('opacity-40', 'pointer-events-none');
-        } else {
-            detailSection.classList.add('opacity-40', 'pointer-events-none');
-            goToClientStep(1);
-        }
+        detailSection.classList.remove('opacity-40', 'pointer-events-none');
     }
 }
 
 /**
- * 견적 신청 3단계 폼(본인인증 → 공간정보 → 일정예산) 스텝 이동 제어
+ * 견적 신청 2단계 폼(공간정보 → 일정예산) 스텝 이동 제어.
+ * 로그인은 이제 별도 패널(client-login-panel)에서 처리되므로 qstep 내부에는
+ * 없다 — 다만 마크업/기존 onclick 호출부(qstep-2/3, goToClientStep(2/3))를
+ * 그대로 두기 위해 qstep id는 2,3을 유지하고, 화면에 보여주는 단계 번호(1,2)만
+ * step-dot-1/2·step-label-1/2에 매핑해서 표시한다.
  */
-function goToClientStep(step) {
-    const auth = window.AppState.clientAuth;
-    if (step > 1 && !auth.loggedIn) {
-        showToast('먼저 1단계 본인인증을 완료해 주세요.', 'warning');
-        step = 1;
-    }
+const CLIENT_STEP_DISPLAY_MAP = { 2: 1, 3: 2 };
 
-    [1, 2, 3].forEach(n => {
+function goToClientStep(step) {
+    [2, 3].forEach(n => {
         const panel = document.getElementById(`qstep-${n}`);
         if (panel) panel.classList.toggle('hidden', n !== step);
-        const dot = document.getElementById(`step-dot-${n}`);
+        const displayN = CLIENT_STEP_DISPLAY_MAP[n];
+        const dot = document.getElementById(`step-dot-${displayN}`);
         if (dot) { dot.classList.toggle('active', n === step); dot.classList.toggle('done', n < step); }
-        const label = document.getElementById(`step-label-${n}`);
+        const label = document.getElementById(`step-label-${displayN}`);
         if (label) label.classList.toggle('current', n === step);
     });
 
@@ -476,12 +475,13 @@ function submitClientSignup() {
     if (typeof pushLog === 'function') pushLog('CLIENT', 'SIGNUP_SUCCESS', `'${nameVal}'(${idVal}) 고객님 회원가입 및 로그인 완료.`, 'SUCCESS');
     showToast(`회원가입이 완료되었습니다!\n반갑습니다, ${nameVal} 고객님.`, 'success');
 
-    toggleClientAuthUI(); renderClientMyPage(); syncFormStateUI(); goToClientStep(2);
+    toggleClientAuthUI(); syncFormStateUI();
+    completePostLoginRedirect();
 }
 
-function loginClientWithId(isFromForm = false) {
-    const idEl = document.getElementById(isFromForm ? 'form-login-id' : 'login-id');
-    const pwEl = document.getElementById(isFromForm ? 'form-login-pw' : 'login-pw');
+function loginClientWithId() {
+    const idEl = document.getElementById('form-login-id');
+    const pwEl = document.getElementById('form-login-pw');
     if (!idEl || !pwEl) return;
 
     const idVal = idEl.value.trim();
@@ -499,38 +499,55 @@ function loginClientWithId(isFromForm = false) {
     if (typeof pushLog === 'function') pushLog('CLIENT', 'LOGIN_SUCCESS', `'${account.name}'(${account.id}) 고객님 로그인 완료.`, 'SUCCESS');
     showToast(`반갑습니다, ${account.name} 고객님.`, 'success');
 
-    toggleClientAuthUI(); renderClientMyPage(); syncFormStateUI();
-    if (isFromForm) goToClientStep(2);
+    toggleClientAuthUI(); syncFormStateUI();
+    completePostLoginRedirect();
 }
 
 function performClientLogout() {
     const auth = window.AppState.clientAuth;
     auth.loggedIn = false; auth.id = ''; auth.name = ''; auth.phone = ''; auth.sentCode = null; auth.phoneVerified = false;
 
-    ['form-client-name','form-client-phone','form-client-code','form-signup-id','form-signup-pw','form-signup-pw2','form-login-id','form-login-pw','login-id','login-pw'].forEach(id => safeUpdateValue(id, ''));
+    ['form-client-name','form-client-phone','form-client-code','form-signup-id','form-signup-pw','form-signup-pw2','form-login-id','form-login-pw'].forEach(id => safeUpdateValue(id, ''));
     document.getElementById('form-auth-code-wrapper')?.classList.add('hidden');
     document.getElementById('form-signup-account-fields')?.classList.add('hidden');
     switchClientAuthTab('login');
 
     toggleClientAuthUI(); syncFormStateUI();
     showToast("로그아웃 되었습니다.", "info");
+
+    // 로그인 필요 화면(견적신청/마이페이지)에 남아있으면 다음 렌더에서 어색하게
+    // 비어보이므로, 로그아웃 시 홈으로 돌려보낸다.
+    const gatedPanels = ['client-panel', 'client-mypage-panel'];
+    if (gatedPanels.includes(window.AppState.currentPanel)) switchPanel('home-panel');
 }
 
 /* 상단 내비게이션의 '고객 로그인' 버튼 — 파트너/매니저 로그인 버튼 옆에서
- * 견적 신청 흐름과 별개로 언제든 고객 로그인/마이페이지에 바로 진입할 수 있게 한다. */
+ * 견적 신청 흐름과 별개로 언제든 고객 로그인 페이지에 바로 진입할 수 있게 한다. */
 function handleClientLoginNavClick() {
     if (window.AppState.clientAuth && window.AppState.clientAuth.loggedIn) {
         performClientLogout();
     } else {
-        switchPanel('client-panel');
-        if (typeof goToClientStep === 'function') goToClientStep(1);
+        goToLoginPanel(null);
     }
+}
+
+/* 로그인이 필요한 동작(견적 신청, 마이페이지, 커뮤니티 글쓰기 등)에서 공통으로 쓰는
+ * 진입점. targetPanel을 기억해뒀다가 로그인/회원가입 성공 시 그 화면으로 이어서
+ * 보낸다(completePostLoginRedirect 참고). */
+let postLoginRedirectPanel = null;
+function setPostLoginRedirect(panelId) { postLoginRedirectPanel = panelId; }
+function goToLoginPanel(targetPanel) {
+    postLoginRedirectPanel = targetPanel || null;
+    switchPanel('client-login-panel');
+}
+function completePostLoginRedirect() {
+    const target = postLoginRedirectPanel || 'home-panel';
+    postLoginRedirectPanel = null;
+    switchPanel(target);
 }
 
 function toggleClientAuthUI() {
     const auth = window.AppState.clientAuth;
-    const gateway = document.getElementById('client-mypage-gateway');
-    const dashboard = document.getElementById('client-mypage-dashboard');
     const unverifiedCard = document.getElementById('form-auth-unverified');
     const verifiedCard = document.getElementById('form-auth-verified');
     const verifiedUserInfo = document.getElementById('form-verified-user-info');
@@ -547,9 +564,6 @@ function toggleClientAuthUI() {
         unverifiedCard?.classList.remove('hidden');
         verifiedCard?.classList.add('hidden');
     }
-
-    if (auth.loggedIn) { gateway?.classList.add('hidden'); if (dashboard) { dashboard.classList.remove('hidden'); renderClientMyPage(); } }
-    else { gateway?.classList.remove('hidden'); dashboard?.classList.add('hidden'); }
 }
 
 /* 의뢰이력 필터 — '1:1 지정 매칭'은 자동매칭 견적과 성격이 달라 따로 걸러볼 수 있게 한다. */
@@ -1070,8 +1084,8 @@ function closeCommunityDetail() {
 
 function requireClientLoginForCommunity() {
     if (window.AppState.clientAuth && window.AppState.clientAuth.loggedIn) return true;
-    showToast('로그인 후 이용할 수 있어요. 간편 견적 신청 탭에서 로그인해 주세요.', 'warning');
-    switchPanel('client-panel');
+    showToast('로그인 후 이용할 수 있어요. 로그인 페이지로 이동합니다.', 'warning');
+    goToLoginPanel('community-panel');
     return false;
 }
 
@@ -1179,6 +1193,9 @@ window.loginClientWithId = loginClientWithId;
 window.performClientLogout = performClientLogout;
 window.toggleClientAuthUI = toggleClientAuthUI;
 window.handleClientLoginNavClick = handleClientLoginNavClick;
+window.goToLoginPanel = goToLoginPanel;
+window.setPostLoginRedirect = setPostLoginRedirect;
+window.completePostLoginRedirect = completePostLoginRedirect;
 window.renderClientMyPage = renderClientMyPage;
 window.setClientMyPageHistoryFilter = setClientMyPageHistoryFilter;
 window.switchClientMyPageSubtab = switchClientMyPageSubtab;

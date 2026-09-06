@@ -54,9 +54,19 @@ function updateB2BNavButton() {
     }
 }
 
+/* 로그인이 필요한 패널(견적 신청/마이페이지)로 이동하려는데 아직 고객 로그인 전이면,
+ * 전용 로그인 페이지(client-login-panel)로 대신 보내고 원래 가려던 패널을 기억해둔다.
+ * 로그인/회원가입 성공 시 client_panel.js의 completePostLoginRedirect가 이어서 그
+ * 패널로 보내준다. */
+const CLIENT_AUTH_REQUIRED_PANELS = ['client-panel', 'client-mypage-panel'];
+
 function switchPanel(panelId) {
+    if (CLIENT_AUTH_REQUIRED_PANELS.includes(panelId) && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn)) {
+        if (typeof setPostLoginRedirect === 'function') setPostLoginRedirect(panelId);
+        panelId = 'client-login-panel';
+    }
     window.AppState.currentPanel = panelId;
-    const panels = ['home-panel', 'client-panel', 'partner-search-panel', 'community-panel', 'client-mypage-panel', 'partner-panel', 'admin-panel'];
+    const panels = ['home-panel', 'client-panel', 'partner-search-panel', 'community-panel', 'client-login-panel', 'client-mypage-panel', 'partner-panel', 'admin-panel'];
 
     panels.forEach(p => {
         const el = document.getElementById(p);
