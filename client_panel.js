@@ -776,12 +776,12 @@ function renderMyPageEstimateDetails(order) {
     }
 
     const designationBannerHtml = `
-        <div class="wj-dark-card p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 relative">
-            <div class="space-y-0.5 relative z-10">
-                <span class="text-[10px] text-gold-500 font-extrabold uppercase tracking-wider">⚡ 1:1 전속 지정 상담 혜택</span>
-                <p class="text-xs font-black">원하는 우수 파트너사를 1:1 지정하여 단독 견적을 추가로 받아보세요!</p>
+        <div class="p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3" style="background:var(--brand-50)">
+            <div class="space-y-0.5">
+                <span class="flex items-center gap-1.5 text-[10px] font-black text-brand-700 uppercase tracking-wider"><span class="w-1.5 h-1.5 rounded-full bg-brand-500"></span> 1:1 전속 지정 상담</span>
+                <p class="text-xs font-bold text-ink-800">원하는 우수 파트너사를 1:1 지정하여 단독 견적을 추가로 받아보세요!</p>
             </div>
-            <button type="button" onclick="switchPanel('partner-search-panel')" class="btn btn-lg relative z-10 whitespace-nowrap" style="background:#e7b346;color:var(--ink-950)">우수 파트너 1:1 지정하기 →</button>
+            <button type="button" onclick="switchPanel('partner-search-panel')" class="btn btn-primary whitespace-nowrap">우수 파트너 1:1 지정하기 →</button>
         </div>`;
 
     detailBoard.innerHTML = `
