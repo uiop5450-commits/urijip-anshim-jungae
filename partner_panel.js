@@ -10,6 +10,10 @@ var safeUpdateText = window.safeUpdateText || function(id, val) { const el = doc
 var showToast = window.showToast || function(msg, type) { console.log(`[Toast] ${type || 'info'}: ${msg}`); };
 var maskName = window.maskName || function(name) { if (!name) return ''; if (name.length <= 2) return name.charAt(0) + '*'; return name.charAt(0) + '*'.repeat(name.length - 2) + name.charAt(name.length - 1); };
 var maskPhone = window.maskPhone || function(phone) { if (!phone) return ''; return phone.replace(/(\d{3})-(\d{4})-\d{4}/, '$1-$2-****'); };
+var escapeHtml = window.escapeHtml || function(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+};
 
 function maskAddress(addr) {
     if (!addr) return '';
@@ -335,8 +339,9 @@ function renderPartnerSearchGrid() {
     filtered.forEach(p => {
         const samplePort = p.portfolios && p.portfolios.length > 0 ? p.portfolios[0] : null;
         const repImg = (p.heroImages && p.heroImages.length > 0) ? p.heroImages[0] : (samplePort ? samplePort.img : 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&auto=format&fit=crop&q=60');
-        const slogan = p.promoSlogan || `${p.name} - 부산 지역 대표 인테리어`;
-        const promo = p.promoText || p.desc || '검증된 1군 실내건축 종합면허 보유사입니다.';
+        const safePName = escapeHtml(p.name);
+        const slogan = p.promoSlogan ? escapeHtml(p.promoSlogan) : `${safePName} - 부산 지역 대표 인테리어`;
+        const promo = p.promoText ? escapeHtml(p.promoText) : (p.desc ? escapeHtml(p.desc) : '검증된 1군 실내건축 종합면허 보유사입니다.');
         const certifiedBadge = p.isCertified ? `<span class="chip-cert"><span>👑</span> 인증</span>` : '';
 
         const card = document.createElement('div');
@@ -345,12 +350,12 @@ function renderPartnerSearchGrid() {
         card.innerHTML = `
             <div>
                 <div class="portfolio-img">
-                    <img src="${repImg}" alt="${p.name}">
+                    <img src="${repImg}" alt="${safePName}">
                     <span class="absolute top-3 left-3 badge badge-dark">${p.portfolios ? p.portfolios.length : 0}개 완공 사례</span>
                 </div>
                 <div class="p-5 space-y-2">
                     <div class="flex justify-between items-center gap-2">
-                        <h4 class="text-sm font-black text-ink-950 truncate flex items-center gap-1.5"><span>${p.name}</span>${certifiedBadge}</h4>
+                        <h4 class="text-sm font-black text-ink-950 truncate flex items-center gap-1.5"><span>${safePName}</span>${certifiedBadge}</h4>
                         <div class="flex items-center gap-1 text-xs font-extrabold text-ink-800 shrink-0"><span class="text-gold-500">★</span><span>${p.rating.toFixed(1)}</span><span class="text-ink-400 font-normal text-[10px]">(${p.reviews ? p.reviews.length : 0})</span></div>
                     </div>
                     <p class="text-xs text-ink-800 font-bold leading-relaxed line-clamp-1">${slogan}</p>
@@ -630,6 +635,10 @@ function submitPartnerSignup() {
     if (!company || !phone || !bizNum || !idVal || !pwVal || !pw2Val) {
         showToast('필수 항목을 모두 입력해 주세요.', 'warning'); return;
     }
+    // 아이디는 영문/숫자/밑줄/하이픈만 허용한다. 이 아이디는 이후 매니저 콘솔 등에서
+    // onclick="fn('${id}')" 형태로 그대로 삽입되므로, 따옴표 등을 허용하면 저장형 XSS/JS
+    // 인젝션으로 이어질 수 있다.
+    if (!/^[A-Za-z0-9_-]{3,20}$/.test(idVal)) { showToast('아이디는 영문, 숫자, _, - 조합으로 3~20자로 입력해 주세요.', 'warning'); return; }
     if (pwVal !== pw2Val) { showToast('비밀번호가 일치하지 않습니다.', 'warning'); return; }
     if (window.AppState.partners.some(p => p.id === idVal)) { showToast('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.', 'warning'); return; }
     if (!_partnerSignupBizCertDraft) { showToast('사업자등록증 파일을 첨부해 주세요.', 'warning'); return; }
@@ -1117,7 +1126,7 @@ function syncAuditLogs() {
             <td class="font-mono text-[11px] text-ink-500">${log.time}</td>
             <td><span class="badge badge-neutral">${log.category}</span></td>
             <td class="font-black text-ink-950">${log.target}</td>
-            <td class="leading-relaxed">${log.message}</td>
+            <td class="leading-relaxed">${escapeHtml(log.message)}</td>
             <td><span class="badge ${statusBadge}">${log.status}</span></td>
         </tr>`;
     }).join('');
@@ -1528,7 +1537,7 @@ function renderAdminPartnerApplications() {
         const docPreview = doc
             ? (isImg
                 ? `<img src="${doc.dataUrl}" alt="사업자등록증" class="w-full h-40 object-cover rounded-xl border border-ink-100 cursor-pointer" onclick="viewPartnerBizCertDoc('${p.id}')">`
-                : `<button type="button" onclick="viewPartnerBizCertDoc('${p.id}')" class="btn btn-secondary btn-sm btn-block"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> ${doc.name || '첨부파일'} 열기</button>`)
+                : `<button type="button" onclick="viewPartnerBizCertDoc('${p.id}')" class="btn btn-secondary btn-sm btn-block"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> ${escapeHtml(doc.name) || '첨부파일'} 열기</button>`)
             : `<div class="p-3 bg-rose-50 rounded-xl border border-dashed border-roseCustom/40 text-center"><p class="text-[10px] text-roseCustom font-bold">첨부된 사업자등록증이 없습니다.</p></div>`;
 
         return `
@@ -1537,14 +1546,14 @@ function renderAdminPartnerApplications() {
                     <div class="flex justify-between items-start gap-2">
                         <div class="space-y-1">
                             <span class="badge badge-amber">심사 대기</span>
-                            <h4 class="text-sm font-black text-ink-950">${p.name}</h4>
+                            <h4 class="text-sm font-black text-ink-950">${escapeHtml(p.name)}</h4>
                             <p class="text-[10px] text-ink-400 font-mono">신청일시: ${p.appliedAt || '-'}</p>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2 text-[11px] font-bold text-ink-600 bg-ink-50 p-3 rounded-xl border border-ink-100">
-                        <span>아이디: <b class="text-ink-900">${p.id}</b></span>
-                        <span>연락처: <b class="text-ink-900">${p.phone || '-'}</b></span>
-                        <span class="col-span-2">사업자등록번호: <b class="text-ink-900 font-mono">${p.bizFile || '-'}</b></span>
+                        <span>아이디: <b class="text-ink-900">${escapeHtml(p.id)}</b></span>
+                        <span>연락처: <b class="text-ink-900">${escapeHtml(p.phone) || '-'}</b></span>
+                        <span class="col-span-2">사업자등록번호: <b class="text-ink-900 font-mono">${escapeHtml(p.bizFile) || '-'}</b></span>
                     </div>
                     <div class="space-y-1.5">
                         <span class="text-[11px] font-black text-ink-500">사업자등록증</span>
@@ -1613,7 +1622,7 @@ function searchClientForManagerGrant() {
 
     const account = (window.AppState.clientAccounts || []).find(a => a.id === idVal);
     if (!account) {
-        resultEl.innerHTML = `<div class="p-4 bg-rose-50 rounded-xl border border-dashed border-roseCustom/40 text-center"><p class="text-xs text-roseCustom font-bold">'${idVal}' 아이디로 가입된 고객 계정을 찾을 수 없습니다.</p></div>`;
+        resultEl.innerHTML = `<div class="p-4 bg-rose-50 rounded-xl border border-dashed border-roseCustom/40 text-center"><p class="text-xs text-roseCustom font-bold">'${escapeHtml(idVal)}' 아이디로 가입된 고객 계정을 찾을 수 없습니다.</p></div>`;
         return;
     }
 
@@ -1621,7 +1630,7 @@ function searchClientForManagerGrant() {
     resultEl.innerHTML = `
         <div class="surface-flat p-4 flex flex-wrap items-center justify-between gap-3">
             <div class="space-y-0.5">
-                <p class="text-sm font-black text-ink-950">${account.name} <span class="text-ink-400 font-bold text-xs">(${account.id})</span></p>
+                <p class="text-sm font-black text-ink-950">${escapeHtml(account.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(account.id)})</span></p>
                 <p class="text-[11px] text-ink-500 font-bold">연락처 ${account.phone || '-'} · 현재 권한: <b>${roleLabel}</b></p>
             </div>
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -1664,7 +1673,7 @@ function renderAdminStaffGrantedList() {
     listEl.innerHTML = granted.map(a => `
         <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl">
             <div class="space-y-0.5">
-                <p class="text-xs font-black text-ink-900">${a.name} <span class="text-ink-400 font-bold">(${a.id})</span></p>
+                <p class="text-xs font-black text-ink-900">${escapeHtml(a.name)} <span class="text-ink-400 font-bold">(${escapeHtml(a.id)})</span></p>
                 <span class="badge ${a.managerRole === 'super_admin' ? 'badge-brand' : 'badge-neutral'}">${a.managerRole === 'super_admin' ? '최고관리자' : '파트너 매니저'}</span>
             </div>
             <button type="button" onclick="revokeManagerRole('${a.id}')" class="btn btn-secondary btn-sm">권한 회수</button>

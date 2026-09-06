@@ -14,6 +14,10 @@ var safeUpdateText = window.safeUpdateText || function(id, val) {
     if (el) el.innerText = val;
 };
 var showToast = window.showToast || function(msg, type) { console.log(`[Toast] ${type || 'info'}: ${msg}`); };
+var escapeHtml = window.escapeHtml || function(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+};
 
 function changeMonth(dir) {
     window.AppState.calendar.month += dir;
@@ -458,6 +462,9 @@ function submitClientSignup() {
     const pw2Val = document.getElementById('form-signup-pw2')?.value;
 
     if (!idVal || !pwVal || !pw2Val) { showToast("아이디와 비밀번호를 모두 입력해 주세요.", "warning"); return; }
+    // 아이디는 영문/숫자/밑줄/하이픈만 허용한다. 이 아이디는 이후 여러 화면에서 onclick="fn('${id}')"
+    // 형태로 그대로 삽입되므로, 따옴표 등을 허용하면 저장형 XSS/JS 인젝션으로 이어질 수 있다.
+    if (!/^[A-Za-z0-9_-]{3,20}$/.test(idVal)) { showToast("아이디는 영문, 숫자, _, - 조합으로 3~20자로 입력해 주세요.", "warning"); return; }
     if (pwVal !== pw2Val) { showToast("비밀번호가 일치하지 않습니다.", "warning"); return; }
     if (window.AppState.clientAccounts.some(acc => acc.id === idVal)) { showToast("이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.", "warning"); return; }
 
@@ -682,7 +689,7 @@ function renderClientMyPagePosts() {
                     <span class="badge badge-brand">${COMMUNITY_CATEGORIES[p.category] || '자유 이야기'}</span>
                     <span class="text-[10px] text-ink-400 font-bold">${p.date}</span>
                 </div>
-                <h5 class="text-xs font-black text-ink-950 truncate">${p.title}</h5>
+                <h5 class="text-xs font-black text-ink-950 truncate">${escapeHtml(p.title)}</h5>
             </div>
             <div class="flex items-center gap-3 text-[11px] text-ink-400 font-bold shrink-0 ml-2">
                 <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i> ${(p.likedBy || []).length}</span>
@@ -940,8 +947,8 @@ function renderCommunityList() {
                     <span class="badge badge-brand">${COMMUNITY_CATEGORIES[p.category] || '자유 이야기'}</span>
                     <span class="text-[10px] text-ink-400 font-bold">${p.date}</span>
                 </div>
-                <h4 class="text-sm font-black text-ink-950 truncate">${p.title}</h4>
-                <p class="text-xs text-ink-500 font-medium truncate">${p.authorId}</p>
+                <h4 class="text-sm font-black text-ink-950 truncate">${escapeHtml(p.title)}</h4>
+                <p class="text-xs text-ink-500 font-medium truncate">${escapeHtml(p.authorId)}</p>
             </div>
             <div class="flex flex-col items-end gap-1.5 text-[11px] text-ink-400 font-bold shrink-0">
                 <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i> ${(p.likedBy || []).length}</span>
@@ -1003,10 +1010,10 @@ function openCommunityDetail(postId) {
                 ? `<div class="mt-2 ml-5 pl-3 border-l-2 border-ink-200 space-y-2">${c.replies.map(r => `
                     <div class="space-y-0.5">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] font-black text-ink-800">${r.authorId}</span>
+                            <span class="text-[11px] font-black text-ink-800">${escapeHtml(r.authorId)}</span>
                             <span class="text-[10px] text-ink-400 font-bold">${r.date}</span>
                         </div>
-                        <p class="text-[11px] text-ink-700 font-medium leading-relaxed">${r.text.replace(/</g, '&lt;')}</p>
+                        <p class="text-[11px] text-ink-700 font-medium leading-relaxed">${escapeHtml(r.text)}</p>
                     </div>`).join('')}</div>`
                 : '';
             const replyBoxHtml = openReplyBoxKey === `${post.id}-${idx}`
@@ -1018,10 +1025,10 @@ function openCommunityDetail(postId) {
             return `
             <div class="p-3.5 bg-ink-50 rounded-xl space-y-1">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-black text-ink-800">${c.authorId}</span>
+                    <span class="text-xs font-black text-ink-800">${escapeHtml(c.authorId)}</span>
                     <span class="text-[10px] text-ink-400 font-bold">${c.date}</span>
                 </div>
-                <p class="text-xs text-ink-700 font-medium leading-relaxed">${c.text.replace(/</g, '&lt;')}</p>
+                <p class="text-xs text-ink-700 font-medium leading-relaxed">${escapeHtml(c.text)}</p>
                 <button type="button" onclick="toggleReplyBox('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0">답글 달기</button>
                 ${repliesHtml}
                 ${replyBoxHtml}
@@ -1035,11 +1042,11 @@ function openCommunityDetail(postId) {
             <div class="space-y-3 border-b border-ink-100 pb-5">
                 <div class="flex items-center gap-2">
                     <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
-                    <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${post.authorId}</span>
+                    <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${escapeHtml(post.authorId)}</span>
                 </div>
-                <h3 class="text-lg font-black text-ink-950">${post.title}</h3>
+                <h3 class="text-lg font-black text-ink-950">${escapeHtml(post.title)}</h3>
             </div>
-            <p class="text-sm text-ink-700 font-medium leading-relaxed whitespace-pre-line py-2">${post.content.replace(/</g, '&lt;')}</p>
+            <p class="text-sm text-ink-700 font-medium leading-relaxed whitespace-pre-line py-2">${escapeHtml(post.content)}</p>
             ${post.images && post.images.length > 0 ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 py-2">${post.images.map(src => `<img src="${src}" class="w-full aspect-square rounded-xl object-cover border border-ink-100">`).join('')}</div>` : ''}
             <div class="flex items-center gap-2 pt-2">
                 <button type="button" onclick="toggleCommunityLike('${post.id}')" class="btn btn-secondary btn-sm like-btn ${liked ? 'liked' : ''}"><i data-lucide="heart" class="w-3.5 h-3.5"></i> 좋아요 ${(post.likedBy || []).length}</button>
