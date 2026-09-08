@@ -170,16 +170,13 @@ function syncFormStateUI() {
  * 그대로 두기 위해 qstep id는 2,3을 유지하고, 화면에 보여주는 단계 번호(1,2)만
  * step-dot-1/2·step-label-1/2에 매핑해서 표시한다.
  */
-const CLIENT_STEP_DISPLAY_MAP = { 2: 1, 3: 2 };
-
 function goToClientStep(step) {
-    [2, 3].forEach(n => {
+    [1, 2, 3].forEach(n => {
         const panel = document.getElementById(`qstep-${n}`);
         if (panel) panel.classList.toggle('hidden', n !== step);
-        const displayN = CLIENT_STEP_DISPLAY_MAP[n];
-        const dot = document.getElementById(`step-dot-${displayN}`);
+        const dot = document.getElementById(`step-dot-${n}`);
         if (dot) { dot.classList.toggle('active', n === step); dot.classList.toggle('done', n < step); }
-        const label = document.getElementById(`step-label-${displayN}`);
+        const label = document.getElementById(`step-label-${n}`);
         if (label) label.classList.toggle('current', n === step);
     });
 
@@ -192,7 +189,8 @@ function triggerMatchingSim() {
     const auth = window.AppState.clientAuth;
 
     if (!auth.loggedIn) {
-        showToast('먼저 상단 1단계에서 휴대폰 안심 본인인증을 통과해 주셔야\n의뢰서 접수가 활성화됩니다!', 'warning');
+        showToast('로그인이 필요합니다. 로그인 페이지로 이동합니다.', 'warning');
+        if (typeof goToLoginPanel === 'function') goToLoginPanel('client-panel');
         return;
     }
     if (!fd.clientAddress || fd.pyung <= 0 || !fd.preferredDate) {

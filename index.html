@@ -108,12 +108,12 @@
                 <div class="text-center max-w-xl mx-auto space-y-1.5">
                     <span class="type-eyebrow text-brand-600">HOW IT WORKS</span>
                     <h2 class="text-lg sm:text-xl font-black text-ink-950">어떻게 진행되나요?</h2>
-                    <p class="text-[13px] text-ink-500 font-medium leading-relaxed">본인인증부터 계약까지, 딱 3단계면 끝나요.</p>
+                    <p class="text-[13px] text-ink-500 font-medium leading-relaxed">견적 신청부터 계약까지, 딱 3단계면 끝나요.</p>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 sm:gap-4 items-stretch">
                     <div class="surface surface-flush p-5 space-y-3 relative overflow-hidden">
-                        <h3 class="text-sm font-black text-ink-950">본인인증</h3>
-                        <p class="text-[13px] text-ink-500 font-medium leading-relaxed">휴대폰 실명 인증으로 허위 신청·위장 수급을 막고, 안전하게 견적 신청서를 시작해요.</p>
+                        <h3 class="text-sm font-black text-ink-950">안심 견적 신청</h3>
+                        <p class="text-[13px] text-ink-500 font-medium leading-relaxed">로그인 후 공간 정보와 일정·예산만 입력하면 견적 신청이 완료돼요.</p>
                     </div>
                     <div class="flex items-center justify-center text-ink-300 font-black text-lg rotate-90 sm:rotate-0" aria-hidden="true">→</div>
                     <div class="surface surface-flush p-5 space-y-3 relative overflow-hidden">
@@ -255,20 +255,73 @@
                 <div class="space-y-3">
                     <span class="type-eyebrow text-brand-600">클라이언트 안심 신청서</span>
                     <h2 class="type-display text-2xl sm:text-3xl">부산 안심 인테리어 견적 신청</h2>
-                    <p class="text-sm text-ink-500 font-medium leading-relaxed">공간 정보 → 일정·예산, 2단계면 견적 신청이 끝나요.</p>
+                    <p class="text-sm text-ink-500 font-medium leading-relaxed">안내 → 공간 정보 → 일정·예산, 3단계면 견적 신청이 끝나요.</p>
                     <div class="step-indicator pt-2">
                         <div class="step-dot active" id="step-dot-1"></div>
                         <div class="step-dot" id="step-dot-2"></div>
+                        <div class="step-dot" id="step-dot-3"></div>
                     </div>
                     <div class="flex justify-between text-[11px] font-bold text-ink-400">
-                        <span class="step-label current" id="step-label-1">1. 공간 정보</span>
-                        <span class="step-label" id="step-label-2">2. 일정·예산</span>
+                        <span class="step-label current" id="step-label-1">1. 안내</span>
+                        <span class="step-label" id="step-label-2">2. 공간 정보</span>
+                        <span class="step-label" id="step-label-3">3. 일정·예산</span>
                     </div>
                 </div>
 
                 <form id="matching-form" class="space-y-6 text-left" onsubmit="event.preventDefault();">
                 <div id="form-details-section" class="space-y-6">
-                    <div id="qstep-2" class="qstep space-y-6">
+                    <div id="qstep-1" class="qstep space-y-6">
+                        <div class="surface-flat p-5 sm:p-6 space-y-5">
+                            <div class="space-y-1">
+                                <span class="type-eyebrow text-brand-600">HOW IT WORKS</span>
+                                <h3 class="text-sm font-black text-ink-950">견적 신청부터 계약까지 이렇게 진행돼요</h3>
+                            </div>
+                            <div class="space-y-0">
+                                <div class="flex gap-3">
+                                    <div class="flex flex-col items-center">
+                                        <span class="w-7 h-7 rounded-full bg-brand-500 text-white text-xs font-black flex items-center justify-center shrink-0">1</span>
+                                        <span class="w-px flex-1 bg-ink-200 my-1"></span>
+                                    </div>
+                                    <div class="pb-5 space-y-0.5">
+                                        <h4 class="text-xs font-black text-ink-950">안심 견적서 작성</h4>
+                                        <p class="text-[12px] text-ink-500 font-medium leading-relaxed">공간 정보와 일정·예산을 입력하면 견적 신청이 완료돼요.</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-3">
+                                    <div class="flex flex-col items-center">
+                                        <span class="w-7 h-7 rounded-full bg-brand-500 text-white text-xs font-black flex items-center justify-center shrink-0">2</span>
+                                        <span class="w-px flex-1 bg-ink-200 my-1"></span>
+                                    </div>
+                                    <div class="pb-5 space-y-0.5">
+                                        <h4 class="text-xs font-black text-ink-950">자동매칭 또는 1:1 지정 매칭</h4>
+                                        <p class="text-[12px] text-ink-500 font-medium leading-relaxed">조건에 맞는 파트너사가 자동으로 매칭되거나, 원하는 파트너사를 직접 지정할 수 있어요.</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-3">
+                                    <div class="flex flex-col items-center">
+                                        <span class="w-7 h-7 rounded-full bg-brand-500 text-white text-xs font-black flex items-center justify-center shrink-0">3</span>
+                                        <span class="w-px flex-1 bg-ink-200 my-1"></span>
+                                    </div>
+                                    <div class="pb-5 space-y-0.5">
+                                        <h4 class="text-xs font-black text-ink-950">파트너사 연락 및 현장 미팅</h4>
+                                        <p class="text-[12px] text-ink-500 font-medium leading-relaxed">매칭된 파트너사에서 연락을 드리고, 미팅을 통해 상세 견적과 상담을 진행해요.</p>
+                                    </div>
+                                </div>
+                                <div class="flex gap-3">
+                                    <div class="flex flex-col items-center">
+                                        <span class="w-7 h-7 rounded-full bg-brand-500 text-white text-xs font-black flex items-center justify-center shrink-0">4</span>
+                                    </div>
+                                    <div class="space-y-0.5">
+                                        <h4 class="text-xs font-black text-ink-950">안심 계약 체결</h4>
+                                        <p class="text-[12px] text-ink-500 font-medium leading-relaxed">마음에 드는 파트너사와 계약을 체결하고 시공을 시작해요.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="goToClientStep(2)" class="btn btn-dark btn-lg btn-block">다음: 공간 정보 입력하기 →</button>
+                    </div><!-- /qstep-1 -->
+
+                    <div id="qstep-2" class="qstep hidden space-y-6">
                         <div><label class="field-label">시공 상세 주소 <span class="req">*</span></label>
                             <input type="text" id="client-address" oninput="updateFormState('clientAddress', this.value)" placeholder="부산시 수영구 광안동 광안아파트 101동 201호" class="input"></div>
 
