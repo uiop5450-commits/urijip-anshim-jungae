@@ -61,9 +61,10 @@ window.AppState = {
     editingPortfolioIndex: null,
     tempPortfolioImage: null,
     currentScenes: [],
+    // 오늘 날짜의 연/월로 시작한다(하드코딩된 특정 달로 열리지 않도록).
     calendar: {
-        year: 2026,
-        month: 7
+        year: new Date().getFullYear(),
+        month: new Date().getMonth() + 1
     },
     notifications: [],
 

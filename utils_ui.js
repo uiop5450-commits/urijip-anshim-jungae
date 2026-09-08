@@ -42,12 +42,28 @@ function maskPhone(phone) {
     return phone.slice(0, 3) + '-****-' + phone.slice(-4);
 }
 
+// 설날·추석·대체공휴일처럼 매년 날짜가 바뀌거나(음력) 요일에 따라 정해지는 공휴일은
+// 고정 월-일 표로 계산할 수 없어, 확인된 연도만 별도 표에 정확한 날짜로 채워둔다.
+// (2026년 기준 — 출처: 정부 공휴일 발표. 다른 연도는 음력 공휴일이 표시되지 않는다.)
+const YEARLY_LUNAR_AND_SUBSTITUTE_HOLIDAYS = {
+    2026: {
+        '2-16': '설날 연휴', '2-17': '설날', '2-18': '설날 연휴',
+        '3-2': '삼일절 대체공휴일',
+        '8-17': '광복절 대체공휴일',
+        '9-24': '추석 연휴', '9-25': '추석', '9-26': '추석 연휴',
+        '10-5': '개천절 대체공휴일'
+    }
+};
+
 function getHolidayName(year, month, day) {
-    const holidays = {
+    const yearTable = YEARLY_LUNAR_AND_SUBSTITUTE_HOLIDAYS[year];
+    if (yearTable && yearTable[`${month}-${day}`]) return yearTable[`${month}-${day}`];
+
+    const fixedHolidays = {
         '1-1': '신정', '3-1': '삼일절', '5-5': '어린이날', '6-6': '현충일',
         '7-17': '제헌절', '8-15': '광복절', '10-3': '개천절', '10-9': '한글날', '12-25': '성탄절'
     };
-    return holidays[`${month}-${day}`] || null;
+    return fixedHolidays[`${month}-${day}`] || null;
 }
 
 function pushLog(category, target, message, status = 'INFO') {
