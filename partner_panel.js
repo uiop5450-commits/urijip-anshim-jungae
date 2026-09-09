@@ -403,7 +403,10 @@ function renderPartnerSearchGrid() {
         const slogan = p.promoSlogan ? escapeHtml(p.promoSlogan) : `${safePName} - 부산 지역 대표 인테리어`;
         const promo = p.promoText ? escapeHtml(p.promoText) : (p.desc ? escapeHtml(p.desc) : '검증된 1군 실내건축 종합면허 보유사입니다.');
         const certifiedBadge = p.isCertified ? `<span class="chip-cert"><span>👑</span> 인증</span>` : '';
-        const regionTag = p.region ? `<span class="text-[10.5px] text-ink-400 font-bold flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>부산 ${escapeHtml(p.region)}</span>` : '';
+        const portfolioCount = p.portfolios ? p.portfolios.length : 0;
+        const metaParts = [];
+        if (p.region) metaParts.push(`<span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>부산 ${escapeHtml(p.region)}</span>`);
+        metaParts.push(`<span>완공사례 ${portfolioCount}건</span>`);
 
         const card = document.createElement('div');
         card.className = "portfolio-card flex flex-col justify-between group";
@@ -412,14 +415,13 @@ function renderPartnerSearchGrid() {
             <div>
                 <div class="portfolio-img">
                     <img src="${repImg}" alt="${safePName}">
-                    <span class="absolute top-3 left-3 badge badge-dark">${p.portfolios ? p.portfolios.length : 0}개 완공 사례</span>
                 </div>
                 <div class="p-5 space-y-2">
                     <div class="flex justify-between items-center gap-2">
                         <h4 class="text-sm font-black text-ink-950 truncate flex items-center gap-1.5"><span>${safePName}</span>${certifiedBadge}</h4>
-                        <div class="flex items-center gap-1 text-xs font-extrabold text-ink-800 shrink-0"><span class="text-gold-500">★</span><span>${p.rating.toFixed(1)}</span><span class="text-ink-400 font-normal text-[10px]">(${p.reviews ? p.reviews.length : 0})</span></div>
+                        <div class="flex items-center gap-1 text-xs font-extrabold text-ink-800 shrink-0"><span class="text-gold-500">★</span><span>${p.rating.toFixed(1)}</span></div>
                     </div>
-                    ${regionTag}
+                    <p class="text-[10.5px] text-ink-400 font-bold flex items-center gap-1.5">${metaParts.join('<span class="text-ink-200">·</span>')}</p>
                     <p class="text-xs text-ink-800 font-bold leading-relaxed line-clamp-1">${slogan}</p>
                     <p class="text-[11px] text-ink-500 font-medium leading-relaxed line-clamp-2">${promo}</p>
                 </div>
