@@ -359,7 +359,7 @@ textarea:focus-visible {
     display: grid; grid-template-columns: 1fr; height: 350px;
     background: var(--ink-950); box-shadow: var(--shadow-2); overflow: hidden;
 }
-@media (min-width: 640px) { .hero-a-card { grid-template-columns: 1fr 1.35fr; height: 460px; } }
+@media (min-width: 640px) { .hero-a-card { grid-template-columns: 1fr 1.7fr; height: 460px; } }
 
 .hero-a-left {
     padding: 22px 20px; display: flex; flex-direction: column; justify-content: center; gap: 14px; color: #fff;
@@ -369,13 +369,9 @@ textarea:focus-visible {
 .hero-a-head { font-size: 18px; font-weight: 800; line-height: 1.4; letter-spacing: -.01em; }
 @media (min-width: 640px) { .hero-a-head { font-size: 22px; } }
 .hero-a-stats { display: flex; gap: 18px; margin-top: 2px; }
-.hero-a-stat b { display: block; font-size: 17px; font-weight: 900; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
-.hero-a-stat span { font-size: 9.5px; color: rgba(255,255,255,.55); font-weight: 700; }
-.hero-a-cta {
-    margin-top: 6px; align-self: flex-start; background: var(--brand-500); color: #fff;
-    font-size: 11.5px; font-weight: 800; padding: 10px 16px; border: 0; cursor: pointer; box-shadow: var(--shadow-brand);
-}
-.hero-a-cta:hover { background: var(--brand-600); }
+.hero-a-stat b { display: block; font-size: 21px; font-weight: 900; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+@media (min-width: 640px) { .hero-a-stat b { font-size: 25px; } }
+.hero-a-stat span { font-size: 11px; color: rgba(255,255,255,.55); font-weight: 700; }
 
 /* 이벤트 배너(센터 카드형) — 히어로가 전체 폭 주인공이 된 뒤, 배너는 광고가 아니라
  * 공지에 가깝게 다뤄서 시선 비중을 낮춘다. 폭을 좁히고 높이도 낮은 비율로 고정. */

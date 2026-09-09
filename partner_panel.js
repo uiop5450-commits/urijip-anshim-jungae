@@ -181,25 +181,36 @@ function prevHomeEvent(e) { if (e) e.stopPropagation(); const total = (window.Ap
  * 벗어나면 재개. 홈 패널을 벗어날 때는 타이머를 정리해 백그라운드에서
  * 계속 돌지 않도록 한다(switchPanel 참고).
  * ---------------------------------------------------------------- */
-const HERO_AUTOPLAY_INTERVAL_MS = 3000;
-const HOME_EVENT_AUTOPLAY_INTERVAL_MS = 3000;
+const HERO_AUTOPLAY_INTERVAL_MS = 5000;
+const HOME_EVENT_AUTOPLAY_INTERVAL_MS = 5000;
+// 히어로와 이벤트 배너가 동시에 넘어가면 두 슬라이드가 한번에 바뀌어 정신없어 보이므로,
+// 이벤트 배너는 주기의 절반만큼 늦게 시작해 항상 서로 다른 시점에 넘어가게 한다.
+const HOME_EVENT_AUTOPLAY_STAGGER_MS = HOME_EVENT_AUTOPLAY_INTERVAL_MS / 2;
 let _heroAutoplayTimer = null;
 let _homeEventAutoplayTimer = null;
+let _homeEventAutoplayStartTimer = null;
 
 function startHomeAutoplay() {
     stopHomeAutoplay();
     _heroAutoplayTimer = setInterval(() => nextHeroSlide(), HERO_AUTOPLAY_INTERVAL_MS);
-    _homeEventAutoplayTimer = setInterval(() => nextHomeEvent(), HOME_EVENT_AUTOPLAY_INTERVAL_MS);
+    _homeEventAutoplayStartTimer = setTimeout(() => {
+        _homeEventAutoplayStartTimer = null;
+        _homeEventAutoplayTimer = setInterval(() => nextHomeEvent(), HOME_EVENT_AUTOPLAY_INTERVAL_MS);
+    }, HOME_EVENT_AUTOPLAY_STAGGER_MS);
 }
 
 function stopHomeAutoplay() {
     if (_heroAutoplayTimer) { clearInterval(_heroAutoplayTimer); _heroAutoplayTimer = null; }
     if (_homeEventAutoplayTimer) { clearInterval(_homeEventAutoplayTimer); _homeEventAutoplayTimer = null; }
+    if (_homeEventAutoplayStartTimer) { clearTimeout(_homeEventAutoplayStartTimer); _homeEventAutoplayStartTimer = null; }
 }
 
 function pauseHeroAutoplay() { if (_heroAutoplayTimer) { clearInterval(_heroAutoplayTimer); _heroAutoplayTimer = null; } }
 function resumeHeroAutoplay() { if (!_heroAutoplayTimer && window.AppState.currentPanel === 'home-panel') _heroAutoplayTimer = setInterval(() => nextHeroSlide(), HERO_AUTOPLAY_INTERVAL_MS); }
-function pauseHomeEventAutoplay() { if (_homeEventAutoplayTimer) { clearInterval(_homeEventAutoplayTimer); _homeEventAutoplayTimer = null; } }
+function pauseHomeEventAutoplay() {
+    if (_homeEventAutoplayTimer) { clearInterval(_homeEventAutoplayTimer); _homeEventAutoplayTimer = null; }
+    if (_homeEventAutoplayStartTimer) { clearTimeout(_homeEventAutoplayStartTimer); _homeEventAutoplayStartTimer = null; }
+}
 function resumeHomeEventAutoplay() { if (!_homeEventAutoplayTimer && window.AppState.currentPanel === 'home-panel') _homeEventAutoplayTimer = setInterval(() => nextHomeEvent(), HOME_EVENT_AUTOPLAY_INTERVAL_MS); }
 
 /* ----------------------------------------------------------------
