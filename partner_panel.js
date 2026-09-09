@@ -356,15 +356,39 @@ function prevHeroSlide(e) {
     renderHeroPortfolioSlider('prev');
 }
 
+let partnerSearchRegionFilter = 'all';
+function setPartnerSearchRegion(region) {
+    partnerSearchRegionFilter = region;
+    renderPartnerSearchGrid();
+}
+
 function renderPartnerSearchGrid() {
     const container = document.getElementById('partner-search-grid');
     if (!container) return;
     const input = document.getElementById('partner-search-input');
     const query = input ? input.value.trim().toLowerCase() : '';
+    const sortSelect = document.getElementById('partner-search-sort');
+    const sortMode = sortSelect ? sortSelect.value : 'rating';
 
     // 입점 심사 대기(pending)·제명(banned) 파트너는 고객 대상 공개 탐색 페이지에 노출하지 않는다.
-    const partners = (window.AppState.partners || []).filter(p => p.status !== 'pending' && p.status !== 'banned');
-    const filtered = partners.filter(p => !query || p.name.toLowerCase().includes(query) || (p.promoSlogan && p.promoSlogan.toLowerCase().includes(query)));
+    const allPartners = (window.AppState.partners || []).filter(p => p.status !== 'pending' && p.status !== 'banned');
+
+    // 지역 필터 칩 — 실제 등록된 파트너들의 지역만 모아 중복 없이 노출한다.
+    const regionChipsEl = document.getElementById('partner-search-region-chips');
+    if (regionChipsEl) {
+        const regions = [...new Set(allPartners.map(p => p.region).filter(Boolean))].sort();
+        const chips = [['all', '전체 지역'], ...regions.map(r => [r, r])];
+        regionChipsEl.innerHTML = chips.map(([key, label]) =>
+            `<button type="button" onclick="setPartnerSearchRegion('${key}')" class="gnb-tab ${partnerSearchRegionFilter === key ? 'active' : ''}">${label}</button>`
+        ).join('');
+    }
+
+    const filtered = allPartners
+        .filter(p => partnerSearchRegionFilter === 'all' || p.region === partnerSearchRegionFilter)
+        .filter(p => !query || p.name.toLowerCase().includes(query) || (p.region && p.region.toLowerCase().includes(query)) || (p.promoSlogan && p.promoSlogan.toLowerCase().includes(query)))
+        .sort((a, b) => sortMode === 'reviews'
+            ? (b.reviews ? b.reviews.length : 0) - (a.reviews ? a.reviews.length : 0)
+            : b.rating - a.rating);
 
     if (filtered.length === 0) {
         container.innerHTML = '<p class="text-xs text-ink-400 font-bold py-12 text-center col-span-full">검색된 파트너사가 없습니다.</p>';
@@ -379,6 +403,7 @@ function renderPartnerSearchGrid() {
         const slogan = p.promoSlogan ? escapeHtml(p.promoSlogan) : `${safePName} - 부산 지역 대표 인테리어`;
         const promo = p.promoText ? escapeHtml(p.promoText) : (p.desc ? escapeHtml(p.desc) : '검증된 1군 실내건축 종합면허 보유사입니다.');
         const certifiedBadge = p.isCertified ? `<span class="chip-cert"><span>👑</span> 인증</span>` : '';
+        const regionTag = p.region ? `<span class="text-[10.5px] text-ink-400 font-bold flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>부산 ${escapeHtml(p.region)}</span>` : '';
 
         const card = document.createElement('div');
         card.className = "portfolio-card flex flex-col justify-between group";
@@ -394,6 +419,7 @@ function renderPartnerSearchGrid() {
                         <h4 class="text-sm font-black text-ink-950 truncate flex items-center gap-1.5"><span>${safePName}</span>${certifiedBadge}</h4>
                         <div class="flex items-center gap-1 text-xs font-extrabold text-ink-800 shrink-0"><span class="text-gold-500">★</span><span>${p.rating.toFixed(1)}</span><span class="text-ink-400 font-normal text-[10px]">(${p.reviews ? p.reviews.length : 0})</span></div>
                     </div>
+                    ${regionTag}
                     <p class="text-xs text-ink-800 font-bold leading-relaxed line-clamp-1">${slogan}</p>
                     <p class="text-[11px] text-ink-500 font-medium leading-relaxed line-clamp-2">${promo}</p>
                 </div>
@@ -1296,6 +1322,7 @@ function allocateOrderToPartner(orderCode) {
     order.bids.push({ partner: partnerName, price: order.budget, desc: `[매니저 센터 직할 수동 배정] ${partnerName}에 프리미엄 전속 오더가 안전하게 할당되었습니다.`, verified: true, progress: 'bidding' });
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'ALLOCATE', `[매니저 센터] 고액 오더(${orderCode}, ₩ ${order.budget.toLocaleString()}만원)를 [${partnerName}] 파트너사에 수동 배정완료.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 배정되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
     renderAdminOrderAllocation(); recalculateKPIs();
     showToast(`🎉 [${partnerName}] 파트너사에 고액 오더 배정이 완료되었습니다!`, "success");
 }
@@ -1321,6 +1348,7 @@ function autoAllocateOrderCore(orderCode) {
     });
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'AUTO_ALLOCATE', `[자동 배정] 오더 ${orderCode} -> [${selectedToAssign.map(s => s.name).join(', ')}] ${selectedToAssign.length}개 인증 파트너사 일괄 자동 배정 완료.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `파트너사 ${selectedToAssign.length}곳이 추가로 배정되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
     return { assignedCount: selectedToAssign.length, assignedNames: selectedToAssign.map(s => s.name) };
 }
 
@@ -2029,6 +2057,7 @@ window.renderHeroTrustStats = renderHeroTrustStats;
 window.nextHeroSlide = nextHeroSlide;
 window.prevHeroSlide = prevHeroSlide;
 window.renderPartnerSearchGrid = renderPartnerSearchGrid;
+window.setPartnerSearchRegion = setPartnerSearchRegion;
 window.switchAdminMode = switchAdminMode;
 window.validateManagerLogin = validateManagerLogin;
 window.managerLogout = managerLogout;

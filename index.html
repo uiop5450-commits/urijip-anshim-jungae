@@ -473,6 +473,13 @@
                         <input type="text" id="partner-search-input" oninput="renderPartnerSearchGrid()" placeholder="시공사 이름 또는 지역 검색..." class="input pl-8">
                     </div>
                 </div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div id="partner-search-region-chips" class="flex items-center flex-wrap gap-1.5"></div>
+                    <select id="partner-search-sort" onchange="renderPartnerSearchGrid()" class="select w-auto shrink-0">
+                        <option value="rating">평점 높은순</option>
+                        <option value="reviews">리뷰 많은순</option>
+                    </select>
+                </div>
                 <div id="partner-search-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2"></div>
             </div>
         </section>
@@ -491,7 +498,19 @@
                         </div>
                         <button type="button" onclick="openCommunityWrite()" class="btn btn-primary"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> 글쓰기</button>
                     </div>
-                    <div id="community-category-tabs" class="flex items-center flex-wrap gap-1.5"></div>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div id="community-category-tabs" class="flex items-center flex-wrap gap-1.5"></div>
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1 sm:w-52">
+                                <i data-lucide="search" class="w-3.5 h-3.5 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                                <input type="text" id="community-search-input" oninput="renderCommunityList()" placeholder="글 제목·내용 검색..." class="input pl-8">
+                            </div>
+                            <select id="community-sort-select" onchange="renderCommunityList()" class="select w-auto shrink-0">
+                                <option value="latest">최신순</option>
+                                <option value="popular">인기순</option>
+                            </select>
+                        </div>
+                    </div>
                     <div id="community-post-list" class="grid grid-cols-1 gap-3 pt-2"></div>
                 </div>
             </div>
@@ -565,6 +584,14 @@
                         <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="message-circle" class="w-4 h-4 text-brand-500"></i> 내가 쓴 커뮤니티 글</h4>
                     </div>
                     <div id="client-mypage-my-posts-container" class="space-y-2.5"></div>
+                </div>
+
+                <div id="client-mypage-subtab-notifications-view" class="hidden surface surface-lg p-5 sm:p-6 space-y-4 text-left transition-all duration-300">
+                    <div class="border-b border-ink-100 pb-3.5 flex items-center justify-between">
+                        <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="bell" class="w-4 h-4 text-brand-500"></i> 알림</h4>
+                        <button type="button" onclick="markAllClientNotificationsRead()" class="btn btn-ghost btn-sm">모두 읽음 처리</button>
+                    </div>
+                    <div id="client-mypage-notifications-container" class="space-y-2.5"></div>
                 </div>
             </div>
         </section>
@@ -1105,10 +1132,21 @@
     <!-- 실시간 토스트 스택 (비차단형) -->
     <div id="toast-stack" class="fixed top-4 right-4 z-[650] flex flex-col gap-2 items-end pointer-events-none"></div>
 
-    <footer class="bg-white border-t border-ink-100 py-8 mt-12 text-center text-xs text-ink-400 font-medium">
-        <div class="max-w-7xl mx-auto px-4 space-y-2">
-            <p class="font-bold text-ink-600">우리집 안심 중개 — 부산 지역 하이엔드 실내건축 가이드</p>
-            <p class="text-[10px] text-ink-400">Copyright © 2026 WOORI-HOUSE Safety Brokerage Platform. All rights reserved.</p>
+    <footer class="bg-white border-t border-ink-100 py-8 mt-12 text-xs text-ink-400 font-medium">
+        <div class="max-w-7xl mx-auto px-4 space-y-5 text-left">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div class="space-y-1.5">
+                    <p class="font-bold text-ink-600">우리집 안심 중개 — 부산 지역 하이엔드 실내건축 가이드</p>
+                    <p class="text-[11px] leading-relaxed">상호 (주)우리집안심중개 · 대표 박서준 · 사업자등록번호 000-00-00000<br>부산광역시 해운대구 센텀중앙로 90, 8층 · 고객센터 1588-0000 (평일 09:00~18:00)</p>
+                </div>
+                <div class="flex items-center flex-wrap gap-x-4 gap-y-1.5 text-[11px] font-bold shrink-0">
+                    <button type="button" onclick="showComingSoon('이용약관')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">이용약관</button>
+                    <button type="button" onclick="showComingSoon('개인정보처리방침')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">개인정보처리방침</button>
+                    <button type="button" onclick="showComingSoon('사업자정보확인')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">사업자정보확인</button>
+                    <button type="button" onclick="showComingSoon('고객센터')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">고객센터</button>
+                </div>
+            </div>
+            <p class="text-[10px] text-ink-400 border-t border-ink-100 pt-4">Copyright © 2026 WOORI-HOUSE Safety Brokerage Platform. All rights reserved.</p>
         </div>
     </footer>
 

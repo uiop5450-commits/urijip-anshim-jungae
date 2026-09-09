@@ -156,7 +156,7 @@ window.AppState = {
 
     partners: [
         {
-            name: '오륙도 디자인 실내건축', id: 'orukdo', pw: '1234', bizFile: '602-23-45601',
+            name: '오륙도 디자인 실내건축', id: 'orukdo', pw: '1234', bizFile: '602-23-45601', region: '남구',
             rating: 5.0, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true,
             portfolios: [
                 {
@@ -192,7 +192,7 @@ window.AppState = {
             ]
         },
         {
-            name: '영도 인프라 인테리어', id: 'youngdo', pw: '1234', bizFile: '214-82-01994',
+            name: '영도 인프라 인테리어', id: 'youngdo', pw: '1234', bizFile: '214-82-01994', region: '영도구',
             rating: 4.5, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true,
             portfolios: [
                 {
@@ -205,7 +205,7 @@ window.AppState = {
             reviews: [{ client: '박*호', rating: 5, text: '영도 상가 인프라 전문답네요. 꼼꼼히 하자 체크해주시고 정액 중개수수료 투명보증도 아주 좋았습니다.', date: '2026-06-20' }]
         },
         {
-            name: '센텀 프리미엄 디자인', id: 'centum', pw: '1234', bizFile: '105-82-44109',
+            name: '센텀 프리미엄 디자인', id: 'centum', pw: '1234', bizFile: '105-82-44109', region: '해운대구',
             rating: 5.0, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true,
             portfolios: [
                 {
@@ -218,7 +218,7 @@ window.AppState = {
             reviews: [{ client: '최*민', rating: 5, text: '명성에 걸맞는 완벽한 조도 계산과 자재 선정이었습니다.', date: '2026-06-05' }]
         },
         {
-            name: '부산진 종합건축디자인', id: 'busanjin', pw: '1234', bizFile: '315-81-00124',
+            name: '부산진 종합건축디자인', id: 'busanjin', pw: '1234', bizFile: '315-81-00124', region: '부산진구',
             rating: 4.7, strikeCount: 1, status: 'active', suspensionEndDate: null, isCertified: true,
             portfolios: [
                 {
@@ -230,17 +230,17 @@ window.AppState = {
             ],
             reviews: [{ client: '김*현', rating: 5, text: '하자보수도 신속하게 와서 검사해주셨습니다.', date: '2026-06-18' }]
         },
-        { name: '금정 가온 디자인', id: 'gaeon', pw: '1234', bizFile: '112-24-99801', rating: 4.6, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
-        { name: '동래 명장 인테리어', id: 'myeongjang', pw: '1234', bizFile: '607-81-00214', rating: 4.9, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
-        { name: '해운대 마린 디자인데크', id: 'marine', pw: '1234', bizFile: '605-88-12345', rating: 4.9, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
-        { name: '수영 스페이스 하우징', id: 'suyeong', pw: '1234', bizFile: '617-81-99881', rating: 4.8, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
-        { name: '연제 더샵 아키텍처', id: 'yeonje', pw: '1234', bizFile: '602-86-77112', rating: 4.7, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
-        { name: '사상 서부산 스튜디오', id: 'sasang', pw: '1234', bizFile: '609-82-33445', rating: 4.6, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
+        { name: '금정 가온 디자인', id: 'gaeon', pw: '1234', bizFile: '112-24-99801', region: '금정구', rating: 4.6, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
+        { name: '동래 명장 인테리어', id: 'myeongjang', pw: '1234', bizFile: '607-81-00214', region: '동래구', rating: 4.9, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
+        { name: '해운대 마린 디자인데크', id: 'marine', pw: '1234', bizFile: '605-88-12345', region: '해운대구', rating: 4.9, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
+        { name: '수영 스페이스 하우징', id: 'suyeong', pw: '1234', bizFile: '617-81-99881', region: '수영구', rating: 4.8, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
+        { name: '연제 더샵 아키텍처', id: 'yeonje', pw: '1234', bizFile: '602-86-77112', region: '연제구', rating: 4.7, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
+        { name: '사상 서부산 스튜디오', id: 'sasang', pw: '1234', bizFile: '609-82-33445', region: '사상구', rating: 4.6, strikeCount: 0, status: 'active', suspensionEndDate: null, isCertified: true, portfolios: [], reviews: [] },
 
         // 입점 신청 후 매니저 승인을 기다리는 파트너 예시 (status: 'pending'). 승인/거절은
         // 매니저 콘솔 > 파트너 가입 심사 탭에서 처리한다 (approvePartnerApplication/rejectPartnerApplication 참고).
         {
-            name: '해운대 클래스 인테리어', id: 'haeundaeclass', pw: 'temp1234', bizFile: '621-05-77812',
+            name: '해운대 클래스 인테리어', id: 'haeundaeclass', pw: 'temp1234', bizFile: '621-05-77812', region: '해운대구',
             phone: '010-2233-9981', rating: 5.0, strikeCount: 0, status: 'pending', suspensionEndDate: null, isCertified: false,
             appliedAt: '2026.09.02 14:20',
             bizCertDoc: { name: '사업자등록증_해운대클래스.jpg', uploadedAt: '2026.09.02 14:20', dataUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&auto=format&fit=crop&q=80' },
@@ -270,6 +270,10 @@ window.AppState = {
     logs: [
         { time: '09:00:00', category: 'SYSTEM', target: 'ENGINE', message: '우리집 안심 중개 및 매니저 관제 시스템 구동 완료.', status: 'SUCCESS' }
     ],
+
+    // 고객 마이페이지 > 알림 탭에 쌓이는 개인 알림. clientPhone으로 소유자를 구분한다
+    // (오더가 clientPhone으로 매칭되는 기존 관례와 동일 — pushClientNotification 참고).
+    clientNotifications: [],
 
     // 히어로 좌측 "업체 광고" 슬라이더에 수동으로 지정한 업체+시공사례 목록 (최대 5개, [{partnerName, portIdx}]).
     // 비어있으면 평점 높은 순으로 자동 노출된다 (getFeaturedHeroSlides 참고). 매니저 콘솔 > 노출 관리에서 편집.

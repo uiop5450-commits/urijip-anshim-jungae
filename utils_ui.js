@@ -74,6 +74,23 @@ function pushLog(category, target, message, status = 'INFO') {
     if (typeof syncAuditLogs === 'function') syncAuditLogs();
 }
 
+/* 고객 마이페이지 > 알림 탭에 쌓이는 개인화 알림. 토스트는 그 순간 안 보면 사라지지만
+ * 이 목록은 남아있어서, 매칭/배정/계약 같은 이력을 나중에 다시 확인할 수 있다. */
+function pushClientNotification(clientPhone, message) {
+    if (!clientPhone) return;
+    window.AppState.clientNotifications.unshift({
+        id: `ntf-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        clientPhone, message, date: new Date().toISOString(), read: false
+    });
+    if (window.AppState.clientNotifications.length > 200) window.AppState.clientNotifications.length = 200;
+    if (typeof renderClientMyPage === 'function') renderClientMyPage();
+}
+
+/* 아직 구현되지 않은 부가 링크(이용약관 등) 클릭 시 보여줄 안내 — 죽은 링크로 보이지 않게. */
+function showComingSoon(label) {
+    showToast(`${label}은(는) 준비 중인 페이지예요.`, 'info');
+}
+
 /* ----------------------------------------------------------------
  * 실시간 알림(Toast) 스택 — 비차단형, 자동 소멸, 접근성 aria-live
  * ---------------------------------------------------------------- */
@@ -150,5 +167,7 @@ window.escapeHtml = escapeHtml;
 window.maskPhone = maskPhone;
 window.getHolidayName = getHolidayName;
 window.pushLog = pushLog;
+window.pushClientNotification = pushClientNotification;
+window.showComingSoon = showComingSoon;
 window.showToast = showToast;
 window.closeToast = closeToast;

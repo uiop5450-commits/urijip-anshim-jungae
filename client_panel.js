@@ -236,6 +236,9 @@ function completeMatchingSim() {
         if (typeof pushLog === 'function') {
             pushLog('ADMIN', 'HIGH_BUDGET', `[7천만원 이상 고액 오더 접수] '${auth.name}' 고객님의 프리미엄 오더(${code}, 예산: ₩ ${fd.budget.toLocaleString()}만원)가 본사 관리자 수동 배정관에 등록되었습니다.`, 'WARNING');
         }
+        if (typeof pushClientNotification === 'function') {
+            pushClientNotification(auth.phone, `고액 오더(${code})가 접수되어, 관리자가 최상위 인증 파트너사를 직접 배정하고 있어요.`);
+        }
     } else {
         const availablePartners = window.AppState.partners;
         const count = Math.min(newOrder.partnerCountLimit, availablePartners.length);
@@ -247,6 +250,9 @@ function completeMatchingSim() {
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
             verified: true, progress: 'bidding'
         }));
+        if (typeof pushClientNotification === 'function') {
+            pushClientNotification(auth.phone, `안심 견적(${code})에 파트너사 ${newOrder.bids.length}곳이 자동 매칭되어 견적서를 보냈어요.`);
+        }
     }
 
     window.AppState.orders.unshift(newOrder);
@@ -388,6 +394,7 @@ function clientFinalizeContract(orderCode, partnerName, finalPrice) {
     if (window.AppState.clientAuth.loggedIn) { renderClientMyPage(); selectMyPageEstimate(orderCode); }
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'CONTRACT', `${maskName(order.clientName)} 고객님이 [${partnerName}]와 계약 합의서에 서명함.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}와 계약이 체결됐어요. (의뢰 코드: ${orderCode})`);
     showToast(`🎉 ${partnerName}와 시공 계약 합의 체결 완료!`, 'success');
 }
 
@@ -591,16 +598,24 @@ function renderClientMyPage() {
     if (!auth.loggedIn) return;
 
     const myPostsCount = (window.AppState.communityPosts || []).filter(p => p.authorId === auth.id).length;
+    const myNotifications = (window.AppState.clientNotifications || []).filter(n => n.clientPhone === auth.phone);
+    const unreadCount = myNotifications.filter(n => !n.read).length;
     const mainTabsEl = document.getElementById('client-mypage-main-tabs');
     if (mainTabsEl) {
-        const mainTabs = [['history', '의뢰이력'], ['posts', `내가 쓴 글 (${myPostsCount})`]];
+        const mainTabs = [
+            ['history', '의뢰이력'],
+            ['posts', `내가 쓴 글 (${myPostsCount})`],
+            ['notifications', unreadCount > 0 ? `알림 (${unreadCount})` : '알림']
+        ];
         mainTabsEl.innerHTML = mainTabs.map(([key, label]) =>
             `<button type="button" data-tab="${key}" onclick="switchClientMyPageSubtab('${key}')" class="gnb-tab ${clientMyPageActiveSubtab === key ? 'active' : ''}">${label}</button>`
         ).join('');
     }
     document.getElementById('client-mypage-subtab-history-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'history');
     document.getElementById('client-mypage-subtab-posts-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'posts');
+    document.getElementById('client-mypage-subtab-notifications-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'notifications');
     if (clientMyPageActiveSubtab === 'posts') renderClientMyPagePosts();
+    if (clientMyPageActiveSubtab === 'notifications') renderClientMyPageNotifications(myNotifications);
 
     const allMyOrders = window.AppState.orders.filter(o => o.clientPhone === auth.phone);
 
@@ -714,6 +729,38 @@ function renderClientMyPagePosts() {
 function jumpToMyCommunityPost(postId) {
     switchPanel('community-panel');
     openCommunityDetail(postId);
+}
+
+/* 마이페이지 > 알림 탭 — 매칭 완료/파트너 배정/계약 체결 시 pushClientNotification()으로 쌓인
+ * 개인 알림을 그대로 나열한다. 토스트와 달리 재방문해도 남아있어 놓친 소식을 확인할 수 있다. */
+function renderClientMyPageNotifications(myNotifications) {
+    const container = document.getElementById('client-mypage-notifications-container');
+    if (!container) return;
+
+    if (!myNotifications || myNotifications.length === 0) {
+        container.innerHTML = `<p class="text-xs text-ink-400 font-bold text-center py-6">아직 도착한 알림이 없습니다.</p>`;
+        return;
+    }
+
+    container.innerHTML = myNotifications.map(n => {
+        const d = new Date(n.date);
+        const dateLabel = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        return `
+        <div class="flex items-start gap-3 p-3.5 rounded-xl ${n.read ? 'bg-ink-50' : 'bg-brand-50'}">
+            <span class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${n.read ? 'bg-ink-300' : 'bg-brand-500'}"></span>
+            <div class="min-w-0 flex-1 space-y-0.5">
+                <p class="text-xs font-bold text-ink-800 leading-relaxed">${escapeHtml(n.message)}</p>
+                <p class="text-[10px] text-ink-400 font-bold">${dateLabel}</p>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function markAllClientNotificationsRead() {
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    (window.AppState.clientNotifications || []).forEach(n => { if (n.clientPhone === auth.phone) n.read = true; });
+    renderClientMyPage();
 }
 
 function selectMyPageEstimate(orderCode) {
@@ -941,13 +988,22 @@ function renderCommunityList() {
 
     const listEl = document.getElementById('community-post-list');
     if (!listEl) return;
+
+    const searchInput = document.getElementById('community-search-input');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const sortSelect = document.getElementById('community-sort-select');
+    const sortMode = sortSelect ? sortSelect.value : 'latest';
+
     const posts = (window.AppState.communityPosts || [])
         .filter(p => communityActiveCategory === 'all' || p.category === communityActiveCategory)
+        .filter(p => !query || p.title.toLowerCase().includes(query) || p.content.toLowerCase().includes(query))
         .slice()
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
+        .sort((a, b) => sortMode === 'popular'
+            ? (b.likedBy || []).length - (a.likedBy || []).length || new Date(b.date) - new Date(a.date)
+            : new Date(b.date) - new Date(a.date));
 
     if (posts.length === 0) {
-        listEl.innerHTML = `<p class="text-xs text-ink-400 font-bold py-12 text-center">등록된 글이 없습니다. 첫 번째 글을 남겨보세요!</p>`;
+        listEl.innerHTML = `<p class="text-xs text-ink-400 font-bold py-12 text-center">${query ? '검색 결과가 없습니다.' : '등록된 글이 없습니다. 첫 번째 글을 남겨보세요!'}</p>`;
         return;
     }
 
@@ -960,7 +1016,7 @@ function renderCommunityList() {
                     <span class="text-[10px] text-ink-400 font-bold">${p.date}</span>
                 </div>
                 <h4 class="text-sm font-black text-ink-950 truncate">${escapeHtml(p.title)}</h4>
-                <p class="text-xs text-ink-500 font-medium truncate">${escapeHtml(p.authorId)}</p>
+                <p class="text-xs text-ink-500 font-medium truncate">${escapeHtml(p.authorName)}</p>
             </div>
             <div class="flex flex-col items-end gap-1.5 text-[11px] text-ink-400 font-bold shrink-0">
                 <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i> ${(p.likedBy || []).length}</span>
@@ -1199,6 +1255,8 @@ window.setClientMyPageHistoryFilter = setClientMyPageHistoryFilter;
 window.switchClientMyPageSubtab = switchClientMyPageSubtab;
 window.renderClientMyPagePosts = renderClientMyPagePosts;
 window.jumpToMyCommunityPost = jumpToMyCommunityPost;
+window.renderClientMyPageNotifications = renderClientMyPageNotifications;
+window.markAllClientNotificationsRead = markAllClientNotificationsRead;
 window.selectMyPageEstimate = selectMyPageEstimate;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
