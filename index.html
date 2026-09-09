@@ -98,22 +98,24 @@
                 </p>
             </div>
 
-            <!-- 상단 히어로: 좌측 신뢰지표 패널(정적) + 우측 업체 광고 슬라이더(renderHeroPortfolioSlider, 최대 5개, 현재는 평점순 자동 선정) / 맨 우측 칸은 이벤트 슬라이더(renderHomeEventSlider) -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div class="hero-a-card lg:col-span-2">
-                    <div class="hero-a-left">
-                        <p class="hero-a-eyebrow">부산 인테리어 안심중개</p>
-                        <h2 class="hero-a-head">검증된 파트너와,<br>안심하고 시작하세요</h2>
-                        <div class="hero-a-stats">
-                            <div class="hero-a-stat"><b id="hero-a-stat-orders">-</b><span>누적 매칭</span></div>
-                            <div class="hero-a-stat"><b id="hero-a-stat-partners">-</b><span>인증 파트너</span></div>
-                            <div class="hero-a-stat"><b id="hero-a-stat-rating">-</b><span>평균 평점</span></div>
-                        </div>
-                        <button type="button" onclick="switchPanel('client-panel')" class="hero-a-cta">무료 견적 시작하기 →</button>
+            <!-- 상단 히어로(전체 폭): 좌측 신뢰지표 패널(정적) + 우측 업체 광고 슬라이더(renderHeroPortfolioSlider, 최대 5개, 현재는 평점순 자동 선정) -->
+            <div class="hero-a-card">
+                <div class="hero-a-left">
+                    <p class="hero-a-eyebrow">부산 인테리어 안심중개</p>
+                    <h2 class="hero-a-head">검증된 파트너와,<br>안심하고 시작하세요</h2>
+                    <div class="hero-a-stats">
+                        <div class="hero-a-stat"><b id="hero-a-stat-orders">-</b><span>누적 매칭</span></div>
+                        <div class="hero-a-stat"><b id="hero-a-stat-partners">-</b><span>인증 파트너</span></div>
+                        <div class="hero-a-stat"><b id="hero-a-stat-rating">-</b><span>평균 평점</span></div>
                     </div>
-                    <div id="hero-portfolio-slider-container" class="hero-a-right" onmouseenter="pauseHeroAutoplay()" onmouseleave="resumeHeroAutoplay()"></div>
+                    <button type="button" onclick="switchPanel('client-panel')" class="hero-a-cta">무료 견적 시작하기 →</button>
                 </div>
-                <div id="home-event-slider-container" class="hero-ad-card lg:col-span-1" onmouseenter="pauseHomeEventAutoplay()" onmouseleave="resumeHomeEventAutoplay()"></div>
+                <div id="hero-portfolio-slider-container" class="hero-a-right" onmouseenter="pauseHeroAutoplay()" onmouseleave="resumeHeroAutoplay()"></div>
+            </div>
+
+            <!-- 이벤트 배너(센터 카드형): 히어로보다 시선 비중을 낮춰 가운데 좁은 카드로 노출 -->
+            <div class="event-banner-row">
+                <div id="home-event-slider-container" class="hero-ad-card event-card-d" onmouseenter="pauseHomeEventAutoplay()" onmouseleave="resumeHomeEventAutoplay()"></div>
             </div>
 
             <div class="space-y-5 text-left pt-1">

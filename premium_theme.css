@@ -377,6 +377,15 @@ textarea:focus-visible {
 }
 .hero-a-cta:hover { background: var(--brand-600); }
 
+/* 이벤트 배너(센터 카드형) — 히어로가 전체 폭 주인공이 된 뒤, 배너는 광고가 아니라
+ * 공지에 가깝게 다뤄서 시선 비중을 낮춘다. 폭을 좁히고 높이도 낮은 비율로 고정. */
+.event-banner-row { display: flex; justify-content: center; }
+#home-event-slider-container.event-card-d {
+    width: 58%; height: auto; aspect-ratio: 4.3 / 1;
+}
+@media (max-width: 900px) { #home-event-slider-container.event-card-d { width: 100%; } }
+@media (max-width: 640px) { #home-event-slider-container.event-card-d { aspect-ratio: 3 / 1; } }
+
 .hero-a-right { position: relative; overflow: hidden; background: var(--ink-100); }
 .hero-a-right > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
 .hero-a-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
