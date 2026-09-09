@@ -742,18 +742,25 @@ function renderClientMyPageNotifications(myNotifications) {
         return;
     }
 
-    container.innerHTML = myNotifications.map(n => {
+    /* 견적신청 안내 단계(qstep-1)의 세로 연결선 + 원형 마커와 같은 문법을 재사용해서
+     * "시간이 흐른다"는 느낌을 주는 타임라인으로 구성한다. */
+    container.innerHTML = `<div class="notif-timeline">` + myNotifications.map((n, idx) => {
         const d = new Date(n.date);
         const dateLabel = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        const isLast = idx === myNotifications.length - 1;
         return `
-        <div class="flex items-start gap-3 p-3.5 rounded-xl ${n.read ? 'bg-ink-50' : 'bg-brand-50'}">
-            <span class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${n.read ? 'bg-ink-300' : 'bg-brand-500'}"></span>
-            <div class="min-w-0 flex-1 space-y-0.5">
+        <div class="notif-tl-item">
+            <div class="notif-tl-marker">
+                <span class="notif-tl-dot ${n.read ? 'read' : ''}"><i data-lucide="bell" class="w-3 h-3"></i></span>
+                ${isLast ? '' : '<span class="notif-tl-line"></span>'}
+            </div>
+            <div class="notif-tl-body ${isLast ? '' : 'has-line'}">
                 <p class="text-xs font-bold text-ink-800 leading-relaxed">${escapeHtml(n.message)}</p>
-                <p class="text-[10px] text-ink-400 font-bold">${dateLabel}</p>
+                <p class="text-[10px] text-ink-400 font-bold mt-0.5">${dateLabel}</p>
             </div>
         </div>`;
-    }).join('');
+    }).join('') + `</div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function markAllClientNotificationsRead() {

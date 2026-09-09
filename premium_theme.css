@@ -690,3 +690,17 @@ textarea:focus-visible {
 .contract-step.current .contract-step-label { color: var(--ink-900); }
 .contract-step.done .contract-step-dot { background: var(--emerald-500); color: #fff; }
 .contract-step.done .contract-step-label { color: var(--ink-700); }
+
+/* ---------------------------------------------------------------
+ * 15b. 마이페이지 알림 타임라인 — 견적신청 안내 단계(qstep-1)의 세로 연결선 +
+ * 원형 마커와 같은 문법을 재사용해, "시간이 흐른다"는 느낌을 준다.
+ * --------------------------------------------------------------- */
+.notif-tl-item { display: flex; gap: 12px; }
+.notif-tl-marker { display: flex; flex-direction: column; align-items: center; }
+.notif-tl-dot {
+    width: 22px; height: 22px; background: var(--brand-500); color: #fff;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.notif-tl-dot.read { background: var(--ink-200); color: var(--ink-500); }
+.notif-tl-line { width: 1px; flex: 1; background: var(--ink-200); margin: 2px 0; }
+.notif-tl-body.has-line { padding-bottom: 18px; }
