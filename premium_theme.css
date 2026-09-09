@@ -322,6 +322,16 @@ textarea:focus-visible {
 .gnb-tab:hover { color: var(--ink-900); }
 .gnb-tab.active { background: #fff; color: var(--ink-950); box-shadow: var(--shadow-1); font-weight: 800; }
 
+/* 파트너 탐색 지역 필터 칩 — gnb-tab과 달리 흰 배경 위에서도 선택 여부가 바로 보이도록
+ * 다크 채움으로 대비를 준다(핀 아이콘으로 "위치 필터"라는 것도 함께 알린다). */
+.region-chip {
+    display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800;
+    padding: 8px 13px; border: 1px solid var(--ink-100); background: #fff; color: var(--ink-500);
+    cursor: pointer; transition: all var(--dur-base) var(--ease-out);
+}
+.region-chip:hover { color: var(--ink-900); border-color: var(--ink-300); }
+.region-chip.active { background: var(--ink-950); color: #fff; border-color: var(--ink-950); }
+
 /* ---------------------------------------------------------------
  * 8. 히어로 광고/이벤트 슬라이더 (좌: 업체 광고, 우: 이벤트) — 동일한 카드 규격 공유
  * --------------------------------------------------------------- */

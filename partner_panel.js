@@ -379,7 +379,7 @@ function renderPartnerSearchGrid() {
         const regions = [...new Set(allPartners.map(p => p.region).filter(Boolean))].sort();
         const chips = [['all', '전체 지역'], ...regions.map(r => [r, r])];
         regionChipsEl.innerHTML = chips.map(([key, label]) =>
-            `<button type="button" onclick="setPartnerSearchRegion('${key}')" class="gnb-tab ${partnerSearchRegionFilter === key ? 'active' : ''}">${label}</button>`
+            `<button type="button" onclick="setPartnerSearchRegion('${key}')" class="region-chip ${partnerSearchRegionFilter === key ? 'active' : ''}"><i data-lucide="map-pin" class="w-3 h-3"></i>${label}</button>`
         ).join('');
     }
 
