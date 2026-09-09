@@ -94,11 +94,13 @@ function showComingSoon(label) {
 /* ----------------------------------------------------------------
  * 실시간 알림(Toast) 스택 — 비차단형, 자동 소멸, 접근성 aria-live
  * ---------------------------------------------------------------- */
+/* accent는 관리자 KPI 카드(.kpi-card::before)와 같은 "좌측 컬러 레일" 색상 —
+ * 토스트도 같은 언어를 써서 큰 컬러 아이콘 칩 대신 얇은 레일 + 작은 아이콘으로 조용하게 알린다. */
 const TOAST_ICONS = {
-    success: { icon: 'check-circle', bg: 'bg-emerald-50', fg: 'text-emerald-600' },
-    warning: { icon: 'alert-circle', bg: 'bg-amber-50', fg: 'text-amberCustom' },
-    info:    { icon: 'bell', bg: 'bg-brand-50', fg: 'text-brand-500' },
-    error:   { icon: 'x-circle', bg: 'bg-rose-50', fg: 'text-roseCustom' }
+    success: { icon: 'check-circle', accent: 'var(--emerald-500)' },
+    warning: { icon: 'alert-circle', accent: 'var(--amber-500)' },
+    info:    { icon: 'bell', accent: 'var(--brand-500)' },
+    error:   { icon: 'x-circle', accent: 'var(--rose-500)' }
 };
 
 function ensureToastStack() {
@@ -120,15 +122,14 @@ function showToast(message, type = 'info') {
     const item = document.createElement('div');
     item.setAttribute('role', 'status');
     item.setAttribute('aria-live', 'polite');
-    item.className = 'pointer-events-auto w-[min(480px,92vw)] bg-white rounded-2xl border border-ink-100 p-5 flex items-start gap-3.5 transform -translate-y-3 opacity-0 transition-all duration-300';
-    item.style.boxShadow = 'var(--shadow-3)';
+    item.className = 'pointer-events-auto w-[min(440px,92vw)] bg-white border border-ink-100 pl-4 pr-3 py-3.5 flex items-start gap-2.5 transform -translate-y-3 opacity-0 transition-all duration-300';
+    item.style.boxShadow = 'var(--shadow-2)';
+    item.style.borderLeft = `3px solid ${meta.accent}`;
     item.innerHTML = `
-        <span class="w-10 h-10 rounded-xl ${meta.bg} ${meta.fg} flex items-center justify-center shrink-0">
-            <i data-lucide="${meta.icon}" class="w-5 h-5"></i>
-        </span>
-        <p class="text-sm font-bold text-ink-800 leading-relaxed flex-1 whitespace-pre-line pt-1.5">${message.replace(/</g, '&lt;')}</p>
+        <i data-lucide="${meta.icon}" class="w-4 h-4 mt-0.5 shrink-0" style="color:${meta.accent}"></i>
+        <p class="text-[13px] font-bold text-ink-800 leading-relaxed flex-1 whitespace-pre-line pt-px">${message.replace(/</g, '&lt;')}</p>
         <button type="button" class="text-ink-300 hover:text-ink-600 bg-transparent border-0 cursor-pointer shrink-0 p-0.5" aria-label="알림 닫기">
-            <i data-lucide="x" class="w-4 h-4"></i>
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
         </button>
     `;
     stack.appendChild(item);
