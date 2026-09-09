@@ -344,13 +344,51 @@ textarea:focus-visible {
 .hero-ad-card > img {
     position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;
 }
-.hero-ad-overlay {
-    position: absolute; inset: 0; z-index: 1;
-    background: linear-gradient(0deg, rgba(6,9,16,.85) 0%, rgba(6,9,16,.38) 45%, rgba(6,9,16,0) 72%);
-    display: flex; flex-direction: column; justify-content: flex-end;
-    padding: 18px; cursor: pointer;
+
+/* 이벤트 광고판 좌상단 라벨 — 관리자가 업로드한 포스터 이미지 위에 최소한의 표식만 얹어
+ * 어떤 디자인의 포스터를 올려도 "이게 이벤트 배너"라는 것만 알려준다. */
+.event-tag {
+    position: absolute; top: 10px; left: 10px; z-index: 10;
+    background: #fff; color: var(--brand-600); font-size: 10px; font-weight: 800;
+    letter-spacing: .02em; padding: 3px 8px; box-shadow: var(--shadow-1);
 }
-@media (min-width: 640px) { .hero-ad-overlay { padding: 26px; } }
+
+/* 홈 히어로(스타일 A) — 좌측 신뢰지표 패널 + 우측 시공사례 슬라이더로 분리해,
+ * 사진 위에 스크림+텍스트를 얹는 잡지형 배너(오늘의집 시그니처)와 겹치지 않게 한다. */
+.hero-a-card {
+    display: grid; grid-template-columns: 1fr; height: 350px;
+    background: var(--ink-950); box-shadow: var(--shadow-2); overflow: hidden;
+}
+@media (min-width: 640px) { .hero-a-card { grid-template-columns: 1fr 1.35fr; height: 460px; } }
+
+.hero-a-left {
+    padding: 22px 20px; display: flex; flex-direction: column; justify-content: center; gap: 14px; color: #fff;
+}
+@media (min-width: 640px) { .hero-a-left { padding: 32px 30px; } }
+.hero-a-eyebrow { font-size: 10.5px; font-weight: 800; color: var(--brand-400); letter-spacing: .06em; }
+.hero-a-head { font-size: 18px; font-weight: 800; line-height: 1.4; letter-spacing: -.01em; }
+@media (min-width: 640px) { .hero-a-head { font-size: 22px; } }
+.hero-a-stats { display: flex; gap: 18px; margin-top: 2px; }
+.hero-a-stat b { display: block; font-size: 17px; font-weight: 900; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+.hero-a-stat span { font-size: 9.5px; color: rgba(255,255,255,.55); font-weight: 700; }
+.hero-a-cta {
+    margin-top: 6px; align-self: flex-start; background: var(--brand-500); color: #fff;
+    font-size: 11.5px; font-weight: 800; padding: 10px 16px; border: 0; cursor: pointer; box-shadow: var(--shadow-brand);
+}
+.hero-a-cta:hover { background: var(--brand-600); }
+
+.hero-a-right { position: relative; overflow: hidden; background: var(--ink-100); }
+.hero-a-right > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+.hero-a-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.hero-a-plate {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+    background: rgba(255,255,255,.94); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    border-top: 1px solid rgba(11,18,32,.06); cursor: pointer;
+}
+.hero-a-plate-title { font-size: 12.5px; font-weight: 800; color: var(--ink-950); }
+.hero-a-plate-sub { font-size: 10.5px; font-weight: 700; color: var(--ink-500); margin-top: 1px; }
+.hero-a-plate-rate { font-size: 11px; font-weight: 800; color: var(--gold-600); font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; flex-shrink: 0; }
 
 /* 슬라이드 좌우 대형 내비게이션 버튼 (좌/우 광고·이벤트 카드 공용)
  * z-index를 카드 내부 콘텐츠(최대 z-10)보다 확실히 높여 클릭이 가로채이지 않도록 함.
@@ -375,6 +413,7 @@ textarea:focus-visible {
 @media (hover: hover) {
     .hero-nav-btn { opacity: 0; }
     .hero-ad-card:hover .hero-nav-btn,
+    .hero-a-right:hover .hero-nav-btn,
     .hero-nav-btn:focus-visible { opacity: 1; }
 }
 

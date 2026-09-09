@@ -80,7 +80,7 @@ function switchPanel(panelId) {
         document.querySelectorAll(`[id^="tab-${p}"]`).forEach(tabEl => tabEl.classList.toggle('active', p === panelId));
     });
 
-    if (panelId === 'home-panel') { renderHeroPortfolioSlider(); renderHomeEventSlider(); startHomeAutoplay(); }
+    if (panelId === 'home-panel') { renderHeroPortfolioSlider(); renderHomeEventSlider(); renderHeroTrustStats(); startHomeAutoplay(); }
     else { stopHomeAutoplay(); }
     if (panelId === 'partner-search-panel') renderPartnerSearchGrid();
     if (panelId === 'community-panel' && typeof renderCommunityList === 'function') renderCommunityList();
@@ -109,8 +109,9 @@ function switchPanel(panelId) {
  * (앱 안에서 별도로 확대/위치를 조정하지 않음 — 상세 페이지는 별도의 detailImg를 쓴다). */
 function buildPamphletCardHtml(evt, idx = 0, total = 1) {
     const hasImg = !!(evt && evt.img);
-    const title = (evt && evt.title) || '';
+    const title = escapeHtml((evt && evt.title) || '');
     return `
+        <span class="event-tag">이벤트</span>
         ${hasImg
             ? `<img src="${evt.img}" alt="${title}" class="event-banner-img">`
             : `<div class="w-full h-full flex flex-col items-center justify-center gap-2 bg-ink-100 text-ink-400"><i data-lucide="image-plus" class="w-6 h-6"></i><p class="text-xs font-bold px-6 text-center">등록된 포스터 이미지가 없습니다</p></div>`}
@@ -282,7 +283,7 @@ function renderHeroPortfolioSlider(direction) {
 
     const slides = getFeaturedHeroSlides(5);
     if (slides.length === 0) {
-        container.innerHTML = `<div class="hero-ad-overlay" style="position:static;background:none;"><p class="text-ink-400 text-xs font-bold">등록된 시공사례가 아직 없습니다.</p></div>`;
+        container.innerHTML = `<div class="hero-a-empty"><p class="text-ink-400 text-xs font-bold">등록된 시공사례가 아직 없습니다.</p></div>`;
         return;
     }
     if (typeof window.AppState.currentHeroSlideIndex !== 'number' || window.AppState.currentHeroSlideIndex >= slides.length) {
@@ -292,17 +293,17 @@ function renderHeroPortfolioSlider(direction) {
     const total = slides.length;
     const slide = slides[idx];
     const safeName = slide.partnerName.replace(/'/g, "\\'");
+    const safeTitle = escapeHtml(slide.title);
+    const safePartnerName = escapeHtml(slide.partnerName);
 
     const frameHtml = `
-        <img src="${heroHiResSrc(slide.img, 1400)}" alt="${slide.title}">
-        <div class="hero-ad-overlay" onclick="openPortfolioBlogDetail('${safeName}', ${slide.portIdx})" role="button" tabindex="0">
-            <h2 class="text-base sm:text-2xl font-black text-white tracking-tight leading-snug line-clamp-2">${slide.title}</h2>
-            <div class="flex items-center gap-1.5 mt-2 text-xs sm:text-sm font-bold text-white/90">
-                <span class="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-white/15 border border-white/25 flex items-center justify-center shrink-0"><i data-lucide="home" class="w-3 h-3 sm:w-3.5 sm:h-3.5"></i></span>
-                <span class="truncate">${slide.partnerName}</span>
-                <span class="text-white/60 font-medium">·</span>
-                <span class="text-white/80 font-semibold flex items-center gap-1 shrink-0"><span class="text-gold-400">★</span>${slide.rating.toFixed(1)}</span>
+        <img src="${heroHiResSrc(slide.img, 1400)}" alt="${safeTitle}">
+        <div class="hero-a-plate" onclick="openPortfolioBlogDetail('${safeName}', ${slide.portIdx})" role="button" tabindex="0">
+            <div class="min-w-0">
+                <p class="hero-a-plate-title truncate">${safeTitle}</p>
+                <p class="hero-a-plate-sub truncate">${safePartnerName}</p>
             </div>
+            <span class="hero-a-plate-rate">★ ${slide.rating.toFixed(1)}</span>
         </div>`;
     swapSlideFrame(container, frameHtml, direction);
 
@@ -315,6 +316,20 @@ function renderHeroPortfolioSlider(direction) {
     }
     safeUpdateText('hero-slide-counter', `${idx + 1} / ${total}`);
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 히어로 좌측 패널의 신뢰지표(누적 매칭/인증 파트너/평균 평점) — AppState에서 직접 계산해서
+ * 항상 실제 데이터와 일치시킨다(하드코딩된 숫자로 고정 노출하지 않음). */
+function renderHeroTrustStats() {
+    const orders = window.AppState.orders || [];
+    const partners = window.AppState.partners || [];
+    const certifiedPartners = partners.filter(p => p.isCertified && p.status === 'active');
+    const rated = certifiedPartners.filter(p => p.rating > 0);
+    const avgRating = rated.length > 0 ? (rated.reduce((sum, p) => sum + p.rating, 0) / rated.length).toFixed(1) : '-';
+
+    safeUpdateText('hero-a-stat-orders', String(orders.length));
+    safeUpdateText('hero-a-stat-partners', String(certifiedPartners.length));
+    safeUpdateText('hero-a-stat-rating', avgRating);
 }
 
 function nextHeroSlide(e) {
@@ -1999,6 +2014,7 @@ window.updateB2BNavButton = updateB2BNavButton;
 window.closeB2BAccessModal = closeB2BAccessModal;
 window.accessB2BPanel = accessB2BPanel;
 window.renderHeroPortfolioSlider = renderHeroPortfolioSlider;
+window.renderHeroTrustStats = renderHeroTrustStats;
 window.nextHeroSlide = nextHeroSlide;
 window.prevHeroSlide = prevHeroSlide;
 window.renderPartnerSearchGrid = renderPartnerSearchGrid;
