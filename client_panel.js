@@ -46,28 +46,35 @@ function renderCalendar() {
         const dayCell = document.createElement('button');
         dayCell.type = 'button';
         const dateString = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        dayCell.onclick = () => {
-            window.AppState.formData.preferredDate = dateString;
-            renderCalendar();
-            syncFormStateUI();
-        };
+        const isPast = dateString < todayStr;
 
         const isSelected = window.AppState.formData.preferredDate === dateString;
         const isToday = dateString === todayStr;
         const holiday = (typeof getHolidayName === 'function') ? getHolidayName(year, month, d) : null;
 
         dayCell.innerText = d;
-        dayCell.title = holiday || '';
-        let cls = 'h-10 text-xs font-semibold rounded-lg transition-all flex flex-col items-center justify-center relative border-0 cursor-pointer ';
-        if (isSelected) {
-            cls += 'bg-brand-500 text-white font-bold';
-            dayCell.style.boxShadow = 'var(--shadow-brand)';
-        } else if (holiday) {
-            cls += 'text-roseCustom hover:bg-ink-100 font-bold';
-        } else if (isToday) {
-            cls += 'text-brand-600 bg-brand-50 font-bold ring-1 ring-inset ring-brand-200';
+        dayCell.title = isPast ? '지난 날짜는 착공일로 선택할 수 없어요.' : (holiday || '');
+        let cls = 'h-10 text-xs font-semibold rounded-lg transition-all flex flex-col items-center justify-center relative border-0 ';
+        if (isPast) {
+            dayCell.disabled = true;
+            cls += 'text-ink-200 cursor-not-allowed';
         } else {
-            cls += 'text-ink-700 hover:bg-ink-100';
+            dayCell.onclick = () => {
+                window.AppState.formData.preferredDate = dateString;
+                renderCalendar();
+                syncFormStateUI();
+            };
+            cls += 'cursor-pointer ';
+            if (isSelected) {
+                cls += 'bg-brand-500 text-white font-bold';
+                dayCell.style.boxShadow = 'var(--shadow-brand)';
+            } else if (holiday) {
+                cls += 'text-roseCustom hover:bg-ink-100 font-bold';
+            } else if (isToday) {
+                cls += 'text-brand-600 bg-brand-50 font-bold ring-1 ring-inset ring-brand-200';
+            } else {
+                cls += 'text-ink-700 hover:bg-ink-100';
+            }
         }
         dayCell.className = cls;
         calDaysGrid.appendChild(dayCell);
