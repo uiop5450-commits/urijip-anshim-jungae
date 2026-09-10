@@ -317,7 +317,9 @@
 
                     <div id="qstep-2" class="qstep hidden space-y-6">
                         <div><label class="field-label">시공 상세 주소 <span class="req">*</span></label>
-                            <input type="text" id="client-address" oninput="updateFormState('clientAddress', this.value)" placeholder="부산시 수영구 광안동 광안아파트 101동 201호" class="input"></div>
+                            <input type="text" id="client-address" oninput="updateFormState('clientAddress', this.value)" placeholder="부산시 수영구 광안동 광안아파트 101동 201호" class="input">
+                            <p id="field-error-address" class="hidden text-[10.5px] text-roseCustom font-bold mt-1">시공 상세 주소를 입력해 주세요.</p>
+                        </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><label class="field-label">공간 구분</label>
@@ -337,7 +339,9 @@
                                 <div class="relative">
                                     <input type="number" id="client-pyung" oninput="handlePyungChange(this.value)" placeholder="예: 32" class="input pr-24">
                                     <span id="m2-indicator" class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-ink-400 font-extrabold bg-white px-2 py-0.5 rounded-lg border border-ink-100">0.0 ㎡ 환산</span>
-                                </div></div>
+                                </div>
+                                <p id="field-error-pyung" class="hidden text-[10.5px] text-roseCustom font-bold mt-1">공사 면적(평수)을 입력해 주세요.</p>
+                            </div>
                             <div><label class="field-label">공사 예정지 거주 여부</label>
                                 <select id="client-vacancy" onchange="updateFormState('vacancy', this.value)" class="select">
                                     <option value="empty" selected>공실</option>
@@ -362,6 +366,7 @@
                                 </div>
                                 <div id="calendar-days" class="grid grid-cols-7 gap-1 min-h-[190px]"></div>
                             </div>
+                            <p id="field-error-date" class="hidden text-[10.5px] text-roseCustom font-bold mt-1">희망 착공일을 선택해 주세요.</p>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">

@@ -134,6 +134,11 @@ function syncFormStateUI() {
     const fd = window.AppState.formData;
     const auth = window.AppState.clientAuth;
 
+    /* 필수 항목을 채우면 해당 인라인 에러를 즉시 숨긴다(다음 제출 시도 때까지 남아있지 않도록). */
+    if (fd.clientAddress) document.getElementById('field-error-address')?.classList.add('hidden');
+    if (fd.pyung > 0) document.getElementById('field-error-pyung')?.classList.add('hidden');
+    if (fd.preferredDate) document.getElementById('field-error-date')?.classList.add('hidden');
+
     safeUpdateText('report-client-info', auth.loggedIn ? `${auth.name} (${auth.phone})` : "인증 미완료");
     safeUpdateText('report-client-address', fd.clientAddress || '미입력');
 
@@ -213,7 +218,16 @@ function triggerMatchingSim() {
         return;
     }
     if (!fd.clientAddress || fd.pyung <= 0 || !fd.preferredDate) {
-        showToast('시공 상세 주소, 면적(평수), 희망 착공일과 예산을 선택해 주세요!', 'warning');
+        ['field-error-address', 'field-error-pyung', 'field-error-date'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+        if (!fd.clientAddress || fd.pyung <= 0) {
+            goToClientStep(2);
+            if (!fd.clientAddress) { document.getElementById('field-error-address')?.classList.remove('hidden'); document.getElementById('client-address')?.focus(); }
+            else { document.getElementById('field-error-pyung')?.classList.remove('hidden'); document.getElementById('client-pyung')?.focus(); }
+        } else {
+            goToClientStep(3);
+            document.getElementById('field-error-date')?.classList.remove('hidden');
+        }
+        showToast('필수 항목을 입력해 주세요.', 'warning');
         return;
     }
 
