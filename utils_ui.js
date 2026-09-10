@@ -14,6 +14,24 @@ function safeUpdateValue(id, value) {
     if (el) el.value = value;
 }
 
+/* 검색창 옆 X(지우기) 버튼 — 입력값이 있을 때만 보이고, 누르면 비운 뒤 해당 목록의
+ * 렌더 함수를 다시 호출해 필터를 즉시 초기화한다(파트너 탐색/커뮤니티/관리자 모니터링 검색 공용). */
+function toggleSearchClearBtn(inputId, btnId) {
+    const input = document.getElementById(inputId);
+    const btn = document.getElementById(btnId);
+    if (!input || !btn) return;
+    btn.classList.toggle('hidden', input.value.length === 0);
+}
+
+function clearSearchInput(inputId, btnId, renderFnName) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.value = '';
+    toggleSearchClearBtn(inputId, btnId);
+    if (typeof window[renderFnName] === 'function') window[renderFnName]();
+    input.focus();
+}
+
 /* 사용자 입력값(제목/이름/댓글 등)을 innerHTML에 삽입하기 전 반드시 이 함수로 이스케이프한다.
  * 그렇지 않으면 회원가입 아이디·이름, 커뮤니티 글 제목 같은 자유 입력 필드에 <script>나
  * onerror= 같은 페이로드를 넣어 다른 사용자·관리자 세션에서 실행시키는 저장형 XSS가 가능하다. */
@@ -168,6 +186,8 @@ window.escapeHtml = escapeHtml;
 window.maskPhone = maskPhone;
 window.getHolidayName = getHolidayName;
 window.pushLog = pushLog;
+window.toggleSearchClearBtn = toggleSearchClearBtn;
+window.clearSearchInput = clearSearchInput;
 window.pushClientNotification = pushClientNotification;
 window.showComingSoon = showComingSoon;
 window.showToast = showToast;

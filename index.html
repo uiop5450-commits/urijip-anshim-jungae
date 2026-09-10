@@ -470,7 +470,8 @@
                     </div>
                     <div class="relative w-full sm:w-64">
                         <i data-lucide="search" class="w-3.5 h-3.5 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                        <input type="text" id="partner-search-input" oninput="renderPartnerSearchGrid()" placeholder="시공사 이름 또는 지역 검색..." class="input pl-8">
+                        <input type="text" id="partner-search-input" oninput="renderPartnerSearchGrid(); toggleSearchClearBtn('partner-search-input','partner-search-input-clear')" placeholder="시공사 이름 또는 지역 검색..." class="input pl-8 pr-8">
+                        <button type="button" id="partner-search-input-clear" onclick="clearSearchInput('partner-search-input','partner-search-input-clear','renderPartnerSearchGrid')" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-600 bg-transparent border-0 cursor-pointer p-0.5" aria-label="검색어 지우기"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
                     </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -503,7 +504,8 @@
                         <div class="flex items-center gap-2">
                             <div class="relative flex-1 sm:w-52">
                                 <i data-lucide="search" class="w-3.5 h-3.5 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                                <input type="text" id="community-search-input" oninput="renderCommunityList()" placeholder="글 제목·내용 검색..." class="input pl-8">
+                                <input type="text" id="community-search-input" oninput="renderCommunityList(); toggleSearchClearBtn('community-search-input','community-search-input-clear')" placeholder="글 제목·내용 검색..." class="input pl-8 pr-8">
+                                <button type="button" id="community-search-input-clear" onclick="clearSearchInput('community-search-input','community-search-input-clear','renderCommunityList')" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-600 bg-transparent border-0 cursor-pointer p-0.5" aria-label="검색어 지우기"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
                             </div>
                             <select id="community-sort-select" onchange="renderCommunityList()" class="select w-auto shrink-0">
                                 <option value="latest">최신순</option>
@@ -819,7 +821,10 @@
                     <div class="surface surface-lg p-6 space-y-4 text-left">
                         <div class="flex flex-wrap justify-between items-center gap-3 border-b border-ink-100 pb-4">
                             <h4 class="text-sm font-black text-ink-800">업체별 실시간 안심 거래 모니터링 보드</h4>
-                            <input type="text" id="admin-partner-search" oninput="renderAdminPartnerMonitor()" placeholder="업체명 검색..." class="input w-56">
+                            <div class="relative w-56">
+                                <input type="text" id="admin-partner-search" oninput="renderAdminPartnerMonitor(); toggleSearchClearBtn('admin-partner-search','admin-partner-search-clear')" placeholder="업체명 검색..." class="input w-full pr-8">
+                                <button type="button" id="admin-partner-search-clear" onclick="clearSearchInput('admin-partner-search','admin-partner-search-clear','renderAdminPartnerMonitor')" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-600 bg-transparent border-0 cursor-pointer p-0.5" aria-label="검색어 지우기"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                            </div>
                         </div>
                         <div id="admin-partner-monitor-list" class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2"></div>
                     </div>
