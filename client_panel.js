@@ -51,6 +51,7 @@ function renderCalendar() {
         const isSelected = window.AppState.formData.preferredDate === dateString;
         const isToday = dateString === todayStr;
         const holiday = (typeof getHolidayName === 'function') ? getHolidayName(year, month, d) : null;
+        const dayOfWeek = new Date(year, month - 1, d).getDay();
 
         dayCell.innerText = d;
         dayCell.title = isPast ? '지난 날짜는 착공일로 선택할 수 없어요.' : (holiday || '');
@@ -72,8 +73,19 @@ function renderCalendar() {
                 cls += 'text-roseCustom hover:bg-ink-100 font-bold';
             } else if (isToday) {
                 cls += 'text-brand-600 bg-brand-50 font-bold ring-1 ring-inset ring-brand-200';
+            } else if (dayOfWeek === 0) {
+                cls += 'text-roseCustom hover:bg-ink-100';
+            } else if (dayOfWeek === 6) {
+                cls += 'text-brand-500 hover:bg-ink-100';
             } else {
                 cls += 'text-ink-700 hover:bg-ink-100';
+            }
+            /* 공휴일명이 title 툴팁뿐이면 터치기기에서는 알 방법이 없어서, 선택되지 않은
+             * 상태에서도 항상 보이는 작은 점을 함께 표시한다. */
+            if (holiday && !isSelected) {
+                const dot = document.createElement('span');
+                dot.className = 'absolute bottom-0.5 w-1 h-1 rounded-full bg-roseCustom';
+                dayCell.appendChild(dot);
             }
         }
         dayCell.className = cls;
