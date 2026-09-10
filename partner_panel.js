@@ -1751,9 +1751,14 @@ function renderBlacklistDb() {
     const tbody = document.getElementById('admin-blacklist-tbody');
     if (!tbody) return;
     const list = window.AppState.blacklistDb || [];
-    if (list.length === 0) { tbody.innerHTML = `<tr><td class="px-6 py-8 text-center text-ink-400 font-bold" colspan="3">등록된 블랙리스트 대상이 없습니다.</td></tr>`; return; }
+    if (list.length === 0) { tbody.innerHTML = `<tr><td class="px-6 py-8 text-center text-ink-400 font-bold" colspan="4">등록된 블랙리스트 대상이 없습니다.</td></tr>`; return; }
     tbody.innerHTML = list.map(item => `
-        <tr><td class="font-mono text-xs font-black text-ink-500">${item.date}</td><td class="font-black text-xs text-roseCustom">${item.company}</td><td class="text-xs font-bold text-ink-700 leading-relaxed">${item.reason}</td></tr>`).join('');
+        <tr>
+            <td class="font-mono text-[11px] text-ink-500">${escapeHtml(item.date)}</td>
+            <td><span class="badge badge-rose">${escapeHtml(item.company)}</span></td>
+            <td class="font-mono text-[11px] text-ink-400">${escapeHtml(item.bizFile || '-')}</td>
+            <td class="text-xs font-bold text-ink-700 leading-relaxed">${escapeHtml(item.reason)}</td>
+        </tr>`).join('');
 }
 
 /* ----------------------------------------------------------------
