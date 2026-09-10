@@ -1118,7 +1118,7 @@ function openCommunityDetail(postId) {
                 ? `<div class="mt-2 ml-5 pl-3 border-l-2 border-ink-200 space-y-2">${c.replies.map(r => `
                     <div class="space-y-0.5">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] font-black text-ink-800">${escapeHtml(r.authorId)}</span>
+                            <span class="text-[11px] font-black text-ink-800">${escapeHtml(r.authorName)}</span>
                             <span class="text-[10px] text-ink-400 font-bold">${r.date}</span>
                         </div>
                         <p class="text-[11px] text-ink-700 font-medium leading-relaxed">${escapeHtml(r.text)}</p>
@@ -1133,7 +1133,7 @@ function openCommunityDetail(postId) {
             return `
             <div class="p-3.5 bg-ink-50 rounded-xl space-y-1">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-black text-ink-800">${escapeHtml(c.authorId)}</span>
+                    <span class="text-xs font-black text-ink-800">${escapeHtml(c.authorName)}</span>
                     <span class="text-[10px] text-ink-400 font-bold">${c.date}</span>
                 </div>
                 <p class="text-xs text-ink-700 font-medium leading-relaxed">${escapeHtml(c.text)}</p>
@@ -1150,12 +1150,12 @@ function openCommunityDetail(postId) {
             <div class="space-y-3 border-b border-ink-100 pb-5">
                 <div class="flex items-center gap-2">
                     <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
-                    <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${escapeHtml(post.authorId)}</span>
+                    <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${escapeHtml(post.authorName)}</span>
                 </div>
                 <h3 class="text-lg font-black text-ink-950">${escapeHtml(post.title)}</h3>
             </div>
             <p class="text-sm text-ink-700 font-medium leading-relaxed whitespace-pre-line py-2">${escapeHtml(post.content)}</p>
-            ${post.images && post.images.length > 0 ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 py-2">${post.images.map(src => `<img src="${src}" class="w-full aspect-square rounded-xl object-cover border border-ink-100">`).join('')}</div>` : ''}
+            ${post.images && post.images.length > 0 ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 py-2" id="community-detail-images">${post.images.map(src => `<img src="${src}" class="w-full aspect-square rounded-xl object-cover border border-ink-100 cursor-pointer">`).join('')}</div>` : ''}
             <div class="flex items-center gap-2 pt-2">
                 <button type="button" onclick="toggleCommunityLike('${post.id}')" class="btn btn-secondary btn-sm like-btn ${liked ? 'liked' : ''}"><i data-lucide="heart" class="w-3.5 h-3.5"></i> 좋아요 ${(post.likedBy || []).length}</button>
             </div>
@@ -1169,6 +1169,11 @@ function openCommunityDetail(postId) {
             </div>
         `;
         if (typeof lucide !== 'undefined') lucide.createIcons();
+        if (post.images && post.images.length > 0 && typeof openLightbox === 'function') {
+            contentEl.querySelectorAll('#community-detail-images img').forEach((img, idx) => {
+                img.onclick = () => openLightbox(post.images[idx], post.title, post.images, idx);
+            });
+        }
     }
 }
 
