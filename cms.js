@@ -654,12 +654,35 @@ function requestDirectQuoteFromPortfolio(partnerName, portIdx = 0) {
     // (마이페이지 의뢰이력의 '자동매칭'/'1:1 지정 매칭' 필터, renderClientMyPage 참고).
     const baseOrder = userOrders[0];
     const existing1on1 = userOrders.find(o => o.is1on1 && o.targetPartner === partnerName);
-    if (existing1on1) {
+    // 예전엔 1:1 지정 상담을 취소(매칭취소)해도 이 오더가 남아있어서 existing1on1이 계속 잡혔고,
+    // 그러면 같은 파트너를 다시 지정할 방법이 영영 없어지는 막다른 상황이 됐다. 입찰서(bids)가
+    // 비어있는(취소된) 경우엔 "이미 신청함"으로 막지 말고 같은 오더에 새 입찰서를 다시 채워준다.
+    if (existing1on1 && existing1on1.bids && existing1on1.bids.length > 0) {
         showToast(`이미 [${partnerName}] 파트너사에게 1:1 지정 상담을 신청하셨습니다. (${existing1on1.code})`, "info");
         if (typeof switchPanel === 'function') switchPanel('client-mypage-panel');
         if (typeof setClientMyPageHistoryFilter === 'function') setClientMyPageHistoryFilter('1on1');
         if (typeof selectMyPageEstimate === 'function') selectMyPageEstimate(existing1on1.code);
         closeClientPartnerProfile(); closePortfolioBlogDetail();
+        return;
+    }
+
+    if (existing1on1) {
+        existing1on1.status = 'bidding';
+        existing1on1.bids = [{
+            partner: partnerName,
+            price: Math.floor(baseOrder.budget * 0.96),
+            desc: `[1:1 전속 지정 상담] ${partnerName}에서 고객님의 실거주/공실 정보(${baseOrder.pyung}평형, 예산 ₩ ${baseOrder.budget.toLocaleString()}만원)를 바탕으로 전속 가견적서 및 단독 자재 컨설팅안을 발송했습니다.`,
+            verified: true, progress: 'bidding'
+        }];
+
+        closeClientPartnerProfile(); closePortfolioBlogDetail();
+        if (typeof pushLog === 'function') pushLog('CLIENT', '1ON1_REQUEST', `[${auth.name}] 고객님이 [${partnerName}] 파트너를 1:1 단독 지정 재신청함. (${existing1on1.code})`, 'SUCCESS');
+        showToast(`[${partnerName}] 파트너사에게 1:1 전속 지정 상담을 다시 신청했습니다! (${existing1on1.code})`, 'success');
+
+        if (typeof switchPanel === 'function') switchPanel('client-mypage-panel');
+        if (typeof renderClientMyPage === 'function') renderClientMyPage();
+        if (typeof setClientMyPageHistoryFilter === 'function') setClientMyPageHistoryFilter('1on1');
+        if (typeof selectMyPageEstimate === 'function') selectMyPageEstimate(existing1on1.code);
         return;
     }
 
