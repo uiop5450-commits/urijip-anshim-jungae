@@ -286,12 +286,78 @@ function removePortfolioBodyImage(btn) {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+/* 굵게/기울임/밑줄/정렬은 브라우저 표준에서 빠진(deprecated) document.execCommand
+ * 대신 Selection/Range API를 직접 다뤄서 구현한다 — 지금은 대부분 브라우저가 여전히
+ * execCommand를 지원하지만, 장기적으로 제거될 수 있는 API에 기대지 않는 편이 안전하다. */
+const PORTFOLIO_INLINE_FORMAT_TAGS = { bold: 'b', italic: 'i', underline: 'u' };
+
 function applyPortfolioEditorCommand(cmd) {
     const editor = document.getElementById('portfolio-body-editor');
     if (!editor) return;
     editor.focus();
-    try { document.execCommand(cmd, false, null); } catch (err) { /* no-op */ }
+    const tag = PORTFOLIO_INLINE_FORMAT_TAGS[cmd];
+    if (tag) toggleInlineFormatTag(editor, tag);
+    else applyPortfolioBlockAlign(editor, cmd);
     onPortfolioBodyEditorInput();
+}
+
+/* 선택 영역 전체가 이미 같은 태그 하나로 감싸져 있으면(토글 켜짐) 그 태그를 벗겨내고,
+ * 아니면 선택 영역을 새 태그로 감싼다. 겹치는 서식이 복잡하게 얽힌 경우까지 완벽히
+ * 처리하진 않지만(그 경우 태그가 중첩될 뿐 화면엔 동일하게 굵게/기울임/밑줄로 보임),
+ * 이 에디터에서 실제로 쓰이는 "문장을 선택하고 버튼 클릭" 흐름은 정확히 처리한다. */
+function toggleInlineFormatTag(editor, tag) {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (range.collapsed || !editor.contains(range.commonAncestorContainer)) return;
+
+    const startTag = closestTagWithinEditor(range.startContainer, tag, editor);
+    const endTag = closestTagWithinEditor(range.endContainer, tag, editor);
+    if (startTag && startTag === endTag) {
+        unwrapEditorElement(startTag);
+    } else {
+        const wrapper = document.createElement(tag);
+        wrapper.appendChild(range.extractContents());
+        range.insertNode(wrapper);
+        const newRange = document.createRange();
+        newRange.selectNodeContents(wrapper);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+    }
+}
+
+function closestTagWithinEditor(node, tag, editor) {
+    let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+    while (el && el !== editor) {
+        if (el.tagName && el.tagName.toLowerCase() === tag) return el;
+        el = el.parentElement;
+    }
+    return null;
+}
+
+function unwrapEditorElement(el) {
+    const parent = el.parentNode;
+    if (!parent) return;
+    while (el.firstChild) parent.insertBefore(el.firstChild, el);
+    parent.removeChild(el);
+}
+
+/* 정렬은 텍스트 선택 없이 커서 위치만으로도 적용돼야 하므로(문단 전체에 적용) 굵게/기울임과
+ * 달리 range.collapsed를 막지 않는다 — 커서가 속한 블록 요소를 찾아 text-align만 지정한다. */
+function applyPortfolioBlockAlign(editor, cmd) {
+    const alignMap = { justifyLeft: 'left', justifyCenter: 'center', justifyRight: 'right' };
+    const align = alignMap[cmd];
+    if (!align) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (!editor.contains(range.commonAncestorContainer)) return;
+
+    let node = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement : range.startContainer;
+    while (node && node !== editor && !['P', 'DIV', 'BLOCKQUOTE', 'H1', 'H2', 'H3'].includes(node.tagName)) {
+        node = node.parentElement;
+    }
+    if (node && node !== editor) node.style.textAlign = align;
 }
 
 function insertPortfolioQuote() {
@@ -392,9 +458,8 @@ function applyImportedPortfolioMeta(meta) {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-/* 굵게/기울임/밑줄 버튼은 삭제됐다 — 남아있는 정렬 버튼들은 활성 상태를 표시하지
- * 않으므로 이 함수는 더 할 일이 없다. HTML의 oninput/onkeyup/onmouseup 훅에서
- * 여전히 호출되므로 자리만 남겨둔다. */
+/* 툴바 버튼에 "현재 커서 위치가 굵게/기울임 상태인지" 하이라이트를 아직 표시하지 않는다.
+ * HTML의 oninput/onkeyup/onmouseup 훅에서 여전히 호출되므로 자리만 남겨둔다. */
 function updatePortfolioToolbarActiveState() { /* no-op */ }
 
 /* 카드 미리보기 패널은 삭제되었다 — 본문/필드가 바뀔 때마다 훅으로 연결해 두는 지점만 남겨둔다. */
