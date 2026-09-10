@@ -1055,7 +1055,7 @@ function openPartnerOrderDetailModal(orderCode) {
                     <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight">${order.clientName} 고객님 (${order.clientPhone})</h3>
                     <p class="text-xs text-ink-600 font-bold leading-relaxed max-w-md">${order.clientAddress}</p>
                 </div>
-                <button type="button" onclick="closePartnerOrderDetailModal()" class="btn btn-ghost btn-sm px-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <button type="button" onclick="closePartnerOrderDetailModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <div class="space-y-5 max-h-[65vh] overflow-y-auto custom-scroll pr-1">
                 ${renderPartnerContractProgressStepperHtml(steps)}
@@ -1506,7 +1506,7 @@ function openPartnerMetricsModal(partnerName) {
                     <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight mt-1">${partner.name} - 경영 및 안심 거래 지표 분석</h3>
                     <p class="text-xs text-ink-500 font-medium">사업자 등록번호: ${partner.bizFile || '미등록'} | 누적 평점: ★ ${partner.rating ? partner.rating.toFixed(1) : '5.0'}</p>
                 </div>
-                <button type="button" onclick="closePartnerMetricsModal()" class="btn btn-ghost btn-sm px-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <button type="button" onclick="closePartnerMetricsModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <div class="space-y-5 max-h-[65vh] overflow-y-auto custom-scroll pr-1">
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">

@@ -703,8 +703,8 @@
                                 </div>
                                 <div class="relative h-48 rounded-xl overflow-hidden bg-ink-200 flex items-center justify-center">
                                     <img id="partner-hero-slide-img" src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&auto=format&fit=crop&q=60" class="w-full h-full object-cover">
-                                    <button type="button" onclick="prevPartnerHeroSlide()" class="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-ink-950/60 text-white border-0 cursor-pointer"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
-                                    <button type="button" onclick="nextPartnerHeroSlide()" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-ink-950/60 text-white border-0 cursor-pointer"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                                    <button type="button" onclick="prevPartnerHeroSlide()" class="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-ink-950/60 text-white border-0 cursor-pointer" aria-label="이전 사진"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                                    <button type="button" onclick="nextPartnerHeroSlide()" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-ink-950/60 text-white border-0 cursor-pointer" aria-label="다음 사진"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
                                     <button type="button" onclick="deleteCurrentPartnerHeroSlide()" class="absolute top-2 right-2 px-2.5 py-1 bg-roseCustom/90 text-white rounded-lg text-[9px] font-black border-0 cursor-pointer">삭제</button>
                                     <span id="partner-hero-slide-counter" class="absolute bottom-2 left-2 px-2 py-0.5 bg-ink-950/80 text-white rounded-md text-[9px]">1 / 1</span>
                                 </div>
@@ -918,7 +918,7 @@
         <div id="b2b-access-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-6 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">
                 <div class="space-y-1"><span class="badge badge-neutral">B2B Portal</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">기업 및 매니저 로그인</h3></div>
-                <button type="button" onclick="closeB2BAccessModal()" class="btn btn-ghost btn-sm px-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <button type="button" onclick="closeB2BAccessModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <div class="space-y-3">
                 <button type="button" onclick="accessB2BPanel('partner-panel')" class="w-full p-4 rounded-2xl border border-ink-100 hover:border-brand-500 bg-ink-50 hover:bg-white transition-all flex items-center justify-between text-left cursor-pointer group">
@@ -1014,9 +1014,9 @@
     </div>
 
     <div id="lightbox-modal" class="hidden fixed inset-0 z-[500] lightbox-backdrop backdrop-blur-md flex items-center justify-center p-2 sm:p-6 transition-all duration-300" onclick="closeLightbox()">
-        <button type="button" onclick="closeLightbox()" class="absolute top-4 right-4 text-white hover:text-ink-200 bg-black/50 p-3 rounded-full border border-white/20 z-20 transition-all cursor-pointer"><i data-lucide="x" class="w-6 h-6"></i></button>
-        <button type="button" id="lightbox-prev-btn" onclick="prevLightboxPhoto(event)" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 text-white hover:text-ink-200 bg-black/60 hover:bg-black/80 p-3 sm:p-4 rounded-full border border-white/20 z-20 transition-all cursor-pointer flex items-center justify-center select-none shadow-xl"><i data-lucide="chevron-left" class="w-6 h-6 sm:w-8 sm:h-8"></i></button>
-        <button type="button" id="lightbox-next-btn" onclick="nextLightboxPhoto(event)" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 text-white hover:text-ink-200 bg-black/60 hover:bg-black/80 p-3 sm:p-4 rounded-full border border-white/20 z-20 transition-all cursor-pointer flex items-center justify-center select-none shadow-xl"><i data-lucide="chevron-right" class="w-6 h-6 sm:w-8 sm:h-8"></i></button>
+        <button type="button" onclick="closeLightbox()" class="absolute top-4 right-4 text-white hover:text-ink-200 bg-black/50 p-3 rounded-full border border-white/20 z-20 transition-all cursor-pointer" aria-label="닫기"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <button type="button" id="lightbox-prev-btn" onclick="prevLightboxPhoto(event)" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 text-white hover:text-ink-200 bg-black/60 hover:bg-black/80 p-3 sm:p-4 rounded-full border border-white/20 z-20 transition-all cursor-pointer flex items-center justify-center select-none shadow-xl" aria-label="이전 사진"><i data-lucide="chevron-left" class="w-6 h-6 sm:w-8 sm:h-8"></i></button>
+        <button type="button" id="lightbox-next-btn" onclick="nextLightboxPhoto(event)" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 text-white hover:text-ink-200 bg-black/60 hover:bg-black/80 p-3 sm:p-4 rounded-full border border-white/20 z-20 transition-all cursor-pointer flex items-center justify-center select-none shadow-xl" aria-label="다음 사진"><i data-lucide="chevron-right" class="w-6 h-6 sm:w-8 sm:h-8"></i></button>
         <div class="relative max-w-full max-h-full flex flex-col items-center justify-center p-2 overflow-hidden" onclick="event.stopPropagation()">
             <div class="overflow-visible rounded-2xl flex items-center justify-center p-1">
                 <img id="lightbox-img" src="" onclick="toggleLightboxZoom(event)" class="max-w-[92vw] max-h-[82vh] object-contain rounded-2xl shadow-2xl transition-transform duration-75 select-none cursor-zoom-in" style="user-select: none; -webkit-user-drag: none;">
@@ -1085,7 +1085,7 @@
         <div id="write-review-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-6 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">
                 <div class="space-y-1"><h3 class="text-base font-black text-ink-950">솔직 후기 작성</h3><p id="write-review-project-name" class="text-[10px] text-ink-400 font-mono">프로젝트 번호: WJ-2026-XXXX</p></div>
-                <button type="button" onclick="closeReviewWriteModal()" class="btn btn-ghost btn-sm px-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <button type="button" onclick="closeReviewWriteModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <form class="space-y-5" onsubmit="event.preventDefault();">
                 <div class="space-y-1.5"><label class="field-label mb-0">별점 평가</label><div id="review-rating-stars" class="flex items-center gap-1 text-2xl leading-none"></div></div>
@@ -1110,7 +1110,7 @@
                     <div class="flex items-center gap-2"><h3 id="review-detail-client" class="text-base font-black text-ink-950">고객님 후기</h3><span id="review-detail-stars" class="text-gold-500 font-extrabold text-xs">★★★★★ (5.0)</span></div>
                     <p id="review-detail-date" class="text-[10px] text-ink-400 font-semibold">작성일: -</p>
                 </div>
-                <button type="button" onclick="closeReviewDetailModal()" class="btn btn-ghost btn-sm px-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <button type="button" onclick="closeReviewDetailModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <div class="space-y-4 max-h-[60vh] overflow-y-auto custom-scroll pr-1">
                 <p id="review-detail-text" class="text-xs text-ink-700 font-semibold leading-relaxed surface-flat p-4 whitespace-pre-line"></p>
@@ -1126,7 +1126,7 @@
     <!-- 중앙 팝업 알림 (토스트) -->
     <div id="custom-toast" class="fixed inset-0 flex items-center justify-center bg-ink-950/40 backdrop-blur-sm z-[600] hidden transition-all duration-300">
         <div id="custom-toast-card" class="bg-white rounded-[28px] w-[calc(100%-32px)] max-w-sm p-6 space-y-5 text-center transform scale-95 opacity-0 transition-all duration-200 relative" style="box-shadow:var(--shadow-3)">
-            <button type="button" onclick="closeToast()" class="absolute top-4 right-4 btn btn-ghost btn-sm px-1.5"><i data-lucide="x" class="w-5 h-5"></i></button>
+            <button type="button" onclick="closeToast()" class="absolute top-4 right-4 btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
             <div class="space-y-3 pt-4 pb-2">
                 <span id="custom-toast-icon" class="toast-icon-wrap bg-brand-50 text-brand-500"><i data-lucide="bell" class="w-6 h-6"></i></span>
                 <p id="custom-toast-msg" class="text-[13px] sm:text-sm font-bold text-ink-800 leading-relaxed break-keep whitespace-pre-line">알림 메시지입니다.</p>
