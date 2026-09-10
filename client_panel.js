@@ -429,6 +429,7 @@ function submitClientSignup() {
     if (!/^[A-Za-z0-9_-]{3,20}$/.test(idVal)) { showToast("아이디는 영문, 숫자, _, - 조합으로 3~20자로 입력해 주세요.", "warning"); return; }
     if (pwVal !== pw2Val) { showToast("비밀번호가 일치하지 않습니다.", "warning"); return; }
     if (window.AppState.clientAccounts.some(acc => acc.id === idVal)) { showToast("이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.", "warning"); return; }
+    if (window.AppState.clientAccounts.some(acc => acc.phone === phoneVal)) { showToast("이미 가입된 휴대폰 번호입니다. 아이디를 잊으셨다면 고객센터에 문의해 주세요.", "warning"); return; }
 
     window.AppState.clientAccounts.push({ id: idVal, pw: pwVal, name: nameVal, phone: phoneVal });
     auth.loggedIn = true; auth.id = idVal; auth.name = nameVal; auth.phone = phoneVal;
