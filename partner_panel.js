@@ -1903,7 +1903,7 @@ function renderAdminPamphletList() {
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
-    container.innerHTML = pamphlets.map(evt => `
+    container.innerHTML = pamphlets.map((evt, idx) => `
         <div class="flex items-center gap-3 p-3 surface-flat">
             <div class="w-14 h-14 rounded-xl overflow-hidden shrink-0 flex items-center justify-center bg-ink-100">${evt.img ? `<img src="${evt.img}" class="w-full h-full object-cover">` : `<i data-lucide="image-plus" class="w-4 h-4 text-ink-300"></i>`}</div>
             <div class="min-w-0 flex-1">
@@ -1911,11 +1911,23 @@ function renderAdminPamphletList() {
                 <p class="text-[11px] text-ink-500 font-medium truncate">${evt.detail || evt.sub || ''}</p>
             </div>
             <div class="flex items-center gap-1 shrink-0">
+                <button type="button" onclick="movePamphlet(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="btn btn-ghost btn-sm px-2" aria-label="위로"><i data-lucide="chevron-up" class="w-3.5 h-3.5"></i></button>
+                <button type="button" onclick="movePamphlet(${idx}, 1)" ${idx === pamphlets.length - 1 ? 'disabled' : ''} class="btn btn-ghost btn-sm px-2" aria-label="아래로"><i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
                 <button type="button" onclick="openPamphletEditor('${evt.id}')" class="btn btn-ghost btn-sm px-2" aria-label="수정"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
                 <button type="button" onclick="deletePamphlet('${evt.id}')" class="btn btn-ghost btn-sm px-2 text-roseCustom" aria-label="삭제"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
             </div>
         </div>`).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function movePamphlet(index, dir) {
+    const pamphlets = window.AppState.pamphlets || [];
+    const target = index + dir;
+    if (target < 0 || target >= pamphlets.length) return;
+    [pamphlets[index], pamphlets[target]] = [pamphlets[target], pamphlets[index]];
+    window.AppState.currentHomeEventIndex = 0;
+    renderAdminPamphletList();
+    if (typeof renderHomeEventSlider === 'function') renderHomeEventSlider();
 }
 
 /* 팜플렛 편집기에서 현재 작업 중인 업로드 사진(base64 data URL)과 확대/위치 조정 값을 임시로 들고 있는
@@ -2132,6 +2144,7 @@ window.removeFeaturedHeroPartner = removeFeaturedHeroPartner;
 window.moveFeaturedHeroPartner = moveFeaturedHeroPartner;
 window.renderAdminHeroFeaturedList = renderAdminHeroFeaturedList;
 window.renderAdminPamphletList = renderAdminPamphletList;
+window.movePamphlet = movePamphlet;
 window.openPamphletEditor = openPamphletEditor;
 window.closePamphletEditor = closePamphletEditor;
 window.savePamphlet = savePamphlet;
