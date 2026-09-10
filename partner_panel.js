@@ -545,7 +545,8 @@ function toggleManagerConsoleVisibility() {
         const badge = document.getElementById('admin-manager-badge');
         if (badge) {
             const isSuperAdmin = window.AppState.managerRole === 'super_admin';
-            badge.innerHTML = `<span class="badge ${isSuperAdmin ? 'badge-brand' : 'badge-neutral'}">${isSuperAdmin ? '👑 최고관리자' : '🧑‍💼 파트너 매니저'} · ${window.AppState.managerName}</span>`;
+            badge.innerHTML = `<span class="badge ${isSuperAdmin ? 'badge-brand' : 'badge-neutral'} flex items-center gap-1"><i data-lucide="${isSuperAdmin ? 'crown' : 'user-cog'}" class="w-3 h-3"></i>${isSuperAdmin ? '최고관리자' : '파트너 매니저'} · ${escapeHtml(window.AppState.managerName)}</span>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         const allowedTabs = getAdminAllowedTabs();
@@ -565,7 +566,7 @@ function togglePartnerConsoleVisibility() {
         const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
         const partner = window.AppState.partners.find(p => p.name === partnerName);
         if (partner) {
-            const strikeText = partner.strikeCount > 0 ? `⚠️ ${partner.strikeCount}진 아웃` : '정상';
+            const strikeText = partner.strikeCount > 0 ? `${partner.strikeCount}진 아웃` : '정상';
             const strikeDotColor = partner.strikeCount > 0 ? 'bg-amberCustom' : 'bg-emeraldCustom';
             const certifiedBadge = partner.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증 파트너</span>` : '';
 
@@ -693,7 +694,7 @@ function handlePartnerBizCertUpload(input) {
     const reader = new FileReader();
     reader.onload = (e) => {
         _partnerSignupBizCertDraft = { name: file.name, uploadedAt: new Date().toLocaleString('ko-KR'), dataUrl: e.target.result };
-        safeUpdateText('partner-signup-bizcert-filename', `📎 ${file.name}`);
+        safeUpdateText('partner-signup-bizcert-filename', file.name);
         showToast('사업자등록증이 첨부되었습니다.', 'success');
     };
     reader.onerror = () => showToast('파일을 읽는 중 문제가 발생했습니다. 다시 시도해주세요.', 'error');

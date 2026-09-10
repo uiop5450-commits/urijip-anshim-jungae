@@ -666,10 +666,10 @@ function renderClientMyPage() {
         div.onclick = () => selectMyPageEstimate(order.code);
 
         let statusBadge = '';
-        if (order.is1on1) statusBadge = `<span class="badge badge-neutral"><span class="badge-dot bg-ink-950"></span> ⚡ 1:1 지정 [${order.targetPartner}]</span>`;
+        if (order.is1on1) statusBadge = `<span class="badge badge-neutral"><span class="badge-dot bg-ink-950"></span> 1:1 지정 [${order.targetPartner}]</span>`;
         else if (order.status === 'bidding') {
             statusBadge = order.isHighBudgetAdminPending
-                ? `<span class="badge badge-gold"><span class="badge-dot bg-gold-500"></span> 💰 7천만+ 본사 배정 대기</span>`
+                ? `<span class="badge badge-gold"><span class="badge-dot bg-gold-500"></span> 7천만+ 본사 배정 대기</span>`
                 : `<span class="badge badge-amber"><span class="badge-dot bg-amberCustom"></span> 입찰 심사 중 (${order.bids.length}개사)</span>`;
         } else if (order.status === 'contracted') {
             statusBadge = (order.contractUploaded && order.clientSigned)
