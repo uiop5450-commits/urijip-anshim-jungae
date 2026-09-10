@@ -893,10 +893,12 @@ function openReviewWriteModal(orderCode) {
 
     window.AppState.reviewOrderTarget = orderCode;
     window.AppState.reviewPhotoDrafts = [];
+    window.AppState.activeReviewRating = 5;
 
     safeUpdateText('write-review-project-name', `프로젝트 번호: ${order.code} · ${order.acceptedPartner || ''}`);
     safeUpdateValue('input-review-text', '');
     renderReviewPhotoPreview();
+    renderReviewRatingStars();
 
     const modal = document.getElementById('write-review-modal');
     const card = document.getElementById('write-review-modal-card');
@@ -912,6 +914,20 @@ function closeReviewWriteModal() {
     if (!modal || !card) return;
     card.classList.remove('modal-open');
     setTimeout(() => modal.classList.add('hidden'), 200);
+}
+
+/* 후기 작성 모달의 별점 입력 — 클릭한 별까지 채워서 보여주고 activeReviewRating에 반영한다.
+ * (이전엔 입력 UI가 없어 모든 후기가 기본값 5점으로만 저장되던 문제를 고침) */
+function renderReviewRatingStars() {
+    const el = document.getElementById('review-rating-stars');
+    if (!el) return;
+    const rating = window.AppState.activeReviewRating || 5;
+    el.innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" onclick="setReviewRating(${n})" class="bg-transparent border-0 cursor-pointer p-0.5 leading-none ${n <= rating ? 'text-gold-500' : 'text-ink-200'}" aria-label="${n}점">★</button>`).join('');
+}
+
+function setReviewRating(n) {
+    window.AppState.activeReviewRating = n;
+    renderReviewRatingStars();
 }
 
 function renderReviewPhotoPreview() {
@@ -1293,6 +1309,7 @@ window.openReviewWriteModal = openReviewWriteModal;
 window.closeReviewWriteModal = closeReviewWriteModal;
 window.handleReviewPhotoUpload = handleReviewPhotoUpload;
 window.removeReviewPhotoDraft = removeReviewPhotoDraft;
+window.setReviewRating = setReviewRating;
 window.submitClientReview = submitClientReview;
 
 window.clearSignatureCanvas = clearSignatureCanvas;
