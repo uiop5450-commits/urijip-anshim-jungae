@@ -775,6 +775,8 @@ function renderMyPageEstimateDetails(order) {
                     </div>
                 </div>`;
         });
+    } else if (order.is1on1) {
+        bidsHtml = `<div class="empty-state !py-8 surface-flat"><p class="text-xs text-ink-500 font-bold">지정하신 파트너사와의 매칭이 취소되었습니다.</p><p class="text-[10px] text-ink-400 font-medium mt-1">아래에서 다른 우수 파트너사를 다시 1:1로 지정해보세요.</p></div>`;
     } else {
         bidsHtml = `<div class="empty-state !py-8 surface-flat"><p class="text-xs text-ink-500 font-bold">아직 참여한 매칭 입찰서가 없습니다.</p><p class="text-[10px] text-ink-400 font-medium mt-1">검증된 파트너사가 제안서를 준비하고 있습니다.</p></div>`;
     }
@@ -822,7 +824,7 @@ function renderMyPageEstimateDetails(order) {
             <div class="space-y-3 pt-2">
                 <div class="flex items-center justify-between gap-2">
                     <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider flex items-center gap-1.5"><i data-lucide="building" class="w-4 h-4 text-brand-500"></i> 연결된 안심 파트너 제안서 목록 (${order.bids ? order.bids.length : 0})</h4>
-                    ${order.status !== 'contracted' ? `<button type="button" onclick="triggerRebidding('${order.code}')" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 새 파트너 재매칭 받기</button>` : ''}
+                    ${(order.status !== 'contracted' && !order.is1on1) ? `<button type="button" onclick="triggerRebidding('${order.code}')" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 새 파트너 재매칭 받기</button>` : ''}
                 </div>
                 <div class="space-y-3">${bidsHtml}</div>
             </div>
@@ -837,6 +839,7 @@ function renderMyPageEstimateDetails(order) {
 function triggerRebidding(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order || order.status === 'contracted') return;
+    if (order.is1on1) { showToast('1:1 지정 상담은 파트너사를 직접 다시 지정해주셔야 해요.', 'info'); return; }
 
     const slotsNeeded = (order.partnerCountLimit || 3) - (order.bids ? order.bids.length : 0);
     if (slotsNeeded <= 0) { showToast('이미 배정 인원이 모두 채워져 있어요.', 'info'); return; }
