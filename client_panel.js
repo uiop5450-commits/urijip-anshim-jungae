@@ -129,7 +129,7 @@ function syncFormStateUI() {
     const limit3Btn = document.getElementById('limit-3');
     const limit5Btn = document.getElementById('limit-5');
     if (limit3Btn && limit5Btn) {
-        const activeCls = "py-3 text-xs font-bold rounded-xl transition-all bg-white text-ink-950 border-0 cursor-pointer flex flex-col items-center justify-center gap-0.5";
+        const activeCls = "py-3 text-xs font-bold rounded-xl transition-all bg-white text-brand-600 border-0 cursor-pointer flex flex-col items-center justify-center gap-0.5";
         const inactiveCls = "py-3 text-xs font-bold rounded-xl transition-all text-ink-500 hover:text-ink-950 bg-transparent border-0 cursor-pointer flex flex-col items-center justify-center gap-0.5";
         if (parseInt(fd.partnerCountLimit, 10) === 3) {
             limit3Btn.className = activeCls; limit3Btn.style.boxShadow = 'var(--shadow-1)';
