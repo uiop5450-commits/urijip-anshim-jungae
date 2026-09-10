@@ -666,6 +666,12 @@ textarea:focus-visible {
  * --------------------------------------------------------------- */
 @media (min-width: 640px) { .type-display-lg { font-size: 44px; } }
 
+/* 모바일에서는 상단 GNB가 로고줄+탭줄로 두 줄이 되어 세로로 훨씬 높아지는데,
+ * 토스트가 top-4로 고정돼 있어 GNB 글자와 겹쳐 보이던 문제를 고침. */
+@media (max-width: 640px) {
+    #toast-stack { top: 148px !important; }
+}
+
 /* KPI 카드 */
 .kpi-card { background: #fff; border-radius: var(--r-lg); padding: 22px; border: 1px solid var(--ink-100); box-shadow: var(--shadow-1); position: relative; }
 .kpi-card::before { content: ''; position: absolute; left: 0; top: 16px; bottom: 16px; width: 3px; border-radius: 3px; background: var(--accent, var(--brand-500)); }
