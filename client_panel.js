@@ -265,7 +265,7 @@ function completeMatchingSim() {
     if (auth.loggedIn) {
         renderClientMyPage();
         if (isHighBudget) {
-            showToast(`💰 7,000만원 이상 고액 오더로 지정되어,\n본사 최고 관리자가 최상위 '우리집 인증 파트너사'를 직접 전속 심사 후 나눠 배정합니다!\n(의뢰 코드: ${code})`, 'info');
+            showToast(`7,000만원 이상 고액 오더로 지정되어,\n본사 최고 관리자가 최상위 '우리집 인증 파트너사'를 직접 전속 심사 후 나눠 배정합니다!\n(의뢰 코드: ${code})`, 'info');
         } else {
             showToast(`안심 견적이 성실히 접수되었습니다!\n(의뢰 코드: ${code})`, 'success');
         }
@@ -316,7 +316,7 @@ function renderClientBids(targetCode) {
             bidListEl.innerHTML = `
                 <div class="empty-state">
                     <p class="text-xs text-ink-500 font-bold mb-3">현재 연결된 매칭 파트너가 없습니다.</p>
-                    <button type="button" onclick="triggerRebidding('${order.code}')" class="btn btn-dark btn-sm mx-auto">⚡ 새로운 파트너 재매칭 받아보기</button>
+                    <button type="button" onclick="triggerRebidding('${order.code}')" class="btn btn-dark btn-sm mx-auto"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 새로운 파트너 재매칭 받아보기</button>
                 </div>`;
         }
     } else {
@@ -338,7 +338,7 @@ function renderClientBids(targetCode) {
                 </div>
                 <p class="text-[11px] text-ink-600 leading-relaxed font-semibold">${bid.desc}</p>
                 <div class="flex justify-between items-center pt-2 border-t border-ink-100 mt-2">
-                    <button type="button" onclick="openPartnerPortfolioModal('${bid.partner}')" class="btn btn-ghost btn-sm px-0">🎨 포트폴리오 및 후기</button>
+                    <button type="button" onclick="openPartnerPortfolioModal('${bid.partner}')" class="btn btn-ghost btn-sm px-0"><i data-lucide="palette" class="w-3.5 h-3.5"></i> 포트폴리오 및 후기</button>
                     <div class="flex items-center gap-1.5">
                         <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}')" class="btn btn-secondary btn-sm">매칭취소</button>
                         <button type="button" onclick="clientFinalizeContract('${order.code}', '${bid.partner}', ${bid.price})" class="btn btn-dark btn-sm">계약 체결</button>
@@ -395,7 +395,7 @@ function clientFinalizeContract(orderCode, partnerName, finalPrice) {
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'CONTRACT', `${maskName(order.clientName)} 고객님이 [${partnerName}]와 계약 합의서에 서명함.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}와 계약이 체결됐어요. (의뢰 코드: ${orderCode})`);
-    showToast(`🎉 ${partnerName}와 시공 계약 합의 체결 완료!`, 'success');
+    showToast(`${partnerName}와 시공 계약 합의 체결 완료!`, 'success');
 }
 
 function sendClientAuthCode() {
@@ -803,7 +803,7 @@ function renderMyPageEstimateDetails(order) {
                     </div>
                     <p class="text-xs text-ink-600 font-semibold leading-relaxed">${bid.desc}</p>
                     <div class="flex justify-between items-center pt-2 border-t border-ink-100">
-                        <button type="button" onclick="openPartnerPortfolioModal('${bid.partner}')" class="btn btn-ghost btn-sm px-0">🎨 시공 포트폴리오 및 후기</button>
+                        <button type="button" onclick="openPartnerPortfolioModal('${bid.partner}')" class="btn btn-ghost btn-sm px-0"><i data-lucide="palette" class="w-3.5 h-3.5"></i> 시공 포트폴리오 및 후기</button>
                         ${order.status === 'contracted' ? (isContracted ? `
                             <span class="badge badge-emerald">✓ 안심 계약 체결사</span>
                         ` : `<span class="text-[10px] font-bold text-ink-400">계약 마감</span>`) : `
@@ -868,7 +868,7 @@ function renderMyPageEstimateDetails(order) {
 function triggerRebidding(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return;
-    showToast("⚡ 새로운 파트너사에 입찰 매칭을 재요청했습니다.", "info");
+    showToast("새로운 파트너사에 입찰 매칭을 재요청했습니다.", "info");
 }
 
 function handleHome1on1Click() {
@@ -876,7 +876,7 @@ function handleHome1on1Click() {
     const userOrders = window.AppState.orders.filter(o => auth.loggedIn && o.clientPhone === auth.phone);
 
     if (!auth.loggedIn || userOrders.length === 0) {
-        showToast("⚡ 1:1 지정 매칭은 먼저 간편 견적 신청(자동 매칭)을 완료하신 후 가능합니다.\n견적 신청 페이지로 이동합니다.", "warning");
+        showToast("1:1 지정 매칭은 먼저 간편 견적 신청(자동 매칭)을 완료하신 후 가능합니다.\n견적 신청 페이지로 이동합니다.", "warning");
         if (typeof switchPanel === 'function') switchPanel('client-panel');
         return;
     }
@@ -961,7 +961,7 @@ function submitClientReview() {
     window.AppState.reviewPhotoDrafts = [];
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW', `${maskName(order.clientName)} 고객님이 [${order.acceptedPartner}]에 대한 안심 후기를 등록함.`, 'SUCCESS');
-    showToast("💚 소중한 안심 후기가 정상적으로 등록되었습니다. 감사합니다!", "success");
+    showToast("소중한 안심 후기가 정상적으로 등록되었습니다. 감사합니다!", "success");
 
     closeReviewWriteModal();
     renderClientMyPage();

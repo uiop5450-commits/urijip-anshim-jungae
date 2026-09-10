@@ -607,7 +607,7 @@ function validatePartnerLogin() {
 
     if (partner) {
         if (partner.status === 'banned') {
-            showToast("❌ 귀사는 삼진아웃 누적 초과(3회 이상 적발)로 인해 영구 제명 처리되었습니다.", "warning");
+            showToast("귀사는 삼진아웃 누적 초과(3회 이상 적발)로 인해 영구 제명 처리되었습니다.", "warning");
             if (errorMsg) { errorMsg.innerText = "❌ 삼진아웃제 규정에 따라 영구 제명 처리된 불량 사업자망 계정입니다."; errorMsg.classList.remove('hidden'); }
             return;
         }
@@ -617,7 +617,7 @@ function validatePartnerLogin() {
             return;
         }
         if (partner.status === 'rejected') {
-            showToast(`❌ 입점 신청이 반려되었습니다.${partner.rejectReason ? ' 사유: ' + partner.rejectReason : ''}`, "warning");
+            showToast(`입점 신청이 반려되었습니다.${partner.rejectReason ? ' 사유: ' + partner.rejectReason : ''}`, "warning");
             if (errorMsg) { errorMsg.innerText = "❌ 입점 신청이 반려된 계정입니다."; errorMsg.classList.remove('hidden'); }
             return;
         }
@@ -822,7 +822,7 @@ function selectOrderForAudit(code) {
 
             ${isAlreadyBid ? `
                 <div class="p-4 surface-flat text-left space-y-1"><h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-ink-700"></i> 선착순 즉시 입찰 선점 완료</h5><p class="text-[10px] text-ink-500 font-semibold leading-relaxed">의뢰자가 우리 시공사의 포트폴리오를 검토 중입니다.</p></div>
-            ` : `<button type="button" onclick="submitPartnerBid()" class="btn btn-dark btn-lg btn-block">⚡ 선착순 입찰 즉시 참여하기</button>`}
+            ` : `<button type="button" onclick="submitPartnerBid()" class="btn btn-dark btn-lg btn-block"><i data-lucide="zap" class="w-4 h-4"></i> 선착순 입찰 즉시 참여하기</button>`}
         </div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -840,7 +840,7 @@ function submitPartnerBid() {
     renderPartnerOrderList();
     recalculateKPIs();
     pushLog('PARTNER', 'BID', `[${partnerName}]가 오더 ${code} 입찰 선점.`, 'SUCCESS');
-    showToast("⚡ 선착순 입찰에 참여했습니다!", "success");
+    showToast("선착순 입찰에 참여했습니다!", "success");
 }
 
 /* 안심 계약·입찰 내역 상태 필터. 상태 뱃지를 클릭하면 해당 상태만 걸러서 볼 수 있다. */
@@ -988,7 +988,7 @@ function openPartnerOrderDetailModal(orderCode) {
                         <p class="text-[11px] font-bold text-ink-500">최종 계약금액 ₩ ${(order.finalPrice || 0).toLocaleString()}만원의 ${(PLATFORM_COMMISSION_RATE * 100).toFixed(0)}%</p>
                         <span class="text-sm font-black text-ink-950">₩ ${commissionAmount.toLocaleString()} 만원</span>
                     </div>
-                    <button type="button" onclick="payPartnerCommission('${order.code}')" class="btn btn-dark btn-block">💳 수수료 결제하기</button>
+                    <button type="button" onclick="payPartnerCommission('${order.code}')" class="btn btn-dark btn-block"><i data-lucide="credit-card" class="w-4 h-4"></i> 수수료 결제하기</button>
                 </div>`;
         }
 
@@ -1170,7 +1170,7 @@ function payPartnerCommission(orderCode) {
     order.commissionPaid = true;
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'COMMISSION', `[${partnerName}]가 오더 ${orderCode}의 플랫폼 중개 수수료 ₩ ${amount.toLocaleString()}만원을 결제했습니다.`, 'SUCCESS');
-    showToast(`💳 수수료 ₩ ${amount.toLocaleString()}만원 결제가 완료되었습니다!`, 'success');
+    showToast(`수수료 ₩ ${amount.toLocaleString()}만원 결제가 완료되었습니다!`, 'success');
 
     openPartnerOrderDetailModal(orderCode);
     if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
@@ -1239,7 +1239,7 @@ function renderAdminOrderAllocation() {
                     <input type="checkbox" id="admin-order-select-all" onchange="toggleSelectAllOrders(this)" class="w-4 h-4">
                     전체 오더 선택
                 </label>
-                <button type="button" onclick="bulkAutoAllocateSelectedOrders()" class="btn btn-primary btn-sm whitespace-nowrap">⚡ 선택 오더 일괄 자동배정</button>
+                <button type="button" onclick="bulkAutoAllocateSelectedOrders()" class="btn btn-primary btn-sm whitespace-nowrap"><i data-lucide="zap" class="w-3.5 h-3.5"></i> 선택 오더 일괄 자동배정</button>
             </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">`;
 
@@ -1273,7 +1273,7 @@ function renderAdminOrderAllocation() {
                         <option value="">인증 파트너 수동 선택...</option>${partnerOptions}
                     </select>
                     <button type="button" onclick="allocateOrderToPartner('${o.code}')" class="btn btn-dark btn-sm whitespace-nowrap">전속 배정</button>
-                    <button type="button" onclick="autoAllocateOrder('${o.code}')" class="btn btn-primary btn-sm whitespace-nowrap" title="남은 슬롯 개수만큼 우수 인증 파트너 일괄 자동 배정">⚡ 일괄 자동</button>
+                    <button type="button" onclick="autoAllocateOrder('${o.code}')" class="btn btn-primary btn-sm whitespace-nowrap" title="남은 슬롯 개수만큼 우수 인증 파트너 일괄 자동 배정"><i data-lucide="zap" class="w-3.5 h-3.5"></i> 일괄 자동</button>
                 </div>
             </div>`;
     });
@@ -1306,7 +1306,7 @@ function bulkAutoAllocateSelectedOrders() {
     });
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'BULK_AUTO_ALLOCATE', `[일괄 자동배정] 선택한 오더 ${checked.length}건 중 ${successCount}건 배정 완료.`, 'SUCCESS');
-    showToast(`🎉 선택한 오더 ${checked.length}건 중 ${successCount}건 일괄 자동배정을 완료했습니다!${skippedCount > 0 ? ` (${skippedCount}건은 이미 배정이 다 찼거나 배정 가능한 파트너가 없어 건너뜀)` : ''}`, 'success');
+    showToast(`선택한 오더 ${checked.length}건 중 ${successCount}건 일괄 자동배정을 완료했습니다!${skippedCount > 0 ? ` (${skippedCount}건은 이미 배정이 다 찼거나 배정 가능한 파트너가 없어 건너뜀)` : ''}`, 'success');
     renderAdminOrderAllocation();
     recalculateKPIs();
 }
@@ -1327,7 +1327,7 @@ function allocateOrderToPartner(orderCode) {
     if (typeof pushLog === 'function') pushLog('MANAGER', 'ALLOCATE', `[매니저 센터] 고액 오더(${orderCode}, ₩ ${order.budget.toLocaleString()}만원)를 [${partnerName}] 파트너사에 수동 배정완료.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 배정되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
     renderAdminOrderAllocation(); recalculateKPIs();
-    showToast(`🎉 [${partnerName}] 파트너사에 고액 오더 배정이 완료되었습니다!`, "success");
+    showToast(`[${partnerName}] 파트너사에 고액 오더 배정이 완료되었습니다!`, "success");
 }
 
 /* 오더 하나에 대해 남은 슬롯만큼 평점 우수 인증 파트너를 채워 배정하는 핵심 로직.
@@ -1362,7 +1362,7 @@ function autoAllocateOrder(orderCode) {
     if (result.reason === 'no-candidates') { showToast("배정 가능한 추가 인증 파트너사가 존재하지 않습니다.", "warning"); return; }
 
     renderAdminOrderAllocation(); recalculateKPIs();
-    showToast(`🎉 ${result.assignedCount}개 인증 파트너사에 일괄 자동 배정이 성공적으로 완료되었습니다!`, "success");
+    showToast(`${result.assignedCount}개 인증 파트너사에 일괄 자동 배정이 성공적으로 완료되었습니다!`, "success");
 }
 
 function renderAdminPartnerMonitor() {
@@ -1529,7 +1529,7 @@ function downloadContractDoc(orderCode, partnerName) {
     const price = order ? (order.finalPrice || order.budget) : 0;
     const content = `====================================================\n[우리집 안심 중개] 실내건축 표준 안심 공사계약서\n====================================================\n\n1. 프로젝트 정보\n   - 의뢰 코드: ${orderCode}\n   - 시공 장소: ${address}\n   - 의뢰 고객: ${clientName} 고객님\n   - 담당 시공사: ${partnerName}\n\n2. 계약 금액 및 정산 조건\n   - 총 시공 계약 금액: ₩ ${price.toLocaleString()} 만원 (VAT 포함)\n   - 안심 에스크로 결제 보증: 100% 본사 이행보증 가입 완료\n   - 하자이행 보증기간: 준공일로부터 3년 무상 보증\n\n3. 특약 사항\n   - 본 계약은 '우리집 안심 중개' 플랫폼 표준 약관에 따라\n     하자보증보험 및 공정별 시공 감리 규정을 준수합니다.\n   - 당사자 간 이면 계약 및 수수료 우회 직거래 시 삼진아웃 규정이 적용됩니다.\n\n발행일자: ${new Date().toISOString().split('T')[0]}\n플랫폼 인증 검증 완료: (주)우리집안심중개 관제센터\n====================================================`;
     buildDocFile(content, `[우리집안심중개]_표준계약서_${orderCode}_${partnerName}.txt`);
-    if (typeof showToast === 'function') showToast(`📄 [${orderCode}] 안심 표준 계약서 다운로드가 시작되었습니다.`, "success");
+    if (typeof showToast === 'function') showToast(`[${orderCode}] 안심 표준 계약서 다운로드가 시작되었습니다.`, "success");
 }
 
 function downloadEstimateDoc(orderCode, partnerName) {
@@ -1539,7 +1539,7 @@ function downloadEstimateDoc(orderCode, partnerName) {
     const price = order ? (order.finalPrice || order.budget) : 0;
     const content = `====================================================\n[우리집 안심 중개] 공종별 세부 정밀 견적 내역서\n====================================================\n\n1. 견적 개요\n   - 오더 번호: ${orderCode}\n   - 고객명: ${clientName} 고객님\n   - 시공 면적: ${pyung}평형\n   - 시공사: ${partnerName}\n\n2. 공종별 가견적 세부 산출 내역 (단위: 만원)\n   --------------------------------------------------\n   [01] 철거 및 폐기물 처리 공사: ₩ ${Math.floor(price * 0.12).toLocaleString()} 만원\n   [02] 창호 및 단열 보강 공사: ₩ ${Math.floor(price * 0.22).toLocaleString()} 만원\n   [03] 목공 및 문선/몰딩 공사: ₩ ${Math.floor(price * 0.18).toLocaleString()} 만원\n   [04] 타일 및 욕실 수전 공사: ₩ ${Math.floor(price * 0.20).toLocaleString()} 만원\n   [05] 도배 및 친환경 마루 공사: ₩ ${Math.floor(price * 0.15).toLocaleString()} 만원\n   [06] 조도 및 전기/라인조명 공사: ₩ ${Math.floor(price * 0.13).toLocaleString()} 만원\n   --------------------------------------------------\n   - 총 합계 금액: ₩ ${price.toLocaleString()} 만원 (VAT 포함)\n\n3. 특이사항\n   - 자재 스펙: E0 등급 친환경 합판, 수입 포셀린 타일, 무몰딩 마감\n   - 본 견적서는 우리집 안심 중개 보증 심사를 통과한 정식 서류입니다.\n\n발행일자: ${new Date().toISOString().split('T')[0]}\n====================================================`;
     buildDocFile(content, `[우리집안심중개]_정밀견적서_${orderCode}_${partnerName}.txt`);
-    if (typeof showToast === 'function') showToast(`📊 [${orderCode}] 공종별 정밀 견적서 다운로드가 시작되었습니다.`, "success");
+    if (typeof showToast === 'function') showToast(`[${orderCode}] 공종별 정밀 견적서 다운로드가 시작되었습니다.`, "success");
 }
 
 function issuePartnerStrike(partnerName) {
@@ -1550,10 +1550,10 @@ function issuePartnerStrike(partnerName) {
         partner.status = 'banned';
         window.AppState.blacklistDb.unshift({ company: partner.name, bizFile: partner.bizFile || '미등록', phone: '010-****-****', reason: '누적 옐로카드 3회 초과로 매니저 센터 직할 영구 제명 처리', date: new Date().toISOString().split('T')[0] });
         if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE_OUT', `[삼진아웃] '${partner.name}' 경고 3회 초과로 영구 제명 및 블랙리스트 등록.`, 'WARNING');
-        showToast(`❌ [${partner.name}] 파트너사가 삼진아웃(경고 3회)으로 영구 제명되었습니다.`, "warning");
+        showToast(`[${partner.name}] 파트너사가 삼진아웃(경고 3회)으로 영구 제명되었습니다.`, "warning");
     } else {
         if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE', `'${partner.name}' 파트너사에 옐로카드 부여 (누적 ${partner.strikeCount}회).`, 'INFO');
-        showToast(`⚠️ [${partner.name}] 파트너사에 옐로카드가 부여되었습니다. (누적: ${partner.strikeCount}/3회)`, "info");
+        showToast(`[${partner.name}] 파트너사에 옐로카드가 부여되었습니다. (누적: ${partner.strikeCount}/3회)`, "info");
     }
     renderAdminPartnerMonitor(); renderBlacklistDb();
 }
@@ -1571,7 +1571,7 @@ function togglePartnerCertification(partnerName) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
     partner.isCertified = !partner.isCertified;
-    showToast(`👑 [${partnerName}] 파트너사의 안심 인증 상태가 변경되었습니다.`, "info");
+    showToast(`[${partnerName}] 파트너사의 안심 인증 상태가 변경되었습니다.`, "info");
     renderAdminPartnerMonitor();
     if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
@@ -1630,8 +1630,8 @@ function renderAdminPartnerApplications() {
                 <div class="pt-3 border-t border-ink-100 space-y-2">
                     <input type="text" id="partner-app-reject-reason-${p.id}" placeholder="거절 사유 (선택 입력)" class="input text-xs">
                     <div class="flex items-center gap-2">
-                        <button type="button" onclick="approvePartnerApplication('${p.id}')" class="btn btn-primary btn-sm flex-1">✅ 승인</button>
-                        <button type="button" onclick="rejectPartnerApplication('${p.id}')" class="btn btn-secondary btn-sm flex-1">❌ 거절</button>
+                        <button type="button" onclick="approvePartnerApplication('${p.id}')" class="btn btn-primary btn-sm flex-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> 승인</button>
+                        <button type="button" onclick="rejectPartnerApplication('${p.id}')" class="btn btn-secondary btn-sm flex-1"><i data-lucide="x" class="w-3.5 h-3.5"></i> 거절</button>
                     </div>
                 </div>
             </div>`;
@@ -1651,7 +1651,7 @@ function approvePartnerApplication(partnerId) {
     if (!partner) return;
     partner.status = 'active';
     if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_APPROVE', `[입점 승인] '${partner.name}'(${partner.id}) 파트너 계정을 승인했습니다.`, 'SUCCESS');
-    showToast(`✅ [${partner.name}] 파트너사의 입점을 승인했습니다.`, 'success');
+    showToast(`[${partner.name}] 파트너사의 입점을 승인했습니다.`, 'success');
     switchAdminMode('applications');
 }
 
@@ -1663,7 +1663,7 @@ function rejectPartnerApplication(partnerId) {
     partner.status = 'rejected';
     partner.rejectReason = reason || '매니저 센터 검토 결과 반려';
     if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_REJECT', `[입점 거절] '${partner.name}'(${partner.id}) 입점 신청을 거절했습니다. 사유: ${partner.rejectReason}`, 'WARNING');
-    showToast(`❌ [${partner.name}] 파트너사의 입점 신청을 거절했습니다.`, 'info');
+    showToast(`[${partner.name}] 파트너사의 입점 신청을 거절했습니다.`, 'info');
     switchAdminMode('applications');
 }
 
@@ -1714,7 +1714,7 @@ function grantManagerRole(clientId, role) {
     account.managerRole = role;
     const roleLabel = role === 'super_admin' ? '최고관리자' : '파트너 매니저';
     if (typeof pushLog === 'function') pushLog('MANAGER', 'STAFF_GRANT', `'${account.name}'(${account.id}) 계정에 ${roleLabel} 권한을 부여했습니다.`, 'SUCCESS');
-    showToast(`✅ [${account.name}]님에게 ${roleLabel} 권한을 부여했습니다.`, 'success');
+    showToast(`[${account.name}]님에게 ${roleLabel} 권한을 부여했습니다.`, 'success');
     searchClientForManagerGrant();
     renderAdminStaffGrantedList();
 }

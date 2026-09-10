@@ -666,7 +666,7 @@ function requestDirectQuoteFromPortfolio(partnerName, portIdx = 0) {
 
     closeClientPartnerProfile(); closePortfolioBlogDetail();
     if (typeof pushLog === 'function') pushLog('CLIENT', '1ON1_REQUEST', `[${auth.name}] 고객님이 [${partnerName}] 파트너를 1:1 단독 지정 신청함. (${newCode})`, 'SUCCESS');
-    showToast(`⚡ [${partnerName}] 파트너사에게 1:1 전속 지정 상담을 신청했습니다! (${newCode})`, 'success');
+    showToast(`[${partnerName}] 파트너사에게 1:1 전속 지정 상담을 신청했습니다! (${newCode})`, 'success');
 
     if (typeof switchPanel === 'function') switchPanel('client-mypage-panel');
     if (typeof renderClientMyPage === 'function') renderClientMyPage();
@@ -864,7 +864,7 @@ function handleBlogLikeClick() {
     } else {
         port.likes = (port.likes || 0) + 1;
         _blogLikedKeys[key] = true;
-        showToast('❤️ 좋아요가 반영되었습니다!', 'success');
+        showToast('좋아요가 반영되었습니다!', 'success');
     }
     renderBlogLikeButton(port.likes || 0);
 }
@@ -987,7 +987,7 @@ function closeLightbox() {
 function toggleLikePortfolio(partnerName, idx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (partner && partner.portfolios[idx]) partner.portfolios[idx].likes = (partner.portfolios[idx].likes || 0) + 1;
-    showToast("❤️ 좋아요가 반영되었습니다!", "success");
+    showToast("좋아요가 반영되었습니다!", "success");
 }
 
 window.openLightbox = openLightbox;
