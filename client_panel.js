@@ -1119,6 +1119,19 @@ function deleteCommunityReply(postId, commentIndex, replyIndex) {
     openCommunityDetail(postId);
 }
 
+/* 댓글/답글 삭제는 있었지만 정작 글 작성자 본인이 자기 글(게시물)은 지울 방법이
+ * 없었던 기능 공백을 메운다 — 댓글/답글과 동일하게 authorId 소유권 검증 후 목록에서
+ * 제거한다. */
+function deleteCommunityPost(postId) {
+    const auth = window.AppState.clientAuth;
+    const idx = (window.AppState.communityPosts || []).findIndex(p => p.id === postId);
+    if (idx === -1) return;
+    if (window.AppState.communityPosts[idx].authorId !== auth.id) return;
+    window.AppState.communityPosts.splice(idx, 1);
+    showToast('게시글을 삭제했습니다.', 'info');
+    closeCommunityDetail();
+}
+
 function openCommunityDetail(postId) {
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     if (!post) return;
@@ -1172,9 +1185,12 @@ function openCommunityDetail(postId) {
     if (contentEl) {
         contentEl.innerHTML = `
             <div class="space-y-3 border-b border-ink-100 pb-5">
-                <div class="flex items-center gap-2">
-                    <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
-                    <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${escapeHtml(post.authorName)}</span>
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
+                        <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${escapeHtml(post.authorName)}</span>
+                    </div>
+                    ${myId && post.authorId === myId ? `<button type="button" onclick="deleteCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>` : ''}
                 </div>
                 <h3 class="text-lg font-black text-ink-950">${escapeHtml(post.title)}</h3>
             </div>
@@ -1367,3 +1383,4 @@ window.toggleReplyBox = toggleReplyBox;
 window.submitCommunityReply = submitCommunityReply;
 window.deleteCommunityComment = deleteCommunityComment;
 window.deleteCommunityReply = deleteCommunityReply;
+window.deleteCommunityPost = deleteCommunityPost;
