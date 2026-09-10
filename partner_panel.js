@@ -833,7 +833,12 @@ function selectOrderForAudit(code) {
 
             ${isAlreadyBid ? `
                 <div class="p-4 surface-flat text-left space-y-1"><h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-ink-700"></i> 선착순 즉시 입찰 선점 완료</h5><p class="text-[10px] text-ink-500 font-semibold leading-relaxed">의뢰자가 우리 시공사의 포트폴리오를 검토 중입니다.</p></div>
-            ` : `<button type="button" onclick="submitPartnerBid()" class="btn btn-dark btn-lg btn-block"><i data-lucide="zap" class="w-4 h-4"></i> 선착순 입찰 즉시 참여하기</button>`}
+            ` : `
+                <div class="surface-flat p-4 space-y-3 text-left">
+                    <div><label class="field-label">입찰 제안 금액 (만원)</label><input type="number" id="partner-bid-price-input" value="${Math.floor(order.budget * 0.95)}" min="1" class="input"></div>
+                    <div><label class="field-label">제안 메시지</label><textarea id="partner-bid-desc-input" class="textarea h-20" placeholder="고객에게 보여줄 제안 메시지를 입력하세요.">${currentPartnerName}에서 제안하는 하이엔드 시공 안심 제안입니다.</textarea></div>
+                    <button type="button" onclick="submitPartnerBid()" class="btn btn-dark btn-lg btn-block"><i data-lucide="zap" class="w-4 h-4"></i> 선착순 입찰 즉시 참여하기</button>
+                </div>`}
         </div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -845,7 +850,13 @@ function submitPartnerBid() {
     if (!order) return;
 
     const partnerName = window.AppState.partnerName || "오륙도 디자인 실내건축";
-    order.bids.push({ partner: partnerName, price: Math.floor(order.budget * 0.95), desc: `${partnerName}에서 제안하는 하이엔드 시공 안심 제안입니다.`, verified: true, progress: 'bidding' });
+    const priceInput = document.getElementById('partner-bid-price-input');
+    const price = priceInput ? parseInt(priceInput.value, 10) : NaN;
+    if (!price || price <= 0) { showToast('입찰 제안 금액을 올바르게 입력해 주세요.', 'warning'); return; }
+    const descInput = document.getElementById('partner-bid-desc-input');
+    const desc = (descInput && descInput.value.trim()) || `${partnerName}에서 제안하는 하이엔드 시공 안심 제안입니다.`;
+
+    order.bids.push({ partner: partnerName, price, desc, verified: true, progress: 'bidding' });
 
     selectOrderForAudit(code);
     renderPartnerOrderList();
