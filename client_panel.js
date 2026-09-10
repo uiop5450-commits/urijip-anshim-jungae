@@ -36,7 +36,7 @@ function renderCalendar() {
     const month = window.AppState.calendar.month;
     calTitle.innerText = `${year}년 ${month}월`;
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     const firstDayIndex = new Date(year, month - 1, 1).getDay();
     const totalDays = new Date(year, month, 0).getDate();
 
@@ -976,7 +976,7 @@ function submitClientReview() {
             client: (typeof maskName === 'function') ? maskName(order.clientName) : order.clientName,
             rating: window.AppState.activeReviewRating || 5,
             text: text,
-            date: new Date().toISOString().split('T')[0],
+            date: getLocalDateString(),
             photos: window.AppState.reviewPhotoDrafts.slice()
         });
         const total = partner.reviews.reduce((acc, r) => acc + r.rating, 0);
@@ -1089,7 +1089,7 @@ function submitCommunityReply(postId, commentIndex) {
     if (!comment.replies) comment.replies = [];
 
     const auth = window.AppState.clientAuth;
-    comment.replies.push({ authorName: auth.name, authorId: auth.id, text, date: new Date().toISOString().split('T')[0] });
+    comment.replies.push({ authorName: auth.name, authorId: auth.id, text, date: getLocalDateString() });
     if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPLY', `'${auth.name}' 고객님이 대댓글을 남겼습니다.`, 'INFO');
 
     openReplyBoxKeys.delete(`${postId}-${commentIndex}`);
@@ -1268,7 +1268,7 @@ function submitCommunityPost() {
     const auth = window.AppState.clientAuth;
     const post = {
         id: 'cm-' + Date.now(), category, title, authorName: auth.name, authorId: auth.id,
-        content, date: new Date().toISOString().split('T')[0], likedBy: [], comments: [],
+        content, date: getLocalDateString(), likedBy: [], comments: [],
         images: communityPhotoDrafts.slice()
     };
     if (!window.AppState.communityPosts) window.AppState.communityPosts = [];
@@ -1300,7 +1300,7 @@ function submitCommunityComment(postId) {
     if (!post) return;
     if (!post.comments) post.comments = [];
     const auth = window.AppState.clientAuth;
-    post.comments.push({ authorName: auth.name, authorId: auth.id, text, date: new Date().toISOString().split('T')[0] });
+    post.comments.push({ authorName: auth.name, authorId: auth.id, text, date: getLocalDateString() });
     if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_COMMENT', `'${auth.name}' 고객님이 댓글을 남겼습니다.`, 'INFO');
     openCommunityDetail(postId);
 }

@@ -1553,7 +1553,7 @@ function downloadContractDoc(orderCode, partnerName) {
     const clientName = order ? order.clientName : "고객";
     const address = order ? order.clientAddress : "부산광역시";
     const price = order ? (order.finalPrice || order.budget) : 0;
-    const content = `====================================================\n[우리집 안심 중개] 실내건축 표준 안심 공사계약서\n====================================================\n\n1. 프로젝트 정보\n   - 의뢰 코드: ${orderCode}\n   - 시공 장소: ${address}\n   - 의뢰 고객: ${clientName} 고객님\n   - 담당 시공사: ${partnerName}\n\n2. 계약 금액 및 정산 조건\n   - 총 시공 계약 금액: ₩ ${price.toLocaleString()} 만원 (VAT 포함)\n   - 안심 에스크로 결제 보증: 100% 본사 이행보증 가입 완료\n   - 하자이행 보증기간: 준공일로부터 3년 무상 보증\n\n3. 특약 사항\n   - 본 계약은 '우리집 안심 중개' 플랫폼 표준 약관에 따라\n     하자보증보험 및 공정별 시공 감리 규정을 준수합니다.\n   - 당사자 간 이면 계약 및 수수료 우회 직거래 시 삼진아웃 규정이 적용됩니다.\n\n발행일자: ${new Date().toISOString().split('T')[0]}\n플랫폼 인증 검증 완료: (주)우리집안심중개 관제센터\n====================================================`;
+    const content = `====================================================\n[우리집 안심 중개] 실내건축 표준 안심 공사계약서\n====================================================\n\n1. 프로젝트 정보\n   - 의뢰 코드: ${orderCode}\n   - 시공 장소: ${address}\n   - 의뢰 고객: ${clientName} 고객님\n   - 담당 시공사: ${partnerName}\n\n2. 계약 금액 및 정산 조건\n   - 총 시공 계약 금액: ₩ ${price.toLocaleString()} 만원 (VAT 포함)\n   - 안심 에스크로 결제 보증: 100% 본사 이행보증 가입 완료\n   - 하자이행 보증기간: 준공일로부터 3년 무상 보증\n\n3. 특약 사항\n   - 본 계약은 '우리집 안심 중개' 플랫폼 표준 약관에 따라\n     하자보증보험 및 공정별 시공 감리 규정을 준수합니다.\n   - 당사자 간 이면 계약 및 수수료 우회 직거래 시 삼진아웃 규정이 적용됩니다.\n\n발행일자: ${getLocalDateString()}\n플랫폼 인증 검증 완료: (주)우리집안심중개 관제센터\n====================================================`;
     buildDocFile(content, `[우리집안심중개]_표준계약서_${orderCode}_${partnerName}.txt`);
     if (typeof showToast === 'function') showToast(`[${orderCode}] 안심 표준 계약서 다운로드가 시작되었습니다.`, "success");
 }
@@ -1563,7 +1563,7 @@ function downloadEstimateDoc(orderCode, partnerName) {
     const clientName = order ? order.clientName : "고객";
     const pyung = order ? order.pyung : 0;
     const price = order ? (order.finalPrice || order.budget) : 0;
-    const content = `====================================================\n[우리집 안심 중개] 공종별 세부 정밀 견적 내역서\n====================================================\n\n1. 견적 개요\n   - 오더 번호: ${orderCode}\n   - 고객명: ${clientName} 고객님\n   - 시공 면적: ${pyung}평형\n   - 시공사: ${partnerName}\n\n2. 공종별 가견적 세부 산출 내역 (단위: 만원)\n   --------------------------------------------------\n   [01] 철거 및 폐기물 처리 공사: ₩ ${Math.floor(price * 0.12).toLocaleString()} 만원\n   [02] 창호 및 단열 보강 공사: ₩ ${Math.floor(price * 0.22).toLocaleString()} 만원\n   [03] 목공 및 문선/몰딩 공사: ₩ ${Math.floor(price * 0.18).toLocaleString()} 만원\n   [04] 타일 및 욕실 수전 공사: ₩ ${Math.floor(price * 0.20).toLocaleString()} 만원\n   [05] 도배 및 친환경 마루 공사: ₩ ${Math.floor(price * 0.15).toLocaleString()} 만원\n   [06] 조도 및 전기/라인조명 공사: ₩ ${Math.floor(price * 0.13).toLocaleString()} 만원\n   --------------------------------------------------\n   - 총 합계 금액: ₩ ${price.toLocaleString()} 만원 (VAT 포함)\n\n3. 특이사항\n   - 자재 스펙: E0 등급 친환경 합판, 수입 포셀린 타일, 무몰딩 마감\n   - 본 견적서는 우리집 안심 중개 보증 심사를 통과한 정식 서류입니다.\n\n발행일자: ${new Date().toISOString().split('T')[0]}\n====================================================`;
+    const content = `====================================================\n[우리집 안심 중개] 공종별 세부 정밀 견적 내역서\n====================================================\n\n1. 견적 개요\n   - 오더 번호: ${orderCode}\n   - 고객명: ${clientName} 고객님\n   - 시공 면적: ${pyung}평형\n   - 시공사: ${partnerName}\n\n2. 공종별 가견적 세부 산출 내역 (단위: 만원)\n   --------------------------------------------------\n   [01] 철거 및 폐기물 처리 공사: ₩ ${Math.floor(price * 0.12).toLocaleString()} 만원\n   [02] 창호 및 단열 보강 공사: ₩ ${Math.floor(price * 0.22).toLocaleString()} 만원\n   [03] 목공 및 문선/몰딩 공사: ₩ ${Math.floor(price * 0.18).toLocaleString()} 만원\n   [04] 타일 및 욕실 수전 공사: ₩ ${Math.floor(price * 0.20).toLocaleString()} 만원\n   [05] 도배 및 친환경 마루 공사: ₩ ${Math.floor(price * 0.15).toLocaleString()} 만원\n   [06] 조도 및 전기/라인조명 공사: ₩ ${Math.floor(price * 0.13).toLocaleString()} 만원\n   --------------------------------------------------\n   - 총 합계 금액: ₩ ${price.toLocaleString()} 만원 (VAT 포함)\n\n3. 특이사항\n   - 자재 스펙: E0 등급 친환경 합판, 수입 포셀린 타일, 무몰딩 마감\n   - 본 견적서는 우리집 안심 중개 보증 심사를 통과한 정식 서류입니다.\n\n발행일자: ${getLocalDateString()}\n====================================================`;
     buildDocFile(content, `[우리집안심중개]_정밀견적서_${orderCode}_${partnerName}.txt`);
     if (typeof showToast === 'function') showToast(`[${orderCode}] 공종별 정밀 견적서 다운로드가 시작되었습니다.`, "success");
 }
@@ -1574,7 +1574,7 @@ function issuePartnerStrike(partnerName) {
     partner.strikeCount = (partner.strikeCount || 0) + 1;
     if (partner.strikeCount >= 3) {
         partner.status = 'banned';
-        window.AppState.blacklistDb.unshift({ company: partner.name, bizFile: partner.bizFile || '미등록', phone: '010-****-****', reason: '누적 옐로카드 3회 초과로 매니저 센터 직할 영구 제명 처리', date: new Date().toISOString().split('T')[0] });
+        window.AppState.blacklistDb.unshift({ company: partner.name, bizFile: partner.bizFile || '미등록', phone: '010-****-****', reason: '누적 옐로카드 3회 초과로 매니저 센터 직할 영구 제명 처리', date: getLocalDateString() });
         if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE_OUT', `[삼진아웃] '${partner.name}' 경고 3회 초과로 영구 제명 및 블랙리스트 등록.`, 'WARNING');
         showToast(`[${partner.name}] 파트너사가 삼진아웃(경고 3회)으로 영구 제명되었습니다.`, "warning");
     } else {

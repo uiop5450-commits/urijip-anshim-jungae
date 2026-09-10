@@ -55,6 +55,17 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
+/* new Date().toISOString()은 UTC 기준이라, 한국 시간 00~09시 사이에는 실제 날짜보다
+ * 하루 이른 날짜를 반환한다(예: KST 새벽 3시 = UTC로는 아직 전날). 계약서 발행일자,
+ * 댓글/게시글 작성일, 캘린더 "지난 날짜" 판정처럼 실제 달력 날짜가 중요한 곳은
+ * 브라우저 로컬 시간 기준으로 이 함수를 써야 한다. */
+function getLocalDateString(d = new Date()) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 function maskName(name) {
     if (!name) return '고객';
     const stripped = name.trim();
@@ -201,5 +212,6 @@ window.buildEmptyStateHtml = buildEmptyStateHtml;
 window.clearSearchInput = clearSearchInput;
 window.pushClientNotification = pushClientNotification;
 window.showComingSoon = showComingSoon;
+window.getLocalDateString = getLocalDateString;
 window.showToast = showToast;
 window.closeToast = closeToast;
