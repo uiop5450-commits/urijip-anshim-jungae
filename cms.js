@@ -520,6 +520,65 @@ function renderPartnerProfileManager() {
                 <img src="${src}" class="w-full h-full object-cover">
             </button>`).join('');
     }
+
+    renderPartnerMyReviews(partner);
+}
+
+/* 파트너 콘솔 '내 정보' 탭 — 받은 후기 목록과 답글 작성 UI. 지금까지는 파트너가
+ * 자기 후기에 답글을 남길 방법이 전혀 없었다(네이버지도/구글리뷰의 '사장님 답글'과
+ * 같은 기능 공백). 답글은 rev.reply = {text, date}로 저장되고, 고객이 보는
+ * openClientPartnerProfile/openReviewDetailModal에도 그대로 노출된다. */
+function renderPartnerMyReviews(partner) {
+    const container = document.getElementById('partner-myinfo-reviews-list');
+    if (!container) return;
+    const reviews = partner.reviews || [];
+    if (reviews.length === 0) {
+        container.innerHTML = `<div class="p-4 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 font-bold">아직 받은 후기가 없습니다.</div>`;
+        return;
+    }
+    container.innerHTML = reviews.map((rev, idx) => `
+        <div class="p-4 bg-ink-50/70 rounded-xl border border-ink-100 space-y-2 text-left">
+            <div class="flex justify-between items-center text-xs">
+                <div class="flex items-center gap-1.5 font-extrabold text-ink-950"><span>${escapeHtml(rev.client)} 고객님</span></div>
+                <span class="text-gold-500 font-extrabold text-xs">★ ${rev.rating}.0 <span class="text-ink-400 text-[10px] ml-1">${rev.date}</span></span>
+            </div>
+            <p class="text-xs text-ink-700 font-medium leading-relaxed">${escapeHtml(rev.text)}</p>
+            ${rev.reply && rev.reply.text ? `
+                <div class="p-3 rounded-lg space-y-1" style="background:var(--brand-50)">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-black text-brand-700 flex items-center gap-1"><i data-lucide="reply" class="w-3 h-3"></i> 사장님 답글</span>
+                        <button type="button" onclick="removeReviewReply('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                    </div>
+                    <p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(rev.reply.text)}</p>
+                </div>
+            ` : `
+                <div class="flex gap-2 pt-1">
+                    <input type="text" id="review-reply-input-${idx}" placeholder="고객님께 남길 답글을 입력하세요" class="input flex-1 text-xs">
+                    <button type="button" onclick="submitReviewReply('${partner.name}', ${idx})" class="btn btn-secondary btn-sm shrink-0">답글 등록</button>
+                </div>
+            `}
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function submitReviewReply(partnerName, reviewIdx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
+    const input = document.getElementById(`review-reply-input-${reviewIdx}`);
+    const text = input ? input.value.trim() : '';
+    if (!text) { showToast('답글 내용을 입력해 주세요.', 'warning'); return; }
+    partner.reviews[reviewIdx].reply = { text, date: getLocalDateString() };
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'REVIEW_REPLY', `[${partnerName}]가 후기에 답글을 남겼습니다.`, 'INFO');
+    showToast('답글이 등록되었습니다.', 'success');
+    renderPartnerMyReviews(partner);
+}
+
+function removeReviewReply(partnerName, reviewIdx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
+    delete partner.reviews[reviewIdx].reply;
+    showToast('답글을 삭제했습니다.', 'info');
+    renderPartnerMyReviews(partner);
 }
 
 function jumpToPartnerHeroSlide(idx) {
@@ -772,11 +831,12 @@ function openClientPartnerProfile(partnerName) {
                 cardEl.onclick = () => openReviewDetailModal(partner.name, revIdx);
                 cardEl.innerHTML = `
                     <div class="flex justify-between items-center text-xs">
-                        <div class="flex items-center gap-1.5 font-extrabold text-ink-950"><span class="w-1.5 h-1.5 rounded-full bg-ink-800"></span><span>${rev.client} 고객님</span></div>
+                        <div class="flex items-center gap-1.5 font-extrabold text-ink-950"><span class="w-1.5 h-1.5 rounded-full bg-ink-800"></span><span>${escapeHtml(rev.client)} 고객님</span></div>
                         <span class="text-gold-500 font-extrabold text-xs">${fullStars}${emptyStars} <span class="text-ink-800 text-[10px] ml-0.5">(${rev.rating}.0)</span></span>
                     </div>
-                    <p class="text-xs text-ink-700 font-medium leading-relaxed line-clamp-3">${rev.text}</p>
+                    <p class="text-xs text-ink-700 font-medium leading-relaxed line-clamp-3">${escapeHtml(rev.text)}</p>
                     ${photosHtml}
+                    ${rev.reply && rev.reply.text ? `<div class="text-[10px] font-bold text-brand-600 flex items-center gap-1"><i data-lucide="reply" class="w-3 h-3"></i> 사장님 답글이 있어요</div>` : ''}
                     <div class="flex justify-between items-center pt-2 border-t border-ink-100 text-[10px] text-ink-400 font-semibold">
                         <span>작성일: ${rev.date}</span><span class="text-ink-800 font-extrabold group-hover:underline">자세히 보기 →</span>
                     </div>`;
@@ -819,6 +879,16 @@ function openReviewDetailModal(partnerName, reviewIdx) {
         }
     } else {
         photosWrapper?.classList.add('hidden');
+    }
+
+    const replyWrapper = document.getElementById('review-detail-reply-wrapper');
+    if (rev.reply && rev.reply.text) {
+        replyWrapper?.classList.remove('hidden');
+        safeUpdateText('review-detail-reply-author', partnerName);
+        const replyTextEl = document.getElementById('review-detail-reply-text');
+        if (replyTextEl) replyTextEl.innerText = rev.reply.text;
+    } else {
+        replyWrapper?.classList.add('hidden');
     }
 
     openModal('review-detail-modal', 'review-detail-modal-card');
@@ -1056,6 +1126,9 @@ window.jumpToPartnerHeroSlide = jumpToPartnerHeroSlide;
 window.deleteCurrentPartnerHeroSlide = deleteCurrentPartnerHeroSlide;
 window.openReviewDetailModal = openReviewDetailModal;
 window.closeReviewDetailModal = closeReviewDetailModal;
+window.renderPartnerMyReviews = renderPartnerMyReviews;
+window.submitReviewReply = submitReviewReply;
+window.removeReviewReply = removeReviewReply;
 window.toggleLikePortfolio = toggleLikePortfolio;
 window.buildPortfolioCardMediaHtml = buildPortfolioCardMediaHtml;
 window.triggerPortfolioImageInsert = triggerPortfolioImageInsert;
