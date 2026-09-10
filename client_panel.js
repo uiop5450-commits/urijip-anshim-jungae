@@ -824,7 +824,7 @@ function renderMyPageEstimateDetails(order) {
                 <button type="button" onclick="openReviewWriteModal('${order.code}')" class="btn btn-primary">후기 작성하기</button>
             </div>`;
     } else if (order.reviewWritten) {
-        reviewBtnHtml = `<div class="p-3 bg-ink-100 rounded-xl text-center text-xs font-bold text-ink-600">✅ 솔직 안심 리뷰 생성이 성공적으로 등록 완료되었습니다.</div>`;
+        reviewBtnHtml = `<div class="p-3 bg-ink-100 rounded-xl text-center text-xs font-bold text-ink-600 flex items-center justify-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 솔직 안심 리뷰 생성이 성공적으로 등록 완료되었습니다.</div>`;
     }
 
     const designationBannerHtml = `
@@ -896,8 +896,7 @@ function openReviewWriteModal(orderCode) {
 
     safeUpdateText('write-review-project-name', `프로젝트 번호: ${order.code} · ${order.acceptedPartner || ''}`);
     safeUpdateValue('input-review-text', '');
-    const grid = document.getElementById('review-photo-preview-grid');
-    if (grid) grid.innerHTML = '';
+    renderReviewPhotoPreview();
 
     const modal = document.getElementById('write-review-modal');
     const card = document.getElementById('write-review-modal-card');
@@ -915,19 +914,30 @@ function closeReviewWriteModal() {
     setTimeout(() => modal.classList.add('hidden'), 200);
 }
 
+function renderReviewPhotoPreview() {
+    const grid = document.getElementById('review-photo-preview-grid');
+    if (!grid) return;
+    const drafts = window.AppState.reviewPhotoDrafts || [];
+    grid.innerHTML = drafts.map((src, idx) => `
+        <div class="relative aspect-square rounded-xl overflow-hidden border border-ink-100 bg-ink-50">
+            <img src="${src}" class="w-full h-full object-cover">
+            <button type="button" onclick="removeReviewPhotoDraft(${idx})" class="absolute top-1 right-1 w-5 h-5 bg-ink-950/70 text-white flex items-center justify-center" aria-label="사진 삭제"><i data-lucide="x" class="w-3 h-3"></i></button>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function removeReviewPhotoDraft(idx) {
+    window.AppState.reviewPhotoDrafts.splice(idx, 1);
+    renderReviewPhotoPreview();
+}
+
 function handleReviewPhotoUpload(input) {
     if (!input.files || input.files.length === 0) return;
-    const grid = document.getElementById('review-photo-preview-grid');
     Array.from(input.files).slice(0, 6 - window.AppState.reviewPhotoDrafts.length).forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
             window.AppState.reviewPhotoDrafts.push(e.target.result);
-            if (grid) {
-                const wrap = document.createElement('div');
-                wrap.className = 'relative aspect-square rounded-xl overflow-hidden border border-ink-100 bg-ink-50';
-                wrap.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
-                grid.appendChild(wrap);
-            }
+            renderReviewPhotoPreview();
         };
         reader.readAsDataURL(file);
     });
@@ -1158,27 +1168,36 @@ function openCommunityWrite() {
     safeUpdateValue('community-write-title', '');
     safeUpdateValue('community-write-content', '');
     communityPhotoDrafts = [];
-    const grid = document.getElementById('community-photo-preview-grid');
-    if (grid) grid.innerHTML = '';
+    renderCommunityPhotoPreview();
 }
 
 function closeCommunityWrite() {
     renderCommunityList();
 }
 
+function renderCommunityPhotoPreview() {
+    const grid = document.getElementById('community-photo-preview-grid');
+    if (!grid) return;
+    grid.innerHTML = communityPhotoDrafts.map((src, idx) => `
+        <div class="relative aspect-square rounded-xl overflow-hidden border border-ink-100 bg-ink-50">
+            <img src="${src}" class="w-full h-full object-cover">
+            <button type="button" onclick="removeCommunityPhotoDraft(${idx})" class="absolute top-1 right-1 w-5 h-5 bg-ink-950/70 text-white flex items-center justify-center" aria-label="사진 삭제"><i data-lucide="x" class="w-3 h-3"></i></button>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function removeCommunityPhotoDraft(idx) {
+    communityPhotoDrafts.splice(idx, 1);
+    renderCommunityPhotoPreview();
+}
+
 function handleCommunityPhotoUpload(input) {
     if (!input.files || input.files.length === 0) return;
-    const grid = document.getElementById('community-photo-preview-grid');
     Array.from(input.files).slice(0, 6 - communityPhotoDrafts.length).forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
             communityPhotoDrafts.push(e.target.result);
-            if (grid) {
-                const wrap = document.createElement('div');
-                wrap.className = 'relative aspect-square rounded-xl overflow-hidden border border-ink-100 bg-ink-50';
-                wrap.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
-                grid.appendChild(wrap);
-            }
+            renderCommunityPhotoPreview();
         };
         reader.readAsDataURL(file);
     });
@@ -1273,6 +1292,7 @@ window.showToast = showToast;
 window.openReviewWriteModal = openReviewWriteModal;
 window.closeReviewWriteModal = closeReviewWriteModal;
 window.handleReviewPhotoUpload = handleReviewPhotoUpload;
+window.removeReviewPhotoDraft = removeReviewPhotoDraft;
 window.submitClientReview = submitClientReview;
 
 window.clearSignatureCanvas = clearSignatureCanvas;
@@ -1286,6 +1306,7 @@ window.openCommunityWrite = openCommunityWrite;
 window.closeCommunityWrite = closeCommunityWrite;
 window.submitCommunityPost = submitCommunityPost;
 window.handleCommunityPhotoUpload = handleCommunityPhotoUpload;
+window.removeCommunityPhotoDraft = removeCommunityPhotoDraft;
 window.toggleCommunityLike = toggleCommunityLike;
 window.submitCommunityComment = submitCommunityComment;
 window.toggleReplyBox = toggleReplyBox;

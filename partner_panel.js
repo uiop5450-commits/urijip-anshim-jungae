@@ -503,13 +503,13 @@ function validateManagerLogin() {
     const pwVal = pwInput.value.trim();
 
     if (!idVal || !pwVal) {
-        if (errorMsg) { errorMsg.innerText = "⚠️ 매니저 아이디와 비밀번호를 모두 입력해주세요."; errorMsg.classList.remove('hidden'); }
+        showInlineLoginError(errorMsg, "매니저 아이디와 비밀번호를 모두 입력해주세요.");
         return;
     }
 
     const account = (window.AppState.clientAccounts || []).find(a => a.id === idVal && a.pw === pwVal);
     if (!account || !account.managerRole) {
-        if (errorMsg) { errorMsg.innerText = "⚠️ 매니저 권한이 없는 계정이거나 아이디·비밀번호가 일치하지 않습니다."; errorMsg.classList.remove('hidden'); }
+        showInlineLoginError(errorMsg, "매니저 권한이 없는 계정이거나 아이디·비밀번호가 일치하지 않습니다.");
         return;
     }
 
@@ -597,6 +597,18 @@ function togglePartnerConsoleVisibility() {
     } else { consoleBox.classList.add('hidden'); gatewayBox.classList.remove('hidden'); }
 }
 
+/* 로그인 폼 인라인 에러 — 이전엔 메시지 문구에 ⚠️/❌/⏳ 이모지를 박아 넣었는데,
+ * 앱 전체가 lucide 아이콘 체계로 정리된 뒤 이 자리만 남아있던 것을 통일한다. */
+function showInlineLoginError(errorMsg, message, icon = 'alert-triangle') {
+    if (!errorMsg) return;
+    const iconEl = errorMsg.querySelector('[data-lucide]');
+    const textEl = errorMsg.querySelector('span');
+    if (iconEl) iconEl.setAttribute('data-lucide', icon);
+    if (textEl) textEl.innerText = message;
+    errorMsg.classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 function validatePartnerLogin() {
     const idInput = document.getElementById('partner-login-id');
     const pwInput = document.getElementById('partner-pw');
@@ -608,17 +620,17 @@ function validatePartnerLogin() {
     if (partner) {
         if (partner.status === 'banned') {
             showToast("귀사는 삼진아웃 누적 초과(3회 이상 적발)로 인해 영구 제명 처리되었습니다.", "warning");
-            if (errorMsg) { errorMsg.innerText = "❌ 삼진아웃제 규정에 따라 영구 제명 처리된 불량 사업자망 계정입니다."; errorMsg.classList.remove('hidden'); }
+            showInlineLoginError(errorMsg, "삼진아웃제 규정에 따라 영구 제명 처리된 불량 사업자망 계정입니다.", 'ban');
             return;
         }
         if (partner.status === 'pending') {
-            showToast("⏳ 아직 매니저 센터의 입점 심사가 진행 중인 계정입니다. 사업자등록증 확인 후 승인되면 로그인하실 수 있어요.", "info");
-            if (errorMsg) { errorMsg.innerText = "⏳ 입점 신청 검토 대기 중입니다. 승인 완료 후 로그인해 주세요."; errorMsg.classList.remove('hidden'); }
+            showToast("아직 매니저 센터의 입점 심사가 진행 중인 계정입니다. 사업자등록증 확인 후 승인되면 로그인하실 수 있어요.", "info");
+            showInlineLoginError(errorMsg, "입점 신청 검토 대기 중입니다. 승인 완료 후 로그인해 주세요.", 'clock');
             return;
         }
         if (partner.status === 'rejected') {
             showToast(`입점 신청이 반려되었습니다.${partner.rejectReason ? ' 사유: ' + partner.rejectReason : ''}`, "warning");
-            if (errorMsg) { errorMsg.innerText = "❌ 입점 신청이 반려된 계정입니다."; errorMsg.classList.remove('hidden'); }
+            showInlineLoginError(errorMsg, "입점 신청이 반려된 계정입니다.", 'x-circle');
             return;
         }
         window.AppState.partnerLoggedIn = true;
@@ -629,8 +641,7 @@ function validatePartnerLogin() {
         pushLog('PARTNER', 'AUTH', `'${partner.name}' 마스터 로그인 완료.`, 'SUCCESS');
         if (typeof switchPartnerMode === 'function') switchPartnerMode('orders');
     } else if (errorMsg) {
-        errorMsg.innerText = "⚠️ 아이디 또는 비밀번호가 일치하지 않습니다.";
-        errorMsg.classList.remove('hidden');
+        showInlineLoginError(errorMsg, "아이디 또는 비밀번호가 일치하지 않습니다.");
     }
 }
 
