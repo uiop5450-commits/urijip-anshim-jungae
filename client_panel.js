@@ -293,7 +293,6 @@ function completeMatchingSim() {
     window.AppState.orders.unshift(newOrder);
     window.AppState.lastCreatedOrderCode = code;
 
-    renderClientBids(newOrder.code);
     if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
     if (typeof recalculateKPIs === 'function') recalculateKPIs();
 
@@ -311,80 +310,6 @@ function completeMatchingSim() {
     }
 }
 
-function renderClientBids(targetCode) {
-    const bidListEl = document.getElementById('client-bid-list');
-    const badgeEl = document.getElementById('partner-count-badge');
-    const slotsContainer = document.getElementById('client-bidding-slots-container');
-    const reportDateEl = document.getElementById('report-date');
-    const reportVacancyEl = document.getElementById('report-vacancy');
-
-    const order = window.AppState.orders.find(o => o.code === targetCode);
-    if (!order) return;
-
-    if (reportDateEl) reportDateEl.innerText = order.preferredDate || '선택 대기중';
-    if (reportVacancyEl) reportVacancyEl.innerText = order.vacancy === 'empty' ? '공실' : '거주 중';
-
-    if (!bidListEl) return;
-
-    const currentBidCount = order.bids.length;
-    const limit = order.partnerCountLimit;
-    if (badgeEl) badgeEl.innerText = `${currentBidCount}/${limit} 슬롯 선점됨`;
-
-    if (slotsContainer) {
-        slotsContainer.innerHTML = '';
-        for (let i = 0; i < limit; i++) {
-            const dot = document.createElement('span');
-            dot.className = i < currentBidCount ? "w-2.5 h-2.5 rounded-full bg-ink-950 ring-2 ring-ink-200" : "w-2.5 h-2.5 rounded-full bg-ink-200";
-            slotsContainer.appendChild(dot);
-        }
-    }
-
-    bidListEl.innerHTML = '';
-    if (order.bids.length === 0) {
-        if (order.isHighBudgetAdminPending) {
-            bidListEl.innerHTML = `
-                <div class="empty-state surface-flat">
-                    <span class="badge badge-gold mb-2">7천만원 이상 고액 오더</span>
-                    <p class="text-xs text-ink-700 font-bold leading-relaxed">본사 최고 관리자가 검증된 <b>'우리집 인증 파트너사'</b>를 직접 심사하고 전속 배정 중입니다.</p>
-                </div>`;
-        } else {
-            bidListEl.innerHTML = `
-                <div class="empty-state">
-                    <p class="text-xs text-ink-500 font-bold mb-3">현재 연결된 매칭 파트너가 없습니다.</p>
-                    <button type="button" onclick="triggerRebidding('${order.code}')" class="btn btn-dark btn-sm mx-auto"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 새로운 파트너 재매칭 받아보기</button>
-                </div>`;
-        }
-    } else {
-        order.bids.forEach((bid) => {
-            const partnerInfo = window.AppState.partners.find(p => p.name === bid.partner);
-            const ratingVal = partnerInfo ? partnerInfo.rating.toFixed(1) : "5.0";
-            const reviewCount = partnerInfo ? partnerInfo.reviews.length : 0;
-
-            const div = document.createElement('div');
-            div.className = "p-4 surface-flat space-y-2 relative text-left";
-            div.innerHTML = `
-                <div class="flex justify-between items-center text-xs">
-                    <span class="font-extrabold text-ink-950 cursor-pointer hover:text-ink-600 hover:underline flex items-center gap-1.5" onclick="openPartnerPortfolioModal('${bid.partner}')">
-                        <i data-lucide="building" class="w-3.5 h-3.5 text-ink-400"></i>
-                        <span>${bid.partner}</span>
-                        ${partnerInfo && partnerInfo.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 인증</span>` : ''}
-                        <span class="inline-flex items-center gap-1 text-[11px] font-extrabold text-ink-800 ml-1"><span class="text-gold-500">★</span><span>${ratingVal}</span><span class="text-ink-400 font-normal ml-0.5">(리뷰 ${reviewCount})</span></span>
-                    </span>
-                </div>
-                <p class="text-[11px] text-ink-600 leading-relaxed font-semibold">${bid.desc}</p>
-                <div class="flex justify-between items-center pt-2 border-t border-ink-100 mt-2">
-                    <button type="button" onclick="openPartnerPortfolioModal('${bid.partner}')" class="btn btn-ghost btn-sm px-0"><i data-lucide="palette" class="w-3.5 h-3.5"></i> 포트폴리오 및 후기</button>
-                    <div class="flex items-center gap-1.5">
-                        <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}')" class="btn btn-secondary btn-sm">매칭취소</button>
-                        <button type="button" onclick="clientFinalizeContract('${order.code}', '${bid.partner}', ${bid.price})" class="btn btn-dark btn-sm">계약 체결</button>
-                    </div>
-                </div>`;
-            bidListEl.appendChild(div);
-        });
-    }
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-
 function cancelPartnerBid(orderCode, partnerName) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return;
@@ -398,7 +323,6 @@ function cancelPartnerBid(orderCode, partnerName) {
 
     renderClientMyPage();
     selectMyPageEstimate(orderCode);
-    renderClientBids(orderCode);
     if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
 }
 
@@ -422,7 +346,6 @@ function clientFinalizeContract(orderCode, partnerName, finalPrice) {
     }
 
     if (typeof recalculateKPIs === 'function') recalculateKPIs();
-    renderClientBids(orderCode);
     if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
     if (window.AppState.selectedOrderCode === orderCode && typeof selectOrderForAudit === 'function') selectOrderForAudit(orderCode);
 
@@ -844,7 +767,10 @@ function renderMyPageEstimateDetails(order) {
                         ${order.status === 'contracted' ? (isContracted ? `
                             <span class="badge badge-emerald">✓ 안심 계약 체결사</span>
                         ` : `<span class="text-[10px] font-bold text-ink-400">계약 마감</span>`) : `
-                            <button type="button" onclick="clientFinalizeContract('${order.code}', '${bid.partner}', ${bid.price})" class="btn btn-dark btn-sm">이 파트너와 계약 체결하기</button>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}')" class="btn btn-secondary btn-sm">매칭취소</button>
+                                <button type="button" onclick="clientFinalizeContract('${order.code}', '${bid.partner}', ${bid.price})" class="btn btn-dark btn-sm">이 파트너와 계약 체결하기</button>
+                            </div>
                         `}
                     </div>
                 </div>`;
@@ -894,7 +820,10 @@ function renderMyPageEstimateDetails(order) {
             ${reviewBtnHtml}
 
             <div class="space-y-3 pt-2">
-                <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider flex items-center gap-1.5"><i data-lucide="building" class="w-4 h-4 text-brand-500"></i> 연결된 안심 파트너 제안서 목록 (${order.bids ? order.bids.length : 0})</h4>
+                <div class="flex items-center justify-between gap-2">
+                    <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider flex items-center gap-1.5"><i data-lucide="building" class="w-4 h-4 text-brand-500"></i> 연결된 안심 파트너 제안서 목록 (${order.bids ? order.bids.length : 0})</h4>
+                    ${order.status !== 'contracted' ? `<button type="button" onclick="triggerRebidding('${order.code}')" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 새 파트너 재매칭 받기</button>` : ''}
+                </div>
                 <div class="space-y-3">${bidsHtml}</div>
             </div>
         </div>`;
@@ -902,10 +831,38 @@ function renderMyPageEstimateDetails(order) {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+/* "매칭취소"로 뺀 자리를 새 파트너사로 다시 채운다 — 예전엔 토스트만 띄우고 실제로는
+ * order.bids를 전혀 건드리지 않던 자리채우기용 스텁이었음. 취소/이미 입찰한 파트너는
+ * 제외하고, 남은 슬롯만큼 새 파트너를 뽑아 입찰서를 만들어준다(자동매칭 로직과 동일한 방식). */
 function triggerRebidding(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
-    if (!order) return;
-    showToast("새로운 파트너사에 입찰 매칭을 재요청했습니다.", "info");
+    if (!order || order.status === 'contracted') return;
+
+    const slotsNeeded = (order.partnerCountLimit || 3) - (order.bids ? order.bids.length : 0);
+    if (slotsNeeded <= 0) { showToast('이미 배정 인원이 모두 채워져 있어요.', 'info'); return; }
+
+    const excluded = new Set([...(order.excludedPartners || []), ...(order.bids || []).map(b => b.partner)]);
+    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !excluded.has(p.name));
+    if (candidates.length === 0) { showToast('현재 매칭 가능한 새로운 파트너사가 없어요.', 'warning'); return; }
+
+    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, slotsNeeded);
+    selected.forEach(partner => {
+        order.bids.push({
+            partner: partner.name,
+            price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
+            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
+            verified: true, progress: 'bidding'
+        });
+    });
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REBID', `[${order.clientName}] 고객님 요청으로 오더 ${orderCode}에 파트너사 ${selected.length}곳 재매칭.`, 'INFO');
+    showToast(`새로운 파트너사 ${selected.length}곳이 매칭되었습니다!`, 'success');
+
+    renderClientMyPage();
+    selectMyPageEstimate(orderCode);
+    if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
+    if (typeof recalculateKPIs === 'function') recalculateKPIs();
 }
 
 function handleHome1on1Click() {
@@ -1356,7 +1313,6 @@ window.goToClientStep = goToClientStep;
 window.triggerMatchingSim = triggerMatchingSim;
 window.clientFinalizeContract = clientFinalizeContract;
 window.cancelPartnerBid = cancelPartnerBid;
-window.renderClientBids = renderClientBids;
 
 window.sendClientAuthCode = sendClientAuthCode;
 window.switchClientAuthTab = switchClientAuthTab;
