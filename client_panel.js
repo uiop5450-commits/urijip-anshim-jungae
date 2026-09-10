@@ -98,12 +98,14 @@ function updateFormState(key, value) {
     syncFormStateUI();
 }
 
+/* 순수 입력창 포맷터 — 클라이언트 가입/파트너 입점 신청 두 폼이 공유해서 쓰므로,
+ * 특정 폼의 상태를 여기서 직접 건드리지 않는다(각 폼의 제출 함수가 이 input의 값을
+ * 직접 읽어간다 — formData.clientPhone은 실제로 아무 곳에서도 읽히지 않는 죽은 상태였음). */
 function handlePhoneInput(target) {
     let val = target.value.replace(/[^0-9]/g, "");
     if (val.length > 3 && val.length <= 7) val = val.substring(0, 3) + "-" + val.substring(3);
     else if (val.length > 7) val = val.substring(0, 3) + "-" + val.substring(3, 7) + "-" + val.substring(7, 11);
     target.value = val;
-    updateFormState('clientPhone', val);
 }
 
 function handlePyungChange(val) {
@@ -984,7 +986,9 @@ function removeReviewPhotoDraft(idx) {
 
 function handleReviewPhotoUpload(input) {
     if (!input.files || input.files.length === 0) return;
-    Array.from(input.files).slice(0, 6 - window.AppState.reviewPhotoDrafts.length).forEach(file => {
+    const remaining = 6 - window.AppState.reviewPhotoDrafts.length;
+    if (input.files.length > remaining) showToast(`사진은 최대 6장까지 첨부할 수 있어요. (${input.files.length - remaining}장은 담기지 않았어요)`, 'warning');
+    Array.from(input.files).slice(0, remaining).forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
             window.AppState.reviewPhotoDrafts.push(e.target.result);
@@ -1280,7 +1284,9 @@ function removeCommunityPhotoDraft(idx) {
 
 function handleCommunityPhotoUpload(input) {
     if (!input.files || input.files.length === 0) return;
-    Array.from(input.files).slice(0, 6 - communityPhotoDrafts.length).forEach(file => {
+    const remaining = 6 - communityPhotoDrafts.length;
+    if (input.files.length > remaining) showToast(`사진은 최대 6장까지 첨부할 수 있어요. (${input.files.length - remaining}장은 담기지 않았어요)`, 'warning');
+    Array.from(input.files).slice(0, remaining).forEach(file => {
         const reader = new FileReader();
         reader.onload = (e) => {
             communityPhotoDrafts.push(e.target.result);

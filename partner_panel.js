@@ -716,8 +716,11 @@ function submitPartnerSignup() {
     // onclick="fn('${id}')" 형태로 그대로 삽입되므로, 따옴표 등을 허용하면 저장형 XSS/JS
     // 인젝션으로 이어질 수 있다.
     if (!/^[A-Za-z0-9_-]{3,20}$/.test(idVal)) { showToast('아이디는 영문, 숫자, _, - 조합으로 3~20자로 입력해 주세요.', 'warning'); return; }
+    if (!/^0\d{1,2}-\d{3,4}-\d{4}$/.test(phone)) { showToast('담당자 연락처를 올바른 형식으로 입력해 주세요. (예: 010-0000-0000)', 'warning'); return; }
+    if (bizNum.replace(/[^0-9]/g, '').length !== 10) { showToast('사업자등록번호 10자리를 올바르게 입력해 주세요. (예: 000-00-00000)', 'warning'); return; }
     if (pwVal !== pw2Val) { showToast('비밀번호가 일치하지 않습니다.', 'warning'); return; }
     if (window.AppState.partners.some(p => p.id === idVal)) { showToast('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.', 'warning'); return; }
+    if (window.AppState.partners.some(p => p.bizFile === bizNum)) { showToast('이미 등록된 사업자등록번호입니다.', 'warning'); return; }
     if (!_partnerSignupBizCertDraft) { showToast('사업자등록증 파일을 첨부해 주세요.', 'warning'); return; }
 
     const now = new Date().toLocaleString('ko-KR');
@@ -1586,7 +1589,7 @@ function resetPartnerStrikes(partnerName) {
     if (!partner) return;
     partner.strikeCount = 0;
     if (partner.status === 'banned') partner.status = 'active';
-    showToast(`✓ [${partnerName}] 파트너사의 경고가 정상 초기화되었습니다.`, "success");
+    showToast(`[${partnerName}] 파트너사의 경고가 정상 초기화되었습니다.`, "success");
     renderAdminPartnerMonitor();
 }
 
