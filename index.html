@@ -762,6 +762,10 @@
                                     <div class="blog-editor-toolbar" id="portfolio-editor-toolbar">
                                         <button type="button" class="blog-editor-tool" onmousedown="event.preventDefault()" onclick="triggerPortfolioImageInsert()" title="사진 삽입"><i data-lucide="image-plus" class="w-4 h-4"></i><span>사진</span></button>
                                         <span class="blog-editor-divider"></span>
+                                        <button type="button" class="blog-editor-tool" data-cmd="bold" onmousedown="event.preventDefault()" onclick="applyPortfolioEditorCommand('bold')" title="굵게"><i data-lucide="bold" class="w-4 h-4"></i></button>
+                                        <button type="button" class="blog-editor-tool" data-cmd="italic" onmousedown="event.preventDefault()" onclick="applyPortfolioEditorCommand('italic')" title="기울임"><i data-lucide="italic" class="w-4 h-4"></i></button>
+                                        <button type="button" class="blog-editor-tool" data-cmd="underline" onmousedown="event.preventDefault()" onclick="applyPortfolioEditorCommand('underline')" title="밑줄"><i data-lucide="underline" class="w-4 h-4"></i></button>
+                                        <span class="blog-editor-divider"></span>
                                         <button type="button" class="blog-editor-tool" data-cmd="justifyLeft" onmousedown="event.preventDefault()" onclick="applyPortfolioEditorCommand('justifyLeft')" title="왼쪽 정렬"><i data-lucide="align-left" class="w-4 h-4"></i></button>
                                         <button type="button" class="blog-editor-tool" data-cmd="justifyCenter" onmousedown="event.preventDefault()" onclick="applyPortfolioEditorCommand('justifyCenter')" title="가운데 정렬"><i data-lucide="align-center" class="w-4 h-4"></i></button>
                                         <button type="button" class="blog-editor-tool" data-cmd="justifyRight" onmousedown="event.preventDefault()" onclick="applyPortfolioEditorCommand('justifyRight')" title="오른쪽 정렬"><i data-lucide="align-right" class="w-4 h-4"></i></button>
