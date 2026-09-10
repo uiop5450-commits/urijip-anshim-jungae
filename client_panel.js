@@ -1005,6 +1005,9 @@ function submitSignatureCanvas() {}
 const COMMUNITY_CATEGORIES = { tip: '인테리어 팁', talk: '자유 이야기', qna: 'Q&A', housewarming: '집들이' };
 let communityActiveCategory = 'all';
 let communityPhotoDrafts = [];
+/* 글쓰기 폼을 새 글 작성과 수정에 동시에 재사용하기 위한 대상 id — null이면 새 글,
+ * 값이 있으면 해당 글을 수정하는 중임을 뜻한다 (openCommunityEdit/submitCommunityPost 참고). */
+let communityEditTargetId = null;
 
 function renderCommunityList() {
     const tabsEl = document.getElementById('community-category-tabs');
@@ -1190,7 +1193,11 @@ function openCommunityDetail(postId) {
                         <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
                         <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${escapeHtml(post.authorName)}</span>
                     </div>
-                    ${myId && post.authorId === myId ? `<button type="button" onclick="deleteCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>` : ''}
+                    ${myId && post.authorId === myId ? `
+                        <div class="flex items-center gap-2.5 shrink-0">
+                            <button type="button" onclick="openCommunityEdit('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button>
+                            <button type="button" onclick="deleteCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                        </div>` : ''}
                 </div>
                 <h3 class="text-lg font-black text-ink-950">${escapeHtml(post.title)}</h3>
             </div>
@@ -1230,16 +1237,41 @@ function requireClientLoginForCommunity() {
 
 function openCommunityWrite() {
     if (!requireClientLoginForCommunity()) return;
+    communityEditTargetId = null;
     document.getElementById('community-list-subview')?.classList.add('hidden');
     document.getElementById('community-detail-subview')?.classList.add('hidden');
     document.getElementById('community-write-subview')?.classList.remove('hidden');
+    safeUpdateText('community-write-heading', '새 글 작성');
+    safeUpdateText('community-write-submit-btn', '등록하기');
+    safeUpdateValue('community-write-category', 'talk');
     safeUpdateValue('community-write-title', '');
     safeUpdateValue('community-write-content', '');
     communityPhotoDrafts = [];
     renderCommunityPhotoPreview();
 }
 
+/* 지금까지는 글 삭제만 가능하고 수정은 불가능해서 오타 하나만 고치려 해도 삭제 후
+ * 재작성해야 했다 — 기존 글쓰기 폼을 재사용해 그대로 수정할 수 있게 한다. */
+function openCommunityEdit(postId) {
+    if (!requireClientLoginForCommunity()) return;
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post || post.authorId !== window.AppState.clientAuth.id) return;
+
+    communityEditTargetId = postId;
+    document.getElementById('community-list-subview')?.classList.add('hidden');
+    document.getElementById('community-detail-subview')?.classList.add('hidden');
+    document.getElementById('community-write-subview')?.classList.remove('hidden');
+    safeUpdateText('community-write-heading', '글 수정');
+    safeUpdateText('community-write-submit-btn', '수정 완료');
+    safeUpdateValue('community-write-category', post.category);
+    safeUpdateValue('community-write-title', post.title);
+    safeUpdateValue('community-write-content', post.content);
+    communityPhotoDrafts = (post.images || []).slice();
+    renderCommunityPhotoPreview();
+}
+
 function closeCommunityWrite() {
+    communityEditTargetId = null;
     renderCommunityList();
 }
 
@@ -1282,6 +1314,21 @@ function submitCommunityPost() {
     if (!title || !content) { showToast('제목과 내용을 모두 입력해 주세요.', 'warning'); return; }
 
     const auth = window.AppState.clientAuth;
+
+    if (communityEditTargetId) {
+        const post = (window.AppState.communityPosts || []).find(p => p.id === communityEditTargetId);
+        if (!post || post.authorId !== auth.id) { communityEditTargetId = null; return; }
+        post.category = category; post.title = title; post.content = content;
+        post.images = communityPhotoDrafts.slice();
+        if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_EDIT', `'${auth.name}' 고객님이 커뮤니티 글을 수정했습니다. (${title})`, 'INFO');
+        showToast('글이 수정되었습니다!', 'success');
+        const editedId = communityEditTargetId;
+        communityEditTargetId = null;
+        communityPhotoDrafts = [];
+        openCommunityDetail(editedId);
+        return;
+    }
+
     const post = {
         id: 'cm-' + Date.now(), category, title, authorName: auth.name, authorId: auth.id,
         content, date: getLocalDateString(), likedBy: [], comments: [],
@@ -1384,3 +1431,4 @@ window.submitCommunityReply = submitCommunityReply;
 window.deleteCommunityComment = deleteCommunityComment;
 window.deleteCommunityReply = deleteCommunityReply;
 window.deleteCommunityPost = deleteCommunityPost;
+window.openCommunityEdit = openCommunityEdit;

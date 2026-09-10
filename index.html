@@ -530,7 +530,7 @@
             <div id="community-write-subview" class="hidden space-y-6">
                 <div class="surface surface-lg p-6 sm:p-8 space-y-5 text-left">
                     <div class="flex justify-between items-center border-b border-ink-100 pb-4">
-                        <h4 class="text-sm sm:text-base font-black text-ink-950">새 글 작성</h4>
+                        <h4 id="community-write-heading" class="text-sm sm:text-base font-black text-ink-950">새 글 작성</h4>
                         <button type="button" onclick="closeCommunityWrite()" class="btn btn-ghost btn-sm">닫기</button>
                     </div>
                     <div><label class="field-label">카테고리</label>
@@ -553,7 +553,7 @@
                         </div>
                         <div id="community-photo-preview-grid" class="grid grid-cols-3 sm:grid-cols-6 gap-2"></div>
                     </div>
-                    <button type="button" onclick="submitCommunityPost()" class="btn btn-primary btn-block">등록하기</button>
+                    <button type="button" id="community-write-submit-btn" onclick="submitCommunityPost()" class="btn btn-primary btn-block">등록하기</button>
                 </div>
             </div>
         </section>
