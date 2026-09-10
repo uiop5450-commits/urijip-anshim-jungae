@@ -860,6 +860,7 @@ function triggerRebidding(orderCode) {
     });
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'REBID', `[${order.clientName}] 고객님 요청으로 오더 ${orderCode}에 파트너사 ${selected.length}곳 재매칭.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `새로운 파트너사 ${selected.length}곳이 매칭되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
     showToast(`새로운 파트너사 ${selected.length}곳이 매칭되었습니다!`, 'success');
 
     renderClientMyPage();
