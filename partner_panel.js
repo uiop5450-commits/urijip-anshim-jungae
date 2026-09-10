@@ -1446,6 +1446,41 @@ function renderAdminPartnerMonitor() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+/* 고객이 남긴 후기는 지금까지 관리자가 검토/삭제할 방법이 전혀 없었다 — 허위·악의적인
+ * 후기가 올라와도 매니저 센터에서 대응할 수단이 없던 기능 공백. 파트너 상세 성과
+ * 모달에 후기 목록과 삭제 버튼을 추가한다. */
+function buildAdminReviewModerationHtml(partner) {
+    const reviews = partner.reviews || [];
+    if (reviews.length === 0) {
+        return `<div class="p-4 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 font-bold">등록된 후기가 없습니다.</div>`;
+    }
+    return reviews.map((r, idx) => `
+        <div class="p-3.5 bg-ink-50/80 rounded-xl border border-ink-100 space-y-1.5 text-left">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-black text-ink-800">${escapeHtml(r.client)}</span>
+                    <span class="text-gold-500 font-extrabold text-xs">★ ${r.rating}.0</span>
+                    <span class="text-[10px] text-ink-400 font-bold">${r.date}</span>
+                </div>
+                <button type="button" onclick="adminDeleteReview('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+            </div>
+            <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(r.text)}</p>
+        </div>`).join('');
+}
+
+function adminDeleteReview(partnerName, reviewIdx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
+    partner.reviews.splice(reviewIdx, 1);
+    partner.rating = partner.reviews.length > 0
+        ? Math.round((partner.reviews.reduce((acc, r) => acc + r.rating, 0) / partner.reviews.length) * 10) / 10
+        : 5.0;
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_MODERATE', `[후기 삭제] '${partnerName}' 파트너의 후기를 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    showToast('후기를 삭제했습니다.', 'info');
+    openPartnerMetricsModal(partnerName);
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+}
+
 function openPartnerMetricsModal(partnerName) {
     const partner = (window.AppState.partners || []).find(p => p.name === partnerName);
     if (!partner) return;
@@ -1523,6 +1558,10 @@ function openPartnerMetricsModal(partnerName) {
                 <div class="space-y-2.5 pt-2">
                     <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="file-check" class="w-4 h-4 text-ink-600"></i> 최근 안심 계약 체결 및 안심 문서 검증 (${contractedCount}건)</h4>
                     <div class="space-y-2">${contractedListHtml}</div>
+                </div>
+                <div class="space-y-2.5 pt-2">
+                    <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="star" class="w-4 h-4 text-ink-600"></i> 등록된 안심 후기 관리 (${(partner.reviews || []).length}건)</h4>
+                    <div class="space-y-2">${buildAdminReviewModerationHtml(partner)}</div>
                 </div>
             </div>
             <div class="pt-3 border-t border-ink-100 flex justify-end"><button type="button" onclick="closePartnerMetricsModal()" class="btn btn-dark">확인 및 닫기</button></div>
@@ -2124,6 +2163,7 @@ window.syncAuditLogs = syncAuditLogs;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
 window.closePartnerMetricsModal = closePartnerMetricsModal;
+window.adminDeleteReview = adminDeleteReview;
 window.downloadContractDoc = downloadContractDoc;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
