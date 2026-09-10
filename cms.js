@@ -510,6 +510,23 @@ function renderPartnerProfileManager() {
     const img = document.getElementById('partner-hero-slide-img');
     if (img) img.src = partner.heroImages[partner.heroSlideIndex];
     safeUpdateText('partner-hero-slide-counter', `${partner.heroSlideIndex + 1} / ${partner.heroImages.length}`);
+
+    /* 화살표+카운터만으로는 전체 중 몇 장인지, 어떤 사진들인지 한눈에 안 보여서
+     * 클릭 가능한 썸네일 스트립을 추가한다. */
+    const strip = document.getElementById('partner-hero-thumbnail-strip');
+    if (strip) {
+        strip.innerHTML = partner.heroImages.map((src, idx) => `
+            <button type="button" onclick="jumpToPartnerHeroSlide(${idx})" class="w-12 h-12 rounded-lg overflow-hidden shrink-0 border-2 ${idx === partner.heroSlideIndex ? 'border-brand-500' : 'border-transparent'} p-0 cursor-pointer bg-ink-100">
+                <img src="${src}" class="w-full h-full object-cover">
+            </button>`).join('');
+    }
+}
+
+function jumpToPartnerHeroSlide(idx) {
+    const partner = window.AppState.partners.find(p => p.name === (window.AppState.partnerName || '오륙도 디자인 실내건축'));
+    if (!partner || !partner.heroImages || idx < 0 || idx >= partner.heroImages.length) return;
+    partner.heroSlideIndex = idx;
+    renderPartnerProfileManager();
 }
 
 function savePartnerProfileInfo() {
@@ -1012,6 +1029,7 @@ window.triggerPartnerHeroImagePicker = triggerPartnerHeroImagePicker;
 window.handlePartnerHeroImageUpload = handlePartnerHeroImageUpload;
 window.nextPartnerHeroSlide = nextPartnerHeroSlide;
 window.prevPartnerHeroSlide = prevPartnerHeroSlide;
+window.jumpToPartnerHeroSlide = jumpToPartnerHeroSlide;
 window.deleteCurrentPartnerHeroSlide = deleteCurrentPartnerHeroSlide;
 window.openReviewDetailModal = openReviewDetailModal;
 window.closeReviewDetailModal = closeReviewDetailModal;
