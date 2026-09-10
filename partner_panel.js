@@ -1438,7 +1438,7 @@ function renderAdminPartnerMonitor() {
                 <div class="flex items-center gap-1.5">
                     <button type="button" onclick="togglePartnerCertification('${p.name}')" class="btn btn-secondary btn-sm">${p.isCertified ? '인증 해제' : '인증 부여'}</button>
                     ${isWarning ? `<button type="button" onclick="resetPartnerStrikes('${p.name}')" class="btn btn-secondary btn-sm">경고 리셋</button>` : ''}
-                    <button type="button" onclick="issuePartnerStrike('${p.name}')" class="btn btn-secondary btn-sm">+ 옐로카드</button>
+                    ${!isBanned ? `<button type="button" onclick="issuePartnerStrike('${p.name}')" class="btn btn-secondary btn-sm">+ 옐로카드</button>` : ''}
                 </div>
             </div>`;
         container.appendChild(card);
@@ -1571,6 +1571,7 @@ function downloadEstimateDoc(orderCode, partnerName) {
 function issuePartnerStrike(partnerName) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
+    if (partner.status === 'banned') { showToast('이미 삼진아웃으로 영구 제명된 파트너사입니다.', 'info'); return; }
     partner.strikeCount = (partner.strikeCount || 0) + 1;
     if (partner.strikeCount >= 3) {
         partner.status = 'banned';
