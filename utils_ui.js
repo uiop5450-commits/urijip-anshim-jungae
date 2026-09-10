@@ -14,6 +14,16 @@ function safeUpdateValue(id, value) {
     if (el) el.value = value;
 }
 
+/* 빈 목록 상태 공용 마크업 — 마이페이지 의뢰이력/파트너 오더심사 등에서 이미 쓰던
+ * "아이콘 칩 + 짧은 안내문" 패턴을 재사용해, 목록마다 텍스트 한 줄로만 다르게
+ * 보이던 것(팜플렛/직원목록/내글/알림)을 통일한다. */
+function buildEmptyStateHtml(icon, message) {
+    return `<div class="text-center py-8 space-y-2.5">
+        <span class="w-10 h-10 rounded-2xl bg-ink-100 text-ink-400 flex items-center justify-center mx-auto"><i data-lucide="${icon}" class="w-5 h-5"></i></span>
+        <p class="text-xs font-bold text-ink-500">${message}</p>
+    </div>`;
+}
+
 /* 검색창 옆 X(지우기) 버튼 — 입력값이 있을 때만 보이고, 누르면 비운 뒤 해당 목록의
  * 렌더 함수를 다시 호출해 필터를 즉시 초기화한다(파트너 탐색/커뮤니티/관리자 모니터링 검색 공용). */
 function toggleSearchClearBtn(inputId, btnId) {
@@ -187,6 +197,7 @@ window.maskPhone = maskPhone;
 window.getHolidayName = getHolidayName;
 window.pushLog = pushLog;
 window.toggleSearchClearBtn = toggleSearchClearBtn;
+window.buildEmptyStateHtml = buildEmptyStateHtml;
 window.clearSearchInput = clearSearchInput;
 window.pushClientNotification = pushClientNotification;
 window.showComingSoon = showComingSoon;

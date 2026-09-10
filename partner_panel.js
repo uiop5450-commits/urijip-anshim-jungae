@@ -1757,7 +1757,8 @@ function renderAdminStaffGrantedList() {
     if (!listEl) return;
     const granted = (window.AppState.clientAccounts || []).filter(a => a.managerRole);
     if (granted.length === 0) {
-        listEl.innerHTML = `<p class="text-xs text-ink-400 font-bold text-center py-6">매니저 권한이 부여된 계정이 없습니다.</p>`;
+        listEl.innerHTML = buildEmptyStateHtml('users', '매니저 권한이 부여된 계정이 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
     listEl.innerHTML = granted.map(a => `
@@ -1898,7 +1899,8 @@ function renderAdminPamphletList() {
     if (!container) return;
     const pamphlets = window.AppState.pamphlets || [];
     if (pamphlets.length === 0) {
-        container.innerHTML = `<p class="text-xs text-ink-400 font-bold py-6 text-center">등록된 이벤트 팜플렛이 없습니다.</p>`;
+        container.innerHTML = buildEmptyStateHtml('image-plus', '등록된 이벤트 팜플렛이 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
     container.innerHTML = pamphlets.map(evt => `

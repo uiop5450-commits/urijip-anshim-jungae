@@ -712,7 +712,8 @@ function renderClientMyPagePosts() {
 
     const myPosts = (window.AppState.communityPosts || []).filter(p => p.authorId === auth.id);
     if (myPosts.length === 0) {
-        container.innerHTML = `<p class="text-xs text-ink-400 font-bold text-center py-6">아직 작성한 커뮤니티 글이 없습니다.</p>`;
+        container.innerHTML = buildEmptyStateHtml('message-circle', '아직 작성한 커뮤니티 글이 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
 
@@ -745,7 +746,8 @@ function renderClientMyPageNotifications(myNotifications) {
     if (!container) return;
 
     if (!myNotifications || myNotifications.length === 0) {
-        container.innerHTML = `<p class="text-xs text-ink-400 font-bold text-center py-6">아직 도착한 알림이 없습니다.</p>`;
+        container.innerHTML = buildEmptyStateHtml('bell', '아직 도착한 알림이 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
 
