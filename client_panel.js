@@ -1100,13 +1100,15 @@ function setCommunityCategory(cat) {
     renderCommunityList();
 }
 
-/* 열려 있는 대댓글 입력창을 '${postId}-${commentIndex}' 키로 하나만 추적한다. */
-let openReplyBoxKey = null;
+/* 열려 있는 대댓글 입력창들을 '${postId}-${commentIndex}' 키 집합으로 추적한다.
+ * (예전엔 변수 하나였어서 답글창이 한 번에 하나만 열렸음 — 여러 댓글에 동시에 답글을 달 수 있도록 Set으로 변경) */
+let openReplyBoxKeys = new Set();
 
 function toggleReplyBox(postId, commentIndex) {
     if (!requireClientLoginForCommunity()) return;
     const key = `${postId}-${commentIndex}`;
-    openReplyBoxKey = openReplyBoxKey === key ? null : key;
+    if (openReplyBoxKeys.has(key)) openReplyBoxKeys.delete(key);
+    else openReplyBoxKeys.add(key);
     openCommunityDetail(postId);
 }
 
@@ -1125,7 +1127,30 @@ function submitCommunityReply(postId, commentIndex) {
     comment.replies.push({ authorName: auth.name, authorId: auth.id, text, date: new Date().toISOString().split('T')[0] });
     if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPLY', `'${auth.name}' 고객님이 대댓글을 남겼습니다.`, 'INFO');
 
-    openReplyBoxKey = null;
+    openReplyBoxKeys.delete(`${postId}-${commentIndex}`);
+    openCommunityDetail(postId);
+}
+
+/* 본인이 쓴 댓글/답글만 삭제할 수 있다 — 목록에서도 authorId가 내 아이디일 때만
+ * 삭제 버튼을 그려서, 서버 검증이 없는 프로토타입이라도 실수로 남의 글을 지울 방법이 없게 한다. */
+function deleteCommunityComment(postId, commentIndex) {
+    const auth = window.AppState.clientAuth;
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post || !post.comments || !post.comments[commentIndex]) return;
+    if (post.comments[commentIndex].authorId !== auth.id) return;
+    post.comments.splice(commentIndex, 1);
+    showToast('댓글을 삭제했습니다.', 'info');
+    openCommunityDetail(postId);
+}
+
+function deleteCommunityReply(postId, commentIndex, replyIndex) {
+    const auth = window.AppState.clientAuth;
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    const comment = post && post.comments && post.comments[commentIndex];
+    if (!comment || !comment.replies || !comment.replies[replyIndex]) return;
+    if (comment.replies[replyIndex].authorId !== auth.id) return;
+    comment.replies.splice(replyIndex, 1);
+    showToast('답글을 삭제했습니다.', 'info');
     openCommunityDetail(postId);
 }
 
@@ -1143,16 +1168,19 @@ function openCommunityDetail(postId) {
     const commentsHtml = (post.comments || []).length > 0
         ? post.comments.map((c, idx) => {
             const repliesHtml = (c.replies || []).length > 0
-                ? `<div class="mt-2 ml-5 pl-3 border-l-2 border-ink-200 space-y-2">${c.replies.map(r => `
+                ? `<div class="mt-2 ml-5 pl-3 border-l-2 border-ink-200 space-y-2">${c.replies.map((r, rIdx) => `
                     <div class="space-y-0.5">
                         <div class="flex items-center justify-between">
                             <span class="text-[11px] font-black text-ink-800">${escapeHtml(r.authorName)}</span>
-                            <span class="text-[10px] text-ink-400 font-bold">${r.date}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] text-ink-400 font-bold">${r.date}</span>
+                                ${myId && r.authorId === myId ? `<button type="button" onclick="deleteCommunityReply('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : ''}
+                            </div>
                         </div>
                         <p class="text-[11px] text-ink-700 font-medium leading-relaxed">${escapeHtml(r.text)}</p>
                     </div>`).join('')}</div>`
                 : '';
-            const replyBoxHtml = openReplyBoxKey === `${post.id}-${idx}`
+            const replyBoxHtml = openReplyBoxKeys.has(`${post.id}-${idx}`)
                 ? `<div class="mt-2 ml-5 flex gap-2">
                         <input type="text" id="community-reply-input-${idx}" placeholder="대댓글을 입력하세요" class="input flex-1 text-xs">
                         <button type="button" onclick="submitCommunityReply('${post.id}', ${idx})" class="btn btn-dark btn-sm shrink-0">등록</button>
@@ -1165,7 +1193,10 @@ function openCommunityDetail(postId) {
                     <span class="text-[10px] text-ink-400 font-bold">${c.date}</span>
                 </div>
                 <p class="text-xs text-ink-700 font-medium leading-relaxed">${escapeHtml(c.text)}</p>
-                <button type="button" onclick="toggleReplyBox('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0">답글 달기</button>
+                <div class="flex items-center gap-3">
+                    <button type="button" onclick="toggleReplyBox('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0">답글 달기</button>
+                    ${myId && c.authorId === myId ? `<button type="button" onclick="deleteCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : ''}
+                </div>
                 ${repliesHtml}
                 ${replyBoxHtml}
             </div>`;
@@ -1368,3 +1399,5 @@ window.toggleCommunityLike = toggleCommunityLike;
 window.submitCommunityComment = submitCommunityComment;
 window.toggleReplyBox = toggleReplyBox;
 window.submitCommunityReply = submitCommunityReply;
+window.deleteCommunityComment = deleteCommunityComment;
+window.deleteCommunityReply = deleteCommunityReply;
