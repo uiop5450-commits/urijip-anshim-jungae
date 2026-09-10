@@ -439,10 +439,10 @@ function renderPartnerSearchGrid() {
  * 매니저(관리자) 콘솔 — 역할별 접근 권한(관리자모드 / 파트너 매니저 권한)
  * ---------------------------------------------------------------- */
 const ALL_ADMIN_TABS = [
-    ['allocation', '💰 수동 오더 배정관'], ['monitor', '🏢 파트너 모니터링'],
-    ['applications', '🧾 파트너 가입 심사'],
-    ['blacklist', '🛡️ 삼진아웃 블랙리스트 DB'], ['logs', '📋 플랫폼 관제 로그'],
-    ['display', '🖼️ 노출 관리'], ['staff', '👥 직원 권한 관리']
+    ['allocation', 'wallet', '수동 오더 배정관'], ['monitor', 'building-2', '파트너 모니터링'],
+    ['applications', 'clipboard-check', '파트너 가입 심사'],
+    ['blacklist', 'shield-alert', '삼진아웃 블랙리스트 DB'], ['logs', 'list', '플랫폼 관제 로그'],
+    ['display', 'image', '노출 관리'], ['staff', 'users', '직원 권한 관리']
 ];
 
 // 'super_admin'은 전체 탭에 접근 가능. 'partner_manager'는 고액 오더 배정(재무),
@@ -468,11 +468,12 @@ function switchAdminMode(mode) {
     const tabBar = document.getElementById('admin-console-tab-bar');
     if (tabBar) {
         const pendingCount = (window.AppState.partners || []).filter(p => p.status === 'pending').length;
-        const tabs = ALL_ADMIN_TABS.filter(([id]) => allowedTabs.includes(id)).map(([id, label]) => {
+        const tabs = ALL_ADMIN_TABS.filter(([id]) => allowedTabs.includes(id)).map(([id, icon, label]) => {
             const finalLabel = id === 'applications' && pendingCount > 0 ? `${label} (${pendingCount})` : label;
-            return [id, finalLabel];
+            return [id, icon, finalLabel];
         });
-        tabBar.innerHTML = tabs.map(([id, label]) => `<button type="button" id="btn-admin-view-${id}" onclick="switchAdminMode('${id}')" class="gnb-tab ${mode === id ? 'active' : ''}">${label}</button>`).join('');
+        tabBar.innerHTML = tabs.map(([id, icon, label]) => `<button type="button" id="btn-admin-view-${id}" onclick="switchAdminMode('${id}')" class="gnb-tab ${mode === id ? 'active' : ''}"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i> ${label}</button>`).join('');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
