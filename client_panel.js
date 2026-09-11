@@ -413,6 +413,44 @@ function submitBidQuestion() {
     selectMyPageEstimate(orderCode);
 }
 
+/* 고객은 이미 입찰한 파트너에게 계약 전 문의를 할 수 있는데(위 openBidQuestionModal),
+ * 반대로 파트너가 입찰 전에 남긴 문의(order.partnerPreQuestions, partner_panel.js의
+ * submitPreBidQuestion)에 고객이 답변할 방법이 없었다 — 아직 입찰 전이라 특정 bid에
+ * 속하지 않으므로 오더 상세 화면에 파트너별로 모아 보여준다. */
+function buildClientPreBidQnaHtml(order) {
+    const questions = order.partnerPreQuestions || [];
+    if (questions.length === 0) return '';
+    return `
+        <div class="surface-flat p-4 space-y-2.5 text-left">
+            <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="message-circle-question" class="w-4 h-4 text-brand-500"></i> 입찰 전 문의 (${questions.length}건)</h5>
+            <div class="space-y-2">${questions.map((q, qIdx) => `
+                <div class="p-3 bg-ink-50 rounded-xl space-y-1.5">
+                    <p class="text-xs text-ink-700 font-semibold leading-relaxed"><b class="text-ink-900">${escapeHtml(q.partnerName)}</b>: ${escapeHtml(q.text)} <span class="text-[10px] text-ink-400 font-bold">(${q.date})</span></p>
+                    ${q.reply
+                        ? `<p class="text-xs text-brand-700 font-semibold leading-relaxed pl-3 border-l-2 border-brand-200">${escapeHtml(q.reply)}</p>`
+                        : `<div class="flex gap-1.5"><input type="text" id="prebid-question-reply-input-${order.code}-${qIdx}" placeholder="답변을 입력하세요" class="input flex-1 text-xs"><button type="button" onclick="replyToPreBidQuestion('${order.code}', ${qIdx})" class="btn btn-dark btn-sm shrink-0">답변</button></div>`}
+                </div>`).join('')}</div>
+        </div>`;
+}
+
+function replyToPreBidQuestion(orderCode, questionIdx) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const question = order && order.partnerPreQuestions && order.partnerPreQuestions[questionIdx];
+    if (!question) return;
+
+    const input = document.getElementById(`prebid-question-reply-input-${orderCode}-${questionIdx}`);
+    const reply = input ? input.value.trim() : '';
+    if (!reply) { showToast('답변 내용을 입력해 주세요.', 'warning'); return; }
+
+    question.reply = reply;
+    question.replyDate = getLocalDateString();
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PRE_BID_QUESTION_REPLY', `[${order.clientName}] 고객님이 ${question.partnerName}의 입찰 전 문의에 답변했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(question.partnerName, `문의하신 오더(${orderCode})에 고객님이 답변했어요.`);
+    showToast('답변이 등록되었습니다.', 'success');
+    renderClientMyPage();
+    selectMyPageEstimate(orderCode);
+}
+
 /* 지금까지는 파트너 매칭을 하나씩 취소(cancelPartnerBid)할 수만 있었고, 의뢰(오더)
  * 자체를 철회할 방법은 없었다 — 이사 계획이 바뀌거나 마음이 바뀌어도 오더가
  * '입찰 심사 중'으로 영원히 남아 있었다. 이미 계약이 체결된 오더는 철회 대상이
@@ -1718,6 +1756,7 @@ function renderMyPageEstimateDetails(order) {
             ${contractDocsHtml}
             ${designationBannerHtml}
             ${reviewBtnHtml}
+            ${buildClientPreBidQnaHtml(order)}
 
             <div class="space-y-3 pt-2">
                 <div class="flex items-center justify-between gap-2">
@@ -2731,6 +2770,8 @@ window.triggerMatchingSim = triggerMatchingSim;
 window.clientFinalizeContract = clientFinalizeContract;
 window.cancelPartnerBid = cancelPartnerBid;
 window.openBidQuestionModal = openBidQuestionModal;
+window.buildClientPreBidQnaHtml = buildClientPreBidQnaHtml;
+window.replyToPreBidQuestion = replyToPreBidQuestion;
 window.closeBidQuestionModal = closeBidQuestionModal;
 window.submitBidQuestion = submitBidQuestion;
 window.withdrawOrder = withdrawOrder;

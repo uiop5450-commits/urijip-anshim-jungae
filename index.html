@@ -1586,6 +1586,20 @@
         </div>
     </div>
 
+    <div id="partner-preask-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="partner-preask-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-brand">입찰 전 문의</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">고객님께 궁금한 점을 물어보세요</h3></div>
+                <button type="button" onclick="closePreBidQuestionModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">입찰 전, 층수·엘리베이터 유무 등 견적에 영향을 줄 수 있는 사항을 미리 물어볼 수 있어요. 다른 참여사에게는 보이지 않습니다.</p>
+                <textarea id="partner-preask-text" rows="3" placeholder="예: 엘리베이터가 있는 건물인가요?" class="textarea"></textarea>
+                <button type="button" onclick="submitPreBidQuestion()" class="btn btn-primary btn-block">문의 보내기</button>
+            </div>
+        </div>
+    </div>
+
     <div id="partner-cancel-request-modal" class="hidden modal-overlay" style="z-index:220">
         <div id="partner-cancel-request-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">

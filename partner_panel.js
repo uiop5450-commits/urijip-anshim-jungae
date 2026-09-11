@@ -1283,6 +1283,7 @@ function selectOrderForAudit(code) {
                 </div>`;
                 })() : ''}
             ` : `
+                ${buildPreBidQnaHtml(order, currentPartnerName)}
                 <div class="surface-flat p-4 space-y-3 text-left">
                     <div><label class="field-label">입찰 제안 금액 (만원)</label><input type="number" id="partner-bid-price-input" value="${Math.floor(order.budget * 0.95)}" min="1" class="input"></div>
                     <div><label class="field-label">제안 메시지</label><textarea id="partner-bid-desc-input" class="textarea h-20" placeholder="고객에게 보여줄 제안 메시지를 입력하세요.">${currentPartnerName}에서 제안하는 하이엔드 시공 안심 제안입니다.</textarea></div>
@@ -1388,6 +1389,60 @@ function replyToBidQuestion(orderCode, questionIdx) {
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 계약 전 문의에 답변했어요. (의뢰 코드: ${orderCode})`);
     showToast('답변이 등록되었습니다.', 'success');
     openPartnerOrderDetailModal(orderCode);
+}
+
+/* 고객은 이미 입찰한 파트너에게 계약 전 문의를 할 수 있는데(openBidQuestionModal,
+ * client_panel.js), 반대로 파트너가 입찰하기 전에 고객에게 층수·엘리베이터 유무처럼
+ * 견적에 영향을 줄 사항을 미리 물어볼 방법은 없었다 — 아직 입찰 전이라 bid 객체가
+ * 없으므로 오더 자체에 질문을 쌓고(order.partnerPreQuestions) 파트너별로 자기 질문만
+ * 보이게 한다(경쟁사에게 노출되지 않도록).*/
+let preBidQuestionTargetCode = null;
+
+function buildPreBidQnaHtml(order, partnerName) {
+    const myQuestions = (order.partnerPreQuestions || []).filter(q => q.partnerName === partnerName);
+    const listHtml = myQuestions.length > 0 ? `
+        <div class="space-y-2">${myQuestions.map(q => `
+            <div class="p-3 bg-ink-50 rounded-xl space-y-1">
+                <p class="text-xs text-ink-700 font-semibold leading-relaxed"><i data-lucide="help-circle" class="w-3 h-3 inline text-ink-400"></i> ${escapeHtml(q.text)} <span class="text-[10px] text-ink-400 font-bold">(${q.date})</span></p>
+                ${q.reply ? `<p class="text-xs text-brand-700 font-semibold leading-relaxed pl-4"><i data-lucide="reply" class="w-3 h-3 inline"></i> ${escapeHtml(q.reply)}</p>` : `<p class="text-[10px] text-ink-400 font-bold pl-4">답변 대기중</p>`}
+            </div>`).join('')}</div>` : '';
+    return `
+        <div class="surface-flat p-4 space-y-2.5 text-left">
+            <div class="flex justify-between items-center">
+                <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="message-circle-question" class="w-4 h-4 text-brand-500"></i> 입찰 전 문의 (경쟁사에게 비공개)</h5>
+                <button type="button" onclick="openPreBidQuestionModal('${order.code}')" class="btn btn-secondary btn-sm">질문하기</button>
+            </div>
+            ${listHtml}
+        </div>`;
+}
+
+function openPreBidQuestionModal(orderCode) {
+    preBidQuestionTargetCode = orderCode;
+    safeUpdateValue('partner-preask-text', '');
+    openModal('partner-preask-modal', 'partner-preask-modal-card');
+}
+
+function closePreBidQuestionModal() {
+    preBidQuestionTargetCode = null;
+    closeModal('partner-preask-modal', 'partner-preask-modal-card');
+}
+
+function submitPreBidQuestion() {
+    const order = window.AppState.orders.find(o => o.code === preBidQuestionTargetCode);
+    if (!order) { closePreBidQuestionModal(); return; }
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+
+    const text = document.getElementById('partner-preask-text')?.value.trim();
+    if (!text) { showToast('문의 내용을 입력해 주세요.', 'warning'); return; }
+
+    if (!order.partnerPreQuestions) order.partnerPreQuestions = [];
+    order.partnerPreQuestions.push({ partnerName, text, date: getLocalDateString(), reply: null, replyDate: null });
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PRE_BID_QUESTION', `[${partnerName}]가 오더(${order.code})에 입찰 전 문의를 남겼습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}에서 오더(${order.code})에 대해 입찰 전 문의를 남겼어요: "${text}"`);
+    showToast('문의를 보냈습니다. 답변이 도착하면 알려드릴게요.', 'success');
+    closePreBidQuestionModal();
+    selectOrderForAudit(order.code);
 }
 
 let partnerCancelRequestTargetCode = null;
@@ -3873,6 +3928,10 @@ window.removePamphletDetailDraftImage = removePamphletDetailDraftImage;
 window.openPartnerOrderDetailModal = openPartnerOrderDetailModal;
 window.withdrawMyPartnerBid = withdrawMyPartnerBid;
 window.replyToBidQuestion = replyToBidQuestion;
+window.buildPreBidQnaHtml = buildPreBidQnaHtml;
+window.openPreBidQuestionModal = openPreBidQuestionModal;
+window.closePreBidQuestionModal = closePreBidQuestionModal;
+window.submitPreBidQuestion = submitPreBidQuestion;
 window.closePartnerOrderDetailModal = closePartnerOrderDetailModal;
 window.triggerPartnerDocUpload = triggerPartnerDocUpload;
 window.handlePartnerDocUpload = handlePartnerDocUpload;
