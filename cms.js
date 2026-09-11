@@ -558,10 +558,19 @@ function submitPartnerPortfolio(isDraft = false) {
         isDraft
     };
 
+    const isNewPublish = editIndex === null && !isDraft;
     if (editIndex !== null) partner.portfolios[editIndex] = newPort;
     else partner.portfolios.unshift(newPort);
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'PORTFOLIO', `[${partnerName}]가 포트폴리오 "${title}"를 ${isDraft ? '초안으로 저장' : '발행'}했습니다.`, isDraft ? 'INFO' : 'SUCCESS');
+    // 관심 파트너로 찜해둔 고객에게는 지금까지 그 파트너의 신규 시공사례 발행 소식이
+    // 전혀 전달되지 않았다 — 초안 저장이나 기존 글 수정에는 보내지 않고, 신규 발행
+    // 시에만 보낸다(매번 알림이 오면 피로도가 높아지므로).
+    if (isNewPublish && typeof pushClientNotification === 'function') {
+        (window.AppState.clientAccounts || [])
+            .filter(acc => (acc.favoritePartners || []).includes(partnerName))
+            .forEach(acc => pushClientNotification(acc.phone, `관심 파트너 [${partnerName}]가 새 시공사례 "${title}"를 등록했어요.`));
+    }
     showToast(isDraft ? '초안으로 저장되었습니다. 고객에게는 보이지 않아요.' : '포트폴리오가 발행되었습니다!', 'success');
     closePortfolioEditor();
     if (typeof renderHeroPortfolioSlider === 'function') renderHeroPortfolioSlider();
