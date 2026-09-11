@@ -2039,11 +2039,20 @@ function setAdminPartnerMonitorStatusFilter(key) {
     renderAdminPartnerMonitor();
 }
 
+let adminPartnerMonitorRegionFilter = 'all';
+
+function setAdminPartnerMonitorRegionFilter(region) {
+    adminPartnerMonitorRegionFilter = region;
+    renderAdminPartnerMonitor();
+}
+
 function renderAdminPartnerMonitor() {
     const container = document.getElementById('admin-partner-monitor-list');
     if (!container) return;
     const input = document.getElementById('admin-partner-search');
     const query = input ? input.value.trim().toLowerCase() : '';
+    const sortSelect = document.getElementById('admin-partner-sort');
+    const sortMode = sortSelect ? sortSelect.value : 'rating';
     const allPartners = window.AppState.partners || [];
 
     const statusTabsEl = document.getElementById('admin-partner-status-tabs');
@@ -2060,9 +2069,25 @@ function renderAdminPartnerMonitor() {
         ).join('');
     }
 
+    // 고객 대상 파트너 탐색 페이지(renderPartnerSearchGrid)에는 지역 필터/정렬이 있는데
+    // 관리자 모니터링 보드에는 자유 텍스트 검색만 있어서, 지역별로 몰아보거나 평점/리뷰
+    // 순으로 정렬할 방법이 없었던 비대칭을 해소한다.
+    const regionChipsEl = document.getElementById('admin-partner-region-chips');
+    if (regionChipsEl) {
+        const regions = [...new Set(allPartners.map(p => p.region).filter(Boolean))].sort();
+        const chips = [['all', '전체 지역'], ...regions.map(r => [r, r])];
+        regionChipsEl.innerHTML = chips.map(([key, label]) =>
+            `<button type="button" onclick="setAdminPartnerMonitorRegionFilter('${key}')" class="region-chip ${adminPartnerMonitorRegionFilter === key ? 'active' : ''}"><i data-lucide="map-pin" class="w-3 h-3"></i>${label}</button>`
+        ).join('');
+    }
+
     const filtered = allPartners
         .filter(p => adminPartnerMonitorStatusFilter === 'all' || getPartnerMonitorStatusKey(p) === adminPartnerMonitorStatusFilter)
-        .filter(p => !query || p.name.toLowerCase().includes(query) || (p.bizFile && p.bizFile.includes(query)));
+        .filter(p => adminPartnerMonitorRegionFilter === 'all' || p.region === adminPartnerMonitorRegionFilter)
+        .filter(p => !query || p.name.toLowerCase().includes(query) || (p.bizFile && p.bizFile.includes(query)))
+        .sort((a, b) => sortMode === 'reviews'
+            ? (b.reviews ? b.reviews.length : 0) - (a.reviews ? a.reviews.length : 0)
+            : (b.rating || 0) - (a.rating || 0));
 
     if (filtered.length === 0) { container.innerHTML = '<p class="text-xs font-bold text-ink-500 text-center col-span-full py-12">검색 조건에 해당되는 파트너사가 존재하지 않습니다.</p>'; return; }
 
@@ -2920,6 +2945,7 @@ window.searchOrderLookup = searchOrderLookup;
 window.renderAdminSupportTickets = renderAdminSupportTickets;
 window.setAdminSupportStatusFilter = setAdminSupportStatusFilter;
 window.setAdminPartnerMonitorStatusFilter = setAdminPartnerMonitorStatusFilter;
+window.setAdminPartnerMonitorRegionFilter = setAdminPartnerMonitorRegionFilter;
 window.exportLogsToCsv = exportLogsToCsv;
 window.exportPartnerListToCsv = exportPartnerListToCsv;
 window.exportClientListToCsv = exportClientListToCsv;
