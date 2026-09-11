@@ -972,6 +972,10 @@
                             <h4 class="text-sm font-black text-ink-800">통합 플랫폼 실시간 관제 스트림 로그</h4>
                             <button type="button" onclick="exportLogsToCsv()" class="btn btn-secondary btn-sm"><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV로 내보내기</button>
                         </div>
+                        <div class="px-6 pt-4 flex flex-wrap items-center justify-between gap-2">
+                            <div id="admin-log-category-tabs" class="flex items-center flex-wrap gap-1.5 bg-ink-50 p-1.5 rounded-xl border border-ink-100"></div>
+                            <input type="text" id="admin-log-search-input" oninput="syncAuditLogs()" placeholder="대상·내용 검색..." class="input max-w-xs">
+                        </div>
                         <div class="overflow-x-auto"><table class="table-clean"><tbody id="admin-log-tbody"></tbody></table></div>
                     </div>
                 </div>

@@ -1438,11 +1438,38 @@ function payPartnerCommission(orderCode) {
 /* ----------------------------------------------------------------
  * 로그 / KPI
  * ---------------------------------------------------------------- */
+let adminLogCategoryFilter = 'all';
+
+function setAdminLogCategoryFilter(key) {
+    adminLogCategoryFilter = key;
+    syncAuditLogs();
+}
+
+/* 로그가 쌓일수록 "매니저 조치만", "고객 활동만" 같은 걸 눈으로 하나씩 찾기
+ * 번거로워진다 — 파트너 모니터링/고객 문의 탭과 동일한 상태 필터 칩 + 텍스트
+ * 검색 패턴을 그대로 적용한다. */
 function syncAuditLogs() {
     const tbody = document.getElementById('admin-log-tbody');
     if (!tbody) return;
-    const logs = (window.AppState && window.AppState.logs) ? window.AppState.logs : [];
-    if (logs.length === 0) { tbody.innerHTML = `<tr><td class="px-6 py-8 text-center text-ink-400 font-bold" colspan="5">기록된 로그가 없습니다.</td></tr>`; return; }
+    const allLogs = (window.AppState && window.AppState.logs) ? window.AppState.logs : [];
+
+    const tabsEl = document.getElementById('admin-log-category-tabs');
+    if (tabsEl) {
+        const categories = Array.from(new Set(allLogs.map(l => l.category)));
+        const tabs = [['all', '전체', allLogs.length], ...categories.map(c => [c, c, allLogs.filter(l => l.category === c).length])];
+        tabsEl.innerHTML = tabs.map(([key, label, count]) =>
+            `<button type="button" onclick="setAdminLogCategoryFilter('${key}')" class="gnb-tab ${adminLogCategoryFilter === key ? 'active' : ''}">${label} (${count})</button>`
+        ).join('');
+    }
+
+    if (allLogs.length === 0) { tbody.innerHTML = `<tr><td class="px-6 py-8 text-center text-ink-400 font-bold" colspan="5">기록된 로그가 없습니다.</td></tr>`; return; }
+
+    const query = (document.getElementById('admin-log-search-input')?.value || '').trim().toLowerCase();
+    const logs = allLogs
+        .filter(l => adminLogCategoryFilter === 'all' || l.category === adminLogCategoryFilter)
+        .filter(l => !query || (l.target || '').toLowerCase().includes(query) || (l.message || '').toLowerCase().includes(query));
+
+    if (logs.length === 0) { tbody.innerHTML = `<tr><td class="px-6 py-8 text-center text-ink-400 font-bold" colspan="5">검색 조건에 해당되는 로그가 없습니다.</td></tr>`; return; }
     tbody.innerHTML = logs.map(log => {
         const statusBadge = log.status === 'SUCCESS' ? 'badge-emerald' : log.status === 'WARNING' ? 'badge-amber' : 'badge-neutral';
         return `<tr>
@@ -2866,6 +2893,7 @@ window.renderPartnerContractsView = renderPartnerContractsView;
 window.setPartnerContractsStatusFilter = setPartnerContractsStatusFilter;
 window.recalculateKPIs = recalculateKPIs;
 window.syncAuditLogs = syncAuditLogs;
+window.setAdminLogCategoryFilter = setAdminLogCategoryFilter;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
 window.searchOrderLookup = searchOrderLookup;
 window.renderAdminSupportTickets = renderAdminSupportTickets;
