@@ -357,6 +357,50 @@ function withdrawOrder(orderCode) {
     if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
 }
 
+let editOrderBudgetTargetCode = null;
+
+/* 지금까지는 의뢰서를 한 번 제출하면 예산을 잘못 적었거나 마음이 바뀌어도 고칠 방법이
+ * 없어서 전체를 철회하고 새로 써야 했다 — 계약 전(입찰 진행 중)이라면 가볍게 예산만
+ * 수정할 수 있게 한다. */
+function openEditOrderBudgetModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'bidding') return;
+    editOrderBudgetTargetCode = orderCode;
+    safeUpdateValue('edit-order-budget-input', order.budget);
+    openModal('edit-order-budget-modal', 'edit-order-budget-modal-card');
+}
+
+function closeEditOrderBudgetModal() {
+    editOrderBudgetTargetCode = null;
+    closeModal('edit-order-budget-modal', 'edit-order-budget-modal-card');
+}
+
+function saveOrderBudgetEdit() {
+    const order = window.AppState.orders.find(o => o.code === editOrderBudgetTargetCode);
+    if (!order) { closeEditOrderBudgetModal(); return; }
+    if (order.status !== 'bidding') { showToast('이미 계약이 진행 중이거나 완료된 의뢰는 수정할 수 없어요.', 'warning'); closeEditOrderBudgetModal(); return; }
+
+    const input = document.getElementById('edit-order-budget-input');
+    const newBudget = input ? parseInt(input.value, 10) : NaN;
+    if (!newBudget || newBudget <= 0) { showToast('희망 예산을 올바르게 입력해주세요.', 'warning'); return; }
+
+    const oldBudget = order.budget;
+    order.budget = newBudget;
+
+    const biddingPartners = (order.bids || []).map(b => b.partner);
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'EDIT_ORDER_BUDGET', `[${order.clientName}] 고객님이 의뢰(${order.code})의 희망 예산을 ₩${oldBudget.toLocaleString()}만원 → ₩${newBudget.toLocaleString()}만원으로 수정했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') {
+        biddingPartners.forEach(partnerName => pushPartnerNotification(partnerName, `고객님이 오더(${order.code})의 희망 예산을 ₩${newBudget.toLocaleString()}만원으로 수정했어요.`));
+    }
+    showToast('희망 예산이 수정되었습니다.', 'success');
+
+    closeEditOrderBudgetModal();
+    renderClientMyPage();
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
+    if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
+}
+
 function clientFinalizeContract(orderCode, partnerName, finalPrice) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return;
@@ -1126,7 +1170,11 @@ function renderMyPageEstimateDetails(order) {
                     <h3 class="text-base sm:text-lg font-black text-ink-950">${escapeHtml(order.clientAddress)}</h3>
                 </div>
                 <div class="flex items-center gap-3">
-                    <div class="text-right"><span class="text-[10px] text-ink-400 block font-bold">희망 예산</span><span class="text-sm font-black text-brand-600">₩ ${order.budget.toLocaleString()} 만원</span></div>
+                    <div class="text-right">
+                        <span class="text-[10px] text-ink-400 block font-bold">희망 예산</span>
+                        <span class="text-sm font-black text-brand-600">₩ ${order.budget.toLocaleString()} 만원</span>
+                        ${order.status === 'bidding' ? `<button type="button" onclick="openEditOrderBudgetModal('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 block mt-0.5">수정</button>` : ''}
+                    </div>
                     ${order.status === 'bidding' ? `<button type="button" onclick="withdrawOrder('${order.code}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 whitespace-nowrap">의뢰 철회</button>` : ''}
                 </div>
             </div>
@@ -1907,6 +1955,9 @@ window.triggerMatchingSim = triggerMatchingSim;
 window.clientFinalizeContract = clientFinalizeContract;
 window.cancelPartnerBid = cancelPartnerBid;
 window.withdrawOrder = withdrawOrder;
+window.openEditOrderBudgetModal = openEditOrderBudgetModal;
+window.closeEditOrderBudgetModal = closeEditOrderBudgetModal;
+window.saveOrderBudgetEdit = saveOrderBudgetEdit;
 
 window.sendClientAuthCode = sendClientAuthCode;
 window.switchClientAuthTab = switchClientAuthTab;

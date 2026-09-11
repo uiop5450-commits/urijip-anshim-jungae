@@ -1324,6 +1324,20 @@
         </div>
     </div>
 
+    <div id="edit-order-budget-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="edit-order-budget-modal-card" class="modal-card w-full max-w-sm p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-brand">의뢰 수정</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">희망 예산 수정</h3></div>
+                <button type="button" onclick="closeEditOrderBudgetModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">아직 계약이 체결되지 않은 의뢰의 희망 예산을 변경할 수 있어요. 예산을 올리면 더 좋은 제안을 받을 수 있습니다.</p>
+                <div><label class="field-label">희망 예산 (만원)</label><input type="number" id="edit-order-budget-input" min="1" class="input"></div>
+                <button type="button" onclick="saveOrderBudgetEdit()" class="btn btn-primary btn-block">수정 완료</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 중앙 팝업 알림 (토스트) -->
     <div id="custom-toast" class="fixed inset-0 flex items-center justify-center bg-ink-950/40 backdrop-blur-sm z-[600] hidden transition-all duration-300">
         <div id="custom-toast-card" class="bg-white rounded-[28px] w-[calc(100%-32px)] max-w-sm p-6 space-y-5 text-center transform scale-95 opacity-0 transition-all duration-200 relative" style="box-shadow:var(--shadow-3)">
