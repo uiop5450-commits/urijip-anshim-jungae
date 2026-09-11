@@ -108,6 +108,13 @@ function getHolidayName(year, month, day) {
 function pushLog(category, target, message, status = 'INFO') {
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    // 매니저 권한이 계정별로 분리되고 만료일까지 지정할 수 있게 됐는데(4065e13), 정작
+    // 관제 로그의 개별 관리자 조치 대부분은 "매니저가"로만 기록되어 여러 스태프 중
+    // 누가 실제로 그 조치를 했는지 알 방법이 없었다 — 호출부 36곳을 전부 고치는
+    // 대신 이 한 곳에서 실명을 메시지 앞에 붙인다.
+    if (category === 'MANAGER' && window.AppState.managerName) {
+        message = `[${window.AppState.managerName}] ${message}`;
+    }
     window.AppState.logs.unshift({ time: timeStr, category, target, message, status });
     if (window.AppState.logs.length > 300) window.AppState.logs.length = 300;
     if (typeof syncAuditLogs === 'function') syncAuditLogs();
