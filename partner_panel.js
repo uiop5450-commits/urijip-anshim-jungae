@@ -1746,6 +1746,12 @@ function openPartnerOrderDetailModal(orderCode) {
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">시공이 불가능하거나 고객과의 분쟁으로 계약을 유지할 수 없는 경우, 매니저 센터 심사를 거쳐 계약을 취소할 수 있어요.</p>
                 <button type="button" onclick="openPartnerCancelRequestModal('${order.code}')" class="btn btn-secondary btn-sm text-roseCustom">계약 취소 요청하기</button>
             </div>
+            ${!order.reviewWritten ? `
+            <div class="surface p-5 space-y-2">
+                <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="star" class="w-4 h-4 text-gold-500"></i> 후기 작성 요청</h5>
+                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">시공이 마무리됐다면 고객님께 안심 후기 작성을 부탁드려보세요. 평점은 파트너 신뢰도에 반영됩니다.</p>
+                <button type="button" onclick="requestReviewFromClient('${order.code}')" class="btn btn-secondary btn-sm" ${order.lastReviewReminderDate === getLocalDateString() ? 'disabled' : ''}>${order.lastReviewReminderDate === getLocalDateString() ? '오늘 요청 완료' : '후기 작성 요청 보내기'}</button>
+            </div>` : ''}
             <div class="surface p-5 space-y-2">
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="flag" class="w-4 h-4 text-roseCustom"></i> 고객 신고</h5>
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">노쇼, 상습 갑질 등 불량 고객은 매니저 센터에 신고할 수 있어요.</p>
@@ -3080,6 +3086,25 @@ function adminDeletePortfolio(partnerName, idx) {
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
 }
 
+/* 후기 시스템(평점 입력, 답글, 도움돼요, 신고)은 이미 다 갖춰져 있는데, 계약이
+ * 끝난 뒤 고객에게 후기를 남겨달라고 부탁할 방법이 파트너에게 전혀 없었다 —
+ * 평점이 파트너 신뢰도/랭킹에 직결되므로 실사용 가치가 크다. 같은 날 중복 요청은
+ * 스팸이 되므로 하루 1회로 제한한다. */
+function requestReviewFromClient(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
+    if (order.reviewWritten) return;
+    const today = getLocalDateString();
+    if (order.lastReviewReminderDate === today) { showToast('오늘 이미 후기 작성 요청을 보냈어요.', 'info'); return; }
+
+    order.lastReviewReminderDate = today;
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'REVIEW_REQUEST', `[${partnerName}]가 오더(${orderCode}) 고객에게 후기 작성을 요청했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}에서 안심 후기 작성을 부탁드려요! 솔직한 후기가 큰 도움이 됩니다.`);
+    showToast('후기 작성 요청을 보냈습니다.', 'success');
+    openPartnerOrderDetailModal(orderCode);
+}
+
 function adminDeleteReview(partnerName, reviewIdx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
@@ -4139,6 +4164,7 @@ window.submitPartnerSignatureCanvas = submitPartnerSignatureCanvas;
 window.adminForceCancelContract = adminForceCancelContract;
 window.isClientFavorited = isClientFavorited;
 window.toggleFavoriteClient = toggleFavoriteClient;
+window.requestReviewFromClient = requestReviewFromClient;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
 window.dismissPortfolioReport = dismissPortfolioReport;
