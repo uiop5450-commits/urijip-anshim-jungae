@@ -804,6 +804,7 @@ function submitClientReport() {
     });
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'CLIENT_REPORT', `[${partnerName}]가 오더 ${order.code}의 고객(${order.clientName})을 신고했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `계약 파트너사로부터 신고가 접수되어 매니저 센터가 검토 중입니다. 부당하다고 생각되시면 마이페이지 계정 정보에서 소명하실 수 있어요.`);
     showToast('신고가 접수되었습니다. 매니저 센터에서 검토할게요.', 'success');
     closeReportClientModal();
     if (typeof renderAdminClientManager === 'function') renderAdminClientManager();
@@ -2679,11 +2680,50 @@ function renderAdminClientManager() {
                 </div>
             </div>
             ${myReports.length > 0 ? `
-            <div class="p-3 bg-amber-50 rounded-xl space-y-1.5">
-                ${myReports.map(r => `<p class="text-[11px] text-ink-700 font-semibold leading-relaxed">· [${escapeHtml(r.reportedByPartner)}] ${escapeHtml(r.reason)} <span class="text-[10px] text-ink-400 font-bold">(${r.orderCode} · ${r.date})</span></p>`).join('')}
+            <div class="p-3 bg-amber-50 rounded-xl space-y-2">
+                ${myReports.map(r => `
+                <div class="space-y-1">
+                    <p class="text-[11px] text-ink-700 font-semibold leading-relaxed">· [${escapeHtml(r.reportedByPartner)}] ${escapeHtml(r.reason)} <span class="text-[10px] text-ink-400 font-bold">(${r.orderCode} · ${r.date})</span></p>
+                    ${r.appeal ? (r.appeal.status === 'pending' ? `
+                    <div class="pl-3 flex items-center justify-between gap-2">
+                        <p class="text-[10px] font-black text-brand-700">이의신청: ${escapeHtml(r.appeal.reason)}</p>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button type="button" onclick="openReportReasonPrompt((reason) => adminRejectClientReportAppeal('${r.id}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">반려</button>
+                            <button type="button" onclick="adminApproveClientReportAppeal('${r.id}')" class="text-[10px] font-bold text-ink-500 hover:text-emeraldCustom bg-transparent border-0 cursor-pointer p-0">승인(신고 취하)</button>
+                        </div>
+                    </div>` : `<p class="pl-3 text-[10px] font-bold text-ink-400">이의신청 반려됨 — ${escapeHtml(r.appeal.adminResponse || '')}</p>`) : ''}
+                </div>`).join('')}
             </div>` : ''}
         </div>`;
     }).join('');
+}
+
+/* 파트너는 노쇼·상습 갑질 고객을 신고할 수 있지만(submitClientReport), 고객은
+ * 자신이 신고당한 사실조차 알 방법이 없고 소명할 방법도 없었다 — 방금 추가한
+ * partner.strikeAppeal(파트너의 옐로카드 이의신청)과 동일한 제출→심사 패턴을
+ * 반대 방향(고객→관리자)에도 적용한다. */
+function adminApproveClientReportAppeal(reportId) {
+    const report = (window.AppState.clientReports || []).find(r => r.id === reportId);
+    if (!report || !report.appeal || report.appeal.status !== 'pending') return;
+    window.AppState.clientReports = window.AppState.clientReports.filter(r => r.id !== reportId);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_REPORT_APPEAL_APPROVE', `[이의신청 승인] '${report.clientName}' 고객에 대한 [${report.reportedByPartner}]의 신고(${report.orderCode})를 이의신청 승인으로 취하 처리했습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(report.clientPhone, `제출하신 이의신청이 승인되어 신고가 취하되었습니다.`);
+    showToast(`[${report.clientName}] 고객의 이의신청을 승인하여 신고를 취하했습니다.`, 'success');
+    renderAdminClientManager();
+}
+
+function adminRejectClientReportAppeal(reportId, reason) {
+    const report = (window.AppState.clientReports || []).find(r => r.id === reportId);
+    if (!report || !report.appeal || report.appeal.status !== 'pending') return;
+    report.appeal.status = 'rejected';
+    report.appeal.adminResponse = reason;
+    report.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_REPORT_APPEAL_REJECT', `[이의신청 반려] '${report.clientName}' 고객의 신고(${report.orderCode}) 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(report.clientPhone, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast(`[${report.clientName}] 고객의 이의신청을 반려했습니다.`, 'info');
+    renderAdminClientManager();
 }
 
 /* 파트너에는 제명/일시중단/옐로카드 같은 제재 수단이 이미 있는데, 고객 계정에는
@@ -4685,6 +4725,8 @@ window.adminInvalidateBid = adminInvalidateBid;
 window.adminForceCompleteRepairClaim = adminForceCompleteRepairClaim;
 window.adminResolveScheduleChangeRequest = adminResolveScheduleChangeRequest;
 window.adminResolvePriceChangeRequest = adminResolvePriceChangeRequest;
+window.adminApproveClientReportAppeal = adminApproveClientReportAppeal;
+window.adminRejectClientReportAppeal = adminRejectClientReportAppeal;
 window.isClientFavorited = isClientFavorited;
 window.toggleFavoriteClient = toggleFavoriteClient;
 window.requestReviewFromClient = requestReviewFromClient;
