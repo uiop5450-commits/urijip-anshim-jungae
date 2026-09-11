@@ -667,6 +667,54 @@ function updatePartnerNotificationBadge() {
 
 /* 로그인 폼 인라인 에러 — 이전엔 메시지 문구에 ⚠️/❌/⏳ 이모지를 박아 넣었는데,
  * 앱 전체가 lucide 아이콘 체계로 정리된 뒤 이 자리만 남아있던 것을 통일한다. */
+let reapplyTargetPartnerId = null;
+
+function openPartnerReapplyModal() {
+    const partner = (window.AppState.partners || []).find(p => p.id === reapplyTargetPartnerId);
+    if (!partner || partner.status !== 'rejected') { showToast('재신청 대상 계정을 찾을 수 없습니다.', 'warning'); return; }
+    safeUpdateText('partner-reapply-reason-text', partner.rejectReason || '매니저 센터 검토 결과 반려');
+    const fileInput = document.getElementById('partner-reapply-bizcert-input');
+    if (fileInput) fileInput.value = '';
+    safeUpdateValue('partner-reapply-memo', '');
+    openModal('partner-reapply-modal', 'partner-reapply-modal-card');
+}
+
+function closePartnerReapplyModal() {
+    closeModal('partner-reapply-modal', 'partner-reapply-modal-card');
+}
+
+function submitPartnerReapplication() {
+    const partner = (window.AppState.partners || []).find(p => p.id === reapplyTargetPartnerId);
+    if (!partner || partner.status !== 'rejected') { closePartnerReapplyModal(); return; }
+
+    const finalize = () => {
+        partner.status = 'pending';
+        partner.appliedAt = new Date().toLocaleString('ko-KR');
+        const memo = document.getElementById('partner-reapply-memo')?.value.trim();
+        const prevReason = partner.rejectReason;
+        partner.rejectReason = null;
+        if (typeof pushLog === 'function') pushLog('PARTNER', 'REAPPLY', `[${partner.name}](${partner.id})가 입점 재신청했습니다. (이전 반려 사유: ${prevReason || '-'}${memo ? ' | 보완 메모: ' + memo : ''})`, 'INFO');
+        showToast('재신청이 접수되었습니다. 매니저 센터의 재심사 후 결과를 안내드릴게요.', 'success');
+        closePartnerReapplyModal();
+        document.getElementById('partner-reapply-btn')?.classList.add('hidden');
+        document.getElementById('login-error-msg')?.classList.add('hidden');
+        reapplyTargetPartnerId = null;
+        if (typeof renderAdminPartnerApplications === 'function') renderAdminPartnerApplications();
+    };
+
+    const file = document.getElementById('partner-reapply-bizcert-input')?.files[0];
+    if (!file) { finalize(); return; }
+    if (file.size > 15 * 1024 * 1024) { showToast('파일 용량은 15MB 이하로 올려주세요.', 'warning'); return; }
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') { showToast('이미지 또는 PDF 파일만 업로드할 수 있어요.', 'warning'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        partner.bizCertDoc = { name: file.name, uploadedAt: new Date().toLocaleString('ko-KR'), dataUrl: e.target.result };
+        finalize();
+    };
+    reader.onerror = () => showToast('파일을 읽는 중 문제가 발생했습니다. 다시 시도해주세요.', 'error');
+    reader.readAsDataURL(file);
+}
+
 function showInlineLoginError(errorMsg, message, icon = 'alert-triangle') {
     if (!errorMsg) return;
     const iconEl = errorMsg.querySelector('[data-lucide]');
@@ -683,6 +731,7 @@ function validatePartnerLogin() {
     const errorMsg = document.getElementById('login-error-msg');
     if (!idInput || !pwInput) return;
 
+    document.getElementById('partner-reapply-btn')?.classList.add('hidden');
     const partner = window.AppState.partners.find(p => p.id === idInput.value.trim() && p.pw === pwInput.value.trim());
 
     if (partner) {
@@ -699,6 +748,10 @@ function validatePartnerLogin() {
         if (partner.status === 'rejected') {
             showToast(`입점 신청이 반려되었습니다.${partner.rejectReason ? ' 사유: ' + partner.rejectReason : ''}`, "warning");
             showInlineLoginError(errorMsg, "입점 신청이 반려된 계정입니다.", 'x-circle');
+            // 지금까지는 반려되면 영구히 재신청할 방법이 없어서 새 아이디로 재가입해야 했다 —
+            // 로그인 폼에 재신청 버튼을 노출해 같은 계정으로 다시 심사받을 수 있게 한다.
+            reapplyTargetPartnerId = partner.id;
+            document.getElementById('partner-reapply-btn')?.classList.remove('hidden');
             return;
         }
         window.AppState.partnerLoggedIn = true;
@@ -2669,6 +2722,9 @@ window.validateManagerLogin = validateManagerLogin;
 window.managerLogout = managerLogout;
 window.toggleManagerConsoleVisibility = toggleManagerConsoleVisibility;
 window.validatePartnerLogin = validatePartnerLogin;
+window.openPartnerReapplyModal = openPartnerReapplyModal;
+window.closePartnerReapplyModal = closePartnerReapplyModal;
+window.submitPartnerReapplication = submitPartnerReapplication;
 window.partnerLogout = partnerLogout;
 window.submitPartnerBid = submitPartnerBid;
 window.selectOrderForAudit = selectOrderForAudit;
