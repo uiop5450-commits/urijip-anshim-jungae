@@ -1165,6 +1165,50 @@ function togglePartnerFavoriteOrdersFilter() {
     renderPartnerOrderList();
 }
 
+/* 고객은 파트너를 관심 등록할 수 있는데(toggleFavoritePartner, client_panel.js),
+ * 반대로 파트너가 재구매 가능성이 높은 단골/유망 고객을 기억해둘 방법이 없었다 —
+ * favoriteClientCount는 "몇 명이 나를 찜했는지" 집계일 뿐, 파트너 본인이 특정
+ * 고객을 저장하는 기능은 아니었다. clientPhone을 식별자로 저장한다(계정이 없어도
+ * 오더에는 항상 phone이 있음). */
+const MAX_FAVORITE_CLIENTS = 20;
+
+function isClientFavorited(clientPhone) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    return !!(partner && partner.favoriteClients && partner.favoriteClients.some(c => c.phone === clientPhone));
+}
+
+function toggleFavoriteClient(clientPhone, clientName, orderCode) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    if (!partner.favoriteClients) partner.favoriteClients = [];
+    const idx = partner.favoriteClients.findIndex(c => c.phone === clientPhone);
+    if (idx >= 0) { partner.favoriteClients.splice(idx, 1); showToast(`[${clientName}]님을 단골 고객에서 제거했습니다.`, 'info'); }
+    else {
+        if (partner.favoriteClients.length >= MAX_FAVORITE_CLIENTS) { showToast(`단골 고객은 최대 ${MAX_FAVORITE_CLIENTS}명까지 저장할 수 있어요. 기존 항목을 해제한 후 다시 시도해주세요.`, 'warning'); return; }
+        partner.favoriteClients.push({ phone: clientPhone, name: clientName }); showToast(`[${clientName}]님을 단골 고객으로 저장했습니다!`, 'success');
+    }
+    if (orderCode) openPartnerOrderDetailModal(orderCode);
+    if (typeof renderPartnerPerformanceView === 'function' && window.AppState.partnerConsoleMode === 'performance') renderPartnerPerformanceView();
+}
+
+function buildPartnerFavoriteClientsHtml(partner) {
+    const favorites = partner.favoriteClients || [];
+    if (favorites.length === 0) {
+        return `<div class="p-4 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 font-bold">저장된 단골 고객이 없습니다.</div>`;
+    }
+    return favorites.map(c => {
+        const myOrders = (window.AppState.orders || []).filter(o => o.clientPhone === c.phone);
+        const contractedCount = myOrders.filter(o => o.status === 'contracted').length;
+        return `
+        <div class="flex items-center justify-between p-3 bg-ink-50 rounded-xl">
+            <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">${escapeHtml(c.name)}</p><p class="text-[10px] text-ink-500 font-bold">${escapeHtml(c.phone)} · 계약 ${contractedCount}건</p></div>
+            <button type="button" onclick="toggleFavoriteClient('${escapeHtml(c.phone)}', '${escapeHtml(c.name)}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">해제</button>
+        </div>`;
+    }).join('');
+}
+
 function renderPartnerOrderList() {
     const streamList = document.getElementById('partner-order-stream-list');
     const liveOrderBadge = document.getElementById('partner-live-order-badge');
@@ -1739,7 +1783,9 @@ function openPartnerOrderDetailModal(orderCode) {
             <div class="flex justify-between items-start border-b border-ink-100 pb-4">
                 <div class="space-y-1.5">
                     <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot bg-ink-500"></span> 우리집 안심 중개보증</span><span class="text-xs font-mono font-bold text-ink-500 tracking-wider">${order.code}</span>${statusBadge}</div>
-                    <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight">${escapeHtml(order.clientName)} 고객님 (${order.clientPhone})</h3>
+                    <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight flex items-center gap-1.5">${escapeHtml(order.clientName)} 고객님 (${order.clientPhone})
+                        <button type="button" onclick="toggleFavoriteClient('${escapeHtml(order.clientPhone)}', '${escapeHtml(order.clientName)}', '${order.code}')" class="btn btn-ghost btn-sm px-1.5" aria-label="단골 고객으로 저장"><i data-lucide="star" class="w-4 h-4 ${isClientFavorited(order.clientPhone) ? 'text-gold-500' : 'text-ink-300'}" ${isClientFavorited(order.clientPhone) ? 'fill="currentColor"' : ''}></i></button>
+                    </h3>
                     <p class="text-xs text-ink-600 font-bold leading-relaxed max-w-md">${escapeHtml(order.clientAddress)}</p>
                 </div>
                 <button type="button" onclick="closePartnerOrderDetailModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -3207,6 +3253,10 @@ function renderPartnerPerformanceView() {
                 <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="file-check" class="w-4 h-4 text-ink-600"></i> 최근 안심 계약 체결 및 안심 문서 검증 (${contractedCount}건)</h4>
                 <div class="space-y-2">${contractedListHtml}</div>
             </div>
+            <div class="space-y-2.5 pt-2">
+                <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="star" class="w-4 h-4 text-gold-500"></i> 저장한 단골 고객 (${(partner.favoriteClients || []).length}명)</h4>
+                <div class="space-y-2">${buildPartnerFavoriteClientsHtml(partner)}</div>
+            </div>
         </div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -4087,6 +4137,8 @@ window.initPartnerSignatureCanvas = initPartnerSignatureCanvas;
 window.clearPartnerSignatureCanvas = clearPartnerSignatureCanvas;
 window.submitPartnerSignatureCanvas = submitPartnerSignatureCanvas;
 window.adminForceCancelContract = adminForceCancelContract;
+window.isClientFavorited = isClientFavorited;
+window.toggleFavoriteClient = toggleFavoriteClient;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
 window.dismissPortfolioReport = dismissPortfolioReport;
