@@ -838,6 +838,8 @@ function renderPartnerConsolePortfolios() {
                     <div class="flex items-center gap-1">
                         <button type="button" onclick="event.stopPropagation();openPortfolioEditor(${idx})" class="btn btn-ghost btn-sm px-1.5">수정</button>
                         <button type="button" onclick="event.stopPropagation();deletePartnerPortfolio(${idx})" class="btn btn-ghost btn-sm px-1.5 text-roseCustom">삭제</button>
+                        <button type="button" onclick="event.stopPropagation();movePartnerPortfolio(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="btn btn-ghost btn-sm px-1.5" aria-label="위로 이동"><i data-lucide="arrow-up" class="w-3.5 h-3.5"></i></button>
+                        <button type="button" onclick="event.stopPropagation();movePartnerPortfolio(${idx}, 1)" ${idx === partner.portfolios.length - 1 ? 'disabled' : ''} class="btn btn-ghost btn-sm px-1.5" aria-label="아래로 이동"><i data-lucide="arrow-down" class="w-3.5 h-3.5"></i></button>
                     </div>
                     <span class="text-[10px] text-ink-400 font-bold flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i>${item.likes || 0}</span>
                 </div>
@@ -854,6 +856,21 @@ function deletePartnerPortfolio(idx) {
     const removed = partner.portfolios.splice(idx, 1)[0];
     if (removed && typeof pushLog === 'function') pushLog('PARTNER', 'PORTFOLIO', `[${partnerName}]가 포트폴리오 "${removed.title}"를 삭제했습니다.`, 'WARNING');
     showToast('포트폴리오를 삭제했습니다.', 'info');
+    renderPartnerConsolePortfolios();
+    if (typeof renderHeroPortfolioSlider === 'function') renderHeroPortfolioSlider();
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+}
+
+/* 지금까지는 포트폴리오 목록 순서를 바꿀 방법이 없어서, 공개 프로필에 어떤 시공사례를
+ * 먼저 보여줄지 조정하려면 삭제 후 재등록해야 했다 — 본문 이미지 순서 조정
+ * (movePortfolioBodyImage)과 동일한 위/아래 스왑 패턴으로 목록 자체의 순서를 바꾼다. */
+function movePartnerPortfolio(idx, dir) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || !partner.portfolios) return;
+    const targetIdx = idx + dir;
+    if (targetIdx < 0 || targetIdx >= partner.portfolios.length) return;
+    [partner.portfolios[idx], partner.portfolios[targetIdx]] = [partner.portfolios[targetIdx], partner.portfolios[idx]];
     renderPartnerConsolePortfolios();
     if (typeof renderHeroPortfolioSlider === 'function') renderHeroPortfolioSlider();
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
@@ -1365,4 +1382,5 @@ window.portfolioToBodyHtml = portfolioToBodyHtml;
 window.importPortfolioFromUrl = importPortfolioFromUrl;
 window.movePortfolioBodyImage = movePortfolioBodyImage;
 window.deletePartnerPortfolio = deletePartnerPortfolio;
+window.movePartnerPortfolio = movePartnerPortfolio;
 window.handleBlogLikeClick = handleBlogLikeClick;
