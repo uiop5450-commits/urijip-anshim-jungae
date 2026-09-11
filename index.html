@@ -922,9 +922,12 @@
                     <div class="surface surface-lg p-6 space-y-4 text-left">
                         <div class="flex flex-wrap justify-between items-center gap-3 border-b border-ink-100 pb-4">
                             <h4 class="text-sm font-black text-ink-800">업체별 실시간 안심 거래 모니터링 보드</h4>
-                            <div class="relative w-56">
-                                <input type="text" id="admin-partner-search" oninput="renderAdminPartnerMonitor(); toggleSearchClearBtn('admin-partner-search','admin-partner-search-clear')" placeholder="업체명 검색..." class="input w-full pr-8">
-                                <button type="button" id="admin-partner-search-clear" onclick="clearSearchInput('admin-partner-search','admin-partner-search-clear','renderAdminPartnerMonitor')" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-600 bg-transparent border-0 cursor-pointer p-0.5" aria-label="검색어 지우기"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                            <div class="flex items-center gap-2">
+                                <div class="relative w-56">
+                                    <input type="text" id="admin-partner-search" oninput="renderAdminPartnerMonitor(); toggleSearchClearBtn('admin-partner-search','admin-partner-search-clear')" placeholder="업체명 검색..." class="input w-full pr-8">
+                                    <button type="button" id="admin-partner-search-clear" onclick="clearSearchInput('admin-partner-search','admin-partner-search-clear','renderAdminPartnerMonitor')" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-600 bg-transparent border-0 cursor-pointer p-0.5" aria-label="검색어 지우기"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                                </div>
+                                <button type="button" onclick="exportPartnerListToCsv()" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV로 내보내기</button>
                             </div>
                         </div>
                         <div id="admin-partner-status-tabs" class="flex items-center flex-wrap bg-ink-50 p-1 rounded-xl gap-1 border border-ink-100"></div>

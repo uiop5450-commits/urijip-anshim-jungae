@@ -1356,6 +1356,32 @@ function exportLogsToCsv() {
     showToast(`로그 ${logs.length}건을 CSV로 내보냈습니다.`, 'success');
 }
 
+/* 파트너 모니터링 보드는 화면에서 검색만 가능했고, 목록 전체를 엑셀 등으로
+ * 내려받아 오프라인에서 검토·보관할 방법이 없었다 — exportLogsToCsv와 동일한 패턴. */
+function exportPartnerListToCsv() {
+    const partners = window.AppState.partners || [];
+    if (partners.length === 0) { showToast('내보낼 파트너사가 없습니다.', 'warning'); return; }
+
+    const escapeCsvCell = (val) => `"${String(val == null ? '' : val).replace(/"/g, '""')}"`;
+    const header = ['업체명', '사업자번호', '지역', '상태', '옐로카드', '평점'].map(escapeCsvCell).join(',');
+    const rows = partners.map(p => [
+        p.name, p.bizFile || '-', p.region || '-',
+        getPartnerMonitorStatusKey(p) === 'banned' ? '영구 제명' : (getPartnerMonitorStatusKey(p) === 'paused' ? '일시중단' : (getPartnerMonitorStatusKey(p) === 'warning' ? '경고' : '정상')),
+        p.strikeCount || 0, (p.rating || 0).toFixed(1)
+    ].map(escapeCsvCell).join(','));
+    const csv = '﻿' + [header, ...rows].join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `우리집안심중개_파트너목록_${getLocalDateString()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_EXPORT', `[파트너 모니터링] 매니저가 파트너사 ${partners.length}건을 CSV로 내보냄.`, 'INFO');
+    showToast(`파트너사 ${partners.length}건을 CSV로 내보냈습니다.`, 'success');
+}
+
 function recalculateKPIs() {
     let gmv = 0, escrow = 0, revenue = 0;
     const orders = window.AppState.orders || [];
@@ -2562,6 +2588,7 @@ window.renderAdminSupportTickets = renderAdminSupportTickets;
 window.setAdminSupportStatusFilter = setAdminSupportStatusFilter;
 window.setAdminPartnerMonitorStatusFilter = setAdminPartnerMonitorStatusFilter;
 window.exportLogsToCsv = exportLogsToCsv;
+window.exportPartnerListToCsv = exportPartnerListToCsv;
 window.replyToSupportTicket = replyToSupportTicket;
 window.sendAdminBroadcastNotification = sendAdminBroadcastNotification;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
