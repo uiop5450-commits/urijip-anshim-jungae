@@ -2118,7 +2118,8 @@ function renderAdminCommunityModeration() {
                         <div class="flex justify-between items-start gap-2 text-[11px]">
                             <p class="text-ink-600 font-medium leading-relaxed"><b class="text-ink-800">${escapeHtml(r.authorName)}</b> ${escapeHtml(r.text)} ${rReportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${rReportCount}건</span>` : ''}</p>
                             <button type="button" onclick="adminDeleteCommunityReply('${post.id}', ${cIdx}, ${rIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>
-                        </div>`;
+                        </div>
+                        ${buildReportReasonsHtml(r.reportReasons)}`;
                     }).join('')}</div>` : '';
                 const cReportCount = (c.reportedBy || []).length;
                 return `
@@ -2127,6 +2128,7 @@ function renderAdminCommunityModeration() {
                             <p class="text-ink-700 font-medium leading-relaxed"><b class="text-ink-900">${escapeHtml(c.authorName)}</b> ${escapeHtml(c.text)} ${cReportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${cReportCount}건</span>` : ''}</p>
                             <button type="button" onclick="adminDeleteCommunityComment('${post.id}', ${cIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>
                         </div>
+                        ${buildReportReasonsHtml(c.reportReasons)}
                         ${repliesHtml}
                     </div>`;
             }).join('')
@@ -2145,6 +2147,7 @@ function renderAdminCommunityModeration() {
                     </div>
                     <h5 class="text-sm font-black text-ink-950">${escapeHtml(post.title)}</h5>
                     <p class="text-xs text-ink-600 font-medium leading-relaxed line-clamp-2">${escapeHtml(post.content)}</p>
+                    ${buildReportReasonsHtml(post.reportReasons)}
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <button type="button" onclick="toggleCommunityPostPin('${post.id}')" class="btn btn-secondary btn-sm">${post.isPinned ? '고정 해제' : '상단 고정'}</button>
@@ -2221,7 +2224,7 @@ function deleteCommunityPost(postId) {
  * 문제 게시물을 찾을 수 있었다. 신고하면 관리자 목록에서 신고 배지가 뜨고
  * 신고 많은 순으로 정렬되어 우선 검토할 수 있게 된다. 같은 사용자의 중복
  * 신고는 막는다(reportedBy로 추적). */
-function reportCommunityPost(postId) {
+function reportCommunityPost(postId, reason) {
     if (!requireClientLoginForCommunity()) return;
     const auth = window.AppState.clientAuth;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
@@ -2229,7 +2232,8 @@ function reportCommunityPost(postId) {
     if (!post.reportedBy) post.reportedBy = [];
     if (post.reportedBy.includes(auth.id)) { showToast('이미 신고한 게시글입니다.', 'info'); return; }
     post.reportedBy.push(auth.id);
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPORT', `'${auth.name}' 고객님이 게시글(${postId})을 신고했습니다. (누적 신고 ${post.reportedBy.length}건)`, 'WARNING');
+    if (reason) { if (!post.reportReasons) post.reportReasons = []; post.reportReasons.push({ id: auth.id, reason }); }
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPORT', `'${auth.name}' 고객님이 게시글(${postId})을 신고했습니다. (누적 신고 ${post.reportedBy.length}건)${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
     showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
     openCommunityDetail(postId);
 }
@@ -2254,7 +2258,7 @@ function isCommunityCommentReportedByMe(comment) {
     return !!(comment.reportedBy && comment.reportedBy.includes(auth.id));
 }
 
-function reportCommunityComment(postId, commentIndex) {
+function reportCommunityComment(postId, commentIndex, reason) {
     if (!requireClientLoginForCommunity()) return;
     const auth = window.AppState.clientAuth;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
@@ -2263,12 +2267,13 @@ function reportCommunityComment(postId, commentIndex) {
     if (!comment.reportedBy) comment.reportedBy = [];
     if (comment.reportedBy.includes(auth.id)) { showToast('이미 신고한 댓글입니다.', 'info'); return; }
     comment.reportedBy.push(auth.id);
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_COMMENT_REPORT', `'${auth.name}' 고객님이 댓글(작성자: ${comment.authorName})을 신고했습니다.`, 'WARNING');
+    if (reason) { if (!comment.reportReasons) comment.reportReasons = []; comment.reportReasons.push({ id: auth.id, reason }); }
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_COMMENT_REPORT', `'${auth.name}' 고객님이 댓글(작성자: ${comment.authorName})을 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
     showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
     openCommunityDetail(postId);
 }
 
-function reportCommunityReply(postId, commentIndex, replyIndex) {
+function reportCommunityReply(postId, commentIndex, replyIndex, reason) {
     if (!requireClientLoginForCommunity()) return;
     const auth = window.AppState.clientAuth;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
@@ -2278,7 +2283,8 @@ function reportCommunityReply(postId, commentIndex, replyIndex) {
     if (!reply.reportedBy) reply.reportedBy = [];
     if (reply.reportedBy.includes(auth.id)) { showToast('이미 신고한 답글입니다.', 'info'); return; }
     reply.reportedBy.push(auth.id);
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPLY_REPORT', `'${auth.name}' 고객님이 답글(작성자: ${reply.authorName})을 신고했습니다.`, 'WARNING');
+    if (reason) { if (!reply.reportReasons) reply.reportReasons = []; reply.reportReasons.push({ id: auth.id, reason }); }
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPLY_REPORT', `'${auth.name}' 고객님이 답글(작성자: ${reply.authorName})을 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
     showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
     openCommunityDetail(postId);
 }
@@ -2326,7 +2332,7 @@ function openCommunityDetail(postId) {
                                 ${myId && r.authorId === myId ? `
                                 <button type="button" onclick="toggleReplyEdit('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">${isReplyEditing ? '취소' : '수정'}</button>
                                 <button type="button" onclick="deleteCommunityReply('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (myId && r.authorId !== myId ? `
-                                <button type="button" onclick="reportCommunityReply('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${isCommunityCommentReportedByMe(r) ? '신고됨' : '신고'}</button>` : '')}
+                                <button type="button" onclick="${isCommunityCommentReportedByMe(r) ? `showToast('이미 신고한 답글입니다.', 'info')` : `openReportReasonPrompt((reason) => reportCommunityReply('${post.id}', ${idx}, ${rIdx}, reason))`}" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${isCommunityCommentReportedByMe(r) ? '신고됨' : '신고'}</button>` : '')}
                             </div>
                         </div>
                         ${isReplyEditing
@@ -2362,7 +2368,7 @@ function openCommunityDetail(postId) {
                     ${myId && c.authorId === myId ? `
                     <button type="button" onclick="toggleCommentEdit('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">${isCommentEditing ? '취소' : '수정'}</button>
                     <button type="button" onclick="deleteCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (myId && c.authorId !== myId ? `
-                    <button type="button" onclick="reportCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${isCommunityCommentReportedByMe(c) ? '신고됨' : '신고'}</button>` : '')}
+                    <button type="button" onclick="${isCommunityCommentReportedByMe(c) ? `showToast('이미 신고한 댓글입니다.', 'info')` : `openReportReasonPrompt((reason) => reportCommunityComment('${post.id}', ${idx}, reason))`}" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${isCommunityCommentReportedByMe(c) ? '신고됨' : '신고'}</button>` : '')}
                 </div>
                 ${repliesHtml}
                 ${replyBoxHtml}
@@ -2386,7 +2392,7 @@ function openCommunityDetail(postId) {
                         </div>` : (myId ? `
                         <div class="flex items-center gap-2.5 shrink-0">
                             <button type="button" onclick="toggleBlockCommunityUser('${escapeHtml(post.authorId)}', '${escapeHtml(post.authorName)}', '${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"><i data-lucide="user-x" class="w-3 h-3"></i> ${isCommunityUserBlockedByMe(post.authorId) ? '차단 해제' : '작성자 차단'}</button>
-                            <button type="button" onclick="reportCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"><i data-lucide="flag" class="w-3 h-3"></i> ${(post.reportedBy || []).includes(myId) ? '신고 완료' : '신고'}</button>
+                            <button type="button" onclick="${(post.reportedBy || []).includes(myId) ? `showToast('이미 신고한 게시글입니다.', 'info')` : `openReportReasonPrompt((reason) => reportCommunityPost('${post.id}', reason))`}" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"><i data-lucide="flag" class="w-3 h-3"></i> ${(post.reportedBy || []).includes(myId) ? '신고 완료' : '신고'}</button>
                         </div>` : '')}
                 </div>
                 <h3 class="text-lg font-black text-ink-950">${escapeHtml(post.title)}</h3>

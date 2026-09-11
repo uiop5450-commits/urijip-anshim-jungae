@@ -2672,6 +2672,7 @@ function buildAdminReviewModerationHtml(partner) {
                 <button type="button" onclick="adminDeleteReview('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
             </div>
             <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(r.text)}</p>
+            ${buildReportReasonsHtml(r.reportReasons)}
         </div>`).join('');
 }
 
@@ -2698,6 +2699,7 @@ function buildAdminPortfolioModerationHtml(partner) {
                 <button type="button" onclick="adminDeletePortfolio('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
             </div>
             <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(p.desc || '')}</p>
+            ${buildReportReasonsHtml(p.reportReasons)}
         </div>`).join('');
 }
 

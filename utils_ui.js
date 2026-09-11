@@ -132,10 +132,43 @@ function pushClientNotification(clientPhone, message) {
     if (typeof renderClientMyPage === 'function') renderClientMyPage();
 }
 
+/* 후기/시공사례/커뮤니티 글·댓글·답글 신고가 전부 원클릭·사유 없이 처리되어,
+ * 관리자는 신고 "건수"만 보고 정작 "왜" 신고됐는지 전혀 알 수 없었다 — 신고 사유를
+ * 입력받는 모달 하나를 여러 신고 지점이 공유하고, 제출 시 등록해둔 콜백을 사유와
+ * 함께 실행한다(콜백 쪽에서 실제 reportXxx 함수를 사유와 함께 호출). */
+let _reportReasonPendingCallback = null;
+
+function openReportReasonPrompt(onSubmit) {
+    _reportReasonPendingCallback = onSubmit;
+    if (typeof safeUpdateValue === 'function') safeUpdateValue('report-reason-input', '');
+    if (typeof openModal === 'function') openModal('report-reason-modal', 'report-reason-modal-card');
+}
+
+function closeReportReasonPrompt() {
+    _reportReasonPendingCallback = null;
+    if (typeof closeModal === 'function') closeModal('report-reason-modal', 'report-reason-modal-card');
+}
+
+function submitReportReasonPrompt() {
+    const reason = document.getElementById('report-reason-input')?.value.trim();
+    if (!reason) { showToast('신고 사유를 입력해 주세요.', 'warning'); return; }
+    const callback = _reportReasonPendingCallback;
+    closeReportReasonPrompt();
+    if (typeof callback === 'function') callback(reason);
+}
+
 /* 후기/시공사례/커뮤니티 글·댓글·답글을 신고해도(reportReview/reportPortfolio/
  * reportCommunityPost 등, 모두 clientAuth.id를 reportedBy 배열에 쌓는 동일 패턴)
  * 관리자가 실제로 조치했는지 신고자는 전혀 알 방법이 없었다 — 신고 처리(삭제) 시점에
  * reportedBy에 쌓인 신고자 전원에게 한 번에 알린다. */
+/* reportReasons([{id, reason}, ...])를 관리자 모더레이션 목록에서 공통으로 보여주는
+ * 작은 마크업 조각. 사유를 남기지 않은(구버전) 신고는 그냥 건수만 표시되므로 빈
+ * 배열/undefined면 아무것도 렌더링하지 않는다. */
+function buildReportReasonsHtml(reportReasons) {
+    if (!reportReasons || reportReasons.length === 0) return '';
+    return `<div class="mt-1.5 space-y-1">${reportReasons.map(r => `<p class="text-[10px] text-roseCustom font-semibold leading-relaxed">· ${escapeHtml(r.reason)}</p>`).join('')}</div>`;
+}
+
 function notifyReportResolved(reportedByIds, message) {
     if (!reportedByIds || reportedByIds.length === 0 || typeof pushClientNotification !== 'function') return;
     (window.AppState.clientAccounts || []).forEach(acc => {
@@ -317,6 +350,10 @@ window.clearSearchInput = clearSearchInput;
 window.pushClientNotification = pushClientNotification;
 window.pushPartnerNotification = pushPartnerNotification;
 window.notifyReportResolved = notifyReportResolved;
+window.buildReportReasonsHtml = buildReportReasonsHtml;
+window.openReportReasonPrompt = openReportReasonPrompt;
+window.closeReportReasonPrompt = closeReportReasonPrompt;
+window.submitReportReasonPrompt = submitReportReasonPrompt;
 window.showComingSoon = showComingSoon;
 window.openFooterInfoModal = openFooterInfoModal;
 window.closeFooterInfoModal = closeFooterInfoModal;

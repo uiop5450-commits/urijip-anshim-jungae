@@ -1114,7 +1114,7 @@ function openClientPartnerProfile(partnerName) {
                         <span class="text-ink-400">작성일: ${rev.date}</span>
                         <div class="flex items-center gap-3">
                             <button type="button" onclick="event.stopPropagation(); toggleReviewHelpful('${partner.name}', ${revIdx})" class="flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 ${isReviewHelpfulByMe(rev) ? 'text-brand-600' : 'text-ink-400 hover:text-ink-700'}"><i data-lucide="thumbs-up" class="w-3 h-3"></i> 도움돼요 ${(rev.helpfulBy || []).length}</button>
-                            <button type="button" onclick="event.stopPropagation(); reportReview('${partner.name}', ${revIdx})" class="flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 text-ink-400 hover:text-roseCustom"><i data-lucide="flag" class="w-3 h-3"></i> ${isReviewReportedByMe(rev) ? '신고 완료' : '신고'}</button>
+                            <button type="button" onclick="event.stopPropagation(); ${isReviewReportedByMe(rev) ? `showToast('이미 신고한 후기입니다.', 'info')` : `openReportReasonPrompt((reason) => reportReview('${partner.name}', ${revIdx}, reason))`}" class="flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 text-ink-400 hover:text-roseCustom"><i data-lucide="flag" class="w-3 h-3"></i> ${isReviewReportedByMe(rev) ? '신고 완료' : '신고'}</button>
                             <span class="text-ink-800 font-extrabold group-hover:underline">자세히 보기 →</span>
                         </div>
                     </div>`;
@@ -1180,7 +1180,7 @@ function openReviewDetailModal(partnerName, reviewIdx) {
     const reportBtn = document.getElementById('review-detail-report-btn');
     if (reportBtn) {
         const reported = isReviewReportedByMe(rev);
-        reportBtn.onclick = () => { reportReview(partnerName, reviewIdx); openReviewDetailModal(partnerName, reviewIdx); };
+        reportBtn.onclick = () => { openReportReasonPrompt((reason) => { reportReview(partnerName, reviewIdx, reason); openReviewDetailModal(partnerName, reviewIdx); }); };
         reportBtn.disabled = reported;
     }
     safeUpdateText('review-detail-report-label', isReviewReportedByMe(rev) ? '신고 완료' : '신고');
@@ -1222,7 +1222,7 @@ function isReviewReportedByMe(rev) {
     return !!(rev.reportedBy && rev.reportedBy.includes(auth.id));
 }
 
-function reportReview(partnerName, reviewIdx) {
+function reportReview(partnerName, reviewIdx, reason) {
     const auth = window.AppState.clientAuth;
     if (!auth || !auth.loggedIn) { showToast('로그인 후 이용할 수 있어요.', 'warning'); return; }
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -1231,7 +1231,8 @@ function reportReview(partnerName, reviewIdx) {
     if (!rev.reportedBy) rev.reportedBy = [];
     if (rev.reportedBy.includes(auth.id)) { showToast('이미 신고한 후기입니다.', 'info'); return; }
     rev.reportedBy.push(auth.id);
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW_REPORT', `'${auth.name}' 고객님이 [${partnerName}] 파트너의 후기를 신고했습니다.`, 'WARNING');
+    if (reason) { if (!rev.reportReasons) rev.reportReasons = []; rev.reportReasons.push({ id: auth.id, reason }); }
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW_REPORT', `'${auth.name}' 고객님이 [${partnerName}] 파트너의 후기를 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
     showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
     if (typeof window.openClientPartnerProfile === 'function' && !document.getElementById('client-partner-profile-modal')?.classList.contains('hidden')) {
         window.openClientPartnerProfile(partnerName);
@@ -1247,7 +1248,7 @@ function isPortfolioReportedByMe(port) {
     return !!(port.reportedBy && port.reportedBy.includes(auth.id));
 }
 
-function reportPortfolio() {
+function reportPortfolio(reason) {
     const auth = window.AppState.clientAuth;
     if (!auth || !auth.loggedIn) { showToast('로그인 후 이용할 수 있어요.', 'warning'); return; }
     const { partnerName, idx } = _blogDetailContext;
@@ -1257,7 +1258,8 @@ function reportPortfolio() {
     if (!port.reportedBy) port.reportedBy = [];
     if (port.reportedBy.includes(auth.id)) { showToast('이미 신고한 시공사례입니다.', 'info'); return; }
     port.reportedBy.push(auth.id);
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'PORTFOLIO_REPORT', `'${auth.name}' 고객님이 [${partnerName}]의 시공사례(${port.title || '-'})를 신고했습니다.`, 'WARNING');
+    if (reason) { if (!port.reportReasons) port.reportReasons = []; port.reportReasons.push({ id: auth.id, reason }); }
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PORTFOLIO_REPORT', `'${auth.name}' 고객님이 [${partnerName}]의 시공사례(${port.title || '-'})를 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
     showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
     const reportBtn = document.getElementById('blog-modal-report-btn');
     if (reportBtn) { reportBtn.classList.add('text-roseCustom'); reportBtn.title = '신고 완료'; }

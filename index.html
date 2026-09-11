@@ -1281,7 +1281,7 @@
             <div class="p-4 sm:p-5 border-t border-ink-100 shrink-0 bg-white flex flex-wrap items-center justify-center gap-3">
                 <button type="button" id="blog-modal-like-btn" onclick="handleBlogLikeClick()" class="blog-like-btn shrink-0"><i data-lucide="heart" class="w-3.5 h-3.5"></i> 좋아요 <span id="blog-modal-like-count">0</span></button>
                 <button type="button" id="blog-modal-cta-btn" class="btn btn-dark btn-lg flex-1 max-w-md">이 파트너와 1:1 상담 신청하기</button>
-                <button type="button" id="blog-modal-report-btn" onclick="reportPortfolio()" class="btn btn-ghost btn-sm shrink-0 px-2" aria-label="시공사례 신고"><i data-lucide="flag" class="w-3.5 h-3.5"></i></button>
+                <button type="button" id="blog-modal-report-btn" onclick="openReportReasonPrompt(reportPortfolio)" class="btn btn-ghost btn-sm shrink-0 px-2" aria-label="시공사례 신고"><i data-lucide="flag" class="w-3.5 h-3.5"></i></button>
             </div>
         </div>
     </div>
@@ -1416,6 +1416,20 @@
             </div>
             <div id="footer-info-modal-body" class="text-xs text-ink-600 font-medium leading-relaxed whitespace-pre-line max-h-[60vh] overflow-y-auto custom-scroll pr-1"></div>
             <div class="pt-2 border-t border-ink-100"><button type="button" onclick="closeFooterInfoModal()" class="btn btn-dark btn-block">확인</button></div>
+        </div>
+    </div>
+
+    <div id="report-reason-modal" class="hidden modal-overlay" style="z-index:230">
+        <div id="report-reason-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">신고</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">신고 사유를 알려주세요</h3></div>
+                <button type="button" onclick="closeReportReasonPrompt()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">어떤 부분이 문제인지 적어주시면 매니저 센터가 더 정확하게 검토할 수 있어요.</p>
+                <textarea id="report-reason-input" rows="4" placeholder="신고 사유를 입력해 주세요." class="textarea"></textarea>
+                <button type="button" onclick="submitReportReasonPrompt()" class="btn btn-primary btn-block">신고 제출</button>
+            </div>
         </div>
     </div>
 
