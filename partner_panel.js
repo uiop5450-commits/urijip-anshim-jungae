@@ -533,6 +533,7 @@ function validateManagerLogin() {
         return;
     }
 
+    if (typeof sweepExpiredManagerRoles === 'function') sweepExpiredManagerRoles();
     const account = (window.AppState.clientAccounts || []).find(a => a.id === idVal && a.pw === pwVal);
     if (!account || !account.managerRole) {
         showInlineLoginError(errorMsg, "매니저 권한이 없는 계정이거나 아이디·비밀번호가 일치하지 않습니다.");
@@ -2670,11 +2671,28 @@ function rejectPartnerApplication(partnerId) {
  * 매니저 권한(super_admin/partner_manager)을 부여하거나 회수한다.
  * ---------------------------------------------------------------- */
 function renderAdminStaffManager() {
+    if (typeof sweepExpiredManagerRoles === 'function') sweepExpiredManagerRoles();
     const resultEl = document.getElementById('admin-staff-search-result');
     if (resultEl) resultEl.innerHTML = '';
     const input = document.getElementById('admin-staff-search-input');
     if (input) input.value = '';
     renderAdminStaffGrantedList();
+}
+
+/* 부여한 매니저 권한이 기본적으로 영원히 유지돼서, 한시적으로 파견 나온 직원 등에게
+ * 임시 권한을 주고 회수를 깜빡하면 그대로 영구 권한이 되어버리는 위험이 있었다 —
+ * 만료일을 지정할 수 있게 하고, 지난 만료일은 화면을 그릴 때/로그인 시 자동으로
+ * 회수한다(삼진아웃 등 다른 상태 체크와 동일하게 접근 시점에 검사하는 패턴). */
+function sweepExpiredManagerRoles() {
+    const today = getLocalDateString();
+    (window.AppState.clientAccounts || []).forEach(a => {
+        if (a.managerRole && a.managerRoleExpiresAt && a.managerRoleExpiresAt < today) {
+            const roleLabel = a.managerRole === 'super_admin' ? '최고관리자' : '파트너 매니저';
+            if (typeof pushLog === 'function') pushLog('MANAGER', 'STAFF_EXPIRE', `'${a.name}'(${a.id})의 ${roleLabel} 권한이 만료일(${a.managerRoleExpiresAt})을 지나 자동 회수되었습니다.`, 'WARNING');
+            a.managerRole = null;
+            a.managerRoleExpiresAt = null;
+        }
+    });
 }
 
 function searchClientForManagerGrant() {
@@ -2695,9 +2713,10 @@ function searchClientForManagerGrant() {
         <div class="surface-flat p-4 flex flex-wrap items-center justify-between gap-3">
             <div class="space-y-0.5">
                 <p class="text-sm font-black text-ink-950">${escapeHtml(account.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(account.id)})</span></p>
-                <p class="text-[11px] text-ink-500 font-bold">연락처 ${account.phone || '-'} · 현재 권한: <b>${roleLabel}</b></p>
+                <p class="text-[11px] text-ink-500 font-bold">연락처 ${account.phone || '-'} · 현재 권한: <b>${roleLabel}</b>${account.managerRoleExpiresAt ? ` (만료일: ${account.managerRoleExpiresAt})` : ''}</p>
             </div>
             <div class="flex items-center gap-1.5 flex-wrap">
+                <input type="date" id="staff-grant-expiry-${account.id}" class="input input-sm w-auto" title="만료일 (선택, 비워두면 상시 권한)">
                 <button type="button" onclick="grantManagerRole('${account.id}', 'partner_manager')" class="btn btn-secondary btn-sm">파트너 매니저 부여</button>
                 <button type="button" onclick="grantManagerRole('${account.id}', 'super_admin')" class="btn btn-dark btn-sm">최고관리자 부여</button>
                 ${account.managerRole ? `<button type="button" onclick="revokeManagerRole('${account.id}')" class="btn btn-secondary btn-sm">권한 회수</button>` : ''}
@@ -2708,10 +2727,14 @@ function searchClientForManagerGrant() {
 function grantManagerRole(clientId, role) {
     const account = (window.AppState.clientAccounts || []).find(a => a.id === clientId);
     if (!account) return;
+    const expiryInput = document.getElementById(`staff-grant-expiry-${clientId}`);
+    const expiresAt = expiryInput ? expiryInput.value : '';
+    if (expiresAt && expiresAt < getLocalDateString()) { showToast('만료일은 오늘 이후 날짜로 설정해 주세요.', 'warning'); return; }
     account.managerRole = role;
+    account.managerRoleExpiresAt = expiresAt || null;
     const roleLabel = role === 'super_admin' ? '최고관리자' : '파트너 매니저';
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'STAFF_GRANT', `'${account.name}'(${account.id}) 계정에 ${roleLabel} 권한을 부여했습니다.`, 'SUCCESS');
-    showToast(`[${account.name}]님에게 ${roleLabel} 권한을 부여했습니다.`, 'success');
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'STAFF_GRANT', `'${account.name}'(${account.id}) 계정에 ${roleLabel} 권한을 부여했습니다.${expiresAt ? ` (만료일: ${expiresAt})` : ' (상시 권한)'}`, 'SUCCESS');
+    showToast(`[${account.name}]님에게 ${roleLabel} 권한을 부여했습니다.${expiresAt ? ` (${expiresAt}까지)` : ''}`, 'success');
     searchClientForManagerGrant();
     renderAdminStaffGrantedList();
 }
@@ -2720,6 +2743,7 @@ function revokeManagerRole(clientId) {
     const account = (window.AppState.clientAccounts || []).find(a => a.id === clientId);
     if (!account) return;
     account.managerRole = null;
+    account.managerRoleExpiresAt = null;
     if (typeof pushLog === 'function') pushLog('MANAGER', 'STAFF_REVOKE', `'${account.name}'(${account.id}) 계정의 매니저 권한을 회수했습니다.`, 'WARNING');
     showToast(`[${account.name}]님의 매니저 권한을 회수했습니다.`, 'info');
     searchClientForManagerGrant();
@@ -2739,7 +2763,10 @@ function renderAdminStaffGrantedList() {
         <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl">
             <div class="space-y-0.5">
                 <p class="text-xs font-black text-ink-900">${escapeHtml(a.name)} <span class="text-ink-400 font-bold">(${escapeHtml(a.id)})</span></p>
-                <span class="badge ${a.managerRole === 'super_admin' ? 'badge-brand' : 'badge-neutral'}">${a.managerRole === 'super_admin' ? '최고관리자' : '파트너 매니저'}</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="badge ${a.managerRole === 'super_admin' ? 'badge-brand' : 'badge-neutral'}">${a.managerRole === 'super_admin' ? '최고관리자' : '파트너 매니저'}</span>
+                    ${a.managerRoleExpiresAt ? `<span class="badge badge-amber">만료일 ${a.managerRoleExpiresAt}</span>` : `<span class="badge badge-neutral">상시</span>`}
+                </div>
             </div>
             <button type="button" onclick="revokeManagerRole('${a.id}')" class="btn btn-secondary btn-sm">권한 회수</button>
         </div>`).join('');
