@@ -1723,6 +1723,17 @@ function renderMyPageEstimateDetails(order) {
                     </div>`;
             }).join('')}
         </div>
+        ${order.clientSigned
+            ? `<div class="p-3.5 surface-flat flex items-center justify-between mt-3"><span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="pen-tool" class="w-3.5 h-3.5 text-emeraldCustom"></i> 시공 계약 합의서 서명 완료</span><span class="text-[10px] text-ink-400 font-bold">${order.signedDate}</span></div>`
+            : `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
+                <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="pen-tool" class="w-3.5 h-3.5 text-brand-500"></i> 시공 계약 합의서 서명</span>
+                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">아래 서명란에 손가락이나 마우스로 서명해 주세요.</p>
+                <canvas id="signature-canvas-${order.code}" width="400" height="140" class="w-full rounded-xl border border-dashed border-ink-200 bg-white" style="touch-action:none; cursor:crosshair;"></canvas>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="clearSignatureCanvas('${order.code}')" class="btn btn-secondary btn-sm flex-1">지우기</button>
+                    <button type="button" onclick="submitSignatureCanvas('${order.code}')" class="btn btn-dark btn-sm flex-1">서명 완료</button>
+                </div>
+            </div>`}
         <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>
         ${isPartnerReportedByMeForOrder(order.code)
             ? `<div class="mt-2 text-center"><span class="badge badge-neutral">계약 파트너사 신고 접수됨</span></div>`
@@ -1768,6 +1779,7 @@ function renderMyPageEstimateDetails(order) {
         </div>`;
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (order.status === 'contracted' && !order.clientSigned) initSignatureCanvas(order.code);
 }
 
 /* "매칭취소"로 뺀 자리를 새 파트너사로 다시 채운다 — 예전엔 토스트만 띄우고 실제로는
@@ -2023,8 +2035,79 @@ function deleteMyClientReview(orderCode) {
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
 }
 
-function clearSignatureCanvas() {}
-function submitSignatureCanvas() {}
+/* "안심 계약" 문구가 계약서 등록·서명을 계속 언급하지만(renderMyPageEstimateDetails의
+ * contractDocsHtml 문구, clientFinalizeContract의 안내문 등), 실제 서명 기능은
+ * clearSignatureCanvas/submitSignatureCanvas가 빈 스텁이고 서명판 UI 자체가 없어서
+ * "서명"을 눌러도 아무 일도 일어나지 않았다 — 캔버스에 실제로 그림을 그려 저장하는
+ * 최소한의 전자서명을 구현한다. */
+const _signaturePads = {};
+
+function initSignatureCanvas(orderCode) {
+    const canvas = document.getElementById(`signature-canvas-${orderCode}`);
+    if (!canvas || canvas.dataset.initialized) return;
+    canvas.dataset.initialized = 'true';
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    _signaturePads[orderCode] = { hasInk: false };
+
+    let drawing = false;
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const point = e.touches ? e.touches[0] : e;
+        return {
+            x: (point.clientX - rect.left) * (canvas.width / rect.width),
+            y: (point.clientY - rect.top) * (canvas.height / rect.height)
+        };
+    };
+    const start = (e) => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+    const move = (e) => {
+        if (!drawing) return;
+        e.preventDefault();
+        const p = getPos(e);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        _signaturePads[orderCode].hasInk = true;
+    };
+    const end = (e) => { drawing = false; };
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup', end);
+    canvas.addEventListener('mouseleave', end);
+    canvas.addEventListener('touchstart', start);
+    canvas.addEventListener('touchmove', move);
+    canvas.addEventListener('touchend', end);
+}
+
+function clearSignatureCanvas(orderCode) {
+    const canvas = document.getElementById(`signature-canvas-${orderCode}`);
+    if (!canvas) return;
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    if (_signaturePads[orderCode]) _signaturePads[orderCode].hasInk = false;
+}
+
+function submitSignatureCanvas(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'contracted') return;
+    const canvas = document.getElementById(`signature-canvas-${orderCode}`);
+    if (!canvas || !_signaturePads[orderCode] || !_signaturePads[orderCode].hasInk) {
+        showToast('서명란에 서명을 먼저 입력해 주세요.', 'warning');
+        return;
+    }
+
+    order.clientSigned = true;
+    order.signedDate = getLocalDateString();
+    order.signatureImage = canvas.toDataURL('image/png');
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'CONTRACT_SIGN', `${maskName(order.clientName)} 고객님이 계약(${order.code}) 합의서에 전자서명을 완료했습니다.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 계약(${order.code}) 합의서에 서명을 완료했어요.`);
+    showToast('서명이 완료되었습니다.', 'success');
+    renderClientMyPage();
+    selectMyPageEstimate(orderCode);
+}
 
 /* ----------------------------------------------------------------
  * 커뮤니티 — 인테리어 팁 공유 / 자유 이야기 / Q&A 게시판
