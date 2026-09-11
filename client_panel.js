@@ -946,18 +946,27 @@ function renderClientMyPageNotifications(myNotifications) {
         const dateLabel = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         const isLast = idx === myNotifications.length - 1;
         return `
-        <div class="notif-tl-item">
+        <div class="notif-tl-item ${n.read ? '' : 'cursor-pointer'}" ${n.read ? '' : `onclick="markClientNotificationRead('${n.id}')"`}>
             <div class="notif-tl-marker">
                 <span class="notif-tl-dot ${n.read ? 'read' : ''}"><i data-lucide="bell" class="w-3 h-3"></i></span>
                 ${isLast ? '' : '<span class="notif-tl-line"></span>'}
             </div>
             <div class="notif-tl-body ${isLast ? '' : 'has-line'}">
                 <p class="text-xs font-bold text-ink-800 leading-relaxed">${escapeHtml(n.message)}</p>
-                <p class="text-[10px] text-ink-400 font-bold mt-0.5">${dateLabel}</p>
+                <p class="text-[10px] text-ink-400 font-bold mt-0.5">${dateLabel}${n.read ? '' : ' · <span class="text-brand-600">탭하여 읽음 처리</span>'}</p>
             </div>
         </div>`;
     }).join('') + `</div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 지금까지는 알림 전체를 한 번에 읽음 처리하는 방법만 있어서, 여러 알림 중
+ * 특정 하나만 확인했는지 구분할 수 없었다 — 항목별로 개별 읽음 처리를 추가한다. */
+function markClientNotificationRead(notifId) {
+    const notif = (window.AppState.clientNotifications || []).find(n => n.id === notifId);
+    if (!notif || notif.read) return;
+    notif.read = true;
+    renderClientMyPage();
 }
 
 function markAllClientNotificationsRead() {
@@ -2102,6 +2111,7 @@ window.toggleFavoritePartner = toggleFavoritePartner;
 window.renderClientFavoritePartners = renderClientFavoritePartners;
 window.renderClientMyPageNotifications = renderClientMyPageNotifications;
 window.markAllClientNotificationsRead = markAllClientNotificationsRead;
+window.markClientNotificationRead = markClientNotificationRead;
 window.renderClientAccountSettings = renderClientAccountSettings;
 window.updateClientProfileInfo = updateClientProfileInfo;
 window.updateClientPassword = updateClientPassword;

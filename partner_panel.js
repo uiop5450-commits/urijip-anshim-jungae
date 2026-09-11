@@ -638,14 +638,14 @@ function renderPartnerNotifications() {
         const dateLabel = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         const isLast = idx === myNotifications.length - 1;
         return `
-        <div class="notif-tl-item">
+        <div class="notif-tl-item ${n.read ? '' : 'cursor-pointer'}" ${n.read ? '' : `onclick="markPartnerNotificationRead('${n.id}')"`}>
             <div class="notif-tl-marker">
                 <span class="notif-tl-dot ${n.read ? 'read' : ''}"><i data-lucide="bell" class="w-3 h-3"></i></span>
                 ${isLast ? '' : '<span class="notif-tl-line"></span>'}
             </div>
             <div class="notif-tl-body ${isLast ? '' : 'has-line'}">
                 <p class="text-xs font-bold text-ink-800 leading-relaxed">${escapeHtml(n.message)}</p>
-                <p class="text-[10px] text-ink-400 font-bold mt-0.5">${dateLabel}</p>
+                <p class="text-[10px] text-ink-400 font-bold mt-0.5">${dateLabel}${n.read ? '' : ' · <span class="text-brand-600">탭하여 읽음 처리</span>'}</p>
             </div>
         </div>`;
     }).join('') + `</div>`;
@@ -655,6 +655,16 @@ function renderPartnerNotifications() {
 function markAllPartnerNotificationsRead() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     (window.AppState.partnerNotifications || []).forEach(n => { if (n.partnerName === partnerName) n.read = true; });
+    renderPartnerNotifications();
+    updatePartnerNotificationBadge();
+}
+
+/* 고객측(markClientNotificationRead)과 동일하게, 알림 하나만 확인했는지 구분할
+ * 방법이 없어서 전체 읽음 처리만 가능했던 공백을 해소한다. */
+function markPartnerNotificationRead(notifId) {
+    const notif = (window.AppState.partnerNotifications || []).find(n => n.id === notifId);
+    if (!notif || notif.read) return;
+    notif.read = true;
     renderPartnerNotifications();
     updatePartnerNotificationBadge();
 }
@@ -2849,6 +2859,7 @@ window.selectOrderForAudit = selectOrderForAudit;
 window.togglePartnerConsoleVisibility = togglePartnerConsoleVisibility;
 window.renderPartnerNotifications = renderPartnerNotifications;
 window.markAllPartnerNotificationsRead = markAllPartnerNotificationsRead;
+window.markPartnerNotificationRead = markPartnerNotificationRead;
 window.updatePartnerNotificationBadge = updatePartnerNotificationBadge;
 window.renderPartnerOrderList = renderPartnerOrderList;
 window.renderPartnerContractsView = renderPartnerContractsView;
