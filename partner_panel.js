@@ -1516,7 +1516,7 @@ function exportClientListToCsv() {
         const myOrders = (window.AppState.orders || []).filter(o => o.clientPhone === acc.phone);
         const contractedCount = myOrders.filter(o => o.status === 'contracted').length;
         const reviewCount = myOrders.filter(o => o.reviewWritten).length;
-        return [acc.name, acc.id, acc.phone || '-', myOrders.length, contractedCount, reviewCount, acc.isSuspended ? '이용 정지' : '정상'].map(escapeCsvCell).join(',');
+        return [acc.name, acc.id, acc.phone || '-', myOrders.length, contractedCount, reviewCount, acc.status === 'withdrawn' ? '탈퇴함' : acc.isSuspended ? '이용 정지' : '정상'].map(escapeCsvCell).join(',');
     });
     const csv = '﻿' + [header, ...rows].join('\r\n');
 
@@ -1695,7 +1695,7 @@ function sendAdminBroadcastNotification() {
     } else {
         const clients = window.AppState.clientAccounts || [];
         clients.forEach(acc => {
-            if (!acc.phone) return;
+            if (!acc.phone || acc.status === 'withdrawn') return;
             window.AppState.clientNotifications.unshift({ id: `ntf-${Date.now()}-${Math.floor(Math.random() * 100000)}`, clientPhone: acc.phone, message: noticeText, date: nowIso, read: false });
             recipientCount++;
         });
@@ -1739,7 +1739,7 @@ function renderAdminClientManager() {
             <div class="space-y-0.5 min-w-0">
                 <div class="flex items-center gap-1.5">
                     <p class="text-sm font-black text-ink-950">${escapeHtml(acc.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(acc.id)})</span></p>
-                    ${acc.isSuspended ? '<span class="badge badge-rose">이용 정지</span>' : ''}
+                    ${acc.status === 'withdrawn' ? '<span class="badge badge-neutral">탈퇴함</span>' : acc.isSuspended ? '<span class="badge badge-rose">이용 정지</span>' : ''}
                 </div>
                 <p class="text-[11px] text-ink-500 font-bold">연락처 ${escapeHtml(acc.phone || '-')}</p>
             </div>

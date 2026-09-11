@@ -596,6 +596,7 @@ function loginClientWithId() {
     const account = window.AppState.clientAccounts.find(acc => acc.id === idVal && acc.pw === pwVal);
     if (!account) { showToast("아이디 또는 비밀번호가 일치하지 않습니다.", "warning"); return; }
     if (account.isSuspended) { showToast("이용이 정지된 계정입니다. 고객센터로 문의해 주세요.", "warning"); return; }
+    if (account.status === 'withdrawn') { showToast("탈퇴한 계정입니다. 새로 가입 후 이용해 주세요.", "warning"); return; }
 
     const auth = window.AppState.clientAuth;
     auth.loggedIn = true; auth.id = account.id; auth.name = account.name; auth.phone = account.phone;
@@ -1026,6 +1027,38 @@ function updateClientPassword() {
     if (typeof pushLog === 'function') pushLog('CLIENT', 'PASSWORD_CHANGE', `'${auth.id}' 고객님이 비밀번호를 변경했습니다.`, 'INFO');
     showToast('비밀번호가 변경되었습니다.', 'success');
     renderClientAccountSettings();
+}
+
+/* 계정 정보 수정/비밀번호 변경은 있는데 탈퇴할 방법이 전혀 없었던 공백 — 파트너의
+ * status: 'banned'/isSuspended와 동일하게 배열에서 지우지 않고 status 플래그만
+ * 남기는 소프트 삭제로 처리한다(과거 의뢰·후기 기록은 그대로 보존). */
+function openAccountDeleteModal() {
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    safeUpdateValue('account-delete-confirm-pw', '');
+    openModal('client-account-delete-modal', 'client-account-delete-modal-card');
+}
+
+function closeAccountDeleteModal() {
+    closeModal('client-account-delete-modal', 'client-account-delete-modal-card');
+}
+
+function confirmAccountDeletion() {
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+
+    const pw = document.getElementById('account-delete-confirm-pw')?.value || '';
+    if (!pw) { showToast('비밀번호를 입력해 주세요.', 'warning'); return; }
+    if (account.pw !== pw) { showToast('비밀번호가 일치하지 않습니다.', 'warning'); return; }
+
+    account.status = 'withdrawn';
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'ACCOUNT_WITHDRAW', `'${account.name}'(${account.id}) 고객님이 회원 탈퇴했습니다.`, 'WARNING');
+    showToast('회원 탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.', 'info');
+    closeAccountDeleteModal();
+    performClientLogout();
+    if (typeof renderAdminClientManager === 'function') renderAdminClientManager();
 }
 
 /* 고객센터 1:1 문의 — 지금까지 "고객센터" 링크는 showComingSoon()만 띄우는 죽은
@@ -2115,6 +2148,9 @@ window.markClientNotificationRead = markClientNotificationRead;
 window.renderClientAccountSettings = renderClientAccountSettings;
 window.updateClientProfileInfo = updateClientProfileInfo;
 window.updateClientPassword = updateClientPassword;
+window.openAccountDeleteModal = openAccountDeleteModal;
+window.closeAccountDeleteModal = closeAccountDeleteModal;
+window.confirmAccountDeletion = confirmAccountDeletion;
 window.openSupportInquiryModal = openSupportInquiryModal;
 window.closeSupportInquiryModal = closeSupportInquiryModal;
 window.submitSupportInquiry = submitSupportInquiry;

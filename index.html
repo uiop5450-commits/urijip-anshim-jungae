@@ -630,6 +630,11 @@
                         <div><label class="field-label">새 비밀번호 확인</label><input type="password" id="account-edit-new-pw2" class="input"></div>
                         <button type="button" onclick="updateClientPassword()" class="btn btn-secondary">비밀번호 변경</button>
                     </div>
+                    <div class="space-y-3 pt-2">
+                        <h4 class="text-xs font-black text-roseCustom uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="alert-triangle" class="w-4 h-4"></i> 회원 탈퇴</h4>
+                        <p class="text-[11px] text-ink-500 font-medium leading-relaxed">탈퇴하면 즉시 로그아웃되며 더 이상 로그인할 수 없어요. 진행 중인 의뢰가 있다면 탈퇴 전에 확인해 주세요.</p>
+                        <button type="button" onclick="openAccountDeleteModal()" class="btn btn-secondary btn-sm text-roseCustom">회원 탈퇴하기</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1413,6 +1418,20 @@
                 <p class="text-[11px] text-ink-500 font-medium leading-relaxed">요청을 제출하면 매니저 센터의 심사를 거쳐 승인 또는 반려됩니다. 심사 중에는 계약서·견적서 업로드 등 계약 관련 절차가 일시 중단됩니다.</p>
                 <div><label class="field-label">취소 요청 사유</label><textarea id="partner-cancel-request-reason" rows="4" placeholder="계약 취소가 필요한 사유를 자세히 적어주세요." class="textarea"></textarea></div>
                 <button type="button" onclick="submitPartnerCancelRequest()" class="btn btn-primary btn-block">취소 요청 제출</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="client-account-delete-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="client-account-delete-modal-card" class="modal-card w-full max-w-sm p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">회원 탈퇴</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">정말 탈퇴하시겠어요?</h3></div>
+                <button type="button" onclick="closeAccountDeleteModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">탈퇴 확인을 위해 현재 비밀번호를 입력해 주세요. 탈퇴 즉시 로그아웃되며 이 아이디로 다시 로그인할 수 없습니다.</p>
+                <div><label class="field-label">현재 비밀번호</label><input type="password" id="account-delete-confirm-pw" class="input"></div>
+                <button type="button" onclick="confirmAccountDeletion()" class="btn btn-dark btn-block text-roseCustom">회원 탈퇴 확정</button>
             </div>
         </div>
     </div>
