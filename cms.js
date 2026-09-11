@@ -772,6 +772,13 @@ function requestDirectQuoteFromPortfolio(partnerName, portIdx = 0) {
 
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
+    // 파트너 탐색/프로필 화면은 심사대기·제명 파트너를 이미 걸러서 보여주지만, 그 화면을
+    // 열어둔 채로 그 사이 파트너 상태가 바뀌는 경우까지 막기 위해 여기서도 한 번 더 확인한다.
+    if (partner.status !== 'active') {
+        showToast(`[${partnerName}] 파트너사는 현재 1:1 지정 상담을 받을 수 없는 상태입니다.`, 'warning');
+        closeClientPartnerProfile(); closePortfolioBlogDetail();
+        return;
+    }
 
     // 1:1 지정 상담은 최초 견적서(baseOrder)의 주소/평형/예산 정보를 그대로 물려받되,
     // 자동매칭 견적서와 뒤섞이지 않도록 is1on1 플래그를 가진 별도의 오더로 분리 생성한다
