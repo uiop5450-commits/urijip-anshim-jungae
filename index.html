@@ -834,6 +834,21 @@
                     </div>
                 </div>
 
+                <div id="partner-mode-support-view" class="hidden space-y-6">
+                    <div class="surface surface-lg p-5 sm:p-6 space-y-4 text-left">
+                        <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="headphones" class="w-4 h-4 text-brand-500"></i> 매니저 센터 1:1 문의</h4>
+                        <div class="grid grid-cols-1 gap-2.5">
+                            <input type="text" id="partner-support-subject" placeholder="문의 제목" class="input text-sm">
+                            <textarea id="partner-support-message" rows="3" placeholder="정산, 매칭, 계정 등 문의하실 내용을 입력해 주세요" class="input text-sm"></textarea>
+                            <button type="button" onclick="submitPartnerSupportInquiry()" class="btn btn-primary btn-block">문의 등록</button>
+                        </div>
+                    </div>
+                    <div class="surface surface-lg p-5 sm:p-6 space-y-3 text-left">
+                        <h5 class="text-xs font-black text-ink-400 uppercase tracking-widest">내 문의 내역</h5>
+                        <div id="partner-support-my-tickets" class="space-y-2.5"></div>
+                    </div>
+                </div>
+
                 <div id="partner-mode-portfolio-view" class="hidden space-y-6">
                     <div id="portfolio-list-subview" class="space-y-6">
                         <div class="flex justify-between items-center pt-2">

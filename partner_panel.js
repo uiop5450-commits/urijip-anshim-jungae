@@ -619,6 +619,7 @@ function togglePartnerConsoleVisibility() {
                     <button type="button" id="btn-partner-view-performance" onclick="switchPartnerMode('performance')" class="gnb-tab">내 실적</button>
                     <button type="button" id="btn-partner-view-portfolio" onclick="switchPartnerMode('portfolio')" class="gnb-tab">포트폴리오 관리</button>
                     <button type="button" id="btn-partner-view-myinfo" onclick="switchPartnerMode('myinfo')" class="gnb-tab">내정보 관리</button>
+                    <button type="button" id="btn-partner-view-support" onclick="switchPartnerMode('support')" class="gnb-tab">고객센터</button>
                     <button type="button" id="btn-partner-view-notifications" onclick="switchPartnerMode('notifications')" class="gnb-tab">알림<span id="partner-notif-badge-count"></span></button>
                     <button type="button" onclick="partnerLogout()" class="btn btn-ghost btn-sm"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> 퇴근</button>`;
                 if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -735,6 +736,105 @@ function updatePartnerNotificationBadge() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const unreadCount = (window.AppState.partnerNotifications || []).filter(n => n.partnerName === partnerName && !n.read).length;
     badge.textContent = unreadCount > 0 ? ` (${unreadCount})` : '';
+}
+
+/* 파트너 콘솔 > 고객센터 — 지금까지 1:1 문의 티켓 시스템은 고객 전용이었고 파트너는
+ * 정산/매칭/계정 관련 문의를 접수할 방법이 전혀 없었다. 기존 supportTickets 배열과
+ * renderAdminSupportTickets(관리자 답변 화면)을 그대로 재사용하되, role 필드로
+ * 고객 문의(role 없음 = 하위 호환)와 파트너 문의를 구분한다. */
+function submitPartnerSupportInquiry() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const subject = document.getElementById('partner-support-subject')?.value.trim();
+    const message = document.getElementById('partner-support-message')?.value.trim();
+    if (!subject || !message) { showToast('제목과 문의 내용을 모두 입력해 주세요.', 'warning'); return; }
+
+    const ticket = {
+        id: `tk-${Date.now()}`, role: 'partner', partnerName,
+        subject, message, date: getLocalDateString(), status: 'open', adminReply: null, adminReplyDate: null,
+        followUps: []
+    };
+    if (!window.AppState.supportTickets) window.AppState.supportTickets = [];
+    window.AppState.supportTickets.unshift(ticket);
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'SUPPORT_INQUIRY', `[${partnerName}]가 매니저 센터에 1:1 문의를 등록했습니다. (${subject})`, 'INFO');
+    showToast('문의가 등록되었습니다. 빠르게 답변드릴게요!', 'success');
+    safeUpdateValue('partner-support-subject', '');
+    safeUpdateValue('partner-support-message', '');
+    renderMyPartnerSupportTickets();
+    if (typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
+}
+
+function renderMyPartnerSupportTickets() {
+    const container = document.getElementById('partner-support-my-tickets');
+    if (!container) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const myTickets = (window.AppState.supportTickets || []).filter(t => t.role === 'partner' && t.partnerName === partnerName);
+
+    if (myTickets.length === 0) {
+        container.innerHTML = `<p class="text-xs text-ink-400 font-bold text-center py-4">아직 등록한 문의가 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = myTickets.map(t => {
+        const followUps = t.followUps || [];
+        const followUpsHtml = followUps.map(f => `
+            <div class="mt-1.5 pl-2.5 border-l-2 border-ink-200 space-y-1">
+                <p class="text-[11px] text-ink-700 font-semibold leading-relaxed">${escapeHtml(f.clientMessage)} <span class="text-[9px] text-ink-400 font-bold">(${f.clientDate})</span></p>
+                ${f.adminReply ? `<div class="p-2.5 rounded-lg" style="background:var(--brand-50)"><p class="text-[10px] font-black text-brand-700 mb-0.5">매니저 센터 답변</p><p class="text-[11px] text-ink-700 font-medium leading-relaxed">${escapeHtml(f.adminReply)}</p></div>` : `<p class="text-[10px] text-amberCustom font-bold">답변 대기중</p>`}
+            </div>`).join('');
+        const hasPendingFollowUp = followUps.length > 0 && !followUps[followUps.length - 1].adminReply;
+        const canFollowUp = t.status === 'answered' && !hasPendingFollowUp;
+
+        return `
+        <div class="p-3.5 bg-ink-50 rounded-xl space-y-1.5 text-left">
+            <div class="flex justify-between items-center">
+                <h6 class="text-xs font-black text-ink-950">${escapeHtml(t.subject)}</h6>
+                <div class="flex items-center gap-2">
+                    <span class="badge ${t.status === 'answered' ? 'badge-emerald' : 'badge-amber'}">${t.status === 'answered' ? '답변 완료' : '답변 대기'}</span>
+                    ${(t.status === 'open' && followUps.length === 0) ? `<button type="button" onclick="cancelPartnerSupportTicket('${t.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">취소</button>` : ''}
+                </div>
+            </div>
+            <p class="text-[11px] text-ink-600 font-medium leading-relaxed">${escapeHtml(t.message)}</p>
+            <p class="text-[10px] text-ink-400 font-bold">${t.date}</p>
+            ${t.adminReply ? `<div class="mt-1.5 p-2.5 rounded-lg" style="background:var(--brand-50)"><p class="text-[10px] font-black text-brand-700 mb-0.5">매니저 센터 답변</p><p class="text-[11px] text-ink-700 font-medium leading-relaxed">${escapeHtml(t.adminReply)}</p></div>` : ''}
+            ${followUpsHtml}
+            ${canFollowUp ? `
+                <div class="flex gap-1.5 pt-1.5">
+                    <input type="text" id="partner-ticket-followup-input-${t.id}" placeholder="추가로 궁금한 점을 남겨주세요" class="input flex-1 text-xs">
+                    <button type="button" onclick="submitPartnerSupportFollowUp('${t.id}')" class="btn btn-dark btn-sm shrink-0">추가 문의</button>
+                </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function submitPartnerSupportFollowUp(ticketId) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const ticket = (window.AppState.supportTickets || []).find(t => t.id === ticketId);
+    if (!ticket || ticket.partnerName !== partnerName || ticket.status !== 'answered') return;
+
+    const input = document.getElementById(`partner-ticket-followup-input-${ticketId}`);
+    const text = input ? input.value.trim() : '';
+    if (!text) { showToast('추가 문의 내용을 입력해 주세요.', 'warning'); return; }
+
+    if (!ticket.followUps) ticket.followUps = [];
+    ticket.followUps.push({ clientMessage: text, clientDate: getLocalDateString(), adminReply: null, adminReplyDate: null });
+    ticket.status = 'open';
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'SUPPORT_FOLLOWUP', `[${partnerName}]가 문의(${ticket.subject})에 추가 질문을 남겼습니다.`, 'INFO');
+    showToast('추가 문의가 등록되었습니다.', 'success');
+    renderMyPartnerSupportTickets();
+    if (typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
+}
+
+function cancelPartnerSupportTicket(ticketId) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const idx = (window.AppState.supportTickets || []).findIndex(t => t.id === ticketId);
+    if (idx === -1) return;
+    const ticket = window.AppState.supportTickets[idx];
+    if (ticket.partnerName !== partnerName) return;
+    if (ticket.status !== 'open' || (ticket.followUps && ticket.followUps.length > 0)) { showToast('이미 답변이 등록된 문의는 취소할 수 없어요.', 'warning'); return; }
+    window.AppState.supportTickets.splice(idx, 1);
+    showToast('문의가 취소되었습니다.', 'info');
+    renderMyPartnerSupportTickets();
+    if (typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
 }
 
 /* 로그인 폼 인라인 에러 — 이전엔 메시지 문구에 ⚠️/❌/⏳ 이모지를 박아 넣었는데,
@@ -1747,7 +1847,7 @@ function renderAdminSupportTickets() {
 
     const tickets = allTickets
         .filter(t => adminSupportStatusFilter === 'all' || t.status === adminSupportStatusFilter)
-        .filter(t => !query || t.clientName.toLowerCase().includes(query) || (t.clientPhone || '').includes(query) || t.subject.toLowerCase().includes(query))
+        .filter(t => !query || (t.role === 'partner' ? t.partnerName : t.clientName).toLowerCase().includes(query) || (t.clientPhone || '').includes(query) || t.subject.toLowerCase().includes(query))
         .slice().sort((a, b) => (a.status === b.status ? 0 : a.status === 'open' ? -1 : 1) || (new Date(b.date) - new Date(a.date)));
 
     if (tickets.length === 0) {
@@ -1778,7 +1878,8 @@ function renderAdminSupportTickets() {
                 <div class="space-y-0.5 min-w-0">
                     <div class="flex items-center gap-2 text-[10px] font-bold text-ink-400">
                         <span class="badge ${t.status === 'answered' ? 'badge-emerald' : 'badge-amber'}">${t.status === 'answered' ? '답변 완료' : '답변 대기'}</span>
-                        <span>${t.date} · ${escapeHtml(t.clientName)} (${t.clientPhone || '-'})</span>
+                        <span class="badge ${t.role === 'partner' ? 'badge-brand' : 'badge-neutral'}">${t.role === 'partner' ? '파트너' : '고객'}</span>
+                        <span>${t.date} · ${t.role === 'partner' ? escapeHtml(t.partnerName) : `${escapeHtml(t.clientName)} (${t.clientPhone || '-'})`}</span>
                     </div>
                     <h5 class="text-sm font-black text-ink-950">${escapeHtml(t.subject)}</h5>
                     <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(t.message)}</p>
@@ -1809,8 +1910,13 @@ function replyToSupportTicket(ticketId) {
     ticket.adminReplyDate = getLocalDateString();
     ticket.status = 'answered';
 
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'SUPPORT_REPLY', `[고객 문의 답변] '${ticket.clientName}' 고객님의 문의(${ticket.subject})에 답변 완료.`, 'SUCCESS');
-    if (typeof pushClientNotification === 'function') pushClientNotification(ticket.clientPhone, `고객센터에서 문의(${ticket.subject})에 답변을 남겼어요.`);
+    if (ticket.role === 'partner') {
+        if (typeof pushLog === 'function') pushLog('MANAGER', 'SUPPORT_REPLY', `[파트너 문의 답변] '${ticket.partnerName}'의 문의(${ticket.subject})에 답변 완료.`, 'SUCCESS');
+        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(ticket.partnerName, `매니저 센터에서 문의(${ticket.subject})에 답변을 남겼어요.`);
+    } else {
+        if (typeof pushLog === 'function') pushLog('MANAGER', 'SUPPORT_REPLY', `[고객 문의 답변] '${ticket.clientName}' 고객님의 문의(${ticket.subject})에 답변 완료.`, 'SUCCESS');
+        if (typeof pushClientNotification === 'function') pushClientNotification(ticket.clientPhone, `고객센터에서 문의(${ticket.subject})에 답변을 남겼어요.`);
+    }
     showToast('답변이 등록되었습니다.', 'success');
     renderAdminSupportTickets();
 }
@@ -1832,8 +1938,13 @@ function replyToSupportTicketFollowUp(ticketId) {
     followUp.adminReplyDate = getLocalDateString();
     ticket.status = 'answered';
 
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'SUPPORT_REPLY', `[고객 문의 추가답변] '${ticket.clientName}' 고객님의 추가 문의(${ticket.subject})에 답변 완료.`, 'SUCCESS');
-    if (typeof pushClientNotification === 'function') pushClientNotification(ticket.clientPhone, `고객센터에서 추가 문의(${ticket.subject})에 답변을 남겼어요.`);
+    if (ticket.role === 'partner') {
+        if (typeof pushLog === 'function') pushLog('MANAGER', 'SUPPORT_REPLY', `[파트너 문의 추가답변] '${ticket.partnerName}'의 추가 문의(${ticket.subject})에 답변 완료.`, 'SUCCESS');
+        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(ticket.partnerName, `매니저 센터에서 추가 문의(${ticket.subject})에 답변을 남겼어요.`);
+    } else {
+        if (typeof pushLog === 'function') pushLog('MANAGER', 'SUPPORT_REPLY', `[고객 문의 추가답변] '${ticket.clientName}' 고객님의 추가 문의(${ticket.subject})에 답변 완료.`, 'SUCCESS');
+        if (typeof pushClientNotification === 'function') pushClientNotification(ticket.clientPhone, `고객센터에서 추가 문의(${ticket.subject})에 답변을 남겼어요.`);
+    }
     showToast('답변이 등록되었습니다.', 'success');
     renderAdminSupportTickets();
 }
@@ -3176,6 +3287,10 @@ window.renderPartnerNotifications = renderPartnerNotifications;
 window.markAllPartnerNotificationsRead = markAllPartnerNotificationsRead;
 window.markPartnerNotificationRead = markPartnerNotificationRead;
 window.updatePartnerNotificationBadge = updatePartnerNotificationBadge;
+window.submitPartnerSupportInquiry = submitPartnerSupportInquiry;
+window.renderMyPartnerSupportTickets = renderMyPartnerSupportTickets;
+window.submitPartnerSupportFollowUp = submitPartnerSupportFollowUp;
+window.cancelPartnerSupportTicket = cancelPartnerSupportTicket;
 window.renderPartnerOrderList = renderPartnerOrderList;
 window.renderPartnerContractsView = renderPartnerContractsView;
 window.setPartnerContractsStatusFilter = setPartnerContractsStatusFilter;

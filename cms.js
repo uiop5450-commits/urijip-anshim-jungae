@@ -47,8 +47,8 @@ function closeModal(modalId, cardId, delay = 180) {
 
 function switchPartnerMode(mode) {
     window.AppState.partnerConsoleMode = mode;
-    const tabs = { orders: 'btn-partner-view-orders', contracts: 'btn-partner-view-contracts', performance: 'btn-partner-view-performance', portfolio: 'btn-partner-view-portfolio', myinfo: 'btn-partner-view-myinfo', notifications: 'btn-partner-view-notifications' };
-    const views = { orders: 'partner-mode-orders-view', contracts: 'partner-mode-contracts-view', performance: 'partner-mode-performance-view', portfolio: 'partner-mode-portfolio-view', myinfo: 'partner-mode-myinfo-view', notifications: 'partner-mode-notifications-view' };
+    const tabs = { orders: 'btn-partner-view-orders', contracts: 'btn-partner-view-contracts', performance: 'btn-partner-view-performance', portfolio: 'btn-partner-view-portfolio', myinfo: 'btn-partner-view-myinfo', notifications: 'btn-partner-view-notifications', support: 'btn-partner-view-support' };
+    const views = { orders: 'partner-mode-orders-view', contracts: 'partner-mode-contracts-view', performance: 'partner-mode-performance-view', portfolio: 'partner-mode-portfolio-view', myinfo: 'partner-mode-myinfo-view', notifications: 'partner-mode-notifications-view', support: 'partner-mode-support-view' };
 
     Object.values(tabs).forEach(id => document.getElementById(id)?.classList.remove('active'));
     Object.values(views).forEach(id => document.getElementById(id)?.classList.add('hidden'));
@@ -62,6 +62,7 @@ function switchPartnerMode(mode) {
     else if (mode === 'myinfo') renderPartnerProfileManager();
     else if (mode === 'portfolio') renderPartnerConsolePortfolios();
     else if (mode === 'notifications' && typeof renderPartnerNotifications === 'function') renderPartnerNotifications();
+    else if (mode === 'support' && typeof renderMyPartnerSupportTickets === 'function') renderMyPartnerSupportTickets();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
