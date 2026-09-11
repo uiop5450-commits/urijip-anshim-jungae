@@ -2159,8 +2159,14 @@ function renderAdminStaffGrantedList() {
 function renderBlacklistDb() {
     const tbody = document.getElementById('admin-blacklist-tbody');
     if (!tbody) return;
-    const list = window.AppState.blacklistDb || [];
-    if (list.length === 0) { tbody.innerHTML = `<tr><td class="px-6 py-8 text-center text-ink-400 font-bold" colspan="4">등록된 블랙리스트 대상이 없습니다.</td></tr>`; return; }
+    const input = document.getElementById('admin-blacklist-search');
+    const query = input ? input.value.trim().toLowerCase() : '';
+    const allList = window.AppState.blacklistDb || [];
+    const list = query
+        ? allList.filter(item => (item.company && item.company.toLowerCase().includes(query)) || (item.bizFile && item.bizFile.toLowerCase().includes(query)))
+        : allList;
+    if (allList.length === 0) { tbody.innerHTML = `<tr><td class="px-6 py-8 text-center text-ink-400 font-bold" colspan="4">등록된 블랙리스트 대상이 없습니다.</td></tr>`; return; }
+    if (list.length === 0) { tbody.innerHTML = `<tr><td class="px-6 py-8 text-center text-ink-400 font-bold" colspan="4">검색 조건에 해당되는 대상이 없습니다.</td></tr>`; return; }
     tbody.innerHTML = list.map(item => `
         <tr>
             <td class="font-mono text-[11px] text-ink-500">${escapeHtml(item.date)}</td>
