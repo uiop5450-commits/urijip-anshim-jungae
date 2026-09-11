@@ -1097,6 +1097,7 @@ function openClientPartnerProfile(partnerName) {
                         <span class="text-ink-400">작성일: ${rev.date}</span>
                         <div class="flex items-center gap-3">
                             <button type="button" onclick="event.stopPropagation(); toggleReviewHelpful('${partner.name}', ${revIdx})" class="flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 ${isReviewHelpfulByMe(rev) ? 'text-brand-600' : 'text-ink-400 hover:text-ink-700'}"><i data-lucide="thumbs-up" class="w-3 h-3"></i> 도움돼요 ${(rev.helpfulBy || []).length}</button>
+                            <button type="button" onclick="event.stopPropagation(); reportReview('${partner.name}', ${revIdx})" class="flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 text-ink-400 hover:text-roseCustom"><i data-lucide="flag" class="w-3 h-3"></i> ${isReviewReportedByMe(rev) ? '신고 완료' : '신고'}</button>
                             <span class="text-ink-800 font-extrabold group-hover:underline">자세히 보기 →</span>
                         </div>
                     </div>`;
@@ -1159,6 +1160,14 @@ function openReviewDetailModal(partnerName, reviewIdx) {
     }
     safeUpdateText('review-detail-helpful-label', `도움돼요 ${(rev.helpfulBy || []).length}`);
 
+    const reportBtn = document.getElementById('review-detail-report-btn');
+    if (reportBtn) {
+        const reported = isReviewReportedByMe(rev);
+        reportBtn.onclick = () => { reportReview(partnerName, reviewIdx); openReviewDetailModal(partnerName, reviewIdx); };
+        reportBtn.disabled = reported;
+    }
+    safeUpdateText('review-detail-report-label', isReviewReportedByMe(rev) ? '신고 완료' : '신고');
+
     openModal('review-detail-modal', 'review-detail-modal-card');
 }
 
@@ -1181,6 +1190,32 @@ function toggleReviewHelpful(partnerName, reviewIdx) {
     const idx = rev.helpfulBy.indexOf(auth.id);
     if (idx >= 0) rev.helpfulBy.splice(idx, 1);
     else rev.helpfulBy.push(auth.id);
+    if (typeof window.openClientPartnerProfile === 'function' && !document.getElementById('client-partner-profile-modal')?.classList.contains('hidden')) {
+        window.openClientPartnerProfile(partnerName);
+    }
+}
+
+/* 커뮤니티 글은 신고할 수 있는데(reportCommunityPost) 후기는 허위·악의적인 내용이
+ * 올라와도 고객이 신고할 방법이 전혀 없었다 — 관리자는 이미 buildAdminReviewModerationHtml/
+ * adminDeleteReview로 직접 삭제할 수 있지만, 어떤 후기가 문제인지 알려줄 신호가 없었다.
+ * 커뮤니티 신고와 동일한 패턴(1인 1회, reportedBy 배열)으로 신고 수를 관리자 화면에 노출한다. */
+function isReviewReportedByMe(rev) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return false;
+    return !!(rev.reportedBy && rev.reportedBy.includes(auth.id));
+}
+
+function reportReview(partnerName, reviewIdx) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) { showToast('로그인 후 이용할 수 있어요.', 'warning'); return; }
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const rev = partner && partner.reviews && partner.reviews[reviewIdx];
+    if (!rev) return;
+    if (!rev.reportedBy) rev.reportedBy = [];
+    if (rev.reportedBy.includes(auth.id)) { showToast('이미 신고한 후기입니다.', 'info'); return; }
+    rev.reportedBy.push(auth.id);
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW_REPORT', `'${auth.name}' 고객님이 [${partnerName}] 파트너의 후기를 신고했습니다.`, 'WARNING');
+    showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
     if (typeof window.openClientPartnerProfile === 'function' && !document.getElementById('client-partner-profile-modal')?.classList.contains('hidden')) {
         window.openClientPartnerProfile(partnerName);
     }
@@ -1419,6 +1454,8 @@ window.deleteCurrentPartnerHeroSlide = deleteCurrentPartnerHeroSlide;
 window.openReviewDetailModal = openReviewDetailModal;
 window.toggleReviewHelpful = toggleReviewHelpful;
 window.isReviewHelpfulByMe = isReviewHelpfulByMe;
+window.reportReview = reportReview;
+window.isReviewReportedByMe = isReviewReportedByMe;
 window.closeReviewDetailModal = closeReviewDetailModal;
 window.renderPartnerMyReviews = renderPartnerMyReviews;
 window.updatePartnerPhone = updatePartnerPhone;

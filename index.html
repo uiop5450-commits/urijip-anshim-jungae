@@ -1356,7 +1356,10 @@
                     <h5 class="text-[11px] font-black text-brand-700 flex items-center gap-1.5"><i data-lucide="reply" class="w-3.5 h-3.5"></i> <span id="review-detail-reply-author"></span>의 답글</h5>
                     <p id="review-detail-reply-text" class="text-xs text-ink-700 font-semibold leading-relaxed whitespace-pre-line"></p>
                 </div>
-                <button type="button" id="review-detail-helpful-btn" class="btn btn-secondary btn-sm"><i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i> <span id="review-detail-helpful-label">도움돼요 0</span></button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="review-detail-helpful-btn" class="btn btn-secondary btn-sm"><i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i> <span id="review-detail-helpful-label">도움돼요 0</span></button>
+                    <button type="button" id="review-detail-report-btn" class="btn btn-ghost btn-sm text-ink-400"><i data-lucide="flag" class="w-3.5 h-3.5"></i> <span id="review-detail-report-label">신고</span></button>
+                </div>
             </div>
             <div class="pt-2 border-t border-ink-100"><button type="button" onclick="closeReviewDetailModal()" class="btn btn-dark btn-block">확인 완료 및 닫기</button></div>
         </div>

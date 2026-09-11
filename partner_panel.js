@@ -2252,13 +2252,19 @@ function buildAdminReviewModerationHtml(partner) {
     if (reviews.length === 0) {
         return `<div class="p-4 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 font-bold">등록된 후기가 없습니다.</div>`;
     }
-    return reviews.map((r, idx) => `
-        <div class="p-3.5 bg-ink-50/80 rounded-xl border border-ink-100 space-y-1.5 text-left">
+    // 신고가 쌓인 후기를 관리자가 바로 알아챌 수 있도록, 커뮤니티 관리와 동일하게
+    // 신고 수가 많은 후기를 맨 위로 올리고 신고 배지를 표시한다.
+    return reviews
+        .map((r, idx) => ({ r, idx, reportCount: (r.reportedBy || []).length }))
+        .sort((a, b) => b.reportCount - a.reportCount)
+        .map(({ r, idx, reportCount }) => `
+        <div class="p-3.5 bg-ink-50/80 rounded-xl border ${reportCount > 0 ? 'border-rose-200' : 'border-ink-100'} space-y-1.5 text-left">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-black text-ink-800">${escapeHtml(r.client)}</span>
                     <span class="text-gold-500 font-extrabold text-xs">★ ${r.rating}.0</span>
                     <span class="text-[10px] text-ink-400 font-bold">${r.date}</span>
+                    ${reportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${reportCount}건</span>` : ''}
                 </div>
                 <button type="button" onclick="adminDeleteReview('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
             </div>
