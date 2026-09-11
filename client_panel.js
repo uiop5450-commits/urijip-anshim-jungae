@@ -1253,7 +1253,11 @@ function renderMyPageEstimateDetails(order) {
                 </div>`;
         });
     } else if (order.is1on1) {
-        bidsHtml = `<div class="empty-state !py-8 surface-flat"><p class="text-xs text-ink-500 font-bold">지정하신 파트너사와의 매칭이 취소되었습니다.</p><p class="text-[10px] text-ink-400 font-medium mt-1">아래에서 다른 우수 파트너사를 다시 1:1로 지정해보세요.</p></div>`;
+        bidsHtml = `<div class="empty-state !py-8 surface-flat space-y-2">
+            <p class="text-xs text-ink-500 font-bold">지정하신 파트너사와의 매칭이 취소되었습니다.</p>
+            <p class="text-[10px] text-ink-400 font-medium">아래에서 다른 우수 파트너사를 다시 1:1로 지정하거나, 오픈 매칭으로 전환해 여러 파트너사의 제안을 받아보세요.</p>
+            <button type="button" onclick="convertOrderToOpenMatching('${order.code}')" class="btn btn-secondary btn-sm"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 오픈 매칭으로 전환하기</button>
+        </div>`;
     } else {
         bidsHtml = `<div class="empty-state !py-8 surface-flat"><p class="text-xs text-ink-500 font-bold">아직 참여한 매칭 입찰서가 없습니다.</p><p class="text-[10px] text-ink-400 font-medium mt-1">검증된 파트너사가 제안서를 준비하고 있습니다.</p></div>`;
     }
@@ -1375,6 +1379,50 @@ function triggerRebidding(orderCode) {
         selected.forEach(partner => pushPartnerNotification(partner.name, `재매칭으로 새 오더(${orderCode})에 매칭되었어요. 고객: ${maskName(order.clientName)}님.`));
     }
     showToast(`새로운 파트너사 ${selected.length}곳이 매칭되었습니다!`, 'success');
+
+    renderClientMyPage();
+    selectMyPageEstimate(orderCode);
+    if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
+    if (typeof recalculateKPIs === 'function') recalculateKPIs();
+}
+
+/* 1:1 지정 상담은 지정한 파트너가 입찰을 안 하거나 매칭취소되면(bids가 0건) 그 뒤로는
+ * "다시 1:1로 지정해보세요"라는 안내뿐, 일반 오픈 매칭(자동매칭)으로 전환할 방법이
+ * 전혀 없어서 영구 데드엔드였다 — triggerRebidding과 동일한 자동배정 로직을 재사용해
+ * is1on1을 해제하고 여러 파트너사에 오픈 매칭한다. */
+function convertOrderToOpenMatching(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'bidding' || !order.is1on1) return;
+    if (order.bids && order.bids.length > 0) { showToast('이미 입찰서가 있는 의뢰입니다.', 'info'); return; }
+
+    const formerTarget = order.targetPartner;
+    order.is1on1 = false;
+    order.targetPartner = null;
+    if (formerTarget) {
+        if (!order.excludedPartners) order.excludedPartners = [];
+        if (!order.excludedPartners.includes(formerTarget)) order.excludedPartners.push(formerTarget);
+    }
+
+    const slotsNeeded = order.partnerCountLimit || 3;
+    const excluded = new Set(order.excludedPartners || []);
+    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name));
+    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, slotsNeeded);
+    if (!order.bids) order.bids = [];
+    selected.forEach(partner => {
+        order.bids.push({
+            partner: partner.name,
+            price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
+            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
+            verified: true, progress: 'bidding'
+        });
+    });
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'CONVERT_TO_OPEN', `[${order.clientName}] 고객님이 의뢰(${orderCode})를 1:1 지정에서 오픈 매칭으로 전환했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') {
+        selected.forEach(partner => pushPartnerNotification(partner.name, `오픈 매칭으로 전환된 오더(${orderCode})에 매칭되었어요. 고객: ${maskName(order.clientName)}님.`));
+    }
+    showToast(selected.length > 0 ? `오픈 매칭으로 전환되어 파트너사 ${selected.length}곳이 매칭되었습니다!` : '오픈 매칭으로 전환되었습니다. 현재 매칭 가능한 파트너사가 없어 추후 재매칭을 시도해 주세요.', 'success');
 
     renderClientMyPage();
     selectMyPageEstimate(orderCode);
@@ -2159,6 +2207,7 @@ window.cancelSupportTicket = cancelSupportTicket;
 window.selectMyPageEstimate = selectMyPageEstimate;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
+window.convertOrderToOpenMatching = convertOrderToOpenMatching;
 window.handleHome1on1Click = handleHome1on1Click;
 window.showToast = showToast;
 
