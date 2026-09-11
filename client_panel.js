@@ -1097,6 +1097,27 @@ function renderMyPageEstimateDetails(order) {
             <button type="button" onclick="switchPanel('partner-search-panel')" class="btn btn-primary whitespace-nowrap">우수 파트너 1:1 지정하기 →</button>
         </div>`;
 
+    // 계약 체결 후 파트너사가 업로드한 계약서/견적서를 고객도 확인·다운로드할 수 있어야 하는데,
+    // 지금까지는 파트너 콘솔에만 노출되고 고객 마이페이지에는 전혀 표시되지 않았던 공백이었다.
+    const contractDocsHtml = order.status === 'contracted' ? `
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            ${['contract', 'estimate'].map(docType => {
+                const doc = docType === 'contract' ? order.contractDoc : order.estimateDoc;
+                const label = docType === 'contract' ? '계약서' : '견적서';
+                return doc
+                    ? `<div class="p-3.5 surface-flat space-y-2 text-left">
+                        <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-950">${label}</span><span class="badge badge-emerald">업로드됨</span></div>
+                        <p class="text-[10px] text-ink-500 font-bold truncate">${escapeHtml(doc.name)}</p>
+                        <p class="text-[9px] text-ink-400 font-semibold">${escapeHtml(doc.uploadedAt)}</p>
+                        <button type="button" onclick="openUploadedPartnerDoc('${order.code}', '${docType}')" class="btn btn-outline btn-sm btn-block">보기/다운로드</button>
+                    </div>`
+                    : `<div class="p-3.5 surface-flat space-y-2 text-left">
+                        <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-950">${label}</span><span class="badge badge-amber">업로드 대기중</span></div>
+                        <p class="text-[10px] text-ink-400 font-semibold leading-relaxed">계약 파트너사가 아직 ${label}를 업로드하지 않았습니다.</p>
+                    </div>`;
+            }).join('')}
+        </div>` : '';
+
     detailBoard.innerHTML = `
         <div class="space-y-6 text-left">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-4">
@@ -1117,6 +1138,7 @@ function renderMyPageEstimateDetails(order) {
                 <div class="article-spec-chip"><span>희망 착공일</span><span class="val">${order.preferredDate}</span></div>
             </div>
 
+            ${contractDocsHtml}
             ${designationBannerHtml}
             ${reviewBtnHtml}
 
