@@ -2067,8 +2067,41 @@ function searchOrderLookup() {
                 <p class="font-bold text-ink-900">${escapeHtml(o.clientName)} 고객님 (${o.clientPhone || '-'})</p>
                 <p class="text-[10px] text-ink-500 font-medium truncate">${escapeHtml(o.clientAddress || '')} · ${o.pyung || '-'}평형 · 입찰 ${o.bids ? o.bids.length : 0}/${o.partnerCountLimit || '-'}개사${o.acceptedPartner ? ` · 계약: ${escapeHtml(o.acceptedPartner)}` : ''}</p>
             </div>
-            <span class="font-black text-ink-950 shrink-0">₩ ${(o.finalPrice || o.budget || 0).toLocaleString()}만원</span>
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="font-black text-ink-950">₩ ${(o.finalPrice || o.budget || 0).toLocaleString()}만원</span>
+                ${o.status === 'contracted' ? `<button type="button" onclick="openReportReasonPrompt((reason) => adminForceCancelContract('${o.code}', reason))" class="btn btn-secondary btn-sm text-roseCustom">계약 강제 취소</button>` : ''}
+            </div>
         </div>`).join('');
+}
+
+/* 지금까지 관리자는 고객/파트너가 먼저 계약 취소를 요청해야만(cancel_requested)
+ * 승인/반려할 수 있었다 — 관제 로그·블랙리스트에서 사기·분쟁 정황을 포착해도
+ * 관리자가 스스로 계약을 취소시킬 방법이 없었다. approveContractCancellation과
+ * 동일한 환불 플래그 로직을 재사용하되, 사전 요청 없이도 바로 취소할 수 있게 한다. */
+function adminForceCancelContract(orderCode, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || order.status !== 'contracted') { showToast('계약 체결 상태의 오더만 강제 취소할 수 있어요.', 'warning'); return; }
+
+    order.status = 'cancelled';
+    order.cancelRequest = { reason, requestedBy: 'admin', date: getLocalDateString() };
+
+    const needsRefund = !!order.commissionPaid;
+    if (needsRefund) {
+        order.refundStatus = 'pending';
+        order.refundAmount = Math.floor((order.finalPrice || 0) * PLATFORM_COMMISSION_RATE);
+    }
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CONTRACT_FORCE_CANCEL', `[계약 강제 취소] 오더 ${order.code}를 매니저가 직권으로 취소했습니다. 사유: ${reason}${needsRefund ? ` (수수료 환불 대상 ₩${order.refundAmount.toLocaleString()}만원)` : ''}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `계약(${order.code})이 매니저 센터 직권으로 취소되었습니다. 사유: ${reason}`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) {
+        pushPartnerNotification(order.acceptedPartner, needsRefund
+            ? `계약(${order.code})이 매니저 센터 직권으로 취소되었습니다. 이미 납부하신 플랫폼 수수료 ₩${order.refundAmount.toLocaleString()}만원은 환불 처리할 예정입니다.`
+            : `계약(${order.code})이 매니저 센터 직권으로 취소되었습니다.`);
+    }
+    showToast(`오더 ${order.code}의 계약을 강제 취소했습니다.${needsRefund ? ' 수수료 환불 대기 목록에 등록되었어요.' : ''}`, 'success');
+    searchOrderLookup();
+    if (typeof renderAdminRefundPendingList === 'function') renderAdminRefundPendingList();
+    if (typeof recalculateKPIs === 'function') recalculateKPIs();
 }
 
 /* 파트너/고객/로그는 전부 CSV로 내보낼 수 있는데, 어느 관리자 탭에서든 쓸 수 있는
@@ -4053,6 +4086,7 @@ window.downloadPartnerSettlementReceipt = downloadPartnerSettlementReceipt;
 window.initPartnerSignatureCanvas = initPartnerSignatureCanvas;
 window.clearPartnerSignatureCanvas = clearPartnerSignatureCanvas;
 window.submitPartnerSignatureCanvas = submitPartnerSignatureCanvas;
+window.adminForceCancelContract = adminForceCancelContract;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
 window.dismissPortfolioReport = dismissPortfolioReport;
