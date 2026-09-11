@@ -593,6 +593,13 @@
                     <div id="client-mypage-my-posts-container" class="space-y-2.5"></div>
                 </div>
 
+                <div id="client-mypage-subtab-favorites-view" class="hidden surface surface-lg p-5 sm:p-6 space-y-4 text-left transition-all duration-300">
+                    <div class="border-b border-ink-100 pb-3.5">
+                        <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="heart" class="w-4 h-4 text-brand-500"></i> 관심 파트너</h4>
+                    </div>
+                    <div id="client-mypage-favorites-container" class="space-y-2.5"></div>
+                </div>
+
                 <div id="client-mypage-subtab-notifications-view" class="hidden surface surface-lg p-5 sm:p-6 space-y-4 text-left transition-all duration-300">
                     <div class="border-b border-ink-100 pb-3.5 flex items-center justify-between">
                         <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="bell" class="w-4 h-4 text-brand-500"></i> 알림</h4>
@@ -1047,7 +1054,10 @@
                     <span class="w-10 h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center shrink-0" style="box-shadow:var(--shadow-brand)"><i data-lucide="verified" class="w-5 h-5"></i></span>
                     <div><h3 id="profile-partner-name" class="text-base sm:text-lg font-black text-ink-950">시공 파트너</h3><p class="text-[10px] text-ink-500 font-extrabold flex items-center gap-1 mt-0.5"><i data-lucide="shield-check" class="w-3.5 h-3.5 text-brand-500"></i> 부산 지역 우수 안심 보증 심사 통과 기업</p></div>
                 </div>
-                <button type="button" onclick="closeClientPartnerProfile()" class="btn btn-ghost btn-sm"><i data-lucide="arrow-left" class="w-4 h-4"></i> 뒤로가기</button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="client-partner-profile-favorite-btn" onclick="toggleFavoritePartner(document.getElementById('profile-partner-name-hero').innerText)" class="btn btn-ghost btn-sm" aria-label="관심 파트너로 저장"><i data-lucide="heart" class="w-4 h-4 text-ink-300"></i></button>
+                    <button type="button" onclick="closeClientPartnerProfile()" class="btn btn-ghost btn-sm"><i data-lucide="arrow-left" class="w-4 h-4"></i> 뒤로가기</button>
+                </div>
             </div>
             <div class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 bg-ink-50 custom-scroll">
                 <div class="surface p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">

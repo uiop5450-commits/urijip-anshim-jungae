@@ -927,6 +927,9 @@ function openClientPartnerProfile(partnerName) {
     safeUpdateText('profile-partner-promo-hero', partner.promoText || '하자보증 무상 3년 지원 대상 기업');
     safeUpdateText('profile-rating-avg', partner.rating ? partner.rating.toFixed(1) : "5.0");
 
+    const favoriteBtn = document.getElementById('client-partner-profile-favorite-btn');
+    if (favoriteBtn && typeof syncFavoriteButtonIcon === 'function') syncFavoriteButtonIcon(favoriteBtn, partner.name);
+
     const hero1on1Btn = document.getElementById('profile-hero-1on1-btn');
     if (hero1on1Btn) hero1on1Btn.onclick = () => requestDirectQuoteFromPortfolio(partner.name, 0);
 

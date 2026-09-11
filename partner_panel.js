@@ -410,13 +410,16 @@ function renderPartnerSearchGrid() {
         if (p.region) metaParts.push(`<span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>부산 ${escapeHtml(p.region)}</span>`);
         metaParts.push(`<span>완공사례 ${portfolioCount}건</span>`);
 
+        const isFavorited = typeof window.isFavoritePartner === 'function' && window.isFavoritePartner(p.name);
+
         const card = document.createElement('div');
         card.className = "portfolio-card flex flex-col justify-between group";
         card.onclick = (e) => { e.preventDefault(); if (typeof window.openClientPartnerProfile === 'function') window.openClientPartnerProfile(p.name); };
         card.innerHTML = `
             <div>
-                <div class="portfolio-img">
+                <div class="portfolio-img relative">
                     <img src="${repImg}" alt="${safePName}">
+                    <button type="button" onclick="event.stopPropagation(); toggleFavoritePartner('${p.name}')" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center border-0 cursor-pointer shadow-sm" aria-label="관심 파트너로 저장"><i data-lucide="heart" class="w-4 h-4 ${isFavorited ? 'text-roseCustom' : 'text-ink-300'}" ${isFavorited ? 'fill="currentColor"' : ''}></i></button>
                 </div>
                 <div class="p-5 space-y-2">
                     <div class="flex justify-between items-center gap-2">

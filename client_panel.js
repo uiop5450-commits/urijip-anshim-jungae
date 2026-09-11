@@ -601,9 +601,11 @@ function renderClientMyPage() {
     const unreadCount = myNotifications.filter(n => !n.read).length;
     const mainTabsEl = document.getElementById('client-mypage-main-tabs');
     if (mainTabsEl) {
+        const myFavoritesCount = (window.AppState.clientAccounts.find(acc => acc.id === auth.id)?.favoritePartners || []).length;
         const mainTabs = [
             ['history', '의뢰이력'],
             ['posts', `내가 쓴 글 (${myPostsCount})`],
+            ['favorites', `관심 파트너 (${myFavoritesCount})`],
             ['notifications', unreadCount > 0 ? `알림 (${unreadCount})` : '알림'],
             ['account', '계정 정보']
         ];
@@ -613,9 +615,11 @@ function renderClientMyPage() {
     }
     document.getElementById('client-mypage-subtab-history-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'history');
     document.getElementById('client-mypage-subtab-posts-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'posts');
+    document.getElementById('client-mypage-subtab-favorites-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'favorites');
     document.getElementById('client-mypage-subtab-notifications-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'notifications');
     document.getElementById('client-mypage-subtab-account-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'account');
     if (clientMyPageActiveSubtab === 'posts') renderClientMyPagePosts();
+    if (clientMyPageActiveSubtab === 'favorites') renderClientFavoritePartners();
     if (clientMyPageActiveSubtab === 'notifications') renderClientMyPageNotifications(myNotifications);
     if (clientMyPageActiveSubtab === 'account') renderClientAccountSettings();
 
@@ -733,6 +737,68 @@ function renderClientMyPagePosts() {
 function jumpToMyCommunityPost(postId) {
     switchPanel('community-panel');
     openCommunityDetail(postId);
+}
+
+/* 관심 파트너(찜) — 지금까지는 파트너 탐색 화면을 매번 다시 훑거나 1:1 지정 상담을
+ * 넣어야만 파트너를 "저장"할 수 있었다(1:1은 오더가 생성되는 무거운 행동). 가벼운
+ * 찜하기는 로그인한 고객 계정(clientAccounts[].favoritePartners)에 저장한다. */
+function isFavoritePartner(partnerName) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return false;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    return !!(account && account.favoritePartners && account.favoritePartners.includes(partnerName));
+}
+
+function toggleFavoritePartner(partnerName) {
+    if (!requireClientLoginForCommunity()) return;
+    const auth = window.AppState.clientAuth;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+    if (!account.favoritePartners) account.favoritePartners = [];
+    const idx = account.favoritePartners.indexOf(partnerName);
+    if (idx >= 0) { account.favoritePartners.splice(idx, 1); showToast(`[${partnerName}] 관심 파트너에서 제거했습니다.`, 'info'); }
+    else { account.favoritePartners.push(partnerName); showToast(`[${partnerName}] 관심 파트너로 저장했습니다!`, 'success'); }
+
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+    if (typeof renderClientFavoritePartners === 'function') renderClientFavoritePartners();
+    const profileBtn = document.getElementById('client-partner-profile-favorite-btn');
+    if (profileBtn) syncFavoriteButtonIcon(profileBtn, partnerName);
+}
+
+function syncFavoriteButtonIcon(btn, partnerName) {
+    const icon = btn.querySelector('[data-lucide]');
+    const favorited = isFavoritePartner(partnerName);
+    if (icon) { icon.classList.toggle('text-roseCustom', favorited); icon.classList.toggle('text-ink-300', !favorited); if (favorited) icon.setAttribute('fill', 'currentColor'); else icon.removeAttribute('fill'); }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function renderClientFavoritePartners() {
+    const container = document.getElementById('client-mypage-favorites-container');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    const favoriteNames = (account && account.favoritePartners) || [];
+    const favoritePartners = favoriteNames.map(name => window.AppState.partners.find(p => p.name === name)).filter(Boolean);
+
+    if (favoritePartners.length === 0) {
+        container.innerHTML = buildEmptyStateHtml('heart', '아직 관심 파트너로 저장한 업체가 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = favoritePartners.map(p => `
+        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl gap-3">
+            <div class="min-w-0 flex-1 cursor-pointer" onclick="window.openClientPartnerProfile('${p.name}')">
+                <div class="flex items-center gap-2">
+                    <h5 class="text-xs font-black text-ink-950 truncate">${escapeHtml(p.name)}</h5>
+                    <span class="text-gold-500 font-extrabold text-[11px]">★ ${p.rating.toFixed(1)}</span>
+                </div>
+                <p class="text-[10px] text-ink-400 font-bold">${p.region ? `부산 ${escapeHtml(p.region)} · ` : ''}완공사례 ${p.portfolios ? p.portfolios.length : 0}건</p>
+            </div>
+            <button type="button" onclick="toggleFavoritePartner('${p.name}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">찜 해제</button>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 /* 마이페이지 > 알림 탭 — 매칭 완료/파트너 배정/계약 체결 시 pushClientNotification()으로 쌓인
@@ -1635,6 +1701,9 @@ window.setClientMyPageHistoryFilter = setClientMyPageHistoryFilter;
 window.switchClientMyPageSubtab = switchClientMyPageSubtab;
 window.renderClientMyPagePosts = renderClientMyPagePosts;
 window.jumpToMyCommunityPost = jumpToMyCommunityPost;
+window.isFavoritePartner = isFavoritePartner;
+window.toggleFavoritePartner = toggleFavoritePartner;
+window.renderClientFavoritePartners = renderClientFavoritePartners;
 window.renderClientMyPageNotifications = renderClientMyPageNotifications;
 window.markAllClientNotificationsRead = markAllClientNotificationsRead;
 window.renderClientAccountSettings = renderClientAccountSettings;
