@@ -1918,6 +1918,19 @@ function submitCommunityPost() {
     openCommunityDetail(post.id);
 }
 
+/* 커뮤니티 글에 좋아요/댓글이 달려도 글쓴이에게 알림이 전혀 가지 않아서, 우연히
+ * 재방문하지 않으면 반응이 왔는지 알 방법이 없었다 — 다른 이벤트들(리뷰 답글 등)과
+ * 동일하게 pushClientNotification으로 알려준다. post에는 authorId만 있어서
+ * clientAccounts에서 phone을 역조회한다. 본인 글에 본인이 반응한 경우는 알리지 않는다. */
+function notifyCommunityPostAuthor(post, message) {
+    const auth = window.AppState.clientAuth;
+    if (!post || !post.authorId || post.authorId === auth.id) return;
+    const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === post.authorId);
+    if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') {
+        pushClientNotification(authorAccount.phone, message);
+    }
+}
+
 function toggleCommunityLike(postId) {
     if (!requireClientLoginForCommunity()) return;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
@@ -1925,7 +1938,11 @@ function toggleCommunityLike(postId) {
     if (!post.likedBy) post.likedBy = [];
     const myId = window.AppState.clientAuth.id;
     const idx = post.likedBy.indexOf(myId);
-    if (idx >= 0) post.likedBy.splice(idx, 1); else post.likedBy.push(myId);
+    if (idx >= 0) { post.likedBy.splice(idx, 1); }
+    else {
+        post.likedBy.push(myId);
+        notifyCommunityPostAuthor(post, `내가 쓴 글 "${post.title}"에 좋아요가 달렸어요.`);
+    }
     openCommunityDetail(postId);
 }
 
@@ -1940,6 +1957,7 @@ function submitCommunityComment(postId) {
     const auth = window.AppState.clientAuth;
     post.comments.push({ authorName: auth.name, authorId: auth.id, text, date: getLocalDateString() });
     if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_COMMENT', `'${auth.name}' 고객님이 댓글을 남겼습니다.`, 'INFO');
+    notifyCommunityPostAuthor(post, `내가 쓴 글 "${post.title}"에 댓글이 달렸어요.`);
     openCommunityDetail(postId);
 }
 
