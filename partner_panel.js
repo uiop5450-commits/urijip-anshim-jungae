@@ -1539,6 +1539,31 @@ function submitPartnerCancelRequest() {
     if (typeof renderAdminContractCancellations === 'function') renderAdminContractCancellations();
 }
 
+/* 고객은 본인이 요청한 계약 취소를 철회할 수 있는데(retractContractCancellationRequest,
+ * client_panel.js) 파트너가 직접 요청한 취소는 파트너 본인이 철회할 방법이 없었다 —
+ * 실수로 요청했거나 마음이 바뀌어도 매니저 심사 결과를 그냥 기다려야 했던 비대칭을
+ * 해소한다. */
+function retractPartnerCancellationRequest(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'cancel_requested') return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order.cancelRequest || order.cancelRequest.requestedBy !== 'partner' || order.acceptedPartner !== partnerName) {
+        showToast('고객이 요청한 취소는 파트너가 직접 철회할 수 없어요. 매니저 센터 심사를 기다려주세요.', 'warning');
+        return;
+    }
+    order.status = 'contracted';
+    order.cancelRequest = null;
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'CONTRACT_CANCEL_RETRACT', `[${partnerName}]가 계약(${order.code}) 취소 요청을 철회했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `계약 파트너사가 계약(${order.code}) 취소 요청을 철회했어요. 계약이 그대로 유지됩니다.`);
+    showToast('취소 요청을 철회했습니다. 계약이 그대로 유지됩니다.', 'info');
+
+    openPartnerOrderDetailModal(orderCode);
+    renderPartnerOrderList();
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+    if (typeof renderAdminContractCancellations === 'function') renderAdminContractCancellations();
+}
+
 /* 안심 계약·입찰 내역 상태 필터. 상태 뱃지를 클릭하면 해당 상태만 걸러서 볼 수 있다. */
 let partnerContractsStatusFilter = 'all';
 
@@ -1764,10 +1789,12 @@ function openPartnerOrderDetailModal(orderCode) {
                     : `<button type="button" onclick="openReportClientModal('${order.code}')" class="btn btn-secondary btn-sm text-roseCustom">고객 신고하기</button>`}
             </div>`;
     } else {
+        const isPartnerOwnCancelRequest = order.status === 'cancel_requested' && order.cancelRequest && order.cancelRequest.requestedBy === 'partner' && order.acceptedPartner === partnerName;
         actionSectionHtml = `
             <div class="p-4 surface-flat text-left space-y-1">
                 <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="lock" class="w-4 h-4 text-ink-500"></i> 계약서·견적서 업로드 및 수수료 결제는 계약 확정 후 가능합니다</h5>
-                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${order.status === 'contracted' ? '이 오더는 다른 파트너사와 계약이 체결되었습니다.' : order.status === 'withdrawn' ? '고객이 이 의뢰를 철회하여 더 이상 진행되지 않습니다.' : order.status === 'cancel_requested' ? '고객이 계약 취소를 요청하여 매니저 센터에서 심사 중입니다. 심사가 끝날 때까지 계약 관련 절차가 일시 중단됩니다.' : order.status === 'cancelled' ? '이 계약은 취소 승인되어 더 이상 유효하지 않습니다.' : '고객이 최종 파트너사를 확정하면 이 오더의 계약서·견적서 업로드와 수수료 결제 기능이 열립니다.'}</p>
+                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${order.status === 'contracted' ? '이 오더는 다른 파트너사와 계약이 체결되었습니다.' : order.status === 'withdrawn' ? '고객이 이 의뢰를 철회하여 더 이상 진행되지 않습니다.' : order.status === 'cancel_requested' ? (isPartnerOwnCancelRequest ? '귀사가 요청한 계약 취소를 매니저 센터에서 심사 중입니다. 심사가 끝날 때까지 계약 관련 절차가 일시 중단됩니다.' : '고객이 계약 취소를 요청하여 매니저 센터에서 심사 중입니다. 심사가 끝날 때까지 계약 관련 절차가 일시 중단됩니다.') : order.status === 'cancelled' ? '이 계약은 취소 승인되어 더 이상 유효하지 않습니다.' : '고객이 최종 파트너사를 확정하면 이 오더의 계약서·견적서 업로드와 수수료 결제 기능이 열립니다.'}</p>
+                ${isPartnerOwnCancelRequest ? `<button type="button" onclick="retractPartnerCancellationRequest('${order.code}')" class="btn btn-secondary btn-sm mt-1">취소 요청 철회하기</button>` : ''}
             </div>
             ${myBid && myBid.questions && myBid.questions.length > 0 ? `
             <div class="p-4 surface-flat text-left space-y-2.5">
@@ -4203,6 +4230,7 @@ window.isClientFavorited = isClientFavorited;
 window.toggleFavoriteClient = toggleFavoriteClient;
 window.requestReviewFromClient = requestReviewFromClient;
 window.adminRejectPartnerDoc = adminRejectPartnerDoc;
+window.retractPartnerCancellationRequest = retractPartnerCancellationRequest;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
 window.dismissPortfolioReport = dismissPortfolioReport;
