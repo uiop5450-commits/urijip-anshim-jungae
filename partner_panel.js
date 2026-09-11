@@ -1790,6 +1790,7 @@ function renderAdminPartnerMonitor() {
                 <div class="flex items-center gap-1.5">
                     <button type="button" onclick="window.openClientPartnerProfile('${p.name}')" class="btn btn-secondary btn-sm">프로필 조회</button>
                     <button type="button" onclick="openPartnerMetricsModal('${p.name}')" class="btn btn-dark btn-sm"><i data-lucide="bar-chart-2" class="w-3 h-3"></i> 상세 성과</button>
+                    <button type="button" onclick="viewPartnerBizCertDoc('${p.id}')" class="btn btn-secondary btn-sm"><i data-lucide="file-text" class="w-3 h-3"></i> 사업자등록증</button>
                 </div>
                 <div class="flex items-center gap-1.5">
                     <button type="button" onclick="togglePartnerCertification('${p.name}')" class="btn btn-secondary btn-sm">${p.isCertified ? '인증 해제' : '인증 부여'}</button>
