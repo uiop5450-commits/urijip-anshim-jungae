@@ -515,6 +515,7 @@ function switchAdminMode(mode) {
     else if (mode === 'support' && typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
     else if (mode === 'clients') renderAdminClientManager();
     else if (mode === 'cancellations') renderAdminContractCancellations();
+    else if (mode === 'broadcast' && typeof updateAdminBroadcastSegmentUI === 'function') updateAdminBroadcastSegmentUI();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -2088,9 +2089,28 @@ function replyToSupportTicketFollowUp(ticketId) {
     renderAdminSupportTickets();
 }
 
+/* 발송 대상(전체 고객/전체 파트너)에 따라 세그먼트 필터 UI를 전환한다. 파트너
+ * 모니터링에 이미 있는 지역 필터, 고객 관리에 이미 있는 이용정지 필터를 재사용해
+ * "해운대구 파트너에게만" / "정상 고객에게만" 같은 타겟팅을 가능하게 한다. */
+function updateAdminBroadcastSegmentUI() {
+    const target = document.getElementById('admin-broadcast-target')?.value || 'clients';
+    const regionWrap = document.getElementById('admin-broadcast-region-wrap');
+    const statusWrap = document.getElementById('admin-broadcast-status-wrap');
+    if (regionWrap) regionWrap.classList.toggle('hidden', target !== 'partners');
+    if (statusWrap) statusWrap.classList.toggle('hidden', target !== 'clients');
+
+    const regionSelect = document.getElementById('admin-broadcast-region');
+    if (regionSelect && target === 'partners' && regionSelect.options.length <= 1) {
+        const regions = [...new Set((window.AppState.partners || []).map(p => p.region).filter(Boolean))].sort();
+        regionSelect.innerHTML = `<option value="all">전체 지역</option>` + regions.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+    }
+}
+
 /* 관리자가 전체 고객/전체 파트너에게 한 번에 공지를 보낼 방법이 지금까지 전혀 없었다
  * (1:1 알림 시스템만 존재). 기존 pushClientNotification/pushPartnerNotification과 동일한
- * 데이터 모양으로 대량 삽입하되, 매 건마다 다시 렌더링하지 않고 발송 종료 후 한 번만 갱신한다. */
+ * 데이터 모양으로 대량 삽입하되, 매 건마다 다시 렌더링하지 않고 발송 종료 후 한 번만 갱신한다.
+ * 이후 대상 전체 일괄 발송만 가능해 지역/상태로 좁혀 보낼 방법이 없던 공백을 메워,
+ * 파트너는 활동 지역으로, 고객은 이용정지 여부로 필터링해 발송할 수 있게 확장한다. */
 function sendAdminBroadcastNotification() {
     const targetSel = document.getElementById('admin-broadcast-target');
     const msgInput = document.getElementById('admin-broadcast-message');
@@ -2103,9 +2123,11 @@ function sendAdminBroadcastNotification() {
     const nowIso = new Date().toISOString();
     const noticeText = `[공지] ${message}`;
     let recipientCount = 0;
+    let segmentLabel = '';
 
     if (target === 'partners') {
-        const partners = (window.AppState.partners || []).filter(p => p.status === 'active');
+        const region = document.getElementById('admin-broadcast-region')?.value || 'all';
+        const partners = (window.AppState.partners || []).filter(p => p.status === 'active' && (region === 'all' || p.region === region));
         partners.forEach(p => {
             window.AppState.partnerNotifications.unshift({ id: `pntf-${Date.now()}-${Math.floor(Math.random() * 100000)}`, partnerName: p.name, message: noticeText, date: nowIso, read: false });
             recipientCount++;
@@ -2113,20 +2135,26 @@ function sendAdminBroadcastNotification() {
         if (window.AppState.partnerNotifications.length > 200) window.AppState.partnerNotifications.length = 200;
         if (typeof renderPartnerNotifications === 'function') renderPartnerNotifications();
         if (typeof updatePartnerNotificationBadge === 'function') updatePartnerNotificationBadge();
+        segmentLabel = region === 'all' ? '전체 파트너사' : `${region} 파트너사`;
     } else {
-        const clients = window.AppState.clientAccounts || [];
+        const statusFilter = document.getElementById('admin-broadcast-status')?.value || 'all';
+        const clients = (window.AppState.clientAccounts || []).filter(acc => {
+            if (!acc.phone || acc.status === 'withdrawn') return false;
+            if (statusFilter === 'normal') return !acc.isSuspended;
+            if (statusFilter === 'suspended') return !!acc.isSuspended;
+            return true;
+        });
         clients.forEach(acc => {
-            if (!acc.phone || acc.status === 'withdrawn') return;
             window.AppState.clientNotifications.unshift({ id: `ntf-${Date.now()}-${Math.floor(Math.random() * 100000)}`, clientPhone: acc.phone, message: noticeText, date: nowIso, read: false });
             recipientCount++;
         });
         if (window.AppState.clientNotifications.length > 200) window.AppState.clientNotifications.length = 200;
         if (typeof renderClientMyPage === 'function') renderClientMyPage();
+        segmentLabel = statusFilter === 'normal' ? '정상 이용 고객' : statusFilter === 'suspended' ? '이용정지 고객' : '전체 고객';
     }
 
-    const targetLabel = target === 'partners' ? '전체 파트너사' : '전체 고객';
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'BROADCAST', `${targetLabel} ${recipientCount}명에게 공지 발송: "${message.slice(0, 40)}${message.length > 40 ? '...' : ''}"`, 'SUCCESS');
-    showToast(`${targetLabel} ${recipientCount}명에게 공지가 발송되었습니다.`, 'success');
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'BROADCAST', `${segmentLabel} ${recipientCount}명에게 공지 발송: "${message.slice(0, 40)}${message.length > 40 ? '...' : ''}"`, 'SUCCESS');
+    showToast(`${segmentLabel} ${recipientCount}명에게 공지가 발송되었습니다.`, 'success');
     if (msgInput) msgInput.value = '';
 }
 
@@ -3573,6 +3601,7 @@ window.adminDeleteReview = adminDeleteReview;
 window.adminDeletePortfolio = adminDeletePortfolio;
 window.setAdminClientStatusFilter = setAdminClientStatusFilter;
 window.exportOrderLookupResultsToCsv = exportOrderLookupResultsToCsv;
+window.updateAdminBroadcastSegmentUI = updateAdminBroadcastSegmentUI;
 window.downloadContractDoc = downloadContractDoc;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
