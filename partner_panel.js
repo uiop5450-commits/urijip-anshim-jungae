@@ -1770,6 +1770,7 @@ function openPartnerOrderDetailModal(orderCode) {
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="credit-card" class="w-4 h-4 text-ink-600"></i> 플랫폼 중개 수수료 결제</h5>
                 ${commissionBodyHtml}
             </div>
+            ${buildPartnerScheduleChangeHtml(order)}
             <div class="surface p-5 space-y-2">
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="ban" class="w-4 h-4 text-roseCustom"></i> 계약 취소 요청</h5>
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">시공이 불가능하거나 고객과의 분쟁으로 계약을 유지할 수 없는 경우, 매니저 센터 심사를 거쳐 계약을 취소할 수 있어요.</p>
@@ -3247,6 +3248,105 @@ function submitRepairClaimResponse() {
     openPartnerOrderDetailModal(orderCode);
 }
 
+/* 고객이 계약 후 착공일 변경을 요청할 수 있게 됐으니(client_panel.js의
+ * openScheduleChangeModal), 파트너 쪽에서도 대칭적으로 요청하고 상대방(고객)의
+ * 요청을 수락/거절할 수 있어야 한다. */
+let partnerScheduleChangeTargetCode = null;
+
+function openPartnerScheduleChangeModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
+    if (order.scheduleChangeRequest && order.scheduleChangeRequest.status === 'pending') { showToast('이미 처리 대기 중인 일정 변경 요청이 있어요.', 'warning'); return; }
+    partnerScheduleChangeTargetCode = orderCode;
+    safeUpdateValue('partner-schedule-change-date-input', order.preferredDate);
+    safeUpdateValue('partner-schedule-change-reason-input', '');
+    openModal('partner-schedule-change-modal', 'partner-schedule-change-modal-card');
+}
+
+function closePartnerScheduleChangeModal() {
+    partnerScheduleChangeTargetCode = null;
+    closeModal('partner-schedule-change-modal', 'partner-schedule-change-modal-card');
+}
+
+function submitPartnerScheduleChangeRequest() {
+    const order = window.AppState.orders.find(o => o.code === partnerScheduleChangeTargetCode);
+    if (!order) { closePartnerScheduleChangeModal(); return; }
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const newDate = document.getElementById('partner-schedule-change-date-input')?.value;
+    const reason = document.getElementById('partner-schedule-change-reason-input')?.value.trim();
+    if (!newDate) { showToast('변경할 착공일을 선택해주세요.', 'warning'); return; }
+    if (!reason) { showToast('변경 사유를 입력해주세요.', 'warning'); return; }
+    if (newDate === order.preferredDate) { showToast('현재 착공일과 동일해요.', 'warning'); return; }
+
+    order.scheduleChangeRequest = { requestedBy: 'partner', newDate, reason, status: 'pending', date: getLocalDateString() };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'SCHEDULE_CHANGE_REQUEST', `[${partnerName}]가 계약(${order.code}) 착공일 변경을 요청했습니다: ${order.preferredDate} → ${newDate}`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}가 착공일 변경을 요청했어요: ${order.preferredDate} → ${newDate}`);
+    showToast('착공일 변경 요청을 보냈습니다. 고객 확인을 기다려주세요.', 'success');
+
+    closePartnerScheduleChangeModal();
+    openPartnerOrderDetailModal(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+function retractPartnerScheduleChangeRequest(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || !order.scheduleChangeRequest || order.scheduleChangeRequest.status !== 'pending') return;
+    if (order.scheduleChangeRequest.requestedBy !== 'partner' || order.acceptedPartner !== partnerName) { showToast('고객이 요청한 일정 변경은 파트너사가 직접 철회할 수 없어요.', 'warning'); return; }
+    order.scheduleChangeRequest = null;
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'SCHEDULE_CHANGE_RETRACT', `[${partnerName}]가 계약(${order.code}) 착공일 변경 요청을 철회했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}가 착공일 변경 요청을 철회했어요.`);
+    showToast('일정 변경 요청을 철회했습니다.', 'info');
+    openPartnerOrderDetailModal(orderCode);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+function respondToClientScheduleChangeRequest(orderCode, accept) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || !order.scheduleChangeRequest || order.scheduleChangeRequest.status !== 'pending' || order.acceptedPartner !== partnerName) return;
+    if (order.scheduleChangeRequest.requestedBy !== 'client') return;
+    const { newDate } = order.scheduleChangeRequest;
+    if (accept) {
+        const oldDate = order.preferredDate;
+        order.preferredDate = newDate;
+        order.scheduleChangeRequest = null;
+        if (typeof pushLog === 'function') pushLog('PARTNER', 'SCHEDULE_CHANGE_ACCEPT', `[${partnerName}]가 계약(${order.code}) 착공일 변경 요청을 수락했습니다: ${oldDate} → ${newDate}`, 'INFO');
+        if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}가 착공일 변경을 수락했어요. 착공일이 ${newDate}로 변경되었습니다.`);
+        showToast('착공일 변경을 수락했습니다.', 'success');
+    } else {
+        order.scheduleChangeRequest = null;
+        if (typeof pushLog === 'function') pushLog('PARTNER', 'SCHEDULE_CHANGE_REJECT', `[${partnerName}]가 계약(${order.code}) 착공일 변경 요청을 거절했습니다.`, 'INFO');
+        if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}가 착공일 변경 요청을 거절했어요. 기존 일정(${order.preferredDate})이 유지됩니다.`);
+        showToast('착공일 변경 요청을 거절했습니다.', 'info');
+    }
+    openPartnerOrderDetailModal(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+function buildPartnerScheduleChangeHtml(order) {
+    const req = order.scheduleChangeRequest;
+    let statusHtml = '';
+    if (req && req.status === 'pending') {
+        statusHtml = req.requestedBy === 'partner'
+            ? `<div class="p-2.5 bg-amber-50 rounded-xl mt-2 space-y-1.5">
+                <p class="text-[10px] font-black text-amberCustom">고객 확인 대기중: ${req.newDate}로 변경 요청</p>
+                <button type="button" onclick="retractPartnerScheduleChangeRequest('${order.code}')" class="btn btn-secondary btn-sm">요청 철회</button>
+            </div>`
+            : `<div class="p-2.5 bg-brand-50 rounded-xl mt-2 space-y-1.5">
+                <p class="text-[10px] font-black text-brand-700">고객이 착공일 변경을 요청했어요: ${req.newDate} (사유: ${escapeHtml(req.reason)})</p>
+                <div class="flex gap-1.5"><button type="button" onclick="respondToClientScheduleChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToClientScheduleChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button></div>
+            </div>`;
+    }
+    return `<div class="p-4 surface-flat text-left space-y-1">
+        <div class="flex items-center justify-between"><h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="calendar-clock" class="w-4 h-4 text-ink-500"></i> 착공일: ${order.preferredDate}</h5>
+        ${!req || req.status !== 'pending' ? `<button type="button" onclick="openPartnerScheduleChangeModal('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">변경 요청</button>` : ''}</div>
+        ${statusHtml}
+    </div>`;
+}
+
 function adminDeleteReview(partnerName, reviewIdx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
@@ -4311,6 +4411,12 @@ window.buildPartnerRepairClaimsHtml = buildPartnerRepairClaimsHtml;
 window.openRepairClaimResponseModal = openRepairClaimResponseModal;
 window.closeRepairClaimResponseModal = closeRepairClaimResponseModal;
 window.submitRepairClaimResponse = submitRepairClaimResponse;
+window.openPartnerScheduleChangeModal = openPartnerScheduleChangeModal;
+window.closePartnerScheduleChangeModal = closePartnerScheduleChangeModal;
+window.submitPartnerScheduleChangeRequest = submitPartnerScheduleChangeRequest;
+window.retractPartnerScheduleChangeRequest = retractPartnerScheduleChangeRequest;
+window.respondToClientScheduleChangeRequest = respondToClientScheduleChangeRequest;
+window.buildPartnerScheduleChangeHtml = buildPartnerScheduleChangeHtml;
 window.adminRejectPartnerDoc = adminRejectPartnerDoc;
 window.retractPartnerCancellationRequest = retractPartnerCancellationRequest;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;

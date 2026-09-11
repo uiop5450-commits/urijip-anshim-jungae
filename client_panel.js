@@ -717,6 +717,104 @@ function buildRepairClaimsHtml(order) {
     </div>`;
 }
 
+/* 계약 전(입찰 진행 중)에는 openEditOrderBudgetModal로 착공일을 자유롭게 고칠 수 있지만,
+ * 계약 체결 후에는 이미 파트너 일정이 확정되어 있어 고객이 일방적으로 날짜를 바꾸면
+ * 시공 일정이 충돌할 수 있다 — 상대방(계약 파트너사) 동의를 받아야 하는 별도
+ * 요청/수락/거절 절차를 둔다. */
+let scheduleChangeTargetCode = null;
+
+function openScheduleChangeModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'contracted') return;
+    if (order.scheduleChangeRequest && order.scheduleChangeRequest.status === 'pending') { showToast('이미 처리 대기 중인 일정 변경 요청이 있어요.', 'warning'); return; }
+    scheduleChangeTargetCode = orderCode;
+    safeUpdateValue('schedule-change-date-input', order.preferredDate);
+    safeUpdateValue('schedule-change-reason-input', '');
+    openModal('schedule-change-modal', 'schedule-change-modal-card');
+}
+
+function closeScheduleChangeModal() {
+    scheduleChangeTargetCode = null;
+    closeModal('schedule-change-modal', 'schedule-change-modal-card');
+}
+
+function submitScheduleChangeRequest() {
+    const order = window.AppState.orders.find(o => o.code === scheduleChangeTargetCode);
+    if (!order) { closeScheduleChangeModal(); return; }
+    const newDate = document.getElementById('schedule-change-date-input')?.value;
+    const reason = document.getElementById('schedule-change-reason-input')?.value.trim();
+    if (!newDate) { showToast('변경할 착공일을 선택해주세요.', 'warning'); return; }
+    if (!reason) { showToast('변경 사유를 입력해주세요.', 'warning'); return; }
+    if (newDate === order.preferredDate) { showToast('현재 착공일과 동일해요.', 'warning'); return; }
+
+    order.scheduleChangeRequest = { requestedBy: 'client', newDate, reason, status: 'pending', date: getLocalDateString() };
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'SCHEDULE_CHANGE_REQUEST', `[${order.clientName}] 고객님이 계약(${order.code}) 착공일 변경을 요청했습니다: ${order.preferredDate} → ${newDate}`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 착공일 변경을 요청했어요: ${order.preferredDate} → ${newDate}`);
+    showToast('착공일 변경 요청을 보냈습니다. 파트너사 확인을 기다려주세요.', 'success');
+
+    closeScheduleChangeModal();
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+function retractScheduleChangeRequest(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || !order.scheduleChangeRequest || order.scheduleChangeRequest.status !== 'pending') return;
+    if (order.scheduleChangeRequest.requestedBy !== 'client') { showToast('파트너사가 요청한 일정 변경은 고객이 직접 철회할 수 없어요.', 'warning'); return; }
+    order.scheduleChangeRequest = null;
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'SCHEDULE_CHANGE_RETRACT', `[${order.clientName}] 고객님이 계약(${order.code}) 착공일 변경 요청을 철회했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 착공일 변경 요청을 철회했어요.`);
+    showToast('일정 변경 요청을 철회했습니다.', 'info');
+    selectMyPageEstimate(orderCode);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+function respondToPartnerScheduleChangeRequest(orderCode, accept) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || !order.scheduleChangeRequest || order.scheduleChangeRequest.status !== 'pending') return;
+    if (order.scheduleChangeRequest.requestedBy !== 'partner') return;
+    const { newDate } = order.scheduleChangeRequest;
+    if (accept) {
+        const oldDate = order.preferredDate;
+        order.preferredDate = newDate;
+        order.scheduleChangeRequest = null;
+        if (typeof pushLog === 'function') pushLog('CLIENT', 'SCHEDULE_CHANGE_ACCEPT', `[${order.clientName}] 고객님이 계약(${order.code}) 착공일 변경 요청을 수락했습니다: ${oldDate} → ${newDate}`, 'INFO');
+        if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 착공일 변경을 수락했어요. 착공일이 ${newDate}로 변경되었습니다.`);
+        showToast('착공일 변경을 수락했습니다.', 'success');
+    } else {
+        order.scheduleChangeRequest = null;
+        if (typeof pushLog === 'function') pushLog('CLIENT', 'SCHEDULE_CHANGE_REJECT', `[${order.clientName}] 고객님이 계약(${order.code}) 착공일 변경 요청을 거절했습니다.`, 'INFO');
+        if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 착공일 변경 요청을 거절했어요. 기존 일정(${order.preferredDate})이 유지됩니다.`);
+        showToast('착공일 변경 요청을 거절했습니다.', 'info');
+    }
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+function buildScheduleChangeHtml(order) {
+    const req = order.scheduleChangeRequest;
+    let statusHtml = '';
+    if (req && req.status === 'pending') {
+        statusHtml = req.requestedBy === 'client'
+            ? `<div class="p-2.5 bg-amber-50 rounded-xl mt-2 space-y-1.5">
+                <p class="text-[10px] font-black text-amberCustom">파트너사 확인 대기중: ${req.newDate}로 변경 요청</p>
+                <button type="button" onclick="retractScheduleChangeRequest('${order.code}')" class="btn btn-secondary btn-sm">요청 철회</button>
+            </div>`
+            : `<div class="p-2.5 bg-brand-50 rounded-xl mt-2 space-y-1.5">
+                <p class="text-[10px] font-black text-brand-700">파트너사가 착공일 변경을 요청했어요: ${req.newDate} (사유: ${escapeHtml(req.reason)})</p>
+                <div class="flex gap-1.5"><button type="button" onclick="respondToPartnerScheduleChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToPartnerScheduleChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button></div>
+            </div>`;
+    }
+    return `<div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between mt-2">
+        <span class="text-[11px] font-bold text-ink-600 flex items-center gap-1.5"><i data-lucide="calendar-clock" class="w-3.5 h-3.5 text-ink-500"></i> 착공일</span>
+        <div class="flex items-center gap-2">
+            <span class="text-[11px] font-black text-ink-900">${order.preferredDate}</span>
+            ${!req || req.status !== 'pending' ? `<button type="button" onclick="openScheduleChangeModal('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">변경 요청</button>` : ''}
+        </div>
+    </div>${statusHtml}`;
+}
+
 /* 파트너는 노쇼·상습 갑질 고객을 신고할 수 있게 됐는데(openReportClientModal,
  * partner_panel.js) 정작 반대 방향(고객이 부실 시공·계약 불이행 파트너를 신고)은
  * 방법이 없었다 — 동일한 window.AppState.clientReports 패턴을 대칭으로 두되,
@@ -1810,6 +1908,7 @@ function renderMyPageEstimateDetails(order) {
                     </div>`;
             }).join('')}
         </div>
+        ${buildScheduleChangeHtml(order)}
         ${order.clientSigned
             ? `<div class="p-3.5 surface-flat flex items-center justify-between mt-3"><span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="pen-tool" class="w-3.5 h-3.5 text-emeraldCustom"></i> 고객 서명 완료</span><span class="text-[10px] text-ink-400 font-bold">${order.signedDate}</span></div>`
             : `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
@@ -2967,6 +3066,12 @@ window.openRepairClaimModal = openRepairClaimModal;
 window.closeRepairClaimModal = closeRepairClaimModal;
 window.submitRepairClaim = submitRepairClaim;
 window.buildRepairClaimsHtml = buildRepairClaimsHtml;
+window.openScheduleChangeModal = openScheduleChangeModal;
+window.closeScheduleChangeModal = closeScheduleChangeModal;
+window.submitScheduleChangeRequest = submitScheduleChangeRequest;
+window.retractScheduleChangeRequest = retractScheduleChangeRequest;
+window.respondToPartnerScheduleChangeRequest = respondToPartnerScheduleChangeRequest;
+window.buildScheduleChangeHtml = buildScheduleChangeHtml;
 
 window.sendClientAuthCode = sendClientAuthCode;
 window.switchClientAuthTab = switchClientAuthTab;
