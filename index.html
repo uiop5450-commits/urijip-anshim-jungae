@@ -1403,6 +1403,20 @@
         </div>
     </div>
 
+    <div id="partner-cancel-request-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="partner-cancel-request-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">계약 취소 요청</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">체결된 계약의 취소를 요청합니다</h3></div>
+                <button type="button" onclick="closePartnerCancelRequestModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">요청을 제출하면 매니저 센터의 심사를 거쳐 승인 또는 반려됩니다. 심사 중에는 계약서·견적서 업로드 등 계약 관련 절차가 일시 중단됩니다.</p>
+                <div><label class="field-label">취소 요청 사유</label><textarea id="partner-cancel-request-reason" rows="4" placeholder="계약 취소가 필요한 사유를 자세히 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitPartnerCancelRequest()" class="btn btn-primary btn-block">취소 요청 제출</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 중앙 팝업 알림 (토스트) -->
     <div id="custom-toast" class="fixed inset-0 flex items-center justify-center bg-ink-950/40 backdrop-blur-sm z-[600] hidden transition-all duration-300">
         <div id="custom-toast-card" class="bg-white rounded-[28px] w-[calc(100%-32px)] max-w-sm p-6 space-y-5 text-center transform scale-95 opacity-0 transition-all duration-200 relative" style="box-shadow:var(--shadow-3)">

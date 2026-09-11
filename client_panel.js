@@ -444,6 +444,7 @@ function submitContractCancellationRequest() {
 function retractContractCancellationRequest(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order || order.status !== 'cancel_requested') return;
+    if (order.cancelRequest && order.cancelRequest.requestedBy !== 'client') { showToast('파트너사가 요청한 취소는 고객이 직접 철회할 수 없어요. 매니저 센터 심사를 기다려주세요.', 'warning'); return; }
     order.status = 'contracted';
     order.cancelRequest = null;
 
@@ -1156,14 +1157,14 @@ function renderMyPageEstimateDetails(order) {
                     ${isRequested ? `<span class="badge badge-amber"><span class="badge-dot bg-amberCustom"></span> 계약 취소 심사중</span>` : `<span class="badge badge-rose"><span class="badge-dot bg-roseCustom"></span> 계약 취소됨</span>`}
                 </div>
                 <div class="p-4 rounded-2xl text-xs font-bold text-ink-600 bg-ink-50 space-y-1.5">
-                    <p>${isRequested ? '계약 취소 요청이 매니저 센터에서 심사 중입니다. 승인되면 계약이 취소되고, 반려되면 계약이 그대로 유지됩니다.' : '이 계약은 취소 승인되어 더 이상 유효하지 않습니다.'}</p>
+                    <p>${isRequested ? (order.cancelRequest && order.cancelRequest.requestedBy === 'partner' ? '계약 파트너사가 계약 취소를 요청하여 매니저 센터에서 심사 중입니다.' : '계약 취소 요청이 매니저 센터에서 심사 중입니다.') + ' 승인되면 계약이 취소되고, 반려되면 계약이 그대로 유지됩니다.' : '이 계약은 취소 승인되어 더 이상 유효하지 않습니다.'}</p>
                     ${order.cancelRequest ? `<p class="text-[11px] text-ink-500 font-semibold">요청 사유: ${escapeHtml(order.cancelRequest.reason)}</p>` : ''}
                 </div>
                 <div class="p-4 rounded-2xl border border-ink-100 bg-white text-left space-y-1">
                     <p class="text-xs font-black text-ink-950">계약 파트너사: ${escapeHtml(order.acceptedPartner || '-')}</p>
                     <p class="text-xs text-ink-500 font-semibold">최종 계약금액: ₩ ${(order.finalPrice || 0).toLocaleString()} 만원</p>
                 </div>
-                ${isRequested ? `<button type="button" onclick="retractContractCancellationRequest('${order.code}')" class="btn btn-secondary btn-block">취소 요청 철회하기</button>` : ''}
+                ${(isRequested && order.cancelRequest && order.cancelRequest.requestedBy === 'client') ? `<button type="button" onclick="retractContractCancellationRequest('${order.code}')" class="btn btn-secondary btn-block">취소 요청 철회하기</button>` : ''}
             </div>`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;

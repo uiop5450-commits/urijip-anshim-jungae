@@ -1025,6 +1025,47 @@ function withdrawMyPartnerBid(orderCode) {
     recalculateKPIs();
 }
 
+let partnerCancelRequestTargetCode = null;
+
+/* 고객은 계약 취소를 요청할 수 있는데(openContractCancelRequestModal, client_panel.js)
+ * 파트너는 시공이 불가능해지거나 고객과 분쟁이 생겨도 계약을 취소할 방법이 전혀
+ * 없었던 비대칭 — 동일한 cancel_requested 상태와 관리자 심사 큐를 재사용해
+ * requestedBy만 'partner'로 구분한다. */
+function openPartnerCancelRequestModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'contracted') return;
+    partnerCancelRequestTargetCode = orderCode;
+    safeUpdateValue('partner-cancel-request-reason', '');
+    openModal('partner-cancel-request-modal', 'partner-cancel-request-modal-card');
+}
+
+function closePartnerCancelRequestModal() {
+    partnerCancelRequestTargetCode = null;
+    closeModal('partner-cancel-request-modal', 'partner-cancel-request-modal-card');
+}
+
+function submitPartnerCancelRequest() {
+    const order = window.AppState.orders.find(o => o.code === partnerCancelRequestTargetCode);
+    if (!order || order.status !== 'contracted') { closePartnerCancelRequestModal(); return; }
+
+    const reason = document.getElementById('partner-cancel-request-reason')?.value.trim();
+    if (!reason) { showToast('취소 요청 사유를 입력해주세요.', 'warning'); return; }
+
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    order.status = 'cancel_requested';
+    order.cancelRequest = { reason, requestedBy: 'partner', date: getLocalDateString() };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'CONTRACT_CANCEL_REQUEST', `[${partnerName}]가 계약(${order.code})의 취소를 요청했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `계약 파트너사가 계약(${order.code}) 취소를 요청했어요. 매니저 센터에서 심사 중입니다.`);
+    showToast('취소 요청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closePartnerCancelRequestModal();
+    closePartnerOrderDetailModal();
+    renderPartnerOrderList();
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+    if (typeof renderAdminContractCancellations === 'function') renderAdminContractCancellations();
+}
+
 /* 안심 계약·입찰 내역 상태 필터. 상태 뱃지를 클릭하면 해당 상태만 걸러서 볼 수 있다. */
 let partnerContractsStatusFilter = 'all';
 
@@ -1211,6 +1252,11 @@ function openPartnerOrderDetailModal(orderCode) {
             <div class="surface p-5 space-y-3">
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="credit-card" class="w-4 h-4 text-ink-600"></i> 플랫폼 중개 수수료 결제</h5>
                 ${commissionBodyHtml}
+            </div>
+            <div class="surface p-5 space-y-2">
+                <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="ban" class="w-4 h-4 text-roseCustom"></i> 계약 취소 요청</h5>
+                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">시공이 불가능하거나 고객과의 분쟁으로 계약을 유지할 수 없는 경우, 매니저 센터 심사를 거쳐 계약을 취소할 수 있어요.</p>
+                <button type="button" onclick="openPartnerCancelRequestModal('${order.code}')" class="btn btn-secondary btn-sm text-roseCustom">계약 취소 요청하기</button>
             </div>`;
     } else {
         actionSectionHtml = `
@@ -1734,7 +1780,7 @@ function renderAdminContractCancellations() {
                 </div>
             </div>
             <div class="p-3 bg-ink-50 rounded-xl">
-                <p class="text-[10px] font-black text-ink-500 uppercase tracking-wider mb-1">취소 요청 사유 (${o.cancelRequest ? o.cancelRequest.date : '-'})</p>
+                <p class="text-[10px] font-black text-ink-500 uppercase tracking-wider mb-1">${o.cancelRequest && o.cancelRequest.requestedBy === 'partner' ? '파트너사' : '고객'} 요청 사유 (${o.cancelRequest ? o.cancelRequest.date : '-'})</p>
                 <p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(o.cancelRequest ? o.cancelRequest.reason : '-')}</p>
             </div>
             <div class="flex items-center gap-2 justify-end pt-1">
@@ -2823,6 +2869,9 @@ window.renderAdminClientManager = renderAdminClientManager;
 window.jumpToClientOrderLookup = jumpToClientOrderLookup;
 window.toggleClientSuspension = toggleClientSuspension;
 window.renderAdminContractCancellations = renderAdminContractCancellations;
+window.openPartnerCancelRequestModal = openPartnerCancelRequestModal;
+window.closePartnerCancelRequestModal = closePartnerCancelRequestModal;
+window.submitPartnerCancelRequest = submitPartnerCancelRequest;
 window.approveContractCancellation = approveContractCancellation;
 window.rejectContractCancellation = rejectContractCancellation;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
