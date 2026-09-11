@@ -2168,6 +2168,40 @@ function searchOrderLookup() {
             </div>`).join('')}</div>`;
     };
 
+    /* 하자보수·일정변경·금액변경 3종 요청이 전부 client_panel.js/partner_panel.js의
+     * 당사자 간 절차로만 처리되어, 한쪽이 계속 반려하거나 응답이 없으면 관리자가
+     * 개입할 방법이 전혀 없었다 — 오더 조회는 이미 계약 강제취소·입찰 무효화 등
+     * 직권 개입의 중심 화면이므로, 대기중인 분쟁을 여기서 함께 보여주고 직권으로
+     * 정리할 수 있게 한다. */
+    const buildDisputeRowHtml = (o) => {
+        const rows = [];
+        (o.repairClaims || []).filter(c => c.status !== 'completed').forEach(c => {
+            rows.push(`<div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-lg border border-ink-100">
+                <span class="text-[11px] font-bold text-ink-700 truncate">하자보수: ${escapeHtml(c.title)} (${c.status === 'in_progress' ? '처리중' : '접수됨'})</span>
+                <button type="button" onclick="openReportReasonPrompt((note) => adminForceCompleteRepairClaim('${o.code}', '${c.id}', note))" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 shrink-0">직권 처리완료</button>
+            </div>`);
+        });
+        if (o.scheduleChangeRequest && o.scheduleChangeRequest.status === 'pending') {
+            rows.push(`<div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-lg border border-ink-100">
+                <span class="text-[11px] font-bold text-ink-700 truncate">일정 변경 요청 (${o.scheduleChangeRequest.requestedBy === 'client' ? '고객' : '파트너'} 제안): ${o.scheduleChangeRequest.newDate}</span>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="adminResolveScheduleChangeRequest('${o.code}', false)" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">직권 반려</button>
+                    <button type="button" onclick="adminResolveScheduleChangeRequest('${o.code}', true)" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">직권 승인</button>
+                </div>
+            </div>`);
+        }
+        if (o.priceChangeRequest && o.priceChangeRequest.status === 'pending') {
+            rows.push(`<div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-lg border border-ink-100">
+                <span class="text-[11px] font-bold text-ink-700 truncate">금액 변경 요청 (${o.priceChangeRequest.requestedBy === 'client' ? '고객' : '파트너'} 제안): ₩${o.priceChangeRequest.newPrice.toLocaleString()}만원</span>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="adminResolvePriceChangeRequest('${o.code}', false)" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">직권 반려</button>
+                    <button type="button" onclick="adminResolvePriceChangeRequest('${o.code}', true)" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">직권 승인</button>
+                </div>
+            </div>`);
+        }
+        return rows.length === 0 ? '' : `<div class="w-full space-y-1.5 pt-1">${rows.join('')}</div>`;
+    };
+
     resultEl.innerHTML = matches.map(o => `
         <div class="p-3.5 bg-ink-50 rounded-xl flex flex-wrap justify-between items-center gap-2 text-xs">
             <div class="space-y-0.5 min-w-0">
@@ -2181,7 +2215,55 @@ function searchOrderLookup() {
             </div>
             ${(o.contractDoc || o.estimateDoc) ? `<div class="w-full space-y-1.5 pt-1">${buildDocReviewRowHtml(o, 'contract', '계약서')}${buildDocReviewRowHtml(o, 'estimate', '견적서')}</div>` : ''}
             ${buildBidInvalidateRowHtml(o)}
+            ${buildDisputeRowHtml(o)}
         </div>`).join('');
+}
+
+function adminForceCompleteRepairClaim(orderCode, claimId, note) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim) return;
+    claim.status = 'completed';
+    claim.partnerResponse = note;
+    claim.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_CLAIM_FORCE_RESOLVE', `[하자보수 직권 처리완료] 오더 ${order.code}의 하자보수 신청("${claim.title}")을 매니저가 직권으로 처리 완료했습니다. 안내: ${note}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수 신청("${claim.title}")이 매니저 센터 직권으로 처리 완료되었습니다. 안내: ${note}`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `하자보수 신청("${claim.title}")이 매니저 센터 직권으로 처리 완료 처리되었습니다.`);
+    showToast('하자보수 신청을 매니저 직권으로 처리 완료했습니다.', 'success');
+    searchOrderLookup();
+}
+
+function adminResolveScheduleChangeRequest(orderCode, approve) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || !order.scheduleChangeRequest || order.scheduleChangeRequest.status !== 'pending') return;
+    const { newDate } = order.scheduleChangeRequest;
+    const oldDate = order.preferredDate;
+    if (approve) order.preferredDate = newDate;
+    order.scheduleChangeRequest = null;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'SCHEDULE_CHANGE_FORCE_RESOLVE', `[착공일 변경 직권 ${approve ? '승인' : '반려'}] 오더 ${order.code}의 일정 변경 요청을 매니저가 직권으로 ${approve ? `승인 처리했습니다 (${oldDate} → ${newDate})` : '반려했습니다'}.`, 'WARNING');
+    const msg = `착공일 변경 요청이 매니저 센터 직권으로 ${approve ? `승인되어 착공일이 ${newDate}로 변경되었습니다` : '반려되어 기존 일정이 유지됩니다'}.`;
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, msg);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, msg);
+    showToast(`일정 변경 요청을 매니저 직권으로 ${approve ? '승인' : '반려'}했습니다.`, 'success');
+    searchOrderLookup();
+}
+
+function adminResolvePriceChangeRequest(orderCode, approve) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || !order.priceChangeRequest || order.priceChangeRequest.status !== 'pending') return;
+    const { newPrice } = order.priceChangeRequest;
+    const oldPrice = order.finalPrice;
+    if (approve) order.finalPrice = newPrice;
+    order.priceChangeRequest = null;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PRICE_CHANGE_FORCE_RESOLVE', `[계약 금액 변경 직권 ${approve ? '승인' : '반려'}] 오더 ${order.code}의 금액 변경 요청을 매니저가 직권으로 ${approve ? `승인 처리했습니다 (₩${(oldPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원)` : '반려했습니다'}.`, 'WARNING');
+    const msg = `계약 금액 변경 요청이 매니저 센터 직권으로 ${approve ? `승인되어 계약 금액이 ₩${newPrice.toLocaleString()}만원으로 변경되었습니다` : '반려되어 기존 금액이 유지됩니다'}.`;
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, msg);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, msg);
+    showToast(`금액 변경 요청을 매니저 직권으로 ${approve ? '승인' : '반려'}했습니다.`, 'success');
+    searchOrderLookup();
 }
 
 /* 관리자는 이미 체결된 계약을 직권으로 취소할 수 있지만(adminForceCancelContract),
@@ -4600,6 +4682,9 @@ window.clearPartnerSignatureCanvas = clearPartnerSignatureCanvas;
 window.submitPartnerSignatureCanvas = submitPartnerSignatureCanvas;
 window.adminForceCancelContract = adminForceCancelContract;
 window.adminInvalidateBid = adminInvalidateBid;
+window.adminForceCompleteRepairClaim = adminForceCompleteRepairClaim;
+window.adminResolveScheduleChangeRequest = adminResolveScheduleChangeRequest;
+window.adminResolvePriceChangeRequest = adminResolvePriceChangeRequest;
 window.isClientFavorited = isClientFavorited;
 window.toggleFavoriteClient = toggleFavoriteClient;
 window.requestReviewFromClient = requestReviewFromClient;
