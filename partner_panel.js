@@ -3342,6 +3342,35 @@ function renderBlacklistDb() {
         </tr>`).join('');
 }
 
+/* 관제 로그·파트너 목록·고객 목록·오더 조회·파트너 실적은 전부 CSV로 내보낼 수
+ * 있었는데, 유일하게 블랙리스트 DB 조회 화면에는 내보내기가 없었다 — 감사·규정
+ * 준수 보고용으로 필요할 때마다 화면을 수동으로 옮겨 적어야 했던 공백을 메운다.
+ * 현재 검색 필터가 적용된 결과만 내보낸다(다른 CSV들과 동일한 관례). */
+function exportBlacklistDbToCsv() {
+    const input = document.getElementById('admin-blacklist-search');
+    const query = input ? input.value.trim().toLowerCase() : '';
+    const allList = window.AppState.blacklistDb || [];
+    const list = query
+        ? allList.filter(item => (item.company && item.company.toLowerCase().includes(query)) || (item.bizFile && item.bizFile.toLowerCase().includes(query)))
+        : allList;
+    if (list.length === 0) { showToast('내보낼 블랙리스트 대상이 없습니다.', 'warning'); return; }
+
+    const escapeCsvCell = (val) => `"${String(val == null ? '' : val).replace(/"/g, '""')}"`;
+    const header = ['제명일', '업체명', '사업자번호', '제명 사유'].map(escapeCsvCell).join(',');
+    const rows = list.map(item => [item.date, item.company, item.bizFile || '-', item.reason].map(escapeCsvCell).join(','));
+    const csv = '﻿' + [header, ...rows].join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `우리집안심중개_블랙리스트DB_${getLocalDateString()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'BLACKLIST_EXPORT', `[블랙리스트 DB] 매니저가 블랙리스트 ${list.length}건을 CSV로 내보냄.`, 'INFO');
+    showToast(`블랙리스트 ${list.length}건을 CSV로 내보냈습니다.`, 'success');
+}
+
 /* ----------------------------------------------------------------
  * 매니저 콘솔 > 노출 관리 (히어로 업체 광고 슬라이더 / 이벤트 팜플렛)
  * ---------------------------------------------------------------- */
@@ -3745,6 +3774,7 @@ window.exportOrderLookupResultsToCsv = exportOrderLookupResultsToCsv;
 window.updateAdminBroadcastSegmentUI = updateAdminBroadcastSegmentUI;
 window.downloadContractDoc = downloadContractDoc;
 window.downloadPartnerSettlementReceipt = downloadPartnerSettlementReceipt;
+window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
 window.resetPartnerStrikes = resetPartnerStrikes;

@@ -1022,9 +1022,12 @@
                     <div class="surface surface-lg overflow-hidden text-left" style="border-color:var(--rose-100,#f8d3d5)">
                         <div class="px-6 py-5 border-b flex flex-wrap justify-between items-center gap-3" style="background:var(--rose-50);border-color:#f6d3d5">
                             <h4 class="text-sm font-black text-roseCustom">삼진아웃 규정 영구 제명 불량 사업자 격리 DB</h4>
-                            <div class="relative w-56">
-                                <input type="text" id="admin-blacklist-search" oninput="renderBlacklistDb(); toggleSearchClearBtn('admin-blacklist-search','admin-blacklist-search-clear')" placeholder="업체명/사업자번호 검색..." class="input w-full pr-8">
-                                <button type="button" id="admin-blacklist-search-clear" onclick="clearSearchInput('admin-blacklist-search','admin-blacklist-search-clear','renderBlacklistDb')" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-600 bg-transparent border-0 cursor-pointer p-0.5" aria-label="검색어 지우기"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <div class="relative w-full sm:w-56">
+                                    <input type="text" id="admin-blacklist-search" oninput="renderBlacklistDb(); toggleSearchClearBtn('admin-blacklist-search','admin-blacklist-search-clear')" placeholder="업체명/사업자번호 검색..." class="input w-full pr-8">
+                                    <button type="button" id="admin-blacklist-search-clear" onclick="clearSearchInput('admin-blacklist-search','admin-blacklist-search-clear','renderBlacklistDb')" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-600 bg-transparent border-0 cursor-pointer p-0.5" aria-label="검색어 지우기"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                                </div>
+                                <button type="button" onclick="exportBlacklistDbToCsv()" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV로 내보내기</button>
                             </div>
                         </div>
                         <div class="overflow-x-auto"><table class="table-clean"><tbody id="admin-blacklist-tbody"></tbody></table></div>
