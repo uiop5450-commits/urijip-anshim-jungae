@@ -1613,9 +1613,9 @@ function renderCommunityList() {
         .filter(p => communityActiveCategory === 'all' || p.category === communityActiveCategory)
         .filter(p => !query || p.title.toLowerCase().includes(query) || p.content.toLowerCase().includes(query))
         .slice()
-        .sort((a, b) => sortMode === 'popular'
+        .sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0) || (sortMode === 'popular'
             ? (b.likedBy || []).length - (a.likedBy || []).length || new Date(b.date) - new Date(a.date)
-            : new Date(b.date) - new Date(a.date));
+            : new Date(b.date) - new Date(a.date)));
 
     if (posts.length === 0) {
         listEl.innerHTML = `<p class="text-xs text-ink-400 font-bold py-12 text-center">${query ? '검색 결과가 없습니다.' : '등록된 글이 없습니다. 첫 번째 글을 남겨보세요!'}</p>`;
@@ -1623,10 +1623,11 @@ function renderCommunityList() {
     }
 
     listEl.innerHTML = posts.map(p => `
-        <div class="surface-flat p-5 flex items-start justify-between gap-4 hover:border-ink-300 transition-all cursor-pointer text-left" onclick="openCommunityDetail('${p.id}')">
+        <div class="surface-flat p-5 flex items-start justify-between gap-4 hover:border-ink-300 transition-all cursor-pointer text-left ${p.isPinned ? 'border border-gold-300' : ''}" onclick="openCommunityDetail('${p.id}')">
             ${p.images && p.images.length > 0 ? `<img src="${p.images[0]}" class="w-16 h-16 rounded-xl object-cover shrink-0 border border-ink-100">` : ''}
             <div class="space-y-1.5 flex-1 min-w-0">
                 <div class="flex items-center gap-2">
+                    ${p.isPinned ? `<span class="badge badge-gold"><i data-lucide="pin" class="w-2.5 h-2.5"></i> 공지</span>` : ''}
                     <span class="badge badge-brand">${COMMUNITY_CATEGORIES[p.category] || '자유 이야기'}</span>
                     <span class="text-[10px] text-ink-400 font-bold">${p.date}</span>
                 </div>
@@ -1807,17 +1808,33 @@ function renderAdminCommunityModeration() {
                     <div class="flex items-center gap-2 text-[10px] font-bold text-ink-400">
                         <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
                         <span>${post.date} · ${escapeHtml(post.authorName)}</span>
+                        ${post.isPinned ? `<span class="badge badge-gold"><i data-lucide="pin" class="w-2.5 h-2.5"></i> 공지 고정</span>` : ''}
                         ${reportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${reportCount}건</span>` : ''}
                     </div>
                     <h5 class="text-sm font-black text-ink-950">${escapeHtml(post.title)}</h5>
                     <p class="text-xs text-ink-600 font-medium leading-relaxed line-clamp-2">${escapeHtml(post.content)}</p>
                 </div>
-                <button type="button" onclick="adminDeleteCommunityPost('${post.id}')" class="btn btn-secondary btn-sm shrink-0 text-roseCustom">글 삭제</button>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="toggleCommunityPostPin('${post.id}')" class="btn btn-secondary btn-sm">${post.isPinned ? '고정 해제' : '상단 고정'}</button>
+                    <button type="button" onclick="adminDeleteCommunityPost('${post.id}')" class="btn btn-secondary btn-sm text-roseCustom">글 삭제</button>
+                </div>
             </div>
             ${commentsHtml ? `<div class="space-y-1.5 pt-2 border-t border-ink-100">${commentsHtml}</div>` : ''}
         </div>`;
     }).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 커뮤니티에 공지/안내 글을 올려도 다른 글들 사이에 묻혀 며칠 지나면 목록 아래로
+ * 밀려났다 — 네이버 카페/밴드의 "공지 고정"과 동일하게, 관리자가 특정 글을 상단에
+ * 고정해 계속 눈에 띄게 할 방법이 전혀 없던 공백을 해소한다. */
+function toggleCommunityPostPin(postId) {
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post) return;
+    post.isPinned = !post.isPinned;
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글 "${post.title}"을 ${post.isPinned ? '상단 고정' : '고정 해제'}함.`, 'INFO');
+    showToast(post.isPinned ? '게시글을 상단에 고정했습니다.' : '고정을 해제했습니다.', 'success');
+    renderAdminCommunityModeration();
 }
 
 function adminDeleteCommunityPost(postId) {
@@ -2242,6 +2259,7 @@ window.toggleReplyEdit = toggleReplyEdit;
 window.saveCommunityReplyEdit = saveCommunityReplyEdit;
 window.renderAdminCommunityModeration = renderAdminCommunityModeration;
 window.adminDeleteCommunityPost = adminDeleteCommunityPost;
+window.toggleCommunityPostPin = toggleCommunityPostPin;
 window.reportCommunityPost = reportCommunityPost;
 window.adminDeleteCommunityComment = adminDeleteCommunityComment;
 window.adminDeleteCommunityReply = adminDeleteCommunityReply;
