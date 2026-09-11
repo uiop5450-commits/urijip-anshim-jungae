@@ -738,6 +738,55 @@ function updatePartnerNotificationBadge() {
     badge.textContent = unreadCount > 0 ? ` (${unreadCount})` : '';
 }
 
+/* 고객은 커뮤니티에서 악성 유저를 차단할 수 있고 관리자는 고객 계정을 정지할 수
+ * 있는데, 계약 상대인 파트너가 노쇼·상습 갑질 등 불량 고객을 신고할 방법이 전혀
+ * 없었다 — 후기 신고(reportReview)와 동일한 1인 1회 신고 패턴을 적용하되, 신고
+ * 대상이 후기가 아니라 계약 건(주문)이라 window.AppState.clientReports에 별도로
+ * 쌓고 관리자 "고객 관리" 탭에서 확인한다. */
+let reportClientTargetCode = null;
+
+function isOrderReportedByMe(orderCode) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    return (window.AppState.clientReports || []).some(r => r.orderCode === orderCode && r.reportedByPartner === partnerName);
+}
+
+function openReportClientModal(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
+    if (isOrderReportedByMe(orderCode)) { showToast('이미 신고를 접수한 고객입니다.', 'info'); return; }
+    reportClientTargetCode = orderCode;
+    safeUpdateValue('report-client-reason', '');
+    openModal('report-client-modal', 'report-client-modal-card');
+}
+
+function closeReportClientModal() {
+    reportClientTargetCode = null;
+    closeModal('report-client-modal', 'report-client-modal-card');
+}
+
+function submitClientReport() {
+    const order = (window.AppState.orders || []).find(o => o.code === reportClientTargetCode);
+    if (!order) { closeReportClientModal(); return; }
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (isOrderReportedByMe(order.code)) { showToast('이미 신고를 접수한 고객입니다.', 'info'); closeReportClientModal(); return; }
+
+    const reason = document.getElementById('report-client-reason')?.value.trim();
+    if (!reason) { showToast('신고 사유를 입력해 주세요.', 'warning'); return; }
+
+    if (!window.AppState.clientReports) window.AppState.clientReports = [];
+    window.AppState.clientReports.unshift({
+        id: `crpt-${Date.now()}`, orderCode: order.code, clientName: order.clientName, clientPhone: order.clientPhone,
+        reportedByPartner: partnerName, reason, date: getLocalDateString()
+    });
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'CLIENT_REPORT', `[${partnerName}]가 오더 ${order.code}의 고객(${order.clientName})을 신고했습니다.`, 'WARNING');
+    showToast('신고가 접수되었습니다. 매니저 센터에서 검토할게요.', 'success');
+    closeReportClientModal();
+    if (typeof renderAdminClientManager === 'function') renderAdminClientManager();
+    if (typeof openPartnerOrderDetailModal === 'function') openPartnerOrderDetailModal(order.code);
+}
+
 /* 파트너 콘솔 > 고객센터 — 지금까지 1:1 문의 티켓 시스템은 고객 전용이었고 파트너는
  * 정산/매칭/계정 관련 문의를 접수할 방법이 전혀 없었다. 기존 supportTickets 배열과
  * renderAdminSupportTickets(관리자 답변 화면)을 그대로 재사용하되, role 필드로
@@ -1500,6 +1549,13 @@ function openPartnerOrderDetailModal(orderCode) {
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="ban" class="w-4 h-4 text-roseCustom"></i> 계약 취소 요청</h5>
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">시공이 불가능하거나 고객과의 분쟁으로 계약을 유지할 수 없는 경우, 매니저 센터 심사를 거쳐 계약을 취소할 수 있어요.</p>
                 <button type="button" onclick="openPartnerCancelRequestModal('${order.code}')" class="btn btn-secondary btn-sm text-roseCustom">계약 취소 요청하기</button>
+            </div>
+            <div class="surface p-5 space-y-2">
+                <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="flag" class="w-4 h-4 text-roseCustom"></i> 고객 신고</h5>
+                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">노쇼, 상습 갑질 등 불량 고객은 매니저 센터에 신고할 수 있어요.</p>
+                ${isOrderReportedByMe(order.code)
+                    ? `<span class="badge badge-neutral">신고 접수 완료</span>`
+                    : `<button type="button" onclick="openReportClientModal('${order.code}')" class="btn btn-secondary btn-sm text-roseCustom">고객 신고하기</button>`}
             </div>`;
     } else {
         actionSectionHtml = `
@@ -2056,21 +2112,29 @@ function renderAdminClientManager() {
         const contractedCount = myOrders.filter(o => o.status === 'contracted').length;
         const reviewCount = myOrders.filter(o => o.reviewWritten).length;
         const favoriteCount = (acc.favoritePartners || []).length;
+        const myReports = (window.AppState.clientReports || []).filter(r => r.clientPhone === acc.phone);
 
         return `
-        <div class="surface-flat p-4 flex flex-wrap items-center justify-between gap-3 text-left">
-            <div class="space-y-0.5 min-w-0">
-                <div class="flex items-center gap-1.5">
-                    <p class="text-sm font-black text-ink-950">${escapeHtml(acc.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(acc.id)})</span></p>
-                    ${acc.status === 'withdrawn' ? '<span class="badge badge-neutral">탈퇴함</span>' : acc.isSuspended ? '<span class="badge badge-rose">이용 정지</span>' : ''}
+        <div class="surface-flat p-4 space-y-2.5 text-left">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="space-y-0.5 min-w-0">
+                    <div class="flex items-center gap-1.5">
+                        <p class="text-sm font-black text-ink-950">${escapeHtml(acc.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(acc.id)})</span></p>
+                        ${acc.status === 'withdrawn' ? '<span class="badge badge-neutral">탈퇴함</span>' : acc.isSuspended ? '<span class="badge badge-rose">이용 정지</span>' : ''}
+                        ${myReports.length > 0 ? `<span class="badge badge-amber">파트너 신고 ${myReports.length}건</span>` : ''}
+                    </div>
+                    <p class="text-[11px] text-ink-500 font-bold">연락처 ${escapeHtml(acc.phone || '-')}</p>
                 </div>
-                <p class="text-[11px] text-ink-500 font-bold">연락처 ${escapeHtml(acc.phone || '-')}</p>
+                <div class="flex items-center flex-wrap gap-3 text-[11px] font-bold text-ink-600 w-full sm:w-auto sm:shrink-0">
+                    <span>의뢰 ${myOrders.length}건</span><span>계약 ${contractedCount}건</span><span>후기 ${reviewCount}건</span><span>관심업체 ${favoriteCount}곳</span>
+                    <button type="button" onclick="jumpToClientOrderLookup('${escapeHtml(acc.phone || '')}')" class="btn btn-secondary btn-sm">의뢰 조회</button>
+                    <button type="button" onclick="toggleClientSuspension('${acc.id}')" class="btn ${acc.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${acc.isSuspended ? '정지 해제' : '계정 정지'}</button>
+                </div>
             </div>
-            <div class="flex items-center gap-3 text-[11px] font-bold text-ink-600 shrink-0">
-                <span>의뢰 ${myOrders.length}건</span><span>계약 ${contractedCount}건</span><span>후기 ${reviewCount}건</span><span>관심업체 ${favoriteCount}곳</span>
-                <button type="button" onclick="jumpToClientOrderLookup('${escapeHtml(acc.phone || '')}')" class="btn btn-secondary btn-sm">의뢰 조회</button>
-                <button type="button" onclick="toggleClientSuspension('${acc.id}')" class="btn ${acc.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${acc.isSuspended ? '정지 해제' : '계정 정지'}</button>
-            </div>
+            ${myReports.length > 0 ? `
+            <div class="p-3 bg-amber-50 rounded-xl space-y-1.5">
+                ${myReports.map(r => `<p class="text-[11px] text-ink-700 font-semibold leading-relaxed">· [${escapeHtml(r.reportedByPartner)}] ${escapeHtml(r.reason)} <span class="text-[10px] text-ink-400 font-bold">(${r.orderCode} · ${r.date})</span></p>`).join('')}
+            </div>` : ''}
         </div>`;
     }).join('');
 }
@@ -3335,6 +3399,10 @@ window.cancelPartnerSupportTicket = cancelPartnerSupportTicket;
 window.isFavoriteOrder = isFavoriteOrder;
 window.toggleFavoriteOrder = toggleFavoriteOrder;
 window.togglePartnerFavoriteOrdersFilter = togglePartnerFavoriteOrdersFilter;
+window.isOrderReportedByMe = isOrderReportedByMe;
+window.openReportClientModal = openReportClientModal;
+window.closeReportClientModal = closeReportClientModal;
+window.submitClientReport = submitClientReport;
 window.renderPartnerOrderList = renderPartnerOrderList;
 window.renderPartnerContractsView = renderPartnerContractsView;
 window.setPartnerContractsStatusFilter = setPartnerContractsStatusFilter;
