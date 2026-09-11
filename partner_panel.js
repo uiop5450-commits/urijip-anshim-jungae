@@ -593,6 +593,7 @@ function togglePartnerConsoleVisibility() {
                 tabBar.innerHTML = `
                     <button type="button" id="btn-partner-view-orders" onclick="switchPartnerMode('orders')" class="gnb-tab active">수급 오더 관리</button>
                     <button type="button" id="btn-partner-view-contracts" onclick="switchPartnerMode('contracts')" class="gnb-tab">안심 계약·입찰 내역</button>
+                    <button type="button" id="btn-partner-view-performance" onclick="switchPartnerMode('performance')" class="gnb-tab">내 실적</button>
                     <button type="button" id="btn-partner-view-portfolio" onclick="switchPartnerMode('portfolio')" class="gnb-tab">포트폴리오 관리</button>
                     <button type="button" id="btn-partner-view-myinfo" onclick="switchPartnerMode('myinfo')" class="gnb-tab">내정보 관리</button>
                     <button type="button" id="btn-partner-view-notifications" onclick="switchPartnerMode('notifications')" class="gnb-tab">알림<span id="partner-notif-badge-count"></span></button>
@@ -1554,13 +1555,10 @@ function adminDeleteReview(partnerName, reviewIdx) {
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
 }
 
-function openPartnerMetricsModal(partnerName) {
-    const partner = (window.AppState.partners || []).find(p => p.name === partnerName);
-    if (!partner) return;
-
-    let modal = document.getElementById('admin-partner-metrics-modal');
-    if (!modal) { modal = document.createElement('div'); modal.id = 'admin-partner-metrics-modal'; modal.className = "hidden modal-overlay"; modal.style.zIndex = '220'; document.body.appendChild(modal); }
-
+/* 관리자용 상세 성과 모달과 파트너 본인용 "내 실적" 탭이 똑같은 참여/계약/GMV
+ * 계산 로직을 쓴다 — 한 곳에 모아두면 나중에 계산 방식이 바뀌어도 두 화면이
+ * 어긋날 일이 없다. */
+function computePartnerMetrics(partnerName) {
     const allOrders = window.AppState.orders || [];
     const participatedOrders = allOrders.filter(o => o.bids && o.bids.some(b => b.partner === partnerName));
     const contractedOrders = allOrders.filter(o => o.status === 'contracted' && o.acceptedPartner === partnerName);
@@ -1578,13 +1576,12 @@ function openPartnerMetricsModal(partnerName) {
         if (o.commissionPaid) totalCommissionPaid += comm; else pendingEscrow += comm;
     });
 
-    const isBanned = partner.status === 'banned';
-    const isWarning = partner.strikeCount > 0;
-    let statusText = '정상 가동 중', statusDotColor = 'bg-emeraldCustom';
-    if (isBanned) { statusText = '영구 제명'; statusDotColor = 'bg-roseCustom'; }
-    else if (isWarning) { statusText = `옐로카드 ${partner.strikeCount}회`; statusDotColor = 'bg-amberCustom'; }
+    return { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders };
+}
 
-    let contractedListHtml = contractedOrders.length > 0 ? contractedOrders.map(o => {
+function buildPartnerContractedOrdersListHtml(contractedOrders, partnerName) {
+    if (contractedOrders.length === 0) return `<div class="p-4 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 font-bold">최근 체결된 안심 계약 내역이 없습니다.</div>`;
+    return contractedOrders.map(o => {
         const steps = getPartnerContractProgressSteps(o, partnerName);
         const contractBtn = o.contractDoc
             ? `<button type="button" onclick="openUploadedPartnerDoc('${o.code}', 'contract')" class="btn btn-outline btn-sm"><i data-lucide="file-text" class="w-3 h-3 text-brand-500"></i> 계약서 (업로드본)</button>`
@@ -1607,7 +1604,24 @@ function openPartnerMetricsModal(partnerName) {
                 </div>
             </div>
         </div>`;
-    }).join('') : `<div class="p-4 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 font-bold">최근 체결된 안심 계약 내역이 없습니다.</div>`;
+    }).join('');
+}
+
+function openPartnerMetricsModal(partnerName) {
+    const partner = (window.AppState.partners || []).find(p => p.name === partnerName);
+    if (!partner) return;
+
+    let modal = document.getElementById('admin-partner-metrics-modal');
+    if (!modal) { modal = document.createElement('div'); modal.id = 'admin-partner-metrics-modal'; modal.className = "hidden modal-overlay"; modal.style.zIndex = '220'; document.body.appendChild(modal); }
+
+    const { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders } = computePartnerMetrics(partnerName);
+    const contractedListHtml = buildPartnerContractedOrdersListHtml(contractedOrders, partnerName);
+
+    const isBanned = partner.status === 'banned';
+    const isWarning = partner.strikeCount > 0;
+    let statusText = '정상 가동 중', statusDotColor = 'bg-emeraldCustom';
+    if (isBanned) { statusText = '영구 제명'; statusDotColor = 'bg-roseCustom'; }
+    else if (isWarning) { statusText = `옐로카드 ${partner.strikeCount}회`; statusDotColor = 'bg-amberCustom'; }
 
     modal.innerHTML = `
         <div id="admin-partner-metrics-modal-card" class="modal-card w-full max-w-2xl p-6 sm:p-8 space-y-6 text-left">
@@ -1649,6 +1663,43 @@ function closePartnerMetricsModal() {
     const modal = document.getElementById('admin-partner-metrics-modal');
     const card = document.getElementById('admin-partner-metrics-modal-card');
     if (modal && card) { card.classList.remove('modal-open'); setTimeout(() => modal.classList.add('hidden'), 150); }
+}
+
+/* 파트너 콘솔 > 내 실적 — 지금까지는 참여 오더 수/계약 성공률/GMV/수수료 같은
+ * 실적 지표를 관리자만(openPartnerMetricsModal) 볼 수 있었고, 파트너 본인은
+ * 자기 성과를 확인할 방법이 전혀 없었다. computePartnerMetrics/
+ * buildPartnerContractedOrdersListHtml을 그대로 재사용해 관리자 화면과 숫자가
+ * 어긋나지 않게 한다. */
+function renderPartnerPerformanceView() {
+    const container = document.getElementById('partner-mode-performance-view');
+    if (!container) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+
+    const { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders } = computePartnerMetrics(partnerName);
+    const contractedListHtml = buildPartnerContractedOrdersListHtml(contractedOrders, partnerName);
+
+    container.innerHTML = `
+        <div class="surface surface-lg p-6 sm:p-8 space-y-5 text-left">
+            <div class="border-b border-ink-100 pb-4">
+                <span class="badge badge-brand">경영 지표</span>
+                <h4 class="text-sm sm:text-base font-black text-ink-950 tracking-tight mt-1 flex items-center gap-1.5"><i data-lucide="bar-chart-2" class="w-4 h-4 text-brand-500"></i> 내 실적 요약</h4>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div class="article-spec-chip"><span>참여 입찰 오더</span><span class="val">${participatedCount} 건</span></div>
+                <div class="article-spec-chip"><span>최종 계약 체결</span><span class="val">${contractedCount} 건</span></div>
+                <div class="article-spec-chip"><span>계약 성공률</span><span class="val">${contractRate} %</span></div>
+                <div class="article-spec-chip"><span>누적 거래액 (GMV)</span><span class="val">₩ ${totalGmv.toLocaleString()} 만원</span></div>
+                <div class="article-spec-chip"><span>수수료 지불완료</span><span class="val">₩ ${totalCommissionPaid.toLocaleString()} 만원</span></div>
+                <div class="article-spec-chip"><span>보증 에스크로 잔액</span><span class="val">₩ ${pendingEscrow.toLocaleString()} 만원</span></div>
+            </div>
+            <div class="space-y-2.5 pt-2">
+                <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="file-check" class="w-4 h-4 text-ink-600"></i> 최근 안심 계약 체결 및 안심 문서 검증 (${contractedCount}건)</h4>
+                <div class="space-y-2">${contractedListHtml}</div>
+            </div>
+        </div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function buildDocFile(content, filename) {
@@ -2245,6 +2296,7 @@ window.recalculateKPIs = recalculateKPIs;
 window.syncAuditLogs = syncAuditLogs;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
+window.renderPartnerPerformanceView = renderPartnerPerformanceView;
 window.closePartnerMetricsModal = closePartnerMetricsModal;
 window.adminDeleteReview = adminDeleteReview;
 window.downloadContractDoc = downloadContractDoc;
