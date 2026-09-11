@@ -1111,6 +1111,8 @@ function isFavoriteOrder(orderCode) {
     return !!(partner && partner.favoriteOrders && partner.favoriteOrders.includes(orderCode));
 }
 
+const MAX_FAVORITE_ORDERS = 20;
+
 function toggleFavoriteOrder(orderCode, event) {
     if (event) event.stopPropagation();
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
@@ -1119,7 +1121,12 @@ function toggleFavoriteOrder(orderCode, event) {
     if (!partner.favoriteOrders) partner.favoriteOrders = [];
     const idx = partner.favoriteOrders.indexOf(orderCode);
     if (idx >= 0) { partner.favoriteOrders.splice(idx, 1); showToast(`오더 ${orderCode}를 관심 오더에서 제거했습니다.`, 'info'); }
-    else { partner.favoriteOrders.push(orderCode); showToast(`오더 ${orderCode}를 관심 오더로 저장했습니다!`, 'success'); }
+    else {
+        // 고객측 관심 파트너(MAX_FAVORITE_PARTNERS)와 동일하게, 상한 없이 계속 쌓이면
+        // '관심'이라는 기능 취지가 무색해지므로 동일한 상한을 둔다.
+        if (partner.favoriteOrders.length >= MAX_FAVORITE_ORDERS) { showToast(`관심 오더는 최대 ${MAX_FAVORITE_ORDERS}건까지 저장할 수 있어요. 기존 항목을 해제한 후 다시 시도해주세요.`, 'warning'); return; }
+        partner.favoriteOrders.push(orderCode); showToast(`오더 ${orderCode}를 관심 오더로 저장했습니다!`, 'success');
+    }
     renderPartnerOrderList();
 }
 
