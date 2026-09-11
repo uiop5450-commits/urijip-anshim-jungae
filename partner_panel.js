@@ -940,6 +940,32 @@ function submitPartnerBid() {
     showToast("선착순 입찰에 참여했습니다!", "success");
 }
 
+/* 지금까지는 고객만 파트너의 입찰을 취소(cancelPartnerBid)할 수 있었고, 파트너
+ * 본인은 한 번 입찰하면 되돌릴 방법이 없었다 — 예약 초과나 사정 변경으로 시공이
+ * 어려워져도 그대로 남아있어야 했다. 계약 확정 전(status === 'bidding')에만
+ * 허용하고, 고객에게는 매칭취소와 동일하게 안내한다. */
+function withdrawMyPartnerBid(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order) return;
+    if (order.status !== 'bidding') { showToast('이미 계약이 진행 중이거나 종료된 오더는 입찰을 철회할 수 없어요.', 'warning'); return; }
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const bidIdx = order.bids.findIndex(b => b.partner === partnerName);
+    if (bidIdx === -1) return;
+
+    order.bids.splice(bidIdx, 1);
+    if (!order.excludedPartners) order.excludedPartners = [];
+    if (!order.excludedPartners.includes(partnerName)) order.excludedPartners.push(partnerName);
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'BID_WITHDRAW', `[${partnerName}]가 오더 ${orderCode} 입찰을 철회했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 입찰을 철회했어요. (의뢰 코드: ${orderCode})`);
+    showToast('입찰을 철회했습니다.', 'info');
+
+    closePartnerOrderDetailModal();
+    renderPartnerOrderList();
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+    recalculateKPIs();
+}
+
 /* 안심 계약·입찰 내역 상태 필터. 상태 뱃지를 클릭하면 해당 상태만 걸러서 볼 수 있다. */
 let partnerContractsStatusFilter = 'all';
 
@@ -1124,7 +1150,13 @@ function openPartnerOrderDetailModal(orderCode) {
             <div class="p-4 surface-flat text-left space-y-1">
                 <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="lock" class="w-4 h-4 text-ink-500"></i> 계약서·견적서 업로드 및 수수료 결제는 계약 확정 후 가능합니다</h5>
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${order.status === 'contracted' ? '이 오더는 다른 파트너사와 계약이 체결되었습니다.' : order.status === 'withdrawn' ? '고객이 이 의뢰를 철회하여 더 이상 진행되지 않습니다.' : '고객이 최종 파트너사를 확정하면 이 오더의 계약서·견적서 업로드와 수수료 결제 기능이 열립니다.'}</p>
-            </div>`;
+            </div>
+            ${myBid && order.status === 'bidding' ? `
+            <div class="p-4 surface-flat text-left space-y-2">
+                <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="undo-2" class="w-4 h-4 text-roseCustom"></i> 입찰 참여 철회</h5>
+                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">예약이 초과되었거나 시공이 어려운 경우 입찰을 철회할 수 있어요. 고객에게 매칭 취소로 안내됩니다.</p>
+                <button type="button" onclick="withdrawMyPartnerBid('${order.code}')" class="btn btn-secondary btn-sm text-roseCustom">이 오더 입찰 철회하기</button>
+            </div>` : ''}`;
     }
 
     modal.innerHTML = `
@@ -2522,6 +2554,7 @@ window.removePamphletDraftImage = removePamphletDraftImage;
 window.handlePamphletDetailImageUpload = handlePamphletDetailImageUpload;
 window.removePamphletDetailDraftImage = removePamphletDetailDraftImage;
 window.openPartnerOrderDetailModal = openPartnerOrderDetailModal;
+window.withdrawMyPartnerBid = withdrawMyPartnerBid;
 window.closePartnerOrderDetailModal = closePartnerOrderDetailModal;
 window.triggerPartnerDocUpload = triggerPartnerDocUpload;
 window.handlePartnerDocUpload = handlePartnerDocUpload;
