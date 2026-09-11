@@ -1454,6 +1454,20 @@
         </div>
     </div>
 
+    <div id="bid-question-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="bid-question-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-brand">계약 전 문의</span><h3 id="bid-question-modal-title" class="text-base font-black text-ink-950 tracking-tight mt-1">파트너사에게 궁금한 점을 물어보세요</h3></div>
+                <button type="button" onclick="closeBidQuestionModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">계약 체결 전, 자재나 일정 등 궁금한 점을 미리 물어보고 답변을 받아볼 수 있어요.</p>
+                <textarea id="bid-question-text" rows="3" placeholder="예: 창호 자재는 어떤 브랜드를 사용하시나요?" class="textarea"></textarea>
+                <button type="button" onclick="submitBidQuestion()" class="btn btn-primary btn-block">문의 보내기</button>
+            </div>
+        </div>
+    </div>
+
     <div id="partner-cancel-request-modal" class="hidden modal-overlay" style="z-index:220">
         <div id="partner-cancel-request-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">

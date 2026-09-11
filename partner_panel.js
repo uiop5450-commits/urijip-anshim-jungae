@@ -1105,6 +1105,28 @@ function withdrawMyPartnerBid(orderCode) {
     recalculateKPIs();
 }
 
+/* 고객의 계약 전 문의(openBidQuestionModal, client_panel.js)에 답변한다 — 후기 답글
+ * 알림(submitReviewReply)과 동일한 패턴으로 pushClientNotification을 재사용한다. */
+function replyToBidQuestion(orderCode, questionIdx) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const bid = order.bids && order.bids.find(b => b.partner === partnerName);
+    const question = bid && bid.questions && bid.questions[questionIdx];
+    if (!question) return;
+
+    const input = document.getElementById(`bid-question-reply-input-${orderCode}-${questionIdx}`);
+    const reply = input ? input.value.trim() : '';
+    if (!reply) { showToast('답변 내용을 입력해 주세요.', 'warning'); return; }
+
+    question.reply = reply;
+    question.replyDate = getLocalDateString();
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'BID_QUESTION_REPLY', `[${partnerName}]가 오더(${orderCode}) 문의에 답변했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 계약 전 문의에 답변했어요. (의뢰 코드: ${orderCode})`);
+    showToast('답변이 등록되었습니다.', 'success');
+    openPartnerOrderDetailModal(orderCode);
+}
+
 let partnerCancelRequestTargetCode = null;
 
 /* 고객은 계약 취소를 요청할 수 있는데(openContractCancelRequestModal, client_panel.js)
@@ -1344,6 +1366,17 @@ function openPartnerOrderDetailModal(orderCode) {
                 <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="lock" class="w-4 h-4 text-ink-500"></i> 계약서·견적서 업로드 및 수수료 결제는 계약 확정 후 가능합니다</h5>
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${order.status === 'contracted' ? '이 오더는 다른 파트너사와 계약이 체결되었습니다.' : order.status === 'withdrawn' ? '고객이 이 의뢰를 철회하여 더 이상 진행되지 않습니다.' : order.status === 'cancel_requested' ? '고객이 계약 취소를 요청하여 매니저 센터에서 심사 중입니다. 심사가 끝날 때까지 계약 관련 절차가 일시 중단됩니다.' : order.status === 'cancelled' ? '이 계약은 취소 승인되어 더 이상 유효하지 않습니다.' : '고객이 최종 파트너사를 확정하면 이 오더의 계약서·견적서 업로드와 수수료 결제 기능이 열립니다.'}</p>
             </div>
+            ${myBid && myBid.questions && myBid.questions.length > 0 ? `
+            <div class="p-4 surface-flat text-left space-y-2.5">
+                <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="message-circle-question" class="w-4 h-4 text-brand-500"></i> 고객 계약 전 문의</h5>
+                <div class="space-y-2">${myBid.questions.map((q, qIdx) => `
+                    <div class="p-3 bg-ink-50 rounded-xl space-y-1.5">
+                        <p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(q.text)} <span class="text-[10px] text-ink-400 font-bold">(${q.date})</span></p>
+                        ${q.reply
+                            ? `<p class="text-xs text-brand-700 font-semibold leading-relaxed pl-3 border-l-2 border-brand-200">${escapeHtml(q.reply)}</p>`
+                            : `<div class="flex gap-1.5"><input type="text" id="bid-question-reply-input-${order.code}-${qIdx}" placeholder="답변을 입력하세요" class="input flex-1 text-xs"><button type="button" onclick="replyToBidQuestion('${order.code}', ${qIdx})" class="btn btn-dark btn-sm shrink-0">답변</button></div>`}
+                    </div>`).join('')}</div>
+            </div>` : ''}
             ${myBid && order.status === 'bidding' ? `
             <div class="p-4 surface-flat text-left space-y-2">
                 <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="undo-2" class="w-4 h-4 text-roseCustom"></i> 입찰 참여 철회</h5>
@@ -3213,6 +3246,7 @@ window.handlePamphletDetailImageUpload = handlePamphletDetailImageUpload;
 window.removePamphletDetailDraftImage = removePamphletDetailDraftImage;
 window.openPartnerOrderDetailModal = openPartnerOrderDetailModal;
 window.withdrawMyPartnerBid = withdrawMyPartnerBid;
+window.replyToBidQuestion = replyToBidQuestion;
 window.closePartnerOrderDetailModal = closePartnerOrderDetailModal;
 window.triggerPartnerDocUpload = triggerPartnerDocUpload;
 window.handlePartnerDocUpload = handlePartnerDocUpload;

@@ -333,6 +333,47 @@ function cancelPartnerBid(orderCode, partnerName) {
     if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
 }
 
+let bidQuestionTarget = null;
+
+/* 여러 입찰 제안서를 비교할 때 지금까지는 "매칭취소" 아니면 "계약 체결하기" 둘 중
+ * 하나만 고를 수 있었다 — 계약을 결정하기 전에 자재/일정 등을 가볍게 물어볼 방법이
+ * 없어서 궁금증이 남아도 바로 계약하거나 매칭을 취소해야 했다. 입찰(bid) 객체에
+ * questions 배열을 두고, 알림 파이프(pushPartnerNotification/pushClientNotification)를
+ * 그대로 재사용해 답변 도착을 알린다. */
+function openBidQuestionModal(orderCode, partnerName) {
+    if (!requireClientLoginForCommunity()) return;
+    bidQuestionTarget = { orderCode, partnerName };
+    safeUpdateText('bid-question-modal-title', `${partnerName}에게 문의하기`);
+    safeUpdateValue('bid-question-text', '');
+    openModal('bid-question-modal', 'bid-question-modal-card');
+}
+
+function closeBidQuestionModal() {
+    bidQuestionTarget = null;
+    closeModal('bid-question-modal', 'bid-question-modal-card');
+}
+
+function submitBidQuestion() {
+    if (!bidQuestionTarget) return;
+    const { orderCode, partnerName } = bidQuestionTarget;
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const bid = order && order.bids && order.bids.find(b => b.partner === partnerName);
+    if (!bid) { closeBidQuestionModal(); return; }
+
+    const text = document.getElementById('bid-question-text')?.value.trim();
+    if (!text) { showToast('문의 내용을 입력해 주세요.', 'warning'); return; }
+
+    if (!bid.questions) bid.questions = [];
+    bid.questions.push({ text, date: getLocalDateString(), reply: null, replyDate: null });
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'BID_QUESTION', `[${order.clientName}] 고객님이 [${partnerName}] 파트너의 입찰(${orderCode})에 문의를 남겼습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `오더(${orderCode}) 입찰에 대해 고객님이 문의를 남겼어요: "${text}"`);
+    showToast('문의를 보냈습니다. 답변이 도착하면 알려드릴게요.', 'success');
+    closeBidQuestionModal();
+    renderClientMyPage();
+    selectMyPageEstimate(orderCode);
+}
+
 /* 지금까지는 파트너 매칭을 하나씩 취소(cancelPartnerBid)할 수만 있었고, 의뢰(오더)
  * 자체를 철회할 방법은 없었다 — 이사 계획이 바뀌거나 마음이 바뀌어도 오더가
  * '입찰 심사 중'으로 영원히 남아 있었다. 이미 계약이 체결된 오더는 철회 대상이
@@ -1322,7 +1363,12 @@ function renderMyPageEstimateDetails(order) {
                         <span class="font-black text-ink-950 text-sm">₩ ${bid.price.toLocaleString()} 만원</span>
                     </div>
                     <p class="text-xs text-ink-600 font-semibold leading-relaxed">${escapeHtml(bid.desc)}</p>
-                    <div class="flex justify-between items-center pt-2 border-t border-ink-100">
+                    ${(bid.questions || []).length > 0 ? `<div class="space-y-1.5 pt-1">${bid.questions.map(q => `
+                        <div class="p-2.5 bg-white rounded-xl border border-ink-100 space-y-1">
+                            <p class="text-[11px] text-ink-700 font-semibold leading-relaxed"><i data-lucide="help-circle" class="w-3 h-3 inline text-ink-400"></i> ${escapeHtml(q.text)}</p>
+                            ${q.reply ? `<p class="text-[11px] text-brand-700 font-semibold leading-relaxed pl-4"><i data-lucide="reply" class="w-3 h-3 inline"></i> ${escapeHtml(q.reply)}</p>` : `<p class="text-[10px] text-ink-400 font-bold pl-4">답변 대기중</p>`}
+                        </div>`).join('')}</div>` : ''}
+                    <div class="flex flex-wrap justify-between items-center gap-2 pt-2 border-t border-ink-100">
                         <button type="button" onclick="openPartnerPortfolioModal('${bid.partner}')" class="btn btn-ghost btn-sm px-0"><i data-lucide="palette" class="w-3.5 h-3.5"></i> 시공 포트폴리오 및 후기</button>
                         ${order.status === 'contracted' ? (isContracted ? `
                             <span class="badge badge-emerald">✓ 안심 계약 체결사</span>
@@ -1332,7 +1378,8 @@ function renderMyPageEstimateDetails(order) {
                                 <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}')" class="btn btn-secondary btn-sm">매칭취소</button>
                             </div>
                         ` : `
-                            <div class="flex items-center gap-1.5">
+                            <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                                <button type="button" onclick="openBidQuestionModal('${order.code}', '${bid.partner}')" class="btn btn-ghost btn-sm px-1.5" title="계약 전 궁금한 점 문의하기"><i data-lucide="message-circle-question" class="w-3.5 h-3.5"></i></button>
                                 <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}')" class="btn btn-secondary btn-sm">매칭취소</button>
                                 <button type="button" onclick="clientFinalizeContract('${order.code}', '${bid.partner}', ${bid.price})" class="btn btn-dark btn-sm">이 파트너와 계약 체결하기</button>
                             </div>
@@ -2300,6 +2347,9 @@ window.goToClientStep = goToClientStep;
 window.triggerMatchingSim = triggerMatchingSim;
 window.clientFinalizeContract = clientFinalizeContract;
 window.cancelPartnerBid = cancelPartnerBid;
+window.openBidQuestionModal = openBidQuestionModal;
+window.closeBidQuestionModal = closeBidQuestionModal;
+window.submitBidQuestion = submitBidQuestion;
 window.withdrawOrder = withdrawOrder;
 window.openEditOrderBudgetModal = openEditOrderBudgetModal;
 window.closeEditOrderBudgetModal = closeEditOrderBudgetModal;
