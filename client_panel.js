@@ -1124,6 +1124,10 @@ function toggleFavoritePartner(partnerName) {
         // 다 찜해둘 수 있었다 — '관심'이라는 기능 취지에 맞게 상한을 둔다.
         if (account.favoritePartners.length >= MAX_FAVORITE_PARTNERS) { showToast(`관심 파트너는 최대 ${MAX_FAVORITE_PARTNERS}곳까지 저장할 수 있어요. 기존 항목을 해제한 후 다시 시도해주세요.`, 'warning'); return; }
         account.favoritePartners.push(partnerName); showToast(`[${partnerName}] 관심 파트너로 저장했습니다!`, 'success');
+        // 반대 방향(파트너 신규 시공사례 등록 시 찜한 고객에게 알림, e671344)은 있는데
+        // 정작 고객이 파트너를 찜했다는 사실은 파트너에게 전혀 전달되지 않았다 —
+        // 찜 해제는 굳이 알릴 필요가 없어 등록 시에만 보낸다.
+        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `${maskName(auth.name)}님이 관심 파트너로 등록했어요.`);
     }
 
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
