@@ -448,14 +448,15 @@ const ALL_ADMIN_TABS = [
     ['applications', 'clipboard-check', '파트너 가입 심사'],
     ['blacklist', 'shield-alert', '삼진아웃 블랙리스트 DB'], ['logs', 'list', '플랫폼 관제 로그'],
     ['display', 'image', '노출 관리'], ['staff', 'users', '직원 권한 관리'],
-    ['community', 'flag', '커뮤니티 관리'], ['support', 'inbox', '고객 문의']
+    ['community', 'flag', '커뮤니티 관리'], ['support', 'inbox', '고객 문의'],
+    ['broadcast', 'megaphone', '전체 공지 발송']
 ];
 
 // 'super_admin'은 전체 탭에 접근 가능. 'partner_manager'는 고액 오더 배정(재무),
 // 시스템 로그, 마케팅 노출 관리, 직원 권한 부여처럼 상위 권한이 필요한 영역은
 // 제외하고 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
 const ROLE_TAB_ACCESS = {
-    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support'],
+    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast'],
     partner_manager: ['monitor', 'applications', 'blacklist']
 };
 
@@ -485,7 +486,7 @@ function switchAdminMode(mode) {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
+    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
     document.getElementById(`admin-mode-${mode}-view`)?.classList.remove('hidden');
 
     const kpiGrid = document.getElementById('admin-kpi-grid');
@@ -1489,6 +1490,48 @@ function replyToSupportTicket(ticketId) {
     if (typeof pushClientNotification === 'function') pushClientNotification(ticket.clientPhone, `고객센터에서 문의(${ticket.subject})에 답변을 남겼어요.`);
     showToast('답변이 등록되었습니다.', 'success');
     renderAdminSupportTickets();
+}
+
+/* 관리자가 전체 고객/전체 파트너에게 한 번에 공지를 보낼 방법이 지금까지 전혀 없었다
+ * (1:1 알림 시스템만 존재). 기존 pushClientNotification/pushPartnerNotification과 동일한
+ * 데이터 모양으로 대량 삽입하되, 매 건마다 다시 렌더링하지 않고 발송 종료 후 한 번만 갱신한다. */
+function sendAdminBroadcastNotification() {
+    const targetSel = document.getElementById('admin-broadcast-target');
+    const msgInput = document.getElementById('admin-broadcast-message');
+    const target = targetSel ? targetSel.value : 'clients';
+    const message = msgInput ? msgInput.value.trim() : '';
+
+    if (!message) { showToast('발송할 공지 내용을 입력해주세요.', 'warning'); return; }
+    if (message.length > 500) { showToast('공지 내용은 500자 이내로 입력해주세요.', 'warning'); return; }
+
+    const nowIso = new Date().toISOString();
+    const noticeText = `[공지] ${message}`;
+    let recipientCount = 0;
+
+    if (target === 'partners') {
+        const partners = (window.AppState.partners || []).filter(p => p.status === 'active');
+        partners.forEach(p => {
+            window.AppState.partnerNotifications.unshift({ id: `pntf-${Date.now()}-${Math.floor(Math.random() * 100000)}`, partnerName: p.name, message: noticeText, date: nowIso, read: false });
+            recipientCount++;
+        });
+        if (window.AppState.partnerNotifications.length > 200) window.AppState.partnerNotifications.length = 200;
+        if (typeof renderPartnerNotifications === 'function') renderPartnerNotifications();
+        if (typeof updatePartnerNotificationBadge === 'function') updatePartnerNotificationBadge();
+    } else {
+        const clients = window.AppState.clientAccounts || [];
+        clients.forEach(acc => {
+            if (!acc.phone) return;
+            window.AppState.clientNotifications.unshift({ id: `ntf-${Date.now()}-${Math.floor(Math.random() * 100000)}`, clientPhone: acc.phone, message: noticeText, date: nowIso, read: false });
+            recipientCount++;
+        });
+        if (window.AppState.clientNotifications.length > 200) window.AppState.clientNotifications.length = 200;
+        if (typeof renderClientMyPage === 'function') renderClientMyPage();
+    }
+
+    const targetLabel = target === 'partners' ? '전체 파트너사' : '전체 고객';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'BROADCAST', `${targetLabel} ${recipientCount}명에게 공지 발송: "${message.slice(0, 40)}${message.length > 40 ? '...' : ''}"`, 'SUCCESS');
+    showToast(`${targetLabel} ${recipientCount}명에게 공지가 발송되었습니다.`, 'success');
+    if (msgInput) msgInput.value = '';
 }
 
 function renderAdminOrderAllocation() {
@@ -2520,6 +2563,7 @@ window.setAdminSupportStatusFilter = setAdminSupportStatusFilter;
 window.setAdminPartnerMonitorStatusFilter = setAdminPartnerMonitorStatusFilter;
 window.exportLogsToCsv = exportLogsToCsv;
 window.replyToSupportTicket = replyToSupportTicket;
+window.sendAdminBroadcastNotification = sendAdminBroadcastNotification;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
 window.renderPartnerPerformanceView = renderPartnerPerformanceView;
 window.closePartnerMetricsModal = closePartnerMetricsModal;

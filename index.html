@@ -1044,6 +1044,29 @@
                         <div id="admin-support-ticket-list" class="space-y-3"></div>
                     </div>
                 </div>
+
+                <div id="admin-mode-broadcast-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg p-6 space-y-5 text-left max-w-xl">
+                        <div class="border-b border-ink-100 pb-4 space-y-1">
+                            <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="megaphone" class="w-4 h-4"></i> 전체 공지 발송</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">전체 고객 또는 전체 파트너사의 알림 탭으로 공지를 즉시 발송합니다.</p>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-[11px] font-black text-ink-700 mb-1.5 block">발송 대상</label>
+                                <select id="admin-broadcast-target" class="input w-full">
+                                    <option value="clients">전체 고객</option>
+                                    <option value="partners">전체 파트너사</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-black text-ink-700 mb-1.5 block">공지 내용</label>
+                                <textarea id="admin-broadcast-message" rows="4" maxlength="500" placeholder="공지할 내용을 입력해주세요. (최대 500자)" class="input w-full resize-none"></textarea>
+                            </div>
+                            <button type="button" onclick="sendAdminBroadcastNotification()" class="btn btn-dark btn-block"><i data-lucide="send" class="w-4 h-4"></i> 공지 발송하기</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
