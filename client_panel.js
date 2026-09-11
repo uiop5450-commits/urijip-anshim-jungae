@@ -866,6 +866,8 @@ function isFavoritePartner(partnerName) {
     return !!(account && account.favoritePartners && account.favoritePartners.includes(partnerName));
 }
 
+const MAX_FAVORITE_PARTNERS = 20;
+
 function toggleFavoritePartner(partnerName) {
     if (!requireClientLoginForCommunity()) return;
     const auth = window.AppState.clientAuth;
@@ -874,7 +876,12 @@ function toggleFavoritePartner(partnerName) {
     if (!account.favoritePartners) account.favoritePartners = [];
     const idx = account.favoritePartners.indexOf(partnerName);
     if (idx >= 0) { account.favoritePartners.splice(idx, 1); showToast(`[${partnerName}] 관심 파트너에서 제거했습니다.`, 'info'); }
-    else { account.favoritePartners.push(partnerName); showToast(`[${partnerName}] 관심 파트너로 저장했습니다!`, 'success'); }
+    else {
+        // 관심 파트너 저장에 개수 제한이 전혀 없어서, 이론상 등록된 모든 파트너를
+        // 다 찜해둘 수 있었다 — '관심'이라는 기능 취지에 맞게 상한을 둔다.
+        if (account.favoritePartners.length >= MAX_FAVORITE_PARTNERS) { showToast(`관심 파트너는 최대 ${MAX_FAVORITE_PARTNERS}곳까지 저장할 수 있어요. 기존 항목을 해제한 후 다시 시도해주세요.`, 'warning'); return; }
+        account.favoritePartners.push(partnerName); showToast(`[${partnerName}] 관심 파트너로 저장했습니다!`, 'success');
+    }
 
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
     if (typeof renderClientFavoritePartners === 'function') renderClientFavoritePartners();
