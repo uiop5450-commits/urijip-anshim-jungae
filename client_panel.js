@@ -407,6 +407,12 @@ function openEditOrderBudgetModal(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order || order.status !== 'bidding') return;
     editOrderBudgetTargetCode = orderCode;
+    safeUpdateValue('edit-order-address-input', order.clientAddress);
+    safeUpdateValue('edit-order-spacetype-input', order.spaceType);
+    safeUpdateValue('edit-order-worktype-input', order.workType);
+    safeUpdateValue('edit-order-pyung-input', order.pyung);
+    safeUpdateValue('edit-order-vacancy-input', order.vacancy);
+    safeUpdateValue('edit-order-date-input', order.preferredDate);
     safeUpdateValue('edit-order-budget-input', order.budget);
     openModal('edit-order-budget-modal', 'edit-order-budget-modal-card');
 }
@@ -421,19 +427,46 @@ function saveOrderBudgetEdit() {
     if (!order) { closeEditOrderBudgetModal(); return; }
     if (order.status !== 'bidding') { showToast('이미 계약이 진행 중이거나 완료된 의뢰는 수정할 수 없어요.', 'warning'); closeEditOrderBudgetModal(); return; }
 
-    const input = document.getElementById('edit-order-budget-input');
-    const newBudget = input ? parseInt(input.value, 10) : NaN;
+    const newAddress = document.getElementById('edit-order-address-input')?.value.trim();
+    const newSpaceType = document.getElementById('edit-order-spacetype-input')?.value;
+    const newWorkType = document.getElementById('edit-order-worktype-input')?.value;
+    const newPyung = parseInt(document.getElementById('edit-order-pyung-input')?.value, 10);
+    const newVacancy = document.getElementById('edit-order-vacancy-input')?.value;
+    const newDate = document.getElementById('edit-order-date-input')?.value;
+    const newBudget = parseInt(document.getElementById('edit-order-budget-input')?.value, 10);
+    if (!newAddress) { showToast('시공 주소를 입력해주세요.', 'warning'); return; }
+    if (!newPyung || newPyung <= 0) { showToast('면적(평)을 올바르게 입력해주세요.', 'warning'); return; }
+    if (!newDate) { showToast('희망 착공일을 선택해주세요.', 'warning'); return; }
     if (!newBudget || newBudget <= 0) { showToast('희망 예산을 올바르게 입력해주세요.', 'warning'); return; }
 
-    const oldBudget = order.budget;
+    // 실제로 바뀐 항목만 파트너에게 알려야, 예산만 살짝 고친 건데도 매번 "주소/평형/일정이
+    // 모두 바뀌었다"는 오해를 주는 알림이 가지 않는다.
+    const changedLabels = [];
+    if (newAddress !== order.clientAddress) changedLabels.push('시공 주소');
+    if (newSpaceType !== order.spaceType) changedLabels.push('공간 구분');
+    if (newWorkType !== order.workType) changedLabels.push('시공 범위');
+    if (newPyung !== order.pyung) changedLabels.push('면적');
+    if (newVacancy !== order.vacancy) changedLabels.push('공실 여부');
+    if (newDate !== order.preferredDate) changedLabels.push('희망 착공일');
+    if (newBudget !== order.budget) changedLabels.push('희망 예산');
+
+    if (changedLabels.length === 0) { showToast('변경된 내용이 없습니다.', 'info'); closeEditOrderBudgetModal(); return; }
+
+    order.clientAddress = newAddress;
+    order.spaceType = newSpaceType;
+    order.workType = newWorkType;
+    order.pyung = newPyung;
+    order.vacancy = newVacancy;
+    order.preferredDate = newDate;
     order.budget = newBudget;
 
     const biddingPartners = (order.bids || []).map(b => b.partner);
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'EDIT_ORDER_BUDGET', `[${order.clientName}] 고객님이 의뢰(${order.code})의 희망 예산을 ₩${oldBudget.toLocaleString()}만원 → ₩${newBudget.toLocaleString()}만원으로 수정했습니다.`, 'INFO');
+    const changeSummary = changedLabels.join(', ');
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'EDIT_ORDER_BUDGET', `[${order.clientName}] 고객님이 의뢰(${order.code})의 상세정보(${changeSummary})를 수정했습니다.`, 'INFO');
     if (typeof pushPartnerNotification === 'function') {
-        biddingPartners.forEach(partnerName => pushPartnerNotification(partnerName, `고객님이 오더(${order.code})의 희망 예산을 ₩${newBudget.toLocaleString()}만원으로 수정했어요.`));
+        biddingPartners.forEach(partnerName => pushPartnerNotification(partnerName, `고객님이 오더(${order.code})의 상세정보(${changeSummary})를 수정했어요.`));
     }
-    showToast('희망 예산이 수정되었습니다.', 'success');
+    showToast('의뢰 상세정보가 수정되었습니다.', 'success');
 
     closeEditOrderBudgetModal();
     renderClientMyPage();
