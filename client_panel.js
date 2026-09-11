@@ -1735,7 +1735,7 @@ function renderMyPageEstimateDetails(order) {
             }).join('')}
         </div>
         ${order.clientSigned
-            ? `<div class="p-3.5 surface-flat flex items-center justify-between mt-3"><span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="pen-tool" class="w-3.5 h-3.5 text-emeraldCustom"></i> 시공 계약 합의서 서명 완료</span><span class="text-[10px] text-ink-400 font-bold">${order.signedDate}</span></div>`
+            ? `<div class="p-3.5 surface-flat flex items-center justify-between mt-3"><span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="pen-tool" class="w-3.5 h-3.5 text-emeraldCustom"></i> 고객 서명 완료</span><span class="text-[10px] text-ink-400 font-bold">${order.signedDate}</span></div>`
             : `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
                 <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="pen-tool" class="w-3.5 h-3.5 text-brand-500"></i> 시공 계약 합의서 서명</span>
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">아래 서명란에 손가락이나 마우스로 서명해 주세요.</p>
@@ -1745,6 +1745,11 @@ function renderMyPageEstimateDetails(order) {
                     <button type="button" onclick="submitSignatureCanvas('${order.code}')" class="btn btn-dark btn-sm flex-1">서명 완료</button>
                 </div>
             </div>`}
+        <div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between mt-2">
+            <span class="text-[11px] font-bold text-ink-600 flex items-center gap-1.5"><i data-lucide="pen-tool" class="w-3.5 h-3.5 ${order.partnerSigned ? 'text-emeraldCustom' : 'text-ink-300'}"></i> 파트너사 서명</span>
+            <span class="badge ${order.partnerSigned ? 'badge-emerald' : 'badge-amber'}">${order.partnerSigned ? '완료' : '대기중'}</span>
+        </div>
+        ${order.clientSigned && order.partnerSigned ? `<div class="p-2.5 text-center"><span class="badge badge-brand"><i data-lucide="shield-check" class="w-3 h-3"></i> 양측 서명 완료 — 계약 합의서 최종 확정</span></div>` : ''}
         <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>
         ${isPartnerReportedByMeForOrder(order.code)
             ? `<div class="mt-2 text-center"><span class="badge badge-neutral">계약 파트너사 신고 접수됨</span></div>`

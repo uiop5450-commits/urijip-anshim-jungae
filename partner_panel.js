@@ -1676,6 +1676,24 @@ function openPartnerOrderDetailModal(orderCode) {
                 <input type="file" id="partner-doc-input-estimate" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="hidden" onchange="handlePartnerDocUpload(event, '${order.code}', 'estimate')">
             </div>
             <div class="surface p-5 space-y-3">
+                <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="pen-tool" class="w-4 h-4 text-ink-600"></i> 계약 합의서 서명</h5>
+                ${order.partnerSigned
+                    ? `<div class="p-3.5 surface-flat flex items-center justify-between"><span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="pen-tool" class="w-3.5 h-3.5 text-emeraldCustom"></i> 파트너사 서명 완료</span><span class="text-[10px] text-ink-400 font-bold">${order.partnerSignedDate}</span></div>`
+                    : `<div class="space-y-2 text-left">
+                        <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">아래 서명란에 마우스나 터치로 서명해 주세요.</p>
+                        <canvas id="partner-signature-canvas-${order.code}" width="400" height="140" class="w-full rounded-xl border border-dashed border-ink-200 bg-white" style="touch-action:none; cursor:crosshair;"></canvas>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="clearPartnerSignatureCanvas('${order.code}')" class="btn btn-secondary btn-sm flex-1">지우기</button>
+                            <button type="button" onclick="submitPartnerSignatureCanvas('${order.code}')" class="btn btn-dark btn-sm flex-1">서명 완료</button>
+                        </div>
+                    </div>`}
+                <div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-ink-600 flex items-center gap-1.5"><i data-lucide="pen-tool" class="w-3.5 h-3.5 ${order.clientSigned ? 'text-emeraldCustom' : 'text-ink-300'}"></i> 고객 서명</span>
+                    <span class="badge ${order.clientSigned ? 'badge-emerald' : 'badge-amber'}">${order.clientSigned ? '완료' : '대기중'}</span>
+                </div>
+                ${order.clientSigned && order.partnerSigned ? `<div class="p-2.5 text-center"><span class="badge badge-brand"><i data-lucide="shield-check" class="w-3 h-3"></i> 양측 서명 완료 — 계약 합의서 최종 확정</span></div>` : ''}
+            </div>
+            <div class="surface p-5 space-y-3">
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="credit-card" class="w-4 h-4 text-ink-600"></i> 플랫폼 중개 수수료 결제</h5>
                 ${commissionBodyHtml}
             </div>
@@ -1756,6 +1774,7 @@ function openPartnerOrderDetailModal(orderCode) {
     modal.classList.remove('hidden');
     setTimeout(() => document.getElementById('partner-order-detail-modal-card')?.classList.add('modal-open'), 30);
     if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (isContracted && !order.partnerSigned) initPartnerSignatureCanvas(order.code);
 }
 
 function closePartnerOrderDetailModal() {
@@ -3187,6 +3206,80 @@ function exportPartnerPerformanceCsv() {
     showToast(`계약 체결 내역 ${contractedOrders.length}건을 CSV로 내보냈습니다.`, 'success');
 }
 
+/* 고객은 캔버스 서명(initSignatureCanvas, client_panel.js)으로 계약에 서명할 수
+ * 있게 됐지만, 계약은 양측 서명이 필요한데 파트너 콘솔에는 대응 서명 기능이
+ * 전혀 없어서 order.clientSigned 하나만으로 "서명 완료"인 것처럼 보였다 —
+ * 동일한 캔버스 서명 패턴을 파트너 쪽에도 구현한다. */
+const _partnerSignaturePads = {};
+
+function initPartnerSignatureCanvas(orderCode) {
+    const canvas = document.getElementById(`partner-signature-canvas-${orderCode}`);
+    if (!canvas || canvas.dataset.initialized) return;
+    canvas.dataset.initialized = 'true';
+    const ctx = canvas.getContext('2d');
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    _partnerSignaturePads[orderCode] = { hasInk: false };
+
+    let drawing = false;
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const point = e.touches ? e.touches[0] : e;
+        return {
+            x: (point.clientX - rect.left) * (canvas.width / rect.width),
+            y: (point.clientY - rect.top) * (canvas.height / rect.height)
+        };
+    };
+    const start = (e) => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+    const move = (e) => {
+        if (!drawing) return;
+        e.preventDefault();
+        const p = getPos(e);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        _partnerSignaturePads[orderCode].hasInk = true;
+    };
+    const end = () => { drawing = false; };
+
+    canvas.addEventListener('mousedown', start);
+    canvas.addEventListener('mousemove', move);
+    canvas.addEventListener('mouseup', end);
+    canvas.addEventListener('mouseleave', end);
+    canvas.addEventListener('touchstart', start);
+    canvas.addEventListener('touchmove', move);
+    canvas.addEventListener('touchend', end);
+}
+
+function clearPartnerSignatureCanvas(orderCode) {
+    const canvas = document.getElementById(`partner-signature-canvas-${orderCode}`);
+    if (!canvas) return;
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    if (_partnerSignaturePads[orderCode]) _partnerSignaturePads[orderCode].hasInk = false;
+}
+
+function submitPartnerSignatureCanvas(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
+    const canvas = document.getElementById(`partner-signature-canvas-${orderCode}`);
+    if (!canvas || !_partnerSignaturePads[orderCode] || !_partnerSignaturePads[orderCode].hasInk) {
+        showToast('서명란에 서명을 먼저 입력해 주세요.', 'warning');
+        return;
+    }
+
+    order.partnerSigned = true;
+    order.partnerSignedDate = getLocalDateString();
+    order.partnerSignatureImage = canvas.toDataURL('image/png');
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'CONTRACT_SIGN', `[${partnerName}]가 계약(${order.code}) 합의서에 전자서명을 완료했습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}에서 계약(${order.code}) 합의서에 서명을 완료했어요.${order.clientSigned ? ' 양측 서명이 모두 완료되었습니다.' : ''}`);
+    showToast('서명이 완료되었습니다.', 'success');
+    openPartnerOrderDetailModal(orderCode);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
 function buildDocFile(content, filename) {
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -3957,6 +4050,9 @@ window.exportOrderLookupResultsToCsv = exportOrderLookupResultsToCsv;
 window.updateAdminBroadcastSegmentUI = updateAdminBroadcastSegmentUI;
 window.downloadContractDoc = downloadContractDoc;
 window.downloadPartnerSettlementReceipt = downloadPartnerSettlementReceipt;
+window.initPartnerSignatureCanvas = initPartnerSignatureCanvas;
+window.clearPartnerSignatureCanvas = clearPartnerSignatureCanvas;
+window.submitPartnerSignatureCanvas = submitPartnerSignatureCanvas;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
 window.dismissPortfolioReport = dismissPortfolioReport;
