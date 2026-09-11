@@ -1360,7 +1360,12 @@ function withdrawMyPartnerBid(orderCode) {
     if (!order.excludedPartners.includes(partnerName)) order.excludedPartners.push(partnerName);
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'BID_WITHDRAW', `[${partnerName}]가 오더 ${orderCode} 입찰을 철회했습니다.`, 'WARNING');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 입찰을 철회했어요. (의뢰 코드: ${orderCode})`);
+    if (typeof pushClientNotification === 'function') {
+        pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 입찰을 철회했어요. (의뢰 코드: ${orderCode})`);
+        // 마지막 남은 입찰까지 철회되면 오더가 조용히 "무응답" 상태로 남는다 —
+        // 클라이언트가 이미 가진 재매칭 버튼(triggerRebidding)을 쓰도록 바로 알려준다.
+        if (order.bids.length === 0) pushClientNotification(order.clientPhone, `오더(${orderCode})에 남은 입찰 제안이 없어요. 마이페이지에서 재매칭을 받아보세요.`);
+    }
     showToast('입찰을 철회했습니다.', 'info');
 
     closePartnerOrderDetailModal();

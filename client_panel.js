@@ -326,8 +326,13 @@ function completeMatchingSim() {
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
             verified: true, progress: 'bidding'
         }));
+        // 매칭 가능한 파트너가 0명이면(활동중단·전원 일시중단 등) 지금까지 "0곳이
+        // 매칭되어 견적서를 보냈어요"라는 앞뒤가 안 맞는 성공 알림이 그대로 나갔다 —
+        // 실패를 솔직하게 알리고 재매칭 버튼(triggerRebidding)으로 안내한다.
         if (typeof pushClientNotification === 'function') {
-            pushClientNotification(auth.phone, `안심 견적(${code})에 파트너사 ${newOrder.bids.length}곳이 자동 매칭되어 견적서를 보냈어요.`);
+            pushClientNotification(auth.phone, newOrder.bids.length > 0
+                ? `안심 견적(${code})에 파트너사 ${newOrder.bids.length}곳이 자동 매칭되어 견적서를 보냈어요.`
+                : `안심 견적(${code})에 지금 매칭 가능한 파트너사가 없어요. 잠시 후 마이페이지에서 재매칭을 시도해 주세요.`);
         }
         if (typeof pushPartnerNotification === 'function') {
             selected.forEach(partner => pushPartnerNotification(partner.name, `새 오더(${code})에 매칭되었어요. 고객: ${maskName(newOrder.clientName)}님, ${newOrder.pyung}평형.`));
@@ -365,6 +370,12 @@ function cancelPartnerBid(orderCode, partnerName) {
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'CANCEL_BID', `[${order.clientName}] 고객님이 [${partnerName}] 파트너의 매칭을 취소하였습니다.`, 'INFO');
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `고객님이 오더(${orderCode}) 매칭을 취소했어요.`);
+    // 마지막 남은 매칭까지 취소하면 오더가 조용히 "무응답" 상태로 남는다 — 재매칭
+    // 버튼(triggerRebidding)이 이미 있지만 존재를 몰라 그냥 방치되는 경우가 많으므로
+    // 입찰이 0건이 된 시점에 바로 알려준다.
+    if (order.bids.length === 0 && typeof pushClientNotification === 'function') {
+        pushClientNotification(order.clientPhone, `오더(${orderCode})에 남은 입찰 제안이 없어요. 마이페이지에서 재매칭을 받아보세요.`);
+    }
     showToast(`[${partnerName}] 매칭을 취소했습니다.`, 'info');
 
     renderClientMyPage();
