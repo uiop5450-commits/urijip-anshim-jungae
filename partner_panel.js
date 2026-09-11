@@ -1300,6 +1300,29 @@ function syncAuditLogs() {
     }).join('');
 }
 
+/* 관제 로그를 외부 보고용으로 내보낼 방법이 없어서, 감사·정산 자료가 필요할 때마다
+ * 화면을 수동으로 캡처하거나 옮겨 적어야 했다. CSV로 내려받아 엑셀 등에서 바로
+ * 열어볼 수 있게 한다. 한글이 엑셀에서 깨지지 않도록 UTF-8 BOM을 붙인다. */
+function exportLogsToCsv() {
+    const logs = (window.AppState && window.AppState.logs) ? window.AppState.logs : [];
+    if (logs.length === 0) { showToast('내보낼 로그가 없습니다.', 'warning'); return; }
+
+    const escapeCsvCell = (val) => `"${String(val).replace(/"/g, '""')}"`;
+    const header = ['시간', '구분', '대상', '내용', '상태'].map(escapeCsvCell).join(',');
+    const rows = logs.map(log => [log.time, log.category, log.target, log.message, log.status].map(escapeCsvCell).join(','));
+    const csv = '﻿' + [header, ...rows].join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `우리집안심중개_관제로그_${getLocalDateString()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'LOG_EXPORT', `[관제 로그] 매니저가 로그 ${logs.length}건을 CSV로 내보냄.`, 'INFO');
+    showToast(`로그 ${logs.length}건을 CSV로 내보냈습니다.`, 'success');
+}
+
 function recalculateKPIs() {
     let gmv = 0, escrow = 0, revenue = 0;
     const orders = window.AppState.orders || [];
@@ -2399,6 +2422,7 @@ window.syncAuditLogs = syncAuditLogs;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
 window.searchOrderLookup = searchOrderLookup;
 window.renderAdminSupportTickets = renderAdminSupportTickets;
+window.exportLogsToCsv = exportLogsToCsv;
 window.replyToSupportTicket = replyToSupportTicket;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
 window.renderPartnerPerformanceView = renderPartnerPerformanceView;

@@ -937,7 +937,10 @@
 
                 <div id="admin-mode-logs-view" class="hidden space-y-6 transition-all duration-300">
                     <div class="surface surface-lg overflow-hidden text-left">
-                        <div class="px-6 py-5 border-b border-ink-100 bg-ink-50/60"><h4 class="text-sm font-black text-ink-800">통합 플랫폼 실시간 관제 스트림 로그</h4></div>
+                        <div class="px-6 py-5 border-b border-ink-100 bg-ink-50/60 flex flex-wrap justify-between items-center gap-2">
+                            <h4 class="text-sm font-black text-ink-800">통합 플랫폼 실시간 관제 스트림 로그</h4>
+                            <button type="button" onclick="exportLogsToCsv()" class="btn btn-secondary btn-sm"><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV로 내보내기</button>
+                        </div>
                         <div class="overflow-x-auto"><table class="table-clean"><tbody id="admin-log-tbody"></tbody></table></div>
                     </div>
                 </div>
