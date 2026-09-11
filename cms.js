@@ -608,6 +608,27 @@ function togglePartnerPauseStatus() {
     if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
 }
 
+/* 고객과 대칭으로, 파트너도 지금까지 매칭·계약·후기 등 모든 알림을 끌 방법이
+ * 없었다 — pushPartnerNotification 자체에서 걸러내는 계정별 on/off 하나로 시작한다. */
+function renderPartnerNotificationPrefToggle(partner) {
+    const btn = document.getElementById('partner-notif-pref-toggle');
+    if (!btn) return;
+    const enabled = partner.notificationsEnabled !== false;
+    btn.textContent = enabled ? '켜짐' : '꺼짐';
+    btn.classList.toggle('btn-dark', enabled);
+    btn.classList.toggle('btn-secondary', !enabled);
+}
+
+function togglePartnerNotificationPref() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    const currentlyEnabled = partner.notificationsEnabled !== false;
+    partner.notificationsEnabled = !currentlyEnabled;
+    showToast(partner.notificationsEnabled ? '알림을 다시 받아요.' : '알림 수신을 꺼두었어요.', partner.notificationsEnabled ? 'success' : 'info');
+    renderPartnerNotificationPrefToggle(partner);
+}
+
 function renderPartnerProfileManager() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -621,6 +642,7 @@ function renderPartnerProfileManager() {
     safeUpdateValue('partner-promo-slogan', partner.promoSlogan || '');
     safeUpdateValue('partner-promo-text', partner.promoText || '');
     renderPartnerPauseToggle(partner);
+    renderPartnerNotificationPrefToggle(partner);
     safeUpdateText('partner-account-bizcert-filename', partner.bizCertDoc ? partner.bizCertDoc.name : '첨부된 사업자등록증이 없습니다.');
 
     const img = document.getElementById('partner-hero-slide-img');
@@ -1626,6 +1648,8 @@ window.updatePartnerPhone = updatePartnerPhone;
 window.updatePartnerRegion = updatePartnerRegion;
 window.updatePartnerBizFile = updatePartnerBizFile;
 window.togglePartnerPauseStatus = togglePartnerPauseStatus;
+window.renderPartnerNotificationPrefToggle = renderPartnerNotificationPrefToggle;
+window.togglePartnerNotificationPref = togglePartnerNotificationPref;
 window.updatePartnerPassword = updatePartnerPassword;
 window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;
 window.openPartnerAccountCloseModal = openPartnerAccountCloseModal;

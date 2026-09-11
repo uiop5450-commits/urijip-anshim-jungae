@@ -1243,6 +1243,31 @@ function renderClientAccountSettings() {
     safeUpdateValue('account-edit-new-pw', '');
     safeUpdateValue('account-edit-new-pw2', '');
     renderBlockedUsersList();
+    renderClientNotificationPrefToggle();
+}
+
+/* 지금까지 알림을 끌 방법이 전혀 없어서, 원치 않는 사람도 매칭·계약·후기 등
+ * 모든 알림을 계속 받아야 했다 — 계정별 on/off 하나로 pushClientNotification
+ * 자체에서 걸러낸다(카테고리별 세분화는 지금은 과한 범위라 전체 on/off로 시작). */
+function renderClientNotificationPrefToggle() {
+    const btn = document.getElementById('client-notif-pref-toggle');
+    if (!btn) return;
+    const auth = window.AppState.clientAuth;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    const enabled = !account || account.notificationsEnabled !== false;
+    btn.textContent = enabled ? '켜짐' : '꺼짐';
+    btn.classList.toggle('btn-dark', enabled);
+    btn.classList.toggle('btn-secondary', !enabled);
+}
+
+function toggleClientNotificationPref() {
+    const auth = window.AppState.clientAuth;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+    const currentlyEnabled = account.notificationsEnabled !== false;
+    account.notificationsEnabled = !currentlyEnabled;
+    showToast(account.notificationsEnabled ? '알림을 다시 받아요.' : '알림 수신을 꺼두었어요.', account.notificationsEnabled ? 'success' : 'info');
+    renderClientNotificationPrefToggle();
 }
 
 /* 게시글 화면에서 차단해도 그 뒤로는 누굴 차단했는지 확인/해제할 방법이 없었다 —
@@ -2670,6 +2695,8 @@ window.renderClientMyPageNotifications = renderClientMyPageNotifications;
 window.markAllClientNotificationsRead = markAllClientNotificationsRead;
 window.markClientNotificationRead = markClientNotificationRead;
 window.renderClientAccountSettings = renderClientAccountSettings;
+window.renderClientNotificationPrefToggle = renderClientNotificationPrefToggle;
+window.toggleClientNotificationPref = toggleClientNotificationPref;
 window.updateClientProfileInfo = updateClientProfileInfo;
 window.updateClientPassword = updateClientPassword;
 window.openAccountDeleteModal = openAccountDeleteModal;

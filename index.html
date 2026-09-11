@@ -640,6 +640,13 @@
                         <button type="button" onclick="updateClientPassword()" class="btn btn-secondary">비밀번호 변경</button>
                     </div>
                     <div class="space-y-3 pt-2">
+                        <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="bell" class="w-4 h-4 text-brand-500"></i> 알림 수신 설정</h4>
+                        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl">
+                            <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">알림 받기</p><p class="text-[10px] text-ink-500 font-semibold">매칭·계약·후기 등 모든 알림을 켜거나 끌 수 있어요.</p></div>
+                            <button type="button" id="client-notif-pref-toggle" onclick="toggleClientNotificationPref()" class="btn btn-secondary btn-sm">켜짐</button>
+                        </div>
+                    </div>
+                    <div class="space-y-3 pt-2">
                         <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="user-x" class="w-4 h-4 text-brand-500"></i> 차단한 사용자 관리</h4>
                         <div id="blocked-users-list" class="space-y-2"></div>
                     </div>
@@ -749,6 +756,16 @@
                                 <p id="partner-pause-status-desc" class="text-[11px] text-ink-500 font-medium">휴가나 예약 초과로 바쁠 때 켜두면, 자동매칭·재매칭·관리자 일괄배정 대상에서 빠져요. 기존 고객의 1:1 지정 상담은 계속 받을 수 있어요.</p>
                             </div>
                             <button type="button" id="partner-pause-toggle-btn" onclick="togglePartnerPauseStatus()" class="btn btn-secondary shrink-0">일시중단 켜기</button>
+                        </div>
+                    </div>
+
+                    <div class="surface surface-lg p-6 sm:p-8 text-left">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div class="space-y-0.5">
+                                <h4 class="text-sm font-black text-ink-950 tracking-tight flex items-center gap-1.5"><i data-lucide="bell" class="w-4 h-4 text-brand-500"></i> 알림 수신 설정</h4>
+                                <p class="text-[11px] text-ink-500 font-medium">매칭·계약·후기 등 모든 알림을 켜거나 끌 수 있어요.</p>
+                            </div>
+                            <button type="button" id="partner-notif-pref-toggle" onclick="togglePartnerNotificationPref()" class="btn btn-dark shrink-0">켜짐</button>
                         </div>
                     </div>
 
