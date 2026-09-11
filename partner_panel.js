@@ -1382,14 +1382,38 @@ function searchOrderLookup() {
 /* 매니저 콘솔 > 고객 문의 — "고객센터" 링크로 접수된 1:1 문의에 답변한다.
  * 답변 대기(open) 건을 우선 노출하고, 답변하면 status가 answered로 바뀌면서
  * 고객에게 pushClientNotification으로 알림이 간다. */
+let adminSupportStatusFilter = 'all';
+
+function setAdminSupportStatusFilter(key) {
+    adminSupportStatusFilter = key;
+    renderAdminSupportTickets();
+}
+
 function renderAdminSupportTickets() {
     const container = document.getElementById('admin-support-ticket-list');
     if (!container) return;
-    const tickets = (window.AppState.supportTickets || []).slice()
-        .sort((a, b) => (a.status === b.status ? 0 : a.status === 'open' ? -1 : 1) || (new Date(b.date) - new Date(a.date)));
+    const allTickets = window.AppState.supportTickets || [];
+    const query = (document.getElementById('admin-support-search-input')?.value || '').trim().toLowerCase();
+
+    const statusTabsEl = document.getElementById('admin-support-status-tabs');
+    if (statusTabsEl) {
+        const statusTabs = [
+            ['all', '전체', allTickets.length],
+            ['open', '답변 대기', allTickets.filter(t => t.status === 'open').length],
+            ['answered', '답변 완료', allTickets.filter(t => t.status === 'answered').length]
+        ];
+        statusTabsEl.innerHTML = statusTabs.map(([key, label, count]) =>
+            `<button type="button" onclick="setAdminSupportStatusFilter('${key}')" class="gnb-tab ${adminSupportStatusFilter === key ? 'active' : ''}">${label} (${count})</button>`
+        ).join('');
+    }
+
+    const tickets = allTickets
+        .filter(t => adminSupportStatusFilter === 'all' || t.status === adminSupportStatusFilter)
+        .filter(t => !query || t.clientName.toLowerCase().includes(query) || (t.clientPhone || '').includes(query) || t.subject.toLowerCase().includes(query))
+        .slice().sort((a, b) => (a.status === b.status ? 0 : a.status === 'open' ? -1 : 1) || (new Date(b.date) - new Date(a.date)));
 
     if (tickets.length === 0) {
-        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap"><i data-lucide="inbox" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">등록된 고객 문의가 없습니다.</p></div>`;
+        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap"><i data-lucide="inbox" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">${allTickets.length === 0 ? '등록된 고객 문의가 없습니다.' : '조건에 해당되는 문의가 없습니다.'}</p></div>`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
@@ -2422,6 +2446,7 @@ window.syncAuditLogs = syncAuditLogs;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
 window.searchOrderLookup = searchOrderLookup;
 window.renderAdminSupportTickets = renderAdminSupportTickets;
+window.setAdminSupportStatusFilter = setAdminSupportStatusFilter;
 window.exportLogsToCsv = exportLogsToCsv;
 window.replyToSupportTicket = replyToSupportTicket;
 window.openPartnerMetricsModal = openPartnerMetricsModal;

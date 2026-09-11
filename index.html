@@ -1024,6 +1024,10 @@
                             <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="inbox" class="w-4 h-4"></i> 고객 문의</h4>
                             <p class="text-[11px] text-ink-500 font-medium">고객이 등록한 1:1 문의에 답변할 수 있어요. 답변하면 고객에게 알림이 발송됩니다.</p>
                         </div>
+                        <div class="flex flex-wrap gap-2 items-center justify-between">
+                            <div id="admin-support-status-tabs" class="flex items-center flex-wrap bg-ink-50 p-1 rounded-xl gap-1 border border-ink-100"></div>
+                            <input type="text" id="admin-support-search-input" oninput="renderAdminSupportTickets()" placeholder="고객명·연락처·제목으로 검색..." class="input max-w-xs">
+                        </div>
                         <div id="admin-support-ticket-list" class="space-y-3"></div>
                     </div>
                 </div>

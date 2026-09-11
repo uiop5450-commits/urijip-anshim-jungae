@@ -941,12 +941,31 @@ function renderMySupportTickets() {
         <div class="p-3.5 bg-ink-50 rounded-xl space-y-1.5 text-left">
             <div class="flex justify-between items-center">
                 <h6 class="text-xs font-black text-ink-950">${escapeHtml(t.subject)}</h6>
-                <span class="badge ${t.status === 'answered' ? 'badge-emerald' : 'badge-amber'}">${t.status === 'answered' ? '답변 완료' : '답변 대기'}</span>
+                <div class="flex items-center gap-2">
+                    <span class="badge ${t.status === 'answered' ? 'badge-emerald' : 'badge-amber'}">${t.status === 'answered' ? '답변 완료' : '답변 대기'}</span>
+                    ${t.status === 'open' ? `<button type="button" onclick="cancelSupportTicket('${t.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">취소</button>` : ''}
+                </div>
             </div>
             <p class="text-[11px] text-ink-600 font-medium leading-relaxed">${escapeHtml(t.message)}</p>
             <p class="text-[10px] text-ink-400 font-bold">${t.date}</p>
             ${t.adminReply ? `<div class="mt-1.5 p-2.5 rounded-lg" style="background:var(--brand-50)"><p class="text-[10px] font-black text-brand-700 mb-0.5">고객센터 답변</p><p class="text-[11px] text-ink-700 font-medium leading-relaxed">${escapeHtml(t.adminReply)}</p></div>` : ''}
         </div>`).join('');
+}
+
+/* 문의를 잘못 등록했거나 중복 등록한 경우를 위해, 아직 답변받지 않은(open) 본인
+ * 문의는 취소할 수 있게 한다. 이미 답변이 달린 문의는 관리자가 이미 시간을
+ * 들여 답변한 것이므로 취소를 막는다(기록으로 남겨야 함). */
+function cancelSupportTicket(ticketId) {
+    const auth = window.AppState.clientAuth;
+    const idx = (window.AppState.supportTickets || []).findIndex(t => t.id === ticketId);
+    if (idx === -1) return;
+    const ticket = window.AppState.supportTickets[idx];
+    if (ticket.clientId !== auth.id) return;
+    if (ticket.status !== 'open') { showToast('이미 답변이 등록된 문의는 취소할 수 없어요.', 'warning'); return; }
+    window.AppState.supportTickets.splice(idx, 1);
+    showToast('문의가 취소되었습니다.', 'info');
+    renderMySupportTickets();
+    if (typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
 }
 
 function selectMyPageEstimate(orderCode) {
@@ -1790,6 +1809,7 @@ window.openSupportInquiryModal = openSupportInquiryModal;
 window.closeSupportInquiryModal = closeSupportInquiryModal;
 window.submitSupportInquiry = submitSupportInquiry;
 window.renderMySupportTickets = renderMySupportTickets;
+window.cancelSupportTicket = cancelSupportTicket;
 window.selectMyPageEstimate = selectMyPageEstimate;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
