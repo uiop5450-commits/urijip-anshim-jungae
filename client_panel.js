@@ -1600,6 +1600,7 @@ function renderMyPageEstimateDetails(order) {
         reviewBtnHtml = `<div class="p-3 bg-ink-100 rounded-xl flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-ink-600">
             <span class="flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 솔직 안심 리뷰 생성이 성공적으로 등록 완료되었습니다.</span>
             <button type="button" onclick="openReviewWriteModal('${order.code}')" class="text-brand-600 hover:underline bg-transparent border-0 cursor-pointer p-0 font-black">수정하기</button>
+            <button type="button" onclick="deleteMyClientReview('${order.code}')" class="text-roseCustom hover:underline bg-transparent border-0 cursor-pointer p-0 font-black">삭제하기</button>
         </div>`;
     }
 
@@ -1900,6 +1901,32 @@ function submitClientReview() {
     showToast(isEditing ? "후기가 수정되었습니다." : "소중한 안심 후기가 정상적으로 등록되었습니다. 감사합니다!", "success");
 
     closeReviewWriteModal();
+    renderClientMyPage();
+    selectMyPageEstimate(orderCode);
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+}
+
+/* 커뮤니티 글/댓글은 본인이 직접 삭제할 수 있는데(deleteCommunityPost 등) 후기는
+ * 관리자 모더레이션 삭제(adminDeleteReview)만 있고 고객 본인이 삭제할 방법이
+ * 없었다 — 수정만 가능하고 철회는 불가능했던 비대칭을 해소한다. */
+function deleteMyClientReview(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || !order.reviewWritten) return;
+    const partner = window.AppState.partners.find(p => p.name === order.acceptedPartner);
+    if (!partner || !partner.reviews) return;
+    const idx = partner.reviews.findIndex(r => r.orderCode === orderCode);
+    if (idx === -1) return;
+
+    partner.reviews.splice(idx, 1);
+    partner.rating = partner.reviews.length > 0
+        ? Math.round((partner.reviews.reduce((acc, r) => acc + r.rating, 0) / partner.reviews.length) * 10) / 10
+        : 5.0;
+    order.reviewWritten = false;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW_DELETE', `${maskName(order.clientName)} 고객님이 [${order.acceptedPartner}]에 대한 안심 후기를 삭제함.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 남기셨던 후기를 삭제했어요.`);
+    showToast('후기를 삭제했습니다.', 'info');
+
     renderClientMyPage();
     selectMyPageEstimate(orderCode);
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
@@ -2667,6 +2694,7 @@ window.handleReviewPhotoUpload = handleReviewPhotoUpload;
 window.removeReviewPhotoDraft = removeReviewPhotoDraft;
 window.setReviewRating = setReviewRating;
 window.submitClientReview = submitClientReview;
+window.deleteMyClientReview = deleteMyClientReview;
 
 window.clearSignatureCanvas = clearSignatureCanvas;
 window.submitSignatureCanvas = submitSignatureCanvas;
