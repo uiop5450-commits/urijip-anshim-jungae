@@ -815,6 +815,103 @@ function buildScheduleChangeHtml(order) {
     </div>${statusHtml}`;
 }
 
+/* 계약 후 착공일은 조율할 수 있게 됐지만(scheduleChangeRequest), 추가 공사나 자재
+ * 변경으로 계약 금액 자체가 바뀌어야 하는 경우는 여전히 대응할 방법이 없었다 —
+ * 동일한 요청/수락/거절/철회 패턴을 계약 금액에도 그대로 적용한다. */
+let priceChangeTargetCode = null;
+
+function openPriceChangeModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'contracted') return;
+    if (order.priceChangeRequest && order.priceChangeRequest.status === 'pending') { showToast('이미 처리 대기 중인 금액 변경 요청이 있어요.', 'warning'); return; }
+    priceChangeTargetCode = orderCode;
+    safeUpdateValue('price-change-amount-input', order.finalPrice || order.budget);
+    safeUpdateValue('price-change-reason-input', '');
+    openModal('price-change-modal', 'price-change-modal-card');
+}
+
+function closePriceChangeModal() {
+    priceChangeTargetCode = null;
+    closeModal('price-change-modal', 'price-change-modal-card');
+}
+
+function submitPriceChangeRequest() {
+    const order = window.AppState.orders.find(o => o.code === priceChangeTargetCode);
+    if (!order) { closePriceChangeModal(); return; }
+    const newPrice = parseInt(document.getElementById('price-change-amount-input')?.value, 10);
+    const reason = document.getElementById('price-change-reason-input')?.value.trim();
+    if (!newPrice || newPrice <= 0) { showToast('변경할 계약 금액을 올바르게 입력해주세요.', 'warning'); return; }
+    if (!reason) { showToast('변경 사유를 입력해주세요.', 'warning'); return; }
+    if (newPrice === order.finalPrice) { showToast('현재 계약 금액과 동일해요.', 'warning'); return; }
+
+    order.priceChangeRequest = { requestedBy: 'client', newPrice, reason, status: 'pending', date: getLocalDateString() };
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PRICE_CHANGE_REQUEST', `[${order.clientName}] 고객님이 계약(${order.code}) 금액 변경을 요청했습니다: ₩${(order.finalPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 계약 금액 변경을 요청했어요: ₩${(order.finalPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`);
+    showToast('계약 금액 변경 요청을 보냈습니다. 파트너사 확인을 기다려주세요.', 'success');
+
+    closePriceChangeModal();
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+function retractPriceChangeRequest(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || !order.priceChangeRequest || order.priceChangeRequest.status !== 'pending') return;
+    if (order.priceChangeRequest.requestedBy !== 'client') { showToast('파트너사가 요청한 금액 변경은 고객이 직접 철회할 수 없어요.', 'warning'); return; }
+    order.priceChangeRequest = null;
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PRICE_CHANGE_RETRACT', `[${order.clientName}] 고객님이 계약(${order.code}) 금액 변경 요청을 철회했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 계약 금액 변경 요청을 철회했어요.`);
+    showToast('금액 변경 요청을 철회했습니다.', 'info');
+    selectMyPageEstimate(orderCode);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+function respondToPartnerPriceChangeRequest(orderCode, accept) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || !order.priceChangeRequest || order.priceChangeRequest.status !== 'pending') return;
+    if (order.priceChangeRequest.requestedBy !== 'partner') return;
+    const { newPrice } = order.priceChangeRequest;
+    if (accept) {
+        const oldPrice = order.finalPrice;
+        order.finalPrice = newPrice;
+        order.priceChangeRequest = null;
+        if (typeof pushLog === 'function') pushLog('CLIENT', 'PRICE_CHANGE_ACCEPT', `[${order.clientName}] 고객님이 계약(${order.code}) 금액 변경 요청을 수락했습니다: ₩${(oldPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`, 'INFO');
+        if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 계약 금액 변경을 수락했어요. 계약 금액이 ₩${newPrice.toLocaleString()}만원으로 변경되었습니다.`);
+        showToast('계약 금액 변경을 수락했습니다.', 'success');
+    } else {
+        order.priceChangeRequest = null;
+        if (typeof pushLog === 'function') pushLog('CLIENT', 'PRICE_CHANGE_REJECT', `[${order.clientName}] 고객님이 계약(${order.code}) 금액 변경 요청을 거절했습니다.`, 'INFO');
+        if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 계약 금액 변경 요청을 거절했어요. 기존 금액(₩${(order.finalPrice || 0).toLocaleString()}만원)이 유지됩니다.`);
+        showToast('계약 금액 변경 요청을 거절했습니다.', 'info');
+    }
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+function buildPriceChangeHtml(order) {
+    const req = order.priceChangeRequest;
+    let statusHtml = '';
+    if (req && req.status === 'pending') {
+        statusHtml = req.requestedBy === 'client'
+            ? `<div class="p-2.5 bg-amber-50 rounded-xl mt-2 space-y-1.5">
+                <p class="text-[10px] font-black text-amberCustom">파트너사 확인 대기중: ₩${req.newPrice.toLocaleString()}만원으로 변경 요청</p>
+                <button type="button" onclick="retractPriceChangeRequest('${order.code}')" class="btn btn-secondary btn-sm">요청 철회</button>
+            </div>`
+            : `<div class="p-2.5 bg-brand-50 rounded-xl mt-2 space-y-1.5">
+                <p class="text-[10px] font-black text-brand-700">파트너사가 계약 금액 변경을 요청했어요: ₩${req.newPrice.toLocaleString()}만원 (사유: ${escapeHtml(req.reason)})</p>
+                <div class="flex gap-1.5"><button type="button" onclick="respondToPartnerPriceChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToPartnerPriceChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button></div>
+            </div>`;
+    }
+    return `<div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between mt-2">
+        <span class="text-[11px] font-bold text-ink-600 flex items-center gap-1.5"><i data-lucide="banknote" class="w-3.5 h-3.5 text-ink-500"></i> 계약 금액</span>
+        <div class="flex items-center gap-2">
+            <span class="text-[11px] font-black text-ink-900">₩ ${(order.finalPrice || 0).toLocaleString()}만원</span>
+            ${!req || req.status !== 'pending' ? `<button type="button" onclick="openPriceChangeModal('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">변경 요청</button>` : ''}
+        </div>
+    </div>${statusHtml}`;
+}
+
 /* 파트너는 노쇼·상습 갑질 고객을 신고할 수 있게 됐는데(openReportClientModal,
  * partner_panel.js) 정작 반대 방향(고객이 부실 시공·계약 불이행 파트너를 신고)은
  * 방법이 없었다 — 동일한 window.AppState.clientReports 패턴을 대칭으로 두되,
@@ -1909,6 +2006,7 @@ function renderMyPageEstimateDetails(order) {
             }).join('')}
         </div>
         ${buildScheduleChangeHtml(order)}
+        ${buildPriceChangeHtml(order)}
         ${order.clientSigned
             ? `<div class="p-3.5 surface-flat flex items-center justify-between mt-3"><span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="pen-tool" class="w-3.5 h-3.5 text-emeraldCustom"></i> 고객 서명 완료</span><span class="text-[10px] text-ink-400 font-bold">${order.signedDate}</span></div>`
             : `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
@@ -3072,6 +3170,12 @@ window.submitScheduleChangeRequest = submitScheduleChangeRequest;
 window.retractScheduleChangeRequest = retractScheduleChangeRequest;
 window.respondToPartnerScheduleChangeRequest = respondToPartnerScheduleChangeRequest;
 window.buildScheduleChangeHtml = buildScheduleChangeHtml;
+window.openPriceChangeModal = openPriceChangeModal;
+window.closePriceChangeModal = closePriceChangeModal;
+window.submitPriceChangeRequest = submitPriceChangeRequest;
+window.retractPriceChangeRequest = retractPriceChangeRequest;
+window.respondToPartnerPriceChangeRequest = respondToPartnerPriceChangeRequest;
+window.buildPriceChangeHtml = buildPriceChangeHtml;
 
 window.sendClientAuthCode = sendClientAuthCode;
 window.switchClientAuthTab = switchClientAuthTab;
