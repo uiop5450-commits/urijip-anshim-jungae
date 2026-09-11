@@ -2116,6 +2116,19 @@ function searchOrderLookup() {
         : o.is1on1 ? '<span class="badge badge-neutral">1:1 지정</span>'
         : '<span class="badge badge-amber">입찰 심사중</span>';
 
+    const buildDocReviewRowHtml = (o, docType, label) => {
+        const doc = docType === 'contract' ? o.contractDoc : o.estimateDoc;
+        if (!doc) return '';
+        return `
+            <div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-lg border border-ink-100">
+                <span class="text-[11px] font-bold text-ink-700 truncate">${label}: ${escapeHtml(doc.name)}</span>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="openUploadedPartnerDoc('${o.code}', '${docType}')" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">보기</button>
+                    <button type="button" onclick="openReportReasonPrompt((reason) => adminRejectPartnerDoc('${o.code}', '${docType}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">반려</button>
+                </div>
+            </div>`;
+    };
+
     resultEl.innerHTML = matches.map(o => `
         <div class="p-3.5 bg-ink-50 rounded-xl flex flex-wrap justify-between items-center gap-2 text-xs">
             <div class="space-y-0.5 min-w-0">
@@ -2127,6 +2140,7 @@ function searchOrderLookup() {
                 <span class="font-black text-ink-950">₩ ${(o.finalPrice || o.budget || 0).toLocaleString()}만원</span>
                 ${o.status === 'contracted' ? `<button type="button" onclick="openReportReasonPrompt((reason) => adminForceCancelContract('${o.code}', reason))" class="btn btn-secondary btn-sm text-roseCustom">계약 강제 취소</button>` : ''}
             </div>
+            ${(o.contractDoc || o.estimateDoc) ? `<div class="w-full space-y-1.5 pt-1">${buildDocReviewRowHtml(o, 'contract', '계약서')}${buildDocReviewRowHtml(o, 'estimate', '견적서')}</div>` : ''}
         </div>`).join('');
 }
 
@@ -2158,6 +2172,25 @@ function adminForceCancelContract(orderCode, reason) {
     searchOrderLookup();
     if (typeof renderAdminRefundPendingList === 'function') renderAdminRefundPendingList();
     if (typeof recalculateKPIs === 'function') recalculateKPIs();
+}
+
+/* 파트너가 업로드한 계약서·견적서는 지금까지 관리자가 열람만 할 수 있었고, 서류가
+ * 잘못됐거나 위조가 의심돼도 반려하고 재제출을 요청할 방법이 없었다 — 파트너
+ * 입점 심사의 "정보 보완 요청"(500994a)과 동일한 반려→재제출 패턴을 적용한다.
+ * 파일 자체를 지워 업로드 카드가 다시 "대기중"으로 보이게 한다. */
+function adminRejectPartnerDoc(orderCode, docType, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order) return;
+    const label = docType === 'contract' ? '계약서' : '견적서';
+    const hadDoc = docType === 'contract' ? order.contractDoc : order.estimateDoc;
+    if (!hadDoc) return;
+
+    if (docType === 'contract') order.contractDoc = null; else order.estimateDoc = null;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'DOC_REJECT', `[서류 반려] 오더 ${order.code}의 ${label}를 매니저가 반려하고 재제출을 요청했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `오더(${order.code})에 제출하신 ${label}가 반려되었습니다. 사유: ${reason} 새 파일로 다시 업로드해 주세요.`);
+    showToast(`${label}를 반려하고 재제출을 요청했습니다.`, 'success');
+    searchOrderLookup();
 }
 
 /* 파트너/고객/로그는 전부 CSV로 내보낼 수 있는데, 어느 관리자 탭에서든 쓸 수 있는
@@ -4169,6 +4202,7 @@ window.adminForceCancelContract = adminForceCancelContract;
 window.isClientFavorited = isClientFavorited;
 window.toggleFavoriteClient = toggleFavoriteClient;
 window.requestReviewFromClient = requestReviewFromClient;
+window.adminRejectPartnerDoc = adminRejectPartnerDoc;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
 window.dismissPortfolioReport = dismissPortfolioReport;
