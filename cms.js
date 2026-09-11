@@ -1275,6 +1275,80 @@ function reportReview(partnerName, reviewIdx, reason) {
     }
 }
 
+/* 커뮤니티 글은 개별 저장(scrap)이 가능한데(toggleSaveCommunityPost), 시공사례는
+ * 파트너 전체를 관심 등록(toggleFavoritePartner)할 수만 있고 특정 시공사례 하나만
+ * 골라 저장할 방법이 없었다 — 파트너가 시공사례를 이동/대표지정(movePartnerPortfolio/
+ * setPrimaryPortfolio)하며 배열 순서를 바꾸므로 인덱스 대신 안정적인 id로 참조해야
+ * 한다. 기존(시드) 데이터는 id가 없으므로 최초 상호작용 시점에 지연 발급한다. */
+const MAX_SAVED_PORTFOLIOS = 30;
+
+function getOrAssignPortfolioId(port) {
+    if (!port.id) port.id = `port-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    return port.id;
+}
+
+function isPortfolioSaved(partnerName, idx) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return false;
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const port = partner && partner.portfolios && partner.portfolios[idx];
+    if (!port || !port.id) return false;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    return !!(account && account.savedPortfolios && account.savedPortfolios.some(s => s.partnerName === partnerName && s.portfolioId === port.id));
+}
+
+function toggleSavePortfolio(partnerName, idx) {
+    if (!requireClientLoginForCommunity()) return;
+    const auth = window.AppState.clientAuth;
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const port = partner && partner.portfolios && partner.portfolios[idx];
+    if (!port) return;
+    const portfolioId = getOrAssignPortfolioId(port);
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+    if (!account.savedPortfolios) account.savedPortfolios = [];
+    const existingIdx = account.savedPortfolios.findIndex(s => s.partnerName === partnerName && s.portfolioId === portfolioId);
+    if (existingIdx >= 0) { account.savedPortfolios.splice(existingIdx, 1); showToast('저장한 시공사례에서 제거했습니다.', 'info'); }
+    else {
+        if (account.savedPortfolios.length >= MAX_SAVED_PORTFOLIOS) { showToast(`저장한 시공사례는 최대 ${MAX_SAVED_PORTFOLIOS}건까지 보관할 수 있어요. 기존 항목을 해제한 후 다시 시도해주세요.`, 'warning'); return; }
+        account.savedPortfolios.push({ partnerName, portfolioId }); showToast('시공사례를 저장했습니다!', 'success');
+    }
+    const saveBtn = document.getElementById('blog-modal-save-btn');
+    if (saveBtn) { const saved = isPortfolioSaved(partnerName, idx); saveBtn.classList.toggle('text-brand-600', saved); saveBtn.title = saved ? '저장됨' : '시공사례 저장'; }
+    if (typeof renderClientSavedPortfolios === 'function') renderClientSavedPortfolios();
+}
+
+function renderClientSavedPortfolios() {
+    const container = document.getElementById('client-mypage-saved-portfolios-container');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    const saved = (account && account.savedPortfolios) || [];
+    const items = saved.map(s => {
+        const partner = window.AppState.partners.find(p => p.name === s.partnerName);
+        const idx = partner && partner.portfolios ? partner.portfolios.findIndex(p => p.id === s.portfolioId) : -1;
+        const port = idx >= 0 ? partner.portfolios[idx] : null;
+        return port ? { partnerName: s.partnerName, idx, port } : null;
+    }).filter(Boolean);
+
+    if (items.length === 0) {
+        container.innerHTML = buildEmptyStateHtml('bookmark', '아직 저장한 시공사례가 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = items.map(({ partnerName, idx, port }) => `
+        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl cursor-pointer hover:bg-ink-100 transition-colors" onclick="openPortfolioBlogDetail('${escapeHtml(partnerName)}', ${idx})">
+            <div class="space-y-0.5 min-w-0 flex-1">
+                <p class="text-[10px] text-ink-400 font-bold">${escapeHtml(partnerName)}</p>
+                <h5 class="text-xs font-black text-ink-950 truncate">${escapeHtml(port.title || '(제목 없음)')}</h5>
+            </div>
+            <span class="text-[11px] text-ink-400 font-bold shrink-0 ml-2">${port.pyung || '-'}평형</span>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 /* 커뮤니티 글·후기는 신고할 수 있는데 파트너가 올리는 시공사례(포트폴리오)는
  * 저작권 도용이나 허위 사진이 올라와도 신고할 방법이 없었다 — 동일한 1인 1회
  * reportedBy 배열 패턴을 포트폴리오 항목에도 적용한다. */
@@ -1322,6 +1396,8 @@ function openPortfolioBlogDetail(partnerName, idx) {
     renderBlogLikeButton(port.likes || 0);
     const reportBtn = document.getElementById('blog-modal-report-btn');
     if (reportBtn) { const reported = isPortfolioReportedByMe(port); reportBtn.classList.toggle('text-roseCustom', reported); reportBtn.title = reported ? '신고 완료' : '시공사례 신고'; }
+    const saveBtn = document.getElementById('blog-modal-save-btn');
+    if (saveBtn) { const saved = isPortfolioSaved(partnerName, idx); saveBtn.classList.toggle('text-brand-600', saved); saveBtn.title = saved ? '저장됨' : '시공사례 저장'; saveBtn.onclick = () => toggleSavePortfolio(partnerName, idx); }
 
     const ctaBtn = document.getElementById('blog-modal-cta-btn');
     if (ctaBtn) ctaBtn.onclick = () => requestDirectQuoteFromPortfolio(partnerName, idx);
@@ -1541,6 +1617,9 @@ window.reportReview = reportReview;
 window.isReviewReportedByMe = isReviewReportedByMe;
 window.reportPortfolio = reportPortfolio;
 window.isPortfolioReportedByMe = isPortfolioReportedByMe;
+window.isPortfolioSaved = isPortfolioSaved;
+window.toggleSavePortfolio = toggleSavePortfolio;
+window.renderClientSavedPortfolios = renderClientSavedPortfolios;
 window.closeReviewDetailModal = closeReviewDetailModal;
 window.renderPartnerMyReviews = renderPartnerMyReviews;
 window.updatePartnerPhone = updatePartnerPhone;

@@ -611,6 +611,10 @@
                         <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="heart" class="w-4 h-4 text-brand-500"></i> 관심 파트너</h4>
                     </div>
                     <div id="client-mypage-favorites-container" class="space-y-2.5"></div>
+                    <div class="border-b border-ink-100 pb-3.5 pt-4">
+                        <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="bookmark" class="w-4 h-4 text-brand-500"></i> 저장한 시공사례</h4>
+                    </div>
+                    <div id="client-mypage-saved-portfolios-container" class="space-y-2.5"></div>
                 </div>
 
                 <div id="client-mypage-subtab-notifications-view" class="hidden surface surface-lg p-5 sm:p-6 space-y-4 text-left transition-all duration-300">
@@ -1293,6 +1297,7 @@
             <div class="p-4 sm:p-5 border-t border-ink-100 shrink-0 bg-white flex flex-wrap items-center justify-center gap-3">
                 <button type="button" id="blog-modal-like-btn" onclick="handleBlogLikeClick()" class="blog-like-btn shrink-0"><i data-lucide="heart" class="w-3.5 h-3.5"></i> 좋아요 <span id="blog-modal-like-count">0</span></button>
                 <button type="button" id="blog-modal-cta-btn" class="btn btn-dark btn-lg flex-1 max-w-md">이 파트너와 1:1 상담 신청하기</button>
+                <button type="button" id="blog-modal-save-btn" class="btn btn-ghost btn-sm shrink-0 px-2" aria-label="시공사례 저장"><i data-lucide="bookmark" class="w-3.5 h-3.5"></i></button>
                 <button type="button" id="blog-modal-report-btn" onclick="openReportReasonPrompt(reportPortfolio)" class="btn btn-ghost btn-sm shrink-0 px-2" aria-label="시공사례 신고"><i data-lucide="flag" class="w-3.5 h-3.5"></i></button>
             </div>
         </div>

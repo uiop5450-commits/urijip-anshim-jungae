@@ -914,7 +914,7 @@ function renderClientMyPage() {
     document.getElementById('client-mypage-subtab-notifications-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'notifications');
     document.getElementById('client-mypage-subtab-account-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'account');
     if (clientMyPageActiveSubtab === 'posts') { renderClientMyPagePosts(); renderClientMyPageSavedPosts(); }
-    if (clientMyPageActiveSubtab === 'favorites') renderClientFavoritePartners();
+    if (clientMyPageActiveSubtab === 'favorites') { renderClientFavoritePartners(); if (typeof renderClientSavedPortfolios === 'function') renderClientSavedPortfolios(); }
     if (clientMyPageActiveSubtab === 'notifications') renderClientMyPageNotifications(myNotifications);
     if (clientMyPageActiveSubtab === 'account') renderClientAccountSettings();
 
