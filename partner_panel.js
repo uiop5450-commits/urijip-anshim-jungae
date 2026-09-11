@@ -2684,8 +2684,10 @@ function buildAdminPartnerReportsHtml(partner) {
 function adminDeletePortfolio(partnerName, idx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.portfolios || !partner.portfolios[idx]) return;
+    const reportedBy = partner.portfolios[idx].reportedBy;
     partner.portfolios.splice(idx, 1);
     if (typeof pushLog === 'function') pushLog('MANAGER', 'PORTFOLIO_MODERATE', `[시공사례 삭제] '${partnerName}' 파트너의 시공사례를 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 [${partnerName}]의 시공사례가 검토 후 삭제 처리되었습니다.`);
     showToast('시공사례를 삭제했습니다.', 'info');
     openPartnerMetricsModal(partnerName);
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
@@ -2694,11 +2696,13 @@ function adminDeletePortfolio(partnerName, idx) {
 function adminDeleteReview(partnerName, reviewIdx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
+    const reportedBy = partner.reviews[reviewIdx].reportedBy;
     partner.reviews.splice(reviewIdx, 1);
     partner.rating = partner.reviews.length > 0
         ? Math.round((partner.reviews.reduce((acc, r) => acc + r.rating, 0) / partner.reviews.length) * 10) / 10
         : 5.0;
     if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_MODERATE', `[후기 삭제] '${partnerName}' 파트너의 후기를 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 [${partnerName}]의 후기가 검토 후 삭제 처리되었습니다.`);
     showToast('후기를 삭제했습니다.', 'info');
     openPartnerMetricsModal(partnerName);
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();

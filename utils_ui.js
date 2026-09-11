@@ -132,6 +132,17 @@ function pushClientNotification(clientPhone, message) {
     if (typeof renderClientMyPage === 'function') renderClientMyPage();
 }
 
+/* 후기/시공사례/커뮤니티 글·댓글·답글을 신고해도(reportReview/reportPortfolio/
+ * reportCommunityPost 등, 모두 clientAuth.id를 reportedBy 배열에 쌓는 동일 패턴)
+ * 관리자가 실제로 조치했는지 신고자는 전혀 알 방법이 없었다 — 신고 처리(삭제) 시점에
+ * reportedBy에 쌓인 신고자 전원에게 한 번에 알린다. */
+function notifyReportResolved(reportedByIds, message) {
+    if (!reportedByIds || reportedByIds.length === 0 || typeof pushClientNotification !== 'function') return;
+    (window.AppState.clientAccounts || []).forEach(acc => {
+        if (reportedByIds.includes(acc.id) && acc.phone) pushClientNotification(acc.phone, message);
+    });
+}
+
 /* 파트너 콘솔 > 알림 탭에 쌓이는 개인화 알림. 지금까지 파트너는 새 오더 매칭·계약
  * 체결·후기 등록·경고/제명 같은 중요한 이벤트를 알 방법이 전혀 없었다(고객에게만
  * pushClientNotification이 있었음) — 동일한 패턴으로 파트너용도 추가한다. */
@@ -305,6 +316,7 @@ window.buildEmptyStateHtml = buildEmptyStateHtml;
 window.clearSearchInput = clearSearchInput;
 window.pushClientNotification = pushClientNotification;
 window.pushPartnerNotification = pushPartnerNotification;
+window.notifyReportResolved = notifyReportResolved;
 window.showComingSoon = showComingSoon;
 window.openFooterInfoModal = openFooterInfoModal;
 window.closeFooterInfoModal = closeFooterInfoModal;

@@ -2111,8 +2111,10 @@ function toggleCommunityPostPin(postId) {
 function adminDeleteCommunityPost(postId) {
     const idx = (window.AppState.communityPosts || []).findIndex(p => p.id === postId);
     if (idx === -1) return;
+    const reportedBy = window.AppState.communityPosts[idx].reportedBy;
     window.AppState.communityPosts.splice(idx, 1);
     if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})을 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 게시글이 검토 후 삭제 처리되었습니다.`);
     showToast('게시글을 삭제했습니다.', 'info');
     renderAdminCommunityModeration();
 }
@@ -2120,8 +2122,10 @@ function adminDeleteCommunityPost(postId) {
 function adminDeleteCommunityComment(postId, commentIndex) {
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     if (!post || !post.comments || !post.comments[commentIndex]) return;
+    const reportedBy = post.comments[commentIndex].reportedBy;
     post.comments.splice(commentIndex, 1);
     if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})의 댓글을 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 댓글이 검토 후 삭제 처리되었습니다.`);
     showToast('댓글을 삭제했습니다.', 'info');
     renderAdminCommunityModeration();
 }
@@ -2130,8 +2134,10 @@ function adminDeleteCommunityReply(postId, commentIndex, replyIndex) {
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     const comment = post && post.comments && post.comments[commentIndex];
     if (!comment || !comment.replies || !comment.replies[replyIndex]) return;
+    const reportedBy = comment.replies[replyIndex].reportedBy;
     comment.replies.splice(replyIndex, 1);
     if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})의 답글을 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 답글이 검토 후 삭제 처리되었습니다.`);
     showToast('답글을 삭제했습니다.', 'info');
     renderAdminCommunityModeration();
 }
