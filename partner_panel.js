@@ -381,8 +381,8 @@ function renderPartnerSearchGrid() {
     const sortSelect = document.getElementById('partner-search-sort');
     const sortMode = sortSelect ? sortSelect.value : 'rating';
 
-    // 입점 심사 대기(pending)·제명(banned) 파트너는 고객 대상 공개 탐색 페이지에 노출하지 않는다.
-    const allPartners = (window.AppState.partners || []).filter(p => p.status !== 'pending' && p.status !== 'banned' && p.status !== 'info_requested');
+    // 입점 심사 대기(pending)·제명(banned)·자진 해지(closed) 파트너는 고객 대상 공개 탐색 페이지에 노출하지 않는다.
+    const allPartners = (window.AppState.partners || []).filter(p => p.status !== 'pending' && p.status !== 'banned' && p.status !== 'info_requested' && p.status !== 'closed');
 
     // 지역 필터 칩 — 실제 등록된 파트너들의 지역만 모아 중복 없이 노출한다.
     const regionChipsEl = document.getElementById('partner-search-region-chips');
@@ -966,6 +966,11 @@ function validatePartnerLogin() {
         if (partner.status === 'banned') {
             showToast("귀사는 삼진아웃 누적 초과(3회 이상 적발)로 인해 영구 제명 처리되었습니다.", "warning");
             showInlineLoginError(errorMsg, "삼진아웃제 규정에 따라 영구 제명 처리된 불량 사업자망 계정입니다.", 'ban');
+            return;
+        }
+        if (partner.status === 'closed') {
+            showToast("입점 해지 처리된 계정입니다.", "warning");
+            showInlineLoginError(errorMsg, "자진 해지된 입점 계정입니다. 재입점을 원하시면 매니저 센터에 문의해 주세요.", 'store');
             return;
         }
         if (partner.status === 'pending') {
@@ -2590,6 +2595,7 @@ function autoAllocateOrder(orderCode) {
  * 찾기 번거로워진다 — 텍스트 검색과 별개로 상태 필터 탭을 추가한다. */
 function getPartnerMonitorStatusKey(p) {
     if (p.status === 'banned') return 'banned';
+    if (p.status === 'closed') return 'closed';
     if (p.isPaused) return 'paused';
     if (p.strikeCount > 0) return 'warning';
     return 'active';
@@ -2625,7 +2631,8 @@ function renderAdminPartnerMonitor() {
             ['active', '정상', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'active').length],
             ['warning', '경고', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'warning').length],
             ['paused', '일시중단', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'paused').length],
-            ['banned', '제명', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'banned').length]
+            ['banned', '제명', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'banned').length],
+            ['closed', '자진 해지', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'closed').length]
         ];
         statusTabsEl.innerHTML = statusTabs.map(([key, label, count]) =>
             `<button type="button" onclick="setAdminPartnerMonitorStatusFilter('${key}')" class="gnb-tab ${adminPartnerMonitorStatusFilter === key ? 'active' : ''}">${label} (${count})</button>`
@@ -2657,9 +2664,11 @@ function renderAdminPartnerMonitor() {
     container.innerHTML = '';
     filtered.forEach(p => {
         const isBanned = p.status === 'banned';
+        const isClosed = p.status === 'closed';
         const isWarning = p.strikeCount > 0;
         let statusDotClass = 'bg-emeraldCustom', statusText = '정상 가동';
         if (isBanned) { statusDotClass = 'bg-roseCustom'; statusText = '영구 제명'; }
+        else if (isClosed) { statusDotClass = 'bg-ink-400'; statusText = '자진 해지'; }
         else if (isWarning) { statusDotClass = 'bg-amberCustom'; statusText = `옐로카드 ${p.strikeCount}회`; }
 
         const activeBidsCount = (window.AppState.orders || []).filter(o => o.bids && o.bids.some(b => b.partner === p.name)).length;
@@ -2692,7 +2701,7 @@ function renderAdminPartnerMonitor() {
                 <div class="flex items-center gap-1.5">
                     <button type="button" onclick="togglePartnerCertification('${p.name}')" class="btn btn-secondary btn-sm">${p.isCertified ? '인증 해제' : '인증 부여'}</button>
                     ${isWarning ? `<button type="button" onclick="resetPartnerStrikes('${p.name}')" class="btn btn-secondary btn-sm">경고 리셋</button>` : ''}
-                    ${!isBanned ? `<button type="button" onclick="issuePartnerStrike('${p.name}')" class="btn btn-secondary btn-sm">+ 옐로카드</button>` : ''}
+                    ${!isBanned && !isClosed ? `<button type="button" onclick="issuePartnerStrike('${p.name}')" class="btn btn-secondary btn-sm">+ 옐로카드</button>` : ''}
                 </div>
             </div>`;
         container.appendChild(card);

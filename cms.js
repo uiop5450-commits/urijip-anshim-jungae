@@ -737,6 +737,42 @@ function handlePartnerBizCertReupload(input) {
     reader.readAsDataURL(file);
 }
 
+/* 고객은 회원 탈퇴(openAccountDeleteModal/confirmAccountDeletion, client_panel.js)가
+ * 가능한데 파트너는 자진 입점 해지 방법이 전혀 없었다 — 관리자의 옐로카드/제명만
+ * 계정을 막을 수 있었다. 진행 중인 계약(status==='contracted')이 있으면 해지를
+ * 막아서, 시공 중인 고객을 방치한 채 나갈 수 없게 한다. */
+function openPartnerAccountCloseModal() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const activeContract = (window.AppState.orders || []).some(o => o.status === 'contracted' && o.acceptedPartner === partnerName);
+    if (activeContract) { showToast('진행 중인 계약이 있어 입점을 해지할 수 없어요. 계약을 모두 마친 후 다시 시도해주세요.', 'warning'); return; }
+    safeUpdateValue('partner-account-close-confirm-pw', '');
+    openModal('partner-account-close-modal', 'partner-account-close-modal-card');
+}
+
+function closePartnerAccountCloseModal() {
+    closeModal('partner-account-close-modal', 'partner-account-close-modal-card');
+}
+
+function confirmPartnerAccountClosure() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+
+    const activeContract = (window.AppState.orders || []).some(o => o.status === 'contracted' && o.acceptedPartner === partnerName);
+    if (activeContract) { showToast('진행 중인 계약이 있어 입점을 해지할 수 없어요.', 'warning'); closePartnerAccountCloseModal(); return; }
+
+    const pw = document.getElementById('partner-account-close-confirm-pw')?.value || '';
+    if (!pw) { showToast('비밀번호를 입력해 주세요.', 'warning'); return; }
+    if (partner.pw !== pw) { showToast('비밀번호가 일치하지 않습니다.', 'warning'); return; }
+
+    partner.status = 'closed';
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'ACCOUNT_CLOSE', `[${partnerName}]가 자진 입점 해지했습니다.`, 'WARNING');
+    showToast('입점 해지가 완료되었습니다. 함께해주셔서 감사했습니다.', 'info');
+    closePartnerAccountCloseModal();
+    partnerLogout();
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
 /* 파트너 콘솔 '내 정보' 탭 — 받은 후기 목록과 답글 작성 UI. 지금까지는 파트너가
  * 자기 후기에 답글을 남길 방법이 전혀 없었다(네이버지도/구글리뷰의 '사장님 답글'과
  * 같은 기능 공백). 답글은 rev.reply = {text, date}로 저장되고, 고객이 보는
@@ -1513,6 +1549,9 @@ window.updatePartnerBizFile = updatePartnerBizFile;
 window.togglePartnerPauseStatus = togglePartnerPauseStatus;
 window.updatePartnerPassword = updatePartnerPassword;
 window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;
+window.openPartnerAccountCloseModal = openPartnerAccountCloseModal;
+window.closePartnerAccountCloseModal = closePartnerAccountCloseModal;
+window.confirmPartnerAccountClosure = confirmPartnerAccountClosure;
 window.submitReviewReply = submitReviewReply;
 window.removeReviewReply = removeReviewReply;
 window.toggleLikePortfolio = toggleLikePortfolio;

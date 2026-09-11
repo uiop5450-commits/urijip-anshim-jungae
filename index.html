@@ -826,6 +826,11 @@
                             <input type="file" id="partner-account-bizcert-input" accept="image/*,.pdf" class="hidden" onchange="handlePartnerBizCertReupload(this)">
                             <button type="button" onclick="document.getElementById('partner-account-bizcert-input').click()" class="btn btn-secondary btn-sm"><i data-lucide="upload" class="w-3.5 h-3.5"></i> 새 파일로 교체</button>
                         </div>
+                        <div class="space-y-3 pt-2">
+                            <h4 class="text-xs font-black text-roseCustom uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="store" class="w-4 h-4 text-roseCustom"></i> 입점 해지</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">더 이상 우리집 안심중개에서 영업하지 않으신다면 입점을 해지할 수 있어요. 진행 중인 계약이 있으면 해지할 수 없습니다.</p>
+                            <button type="button" onclick="openPartnerAccountCloseModal()" class="btn btn-secondary btn-sm text-roseCustom">입점 해지 신청</button>
+                        </div>
                     </div>
                 </div>
 
@@ -1601,6 +1606,20 @@
                 <p class="text-[11px] text-ink-500 font-medium leading-relaxed">탈퇴 확인을 위해 현재 비밀번호를 입력해 주세요. 탈퇴 즉시 로그아웃되며 이 아이디로 다시 로그인할 수 없습니다.</p>
                 <div><label class="field-label">현재 비밀번호</label><input type="password" id="account-delete-confirm-pw" class="input"></div>
                 <button type="button" onclick="confirmAccountDeletion()" class="btn btn-dark btn-block text-roseCustom">회원 탈퇴 확정</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="partner-account-close-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="partner-account-close-modal-card" class="modal-card w-full max-w-sm p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">입점 해지</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">정말 입점을 해지하시겠어요?</h3></div>
+                <button type="button" onclick="closePartnerAccountCloseModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">해지 확인을 위해 현재 비밀번호를 입력해 주세요. 해지 즉시 로그아웃되며 이 계정으로 다시 로그인할 수 없습니다. 진행 중인 계약이 있으면 해지할 수 없어요.</p>
+                <div><label class="field-label">현재 비밀번호</label><input type="password" id="partner-account-close-confirm-pw" class="input"></div>
+                <button type="button" onclick="confirmPartnerAccountClosure()" class="btn btn-dark btn-block text-roseCustom">입점 해지 확정</button>
             </div>
         </div>
     </div>
