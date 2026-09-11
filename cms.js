@@ -588,6 +588,43 @@ function renderPartnerProfileManager() {
     }
 
     renderPartnerMyReviews(partner);
+    safeUpdateValue('partner-account-edit-phone', partner.phone || '');
+    safeUpdateValue('partner-account-edit-current-pw', '');
+    safeUpdateValue('partner-account-edit-new-pw', '');
+    safeUpdateValue('partner-account-edit-new-pw2', '');
+}
+
+/* 파트너 콘솔 '내 정보' 탭 — 지금까지는 업체 홍보 문구/사진만 수정 가능했고, 담당자
+ * 연락처나 비밀번호를 바꿀 방법이 없었다(업체명/아이디는 여러 화면에서 식별자로
+ * 쓰이므로 의도적으로 수정 불가 상태 유지). 고객 계정 정보 수정(updateClientProfileInfo/
+ * updateClientPassword)과 동일한 검증 패턴을 그대로 따른다. */
+function updatePartnerPhone() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    const phoneVal = document.getElementById('partner-account-edit-phone')?.value.trim();
+    if (!/^0\d{1,2}-\d{3,4}-\d{4}$/.test(phoneVal)) { showToast('담당자 연락처를 올바른 형식으로 입력해 주세요. (예: 010-0000-0000)', 'warning'); return; }
+    partner.phone = phoneVal;
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PROFILE_UPDATE', `[${partnerName}]가 담당자 연락처를 수정했습니다.`, 'INFO');
+    showToast('담당자 연락처가 저장되었습니다.', 'success');
+}
+
+function updatePartnerPassword() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    const currentPw = document.getElementById('partner-account-edit-current-pw')?.value || '';
+    const newPw = document.getElementById('partner-account-edit-new-pw')?.value || '';
+    const newPw2 = document.getElementById('partner-account-edit-new-pw2')?.value || '';
+    if (!currentPw || !newPw || !newPw2) { showToast('비밀번호 항목을 모두 입력해 주세요.', 'warning'); return; }
+    if (partner.pw !== currentPw) { showToast('현재 비밀번호가 일치하지 않습니다.', 'warning'); return; }
+    if (newPw !== newPw2) { showToast('새 비밀번호가 일치하지 않습니다.', 'warning'); return; }
+    partner.pw = newPw;
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PASSWORD_CHANGE', `[${partnerName}]가 비밀번호를 변경했습니다.`, 'INFO');
+    showToast('비밀번호가 변경되었습니다.', 'success');
+    safeUpdateValue('partner-account-edit-current-pw', '');
+    safeUpdateValue('partner-account-edit-new-pw', '');
+    safeUpdateValue('partner-account-edit-new-pw2', '');
 }
 
 /* 파트너 콘솔 '내 정보' 탭 — 받은 후기 목록과 답글 작성 UI. 지금까지는 파트너가
@@ -1200,6 +1237,8 @@ window.deleteCurrentPartnerHeroSlide = deleteCurrentPartnerHeroSlide;
 window.openReviewDetailModal = openReviewDetailModal;
 window.closeReviewDetailModal = closeReviewDetailModal;
 window.renderPartnerMyReviews = renderPartnerMyReviews;
+window.updatePartnerPhone = updatePartnerPhone;
+window.updatePartnerPassword = updatePartnerPassword;
 window.submitReviewReply = submitReviewReply;
 window.removeReviewReply = removeReviewReply;
 window.toggleLikePortfolio = toggleLikePortfolio;

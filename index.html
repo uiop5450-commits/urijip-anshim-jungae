@@ -742,6 +742,21 @@
                         </div>
                         <div id="partner-myinfo-reviews-list" class="space-y-3"></div>
                     </div>
+
+                    <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
+                        <div class="space-y-4">
+                            <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="phone" class="w-4 h-4 text-brand-500"></i> 담당자 연락처 수정</h4>
+                            <div><label class="field-label">담당자 연락처</label><input type="text" id="partner-account-edit-phone" oninput="handlePhoneInput(this)" placeholder="010-0000-0000" class="input"></div>
+                            <button type="button" onclick="updatePartnerPhone()" class="btn btn-primary">연락처 저장</button>
+                        </div>
+                        <div class="space-y-4 pt-2">
+                            <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="lock" class="w-4 h-4 text-brand-500"></i> 비밀번호 변경</h4>
+                            <div><label class="field-label">현재 비밀번호</label><input type="password" id="partner-account-edit-current-pw" class="input"></div>
+                            <div><label class="field-label">새 비밀번호</label><input type="password" id="partner-account-edit-new-pw" class="input"></div>
+                            <div><label class="field-label">새 비밀번호 확인</label><input type="password" id="partner-account-edit-new-pw2" class="input"></div>
+                            <button type="button" onclick="updatePartnerPassword()" class="btn btn-secondary">비밀번호 변경</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="partner-mode-notifications-view" class="hidden space-y-6">
