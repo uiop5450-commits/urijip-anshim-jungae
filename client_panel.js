@@ -726,9 +726,10 @@ let scheduleChangeTargetCode = null;
 function openScheduleChangeModal(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order || order.status !== 'contracted') return;
-    if (order.scheduleChangeRequest && order.scheduleChangeRequest.status === 'pending') { showToast('이미 처리 대기 중인 일정 변경 요청이 있어요.', 'warning'); return; }
+    const req = order.scheduleChangeRequest;
+    if (req && req.status === 'pending' && req.requestedBy === 'client') { showToast('이미 처리 대기 중인 일정 변경 요청이 있어요.', 'warning'); return; }
     scheduleChangeTargetCode = orderCode;
-    safeUpdateValue('schedule-change-date-input', order.preferredDate);
+    safeUpdateValue('schedule-change-date-input', (req && req.status === 'pending') ? req.newDate : order.preferredDate);
     safeUpdateValue('schedule-change-reason-input', '');
     openModal('schedule-change-modal', 'schedule-change-modal-card');
 }
@@ -747,11 +748,12 @@ function submitScheduleChangeRequest() {
     if (!reason) { showToast('변경 사유를 입력해주세요.', 'warning'); return; }
     if (newDate === order.preferredDate) { showToast('현재 착공일과 동일해요.', 'warning'); return; }
 
+    const isCounter = order.scheduleChangeRequest && order.scheduleChangeRequest.status === 'pending' && order.scheduleChangeRequest.requestedBy === 'partner';
     order.scheduleChangeRequest = { requestedBy: 'client', newDate, reason, status: 'pending', date: getLocalDateString() };
 
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'SCHEDULE_CHANGE_REQUEST', `[${order.clientName}] 고객님이 계약(${order.code}) 착공일 변경을 요청했습니다: ${order.preferredDate} → ${newDate}`, 'INFO');
-    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 착공일 변경을 요청했어요: ${order.preferredDate} → ${newDate}`);
-    showToast('착공일 변경 요청을 보냈습니다. 파트너사 확인을 기다려주세요.', 'success');
+    if (typeof pushLog === 'function') pushLog('CLIENT', isCounter ? 'SCHEDULE_CHANGE_COUNTER' : 'SCHEDULE_CHANGE_REQUEST', `[${order.clientName}] 고객님이 계약(${order.code}) 착공일 변경을 ${isCounter ? '역제안했습니다' : '요청했습니다'}: ${order.preferredDate} → ${newDate}`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, isCounter ? `고객님이 착공일을 ${newDate}로 역제안했어요.` : `고객님이 착공일 변경을 요청했어요: ${order.preferredDate} → ${newDate}`);
+    showToast(isCounter ? '역제안을 보냈습니다. 파트너사 확인을 기다려주세요.' : '착공일 변경 요청을 보냈습니다. 파트너사 확인을 기다려주세요.', 'success');
 
     closeScheduleChangeModal();
     selectMyPageEstimate(order.code);
@@ -803,7 +805,7 @@ function buildScheduleChangeHtml(order) {
             </div>`
             : `<div class="p-2.5 bg-brand-50 rounded-xl mt-2 space-y-1.5">
                 <p class="text-[10px] font-black text-brand-700">파트너사가 착공일 변경을 요청했어요: ${req.newDate} (사유: ${escapeHtml(req.reason)})</p>
-                <div class="flex gap-1.5"><button type="button" onclick="respondToPartnerScheduleChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToPartnerScheduleChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button></div>
+                <div class="flex gap-1.5"><button type="button" onclick="respondToPartnerScheduleChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToPartnerScheduleChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button><button type="button" onclick="openScheduleChangeModal('${order.code}')" class="btn btn-ghost btn-sm flex-1">역제안</button></div>
             </div>`;
     }
     return `<div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between mt-2">
@@ -823,9 +825,10 @@ let priceChangeTargetCode = null;
 function openPriceChangeModal(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order || order.status !== 'contracted') return;
-    if (order.priceChangeRequest && order.priceChangeRequest.status === 'pending') { showToast('이미 처리 대기 중인 금액 변경 요청이 있어요.', 'warning'); return; }
+    const req = order.priceChangeRequest;
+    if (req && req.status === 'pending' && req.requestedBy === 'client') { showToast('이미 처리 대기 중인 금액 변경 요청이 있어요.', 'warning'); return; }
     priceChangeTargetCode = orderCode;
-    safeUpdateValue('price-change-amount-input', order.finalPrice || order.budget);
+    safeUpdateValue('price-change-amount-input', (req && req.status === 'pending') ? req.newPrice : (order.finalPrice || order.budget));
     safeUpdateValue('price-change-reason-input', '');
     openModal('price-change-modal', 'price-change-modal-card');
 }
@@ -844,11 +847,12 @@ function submitPriceChangeRequest() {
     if (!reason) { showToast('변경 사유를 입력해주세요.', 'warning'); return; }
     if (newPrice === order.finalPrice) { showToast('현재 계약 금액과 동일해요.', 'warning'); return; }
 
+    const isCounter = order.priceChangeRequest && order.priceChangeRequest.status === 'pending' && order.priceChangeRequest.requestedBy === 'partner';
     order.priceChangeRequest = { requestedBy: 'client', newPrice, reason, status: 'pending', date: getLocalDateString() };
 
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'PRICE_CHANGE_REQUEST', `[${order.clientName}] 고객님이 계약(${order.code}) 금액 변경을 요청했습니다: ₩${(order.finalPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`, 'INFO');
-    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 계약 금액 변경을 요청했어요: ₩${(order.finalPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`);
-    showToast('계약 금액 변경 요청을 보냈습니다. 파트너사 확인을 기다려주세요.', 'success');
+    if (typeof pushLog === 'function') pushLog('CLIENT', isCounter ? 'PRICE_CHANGE_COUNTER' : 'PRICE_CHANGE_REQUEST', `[${order.clientName}] 고객님이 계약(${order.code}) 금액 변경을 ${isCounter ? '역제안했습니다' : '요청했습니다'}: ₩${(order.finalPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, isCounter ? `고객님이 계약 금액을 ₩${newPrice.toLocaleString()}만원으로 역제안했어요.` : `고객님이 계약 금액 변경을 요청했어요: ₩${(order.finalPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`);
+    showToast(isCounter ? '역제안을 보냈습니다. 파트너사 확인을 기다려주세요.' : '계약 금액 변경 요청을 보냈습니다. 파트너사 확인을 기다려주세요.', 'success');
 
     closePriceChangeModal();
     selectMyPageEstimate(order.code);
@@ -900,7 +904,7 @@ function buildPriceChangeHtml(order) {
             </div>`
             : `<div class="p-2.5 bg-brand-50 rounded-xl mt-2 space-y-1.5">
                 <p class="text-[10px] font-black text-brand-700">파트너사가 계약 금액 변경을 요청했어요: ₩${req.newPrice.toLocaleString()}만원 (사유: ${escapeHtml(req.reason)})</p>
-                <div class="flex gap-1.5"><button type="button" onclick="respondToPartnerPriceChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToPartnerPriceChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button></div>
+                <div class="flex gap-1.5"><button type="button" onclick="respondToPartnerPriceChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToPartnerPriceChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button><button type="button" onclick="openPriceChangeModal('${order.code}')" class="btn btn-ghost btn-sm flex-1">역제안</button></div>
             </div>`;
     }
     return `<div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between mt-2">

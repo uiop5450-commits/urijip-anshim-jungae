@@ -3448,9 +3448,10 @@ function openPartnerScheduleChangeModal(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
-    if (order.scheduleChangeRequest && order.scheduleChangeRequest.status === 'pending') { showToast('이미 처리 대기 중인 일정 변경 요청이 있어요.', 'warning'); return; }
+    const req = order.scheduleChangeRequest;
+    if (req && req.status === 'pending' && req.requestedBy === 'partner') { showToast('이미 처리 대기 중인 일정 변경 요청이 있어요.', 'warning'); return; }
     partnerScheduleChangeTargetCode = orderCode;
-    safeUpdateValue('partner-schedule-change-date-input', order.preferredDate);
+    safeUpdateValue('partner-schedule-change-date-input', (req && req.status === 'pending') ? req.newDate : order.preferredDate);
     safeUpdateValue('partner-schedule-change-reason-input', '');
     openModal('partner-schedule-change-modal', 'partner-schedule-change-modal-card');
 }
@@ -3470,11 +3471,12 @@ function submitPartnerScheduleChangeRequest() {
     if (!reason) { showToast('변경 사유를 입력해주세요.', 'warning'); return; }
     if (newDate === order.preferredDate) { showToast('현재 착공일과 동일해요.', 'warning'); return; }
 
+    const isCounter = order.scheduleChangeRequest && order.scheduleChangeRequest.status === 'pending' && order.scheduleChangeRequest.requestedBy === 'client';
     order.scheduleChangeRequest = { requestedBy: 'partner', newDate, reason, status: 'pending', date: getLocalDateString() };
 
-    if (typeof pushLog === 'function') pushLog('PARTNER', 'SCHEDULE_CHANGE_REQUEST', `[${partnerName}]가 계약(${order.code}) 착공일 변경을 요청했습니다: ${order.preferredDate} → ${newDate}`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}가 착공일 변경을 요청했어요: ${order.preferredDate} → ${newDate}`);
-    showToast('착공일 변경 요청을 보냈습니다. 고객 확인을 기다려주세요.', 'success');
+    if (typeof pushLog === 'function') pushLog('PARTNER', isCounter ? 'SCHEDULE_CHANGE_COUNTER' : 'SCHEDULE_CHANGE_REQUEST', `[${partnerName}]가 계약(${order.code}) 착공일 변경을 ${isCounter ? '역제안했습니다' : '요청했습니다'}: ${order.preferredDate} → ${newDate}`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, isCounter ? `${partnerName}가 착공일을 ${newDate}로 역제안했어요.` : `${partnerName}가 착공일 변경을 요청했어요: ${order.preferredDate} → ${newDate}`);
+    showToast(isCounter ? '역제안을 보냈습니다. 고객 확인을 기다려주세요.' : '착공일 변경 요청을 보냈습니다. 고객 확인을 기다려주세요.', 'success');
 
     closePartnerScheduleChangeModal();
     openPartnerOrderDetailModal(order.code);
@@ -3528,7 +3530,7 @@ function buildPartnerScheduleChangeHtml(order) {
             </div>`
             : `<div class="p-2.5 bg-brand-50 rounded-xl mt-2 space-y-1.5">
                 <p class="text-[10px] font-black text-brand-700">고객이 착공일 변경을 요청했어요: ${req.newDate} (사유: ${escapeHtml(req.reason)})</p>
-                <div class="flex gap-1.5"><button type="button" onclick="respondToClientScheduleChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToClientScheduleChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button></div>
+                <div class="flex gap-1.5"><button type="button" onclick="respondToClientScheduleChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToClientScheduleChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button><button type="button" onclick="openPartnerScheduleChangeModal('${order.code}')" class="btn btn-ghost btn-sm flex-1">역제안</button></div>
             </div>`;
     }
     return `<div class="p-4 surface-flat text-left space-y-1">
@@ -3547,9 +3549,10 @@ function openPartnerPriceChangeModal(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
-    if (order.priceChangeRequest && order.priceChangeRequest.status === 'pending') { showToast('이미 처리 대기 중인 금액 변경 요청이 있어요.', 'warning'); return; }
+    const req = order.priceChangeRequest;
+    if (req && req.status === 'pending' && req.requestedBy === 'partner') { showToast('이미 처리 대기 중인 금액 변경 요청이 있어요.', 'warning'); return; }
     partnerPriceChangeTargetCode = orderCode;
-    safeUpdateValue('partner-price-change-amount-input', order.finalPrice || order.budget);
+    safeUpdateValue('partner-price-change-amount-input', (req && req.status === 'pending') ? req.newPrice : (order.finalPrice || order.budget));
     safeUpdateValue('partner-price-change-reason-input', '');
     openModal('partner-price-change-modal', 'partner-price-change-modal-card');
 }
@@ -3569,11 +3572,12 @@ function submitPartnerPriceChangeRequest() {
     if (!reason) { showToast('변경 사유를 입력해주세요.', 'warning'); return; }
     if (newPrice === order.finalPrice) { showToast('현재 계약 금액과 동일해요.', 'warning'); return; }
 
+    const isCounter = order.priceChangeRequest && order.priceChangeRequest.status === 'pending' && order.priceChangeRequest.requestedBy === 'client';
     order.priceChangeRequest = { requestedBy: 'partner', newPrice, reason, status: 'pending', date: getLocalDateString() };
 
-    if (typeof pushLog === 'function') pushLog('PARTNER', 'PRICE_CHANGE_REQUEST', `[${partnerName}]가 계약(${order.code}) 금액 변경을 요청했습니다: ₩${(order.finalPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}가 계약 금액 변경을 요청했어요: ₩${(order.finalPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`);
-    showToast('계약 금액 변경 요청을 보냈습니다. 고객 확인을 기다려주세요.', 'success');
+    if (typeof pushLog === 'function') pushLog('PARTNER', isCounter ? 'PRICE_CHANGE_COUNTER' : 'PRICE_CHANGE_REQUEST', `[${partnerName}]가 계약(${order.code}) 금액 변경을 ${isCounter ? '역제안했습니다' : '요청했습니다'}: ₩${(order.finalPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, isCounter ? `${partnerName}가 계약 금액을 ₩${newPrice.toLocaleString()}만원으로 역제안했어요.` : `${partnerName}가 계약 금액 변경을 요청했어요: ₩${(order.finalPrice || 0).toLocaleString()}만원 → ₩${newPrice.toLocaleString()}만원`);
+    showToast(isCounter ? '역제안을 보냈습니다. 고객 확인을 기다려주세요.' : '계약 금액 변경 요청을 보냈습니다. 고객 확인을 기다려주세요.', 'success');
 
     closePartnerPriceChangeModal();
     openPartnerOrderDetailModal(order.code);
@@ -3627,7 +3631,7 @@ function buildPartnerPriceChangeHtml(order) {
             </div>`
             : `<div class="p-2.5 bg-brand-50 rounded-xl mt-2 space-y-1.5">
                 <p class="text-[10px] font-black text-brand-700">고객이 계약 금액 변경을 요청했어요: ₩${req.newPrice.toLocaleString()}만원 (사유: ${escapeHtml(req.reason)})</p>
-                <div class="flex gap-1.5"><button type="button" onclick="respondToClientPriceChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToClientPriceChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button></div>
+                <div class="flex gap-1.5"><button type="button" onclick="respondToClientPriceChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToClientPriceChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button><button type="button" onclick="openPartnerPriceChangeModal('${order.code}')" class="btn btn-ghost btn-sm flex-1">역제안</button></div>
             </div>`;
     }
     return `<div class="p-4 surface-flat text-left space-y-1">
