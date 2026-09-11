@@ -723,14 +723,22 @@ function renderPartnerMyReviews(partner) {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+/* 파트너가 후기에 답글을 남겨도 지금까지 고객에게는 아무 알림이 가지 않아서, 고객이
+ * 우연히 재방문하지 않으면 답글을 영영 못 볼 수도 있었다 — review.orderCode로 원 의뢰를
+ * 찾아 클라이언트 알림을 보낸다(네이버지도 '사장님 답글' 알림과 동일한 목적). */
 function submitReviewReply(partnerName, reviewIdx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
     const input = document.getElementById(`review-reply-input-${reviewIdx}`);
     const text = input ? input.value.trim() : '';
     if (!text) { showToast('답글 내용을 입력해 주세요.', 'warning'); return; }
-    partner.reviews[reviewIdx].reply = { text, date: getLocalDateString() };
+    const review = partner.reviews[reviewIdx];
+    review.reply = { text, date: getLocalDateString() };
     if (typeof pushLog === 'function') pushLog('PARTNER', 'REVIEW_REPLY', `[${partnerName}]가 후기에 답글을 남겼습니다.`, 'INFO');
+    if (review.orderCode && typeof pushClientNotification === 'function') {
+        const order = (window.AppState.orders || []).find(o => o.code === review.orderCode);
+        if (order) pushClientNotification(order.clientPhone, `[${partnerName}]에서 남기신 후기에 답글을 남겼어요.`);
+    }
     showToast('답글이 등록되었습니다.', 'success');
     renderPartnerMyReviews(partner);
 }
