@@ -381,7 +381,7 @@ function renderPartnerSearchGrid() {
     const sortMode = sortSelect ? sortSelect.value : 'rating';
 
     // 입점 심사 대기(pending)·제명(banned) 파트너는 고객 대상 공개 탐색 페이지에 노출하지 않는다.
-    const allPartners = (window.AppState.partners || []).filter(p => p.status !== 'pending' && p.status !== 'banned');
+    const allPartners = (window.AppState.partners || []).filter(p => p.status !== 'pending' && p.status !== 'banned' && p.status !== 'info_requested');
 
     // 지역 필터 칩 — 실제 등록된 파트너들의 지역만 모아 중복 없이 노출한다.
     const regionChipsEl = document.getElementById('partner-search-region-chips');
@@ -483,7 +483,7 @@ function switchAdminMode(mode) {
     window.AppState.adminConsoleMode = mode;
     const tabBar = document.getElementById('admin-console-tab-bar');
     if (tabBar) {
-        const pendingCount = (window.AppState.partners || []).filter(p => p.status === 'pending').length;
+        const pendingCount = (window.AppState.partners || []).filter(p => p.status === 'pending' || p.status === 'info_requested').length;
         const openTicketCount = (window.AppState.supportTickets || []).filter(t => t.status === 'open').length;
         const cancelRequestCount = (window.AppState.orders || []).filter(o => o.status === 'cancel_requested').length;
         const tabs = ALL_ADMIN_TABS.filter(([id]) => allowedTabs.includes(id)).map(([id, icon, label]) => {
@@ -741,8 +741,11 @@ let reapplyTargetPartnerId = null;
 
 function openPartnerReapplyModal() {
     const partner = (window.AppState.partners || []).find(p => p.id === reapplyTargetPartnerId);
-    if (!partner || partner.status !== 'rejected') { showToast('재신청 대상 계정을 찾을 수 없습니다.', 'warning'); return; }
-    safeUpdateText('partner-reapply-reason-text', partner.rejectReason || '매니저 센터 검토 결과 반려');
+    if (!partner || (partner.status !== 'rejected' && partner.status !== 'info_requested')) { showToast('재신청 대상 계정을 찾을 수 없습니다.', 'warning'); return; }
+    const isInfoRequested = partner.status === 'info_requested';
+    safeUpdateText('partner-reapply-modal-title', isInfoRequested ? '요청 내용을 확인하고 재신청하세요' : '반려 사유를 확인하고 재신청하세요');
+    safeUpdateText('partner-reapply-reason-label', isInfoRequested ? '매니저 센터 요청 내용' : '반려 사유');
+    safeUpdateText('partner-reapply-reason-text', isInfoRequested ? (partner.infoRequestNote || '매니저 센터 추가 정보 요청') : (partner.rejectReason || '매니저 센터 검토 결과 반려'));
     const fileInput = document.getElementById('partner-reapply-bizcert-input');
     if (fileInput) fileInput.value = '';
     safeUpdateValue('partner-reapply-memo', '');
@@ -755,15 +758,17 @@ function closePartnerReapplyModal() {
 
 function submitPartnerReapplication() {
     const partner = (window.AppState.partners || []).find(p => p.id === reapplyTargetPartnerId);
-    if (!partner || partner.status !== 'rejected') { closePartnerReapplyModal(); return; }
+    if (!partner || (partner.status !== 'rejected' && partner.status !== 'info_requested')) { closePartnerReapplyModal(); return; }
 
     const finalize = () => {
+        const wasInfoRequested = partner.status === 'info_requested';
         partner.status = 'pending';
         partner.appliedAt = new Date().toLocaleString('ko-KR');
         const memo = document.getElementById('partner-reapply-memo')?.value.trim();
-        const prevReason = partner.rejectReason;
+        const prevReason = wasInfoRequested ? partner.infoRequestNote : partner.rejectReason;
         partner.rejectReason = null;
-        if (typeof pushLog === 'function') pushLog('PARTNER', 'REAPPLY', `[${partner.name}](${partner.id})가 입점 재신청했습니다. (이전 반려 사유: ${prevReason || '-'}${memo ? ' | 보완 메모: ' + memo : ''})`, 'INFO');
+        partner.infoRequestNote = null;
+        if (typeof pushLog === 'function') pushLog('PARTNER', 'REAPPLY', `[${partner.name}](${partner.id})가 입점 ${wasInfoRequested ? '정보 보완 후 재신청' : '재신청'}했습니다. (이전 ${wasInfoRequested ? '요청 내용' : '반려 사유'}: ${prevReason || '-'}${memo ? ' | 보완 메모: ' + memo : ''})`, 'INFO');
         showToast('재신청이 접수되었습니다. 매니저 센터의 재심사 후 결과를 안내드릴게요.', 'success');
         closePartnerReapplyModal();
         document.getElementById('partner-reapply-btn')?.classList.add('hidden');
@@ -820,6 +825,13 @@ function validatePartnerLogin() {
             showInlineLoginError(errorMsg, "입점 신청이 반려된 계정입니다.", 'x-circle');
             // 지금까지는 반려되면 영구히 재신청할 방법이 없어서 새 아이디로 재가입해야 했다 —
             // 로그인 폼에 재신청 버튼을 노출해 같은 계정으로 다시 심사받을 수 있게 한다.
+            reapplyTargetPartnerId = partner.id;
+            document.getElementById('partner-reapply-btn')?.classList.remove('hidden');
+            return;
+        }
+        if (partner.status === 'info_requested') {
+            showToast(`입점 심사를 위해 추가 정보가 필요해요.${partner.infoRequestNote ? ' 요청 내용: ' + partner.infoRequestNote : ''}`, "info");
+            showInlineLoginError(errorMsg, "매니저 센터가 추가 정보를 요청했습니다. 아래에서 보완 후 재신청해 주세요.", 'message-circle-question');
             reapplyTargetPartnerId = partner.id;
             document.getElementById('partner-reapply-btn')?.classList.remove('hidden');
             return;
@@ -2550,7 +2562,7 @@ function renderAdminPartnerApplications() {
     const container = document.getElementById('admin-partner-applications-list');
     if (!container) return;
 
-    const pending = (window.AppState.partners || []).filter(p => p.status === 'pending');
+    const pending = (window.AppState.partners || []).filter(p => p.status === 'pending' || p.status === 'info_requested');
     if (pending.length === 0) {
         container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap" style="background:var(--emerald-50);color:var(--emerald-600)"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">현재 심사 대기 중인 입점 신청이 없습니다.</p></div>`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -2565,17 +2577,19 @@ function renderAdminPartnerApplications() {
                 ? `<img src="${doc.dataUrl}" alt="사업자등록증" class="w-full h-40 object-cover rounded-xl border border-ink-100 cursor-pointer" onclick="viewPartnerBizCertDoc('${p.id}')">`
                 : `<button type="button" onclick="viewPartnerBizCertDoc('${p.id}')" class="btn btn-secondary btn-sm btn-block"><i data-lucide="file-text" class="w-3.5 h-3.5"></i> ${escapeHtml(doc.name) || '첨부파일'} 열기</button>`)
             : `<div class="p-3 bg-rose-50 rounded-xl border border-dashed border-roseCustom/40 text-center"><p class="text-[10px] text-roseCustom font-bold">첨부된 사업자등록증이 없습니다.</p></div>`;
+        const isInfoRequested = p.status === 'info_requested';
 
         return `
             <div class="surface p-5 space-y-4 text-left flex flex-col justify-between">
                 <div class="space-y-3">
                     <div class="flex justify-between items-start gap-2">
                         <div class="space-y-1">
-                            <span class="badge badge-amber">심사 대기</span>
+                            <span class="badge ${isInfoRequested ? 'badge-neutral' : 'badge-amber'}">${isInfoRequested ? '정보 보완 요청됨' : '심사 대기'}</span>
                             <h4 class="text-sm font-black text-ink-950">${escapeHtml(p.name)}</h4>
                             <p class="text-[10px] text-ink-400 font-mono">신청일시: ${p.appliedAt || '-'}</p>
                         </div>
                     </div>
+                    ${isInfoRequested ? `<div class="p-3 bg-ink-50 rounded-xl border border-dashed border-ink-200"><p class="text-[10px] font-black text-ink-500 uppercase tracking-wider mb-1">요청한 보완 내용</p><p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(p.infoRequestNote || '-')}</p></div>` : ''}
                     <div class="grid grid-cols-2 gap-2 text-[11px] font-bold text-ink-600 bg-ink-50 p-3 rounded-xl border border-ink-100">
                         <span>아이디: <b class="text-ink-900">${escapeHtml(p.id)}</b></span>
                         <span>연락처: <b class="text-ink-900">${escapeHtml(p.phone) || '-'}</b></span>
@@ -2587,15 +2601,36 @@ function renderAdminPartnerApplications() {
                     </div>
                 </div>
                 <div class="pt-3 border-t border-ink-100 space-y-2">
-                    <input type="text" id="partner-app-reject-reason-${p.id}" placeholder="거절 사유 (선택 입력)" class="input text-xs">
+                    <input type="text" id="partner-app-reject-reason-${p.id}" placeholder="거절 사유 또는 보완 요청 내용" class="input text-xs">
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="approvePartnerApplication('${p.id}')" class="btn btn-primary btn-sm flex-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> 승인</button>
+                        <button type="button" onclick="requestMoreInfoFromApplicant('${p.id}')" class="btn btn-secondary btn-sm flex-1"><i data-lucide="message-circle-question" class="w-3.5 h-3.5"></i> 정보 요청</button>
                         <button type="button" onclick="rejectPartnerApplication('${p.id}')" class="btn btn-secondary btn-sm flex-1"><i data-lucide="x" class="w-3.5 h-3.5"></i> 거절</button>
                     </div>
                 </div>
             </div>`;
     }).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 지금까지는 심사가 승인/거절 둘 중 하나뿐이라, 서류가 애매하거나 정보가 부족한
+ * 경우에도 무조건 거절부터 해야 했다 — 거절하면 partner_panel.js의 재신청 플로우를
+ * 타야 하니 지원자 입장에서도 불필요하게 가혹하다. '정보 보완 요청' 중간 상태를
+ * 추가해 반려까지 가지 않고 소통할 수 있게 하고, 보완 제출은 기존 재신청
+ * 모달(openPartnerReapplyModal/submitPartnerReapplication)을 그대로 재사용한다. */
+function requestMoreInfoFromApplicant(partnerId) {
+    const partner = (window.AppState.partners || []).find(p => p.id === partnerId);
+    if (!partner) return;
+    const noteInput = document.getElementById(`partner-app-reject-reason-${partnerId}`);
+    const note = noteInput ? noteInput.value.trim() : '';
+    if (!note) { showToast('어떤 정보가 더 필요한지 요청 내용을 입력해 주세요.', 'warning'); return; }
+
+    partner.status = 'info_requested';
+    partner.infoRequestNote = note;
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_INFO_REQUEST', `[정보 요청] '${partner.name}'(${partner.id})에게 추가 정보를 요청했습니다. 내용: ${note}`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `입점 심사를 위해 추가 정보가 필요해요: "${note}" 로그인 후 보완해서 재신청해 주세요.`);
+    showToast(`[${partner.name}] 파트너사에 추가 정보를 요청했습니다.`, 'success');
+    renderAdminPartnerApplications();
 }
 
 function viewPartnerBizCertDoc(partnerId) {
@@ -3163,6 +3198,7 @@ window.renderAdminPartnerApplications = renderAdminPartnerApplications;
 window.viewPartnerBizCertDoc = viewPartnerBizCertDoc;
 window.approvePartnerApplication = approvePartnerApplication;
 window.rejectPartnerApplication = rejectPartnerApplication;
+window.requestMoreInfoFromApplicant = requestMoreInfoFromApplicant;
 window.pauseHeroAutoplay = pauseHeroAutoplay;
 window.resumeHeroAutoplay = resumeHeroAutoplay;
 window.pauseHomeEventAutoplay = pauseHomeEventAutoplay;
