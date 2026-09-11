@@ -2193,7 +2193,10 @@ function renderAdminCommunityModeration() {
                         return `
                         <div class="flex justify-between items-start gap-2 text-[11px]">
                             <p class="text-ink-600 font-medium leading-relaxed"><b class="text-ink-800">${escapeHtml(r.authorName)}</b> ${escapeHtml(r.text)} ${rReportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${rReportCount}건</span>` : ''}</p>
-                            <button type="button" onclick="adminDeleteCommunityReply('${post.id}', ${cIdx}, ${rIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>
+                            <div class="flex items-center gap-2 shrink-0">
+                                ${rReportCount > 0 ? `<button type="button" onclick="dismissCommunityReplyReport('${post.id}', ${cIdx}, ${rIdx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">신고 반려</button>` : ''}
+                                <button type="button" onclick="adminDeleteCommunityReply('${post.id}', ${cIdx}, ${rIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                            </div>
                         </div>
                         ${buildReportReasonsHtml(r.reportReasons)}`;
                     }).join('')}</div>` : '';
@@ -2202,7 +2205,10 @@ function renderAdminCommunityModeration() {
                     <div class="p-2.5 bg-ink-50 rounded-lg ${cReportCount > 0 ? 'border border-rose-200' : ''}">
                         <div class="flex justify-between items-start gap-2 text-[11px]">
                             <p class="text-ink-700 font-medium leading-relaxed"><b class="text-ink-900">${escapeHtml(c.authorName)}</b> ${escapeHtml(c.text)} ${cReportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${cReportCount}건</span>` : ''}</p>
-                            <button type="button" onclick="adminDeleteCommunityComment('${post.id}', ${cIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>
+                            <div class="flex items-center gap-2 shrink-0">
+                                ${cReportCount > 0 ? `<button type="button" onclick="dismissCommunityCommentReport('${post.id}', ${cIdx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">신고 반려</button>` : ''}
+                                <button type="button" onclick="adminDeleteCommunityComment('${post.id}', ${cIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                            </div>
                         </div>
                         ${buildReportReasonsHtml(c.reportReasons)}
                         ${repliesHtml}
@@ -2227,6 +2233,7 @@ function renderAdminCommunityModeration() {
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <button type="button" onclick="toggleCommunityPostPin('${post.id}')" class="btn btn-secondary btn-sm">${post.isPinned ? '고정 해제' : '상단 고정'}</button>
+                    ${reportCount > 0 ? `<button type="button" onclick="dismissCommunityPostReport('${post.id}')" class="btn btn-secondary btn-sm">신고 반려</button>` : ''}
                     <button type="button" onclick="adminDeleteCommunityPost('${post.id}')" class="btn btn-secondary btn-sm text-roseCustom">글 삭제</button>
                 </div>
             </div>
@@ -2279,6 +2286,48 @@ function adminDeleteCommunityReply(postId, commentIndex, replyIndex) {
     if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})의 답글을 매니저 센터에서 삭제 조치함.`, 'WARNING');
     if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 답글이 검토 후 삭제 처리되었습니다.`);
     showToast('답글을 삭제했습니다.', 'info');
+    renderAdminCommunityModeration();
+}
+
+/* 신고를 검토한 뒤 실제 위반이 아니라고 판단하면 콘텐츠를 지우지 않고 신고만
+ * 종료할 방법이 지금까지 없었다 — 계약 취소 심사(approve/reject)와 동일한 승인/반려
+ * 대칭 구조를 게시글/댓글/답글 신고 처리에도 적용한다. */
+function dismissCommunityPostReport(postId) {
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post || !post.reportedBy || post.reportedBy.length === 0) return;
+    const reportedBy = post.reportedBy;
+    post.reportedBy = [];
+    post.reportReasons = [];
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_REPORT_DISMISS', `[커뮤니티 관리] 게시글(${postId}) 신고를 검토 후 반려(콘텐츠 유지)했습니다.`, 'INFO');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 게시글을 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
+    showToast('신고를 반려했습니다. 게시글은 그대로 유지됩니다.', 'info');
+    renderAdminCommunityModeration();
+}
+
+function dismissCommunityCommentReport(postId, commentIndex) {
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    const comment = post && post.comments && post.comments[commentIndex];
+    if (!comment || !comment.reportedBy || comment.reportedBy.length === 0) return;
+    const reportedBy = comment.reportedBy;
+    comment.reportedBy = [];
+    comment.reportReasons = [];
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_REPORT_DISMISS', `[커뮤니티 관리] 게시글(${postId})의 댓글 신고를 검토 후 반려(콘텐츠 유지)했습니다.`, 'INFO');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 댓글을 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
+    showToast('신고를 반려했습니다. 댓글은 그대로 유지됩니다.', 'info');
+    renderAdminCommunityModeration();
+}
+
+function dismissCommunityReplyReport(postId, commentIndex, replyIndex) {
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    const comment = post && post.comments && post.comments[commentIndex];
+    const reply = comment && comment.replies && comment.replies[replyIndex];
+    if (!reply || !reply.reportedBy || reply.reportedBy.length === 0) return;
+    const reportedBy = reply.reportedBy;
+    reply.reportedBy = [];
+    reply.reportReasons = [];
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_REPORT_DISMISS', `[커뮤니티 관리] 게시글(${postId})의 답글 신고를 검토 후 반려(콘텐츠 유지)했습니다.`, 'INFO');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 답글을 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
+    showToast('신고를 반려했습니다. 답글은 그대로 유지됩니다.', 'info');
     renderAdminCommunityModeration();
 }
 
@@ -2782,5 +2831,8 @@ window.isCommunityUserBlockedByMe = isCommunityUserBlockedByMe;
 window.renderBlockedUsersList = renderBlockedUsersList;
 window.adminDeleteCommunityComment = adminDeleteCommunityComment;
 window.adminDeleteCommunityReply = adminDeleteCommunityReply;
+window.dismissCommunityPostReport = dismissCommunityPostReport;
+window.dismissCommunityCommentReport = dismissCommunityCommentReport;
+window.dismissCommunityReplyReport = dismissCommunityReplyReport;
 window.deleteCommunityPost = deleteCommunityPost;
 window.openCommunityEdit = openCommunityEdit;

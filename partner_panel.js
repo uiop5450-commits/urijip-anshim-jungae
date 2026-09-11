@@ -2761,11 +2761,30 @@ function buildAdminReviewModerationHtml(partner) {
                     <span class="text-[10px] text-ink-400 font-bold">${r.date}</span>
                     ${reportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${reportCount}건</span>` : ''}
                 </div>
-                <button type="button" onclick="adminDeleteReview('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                <div class="flex items-center gap-2 shrink-0">
+                    ${reportCount > 0 ? `<button type="button" onclick="dismissReviewReport('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">신고 반려</button>` : ''}
+                    <button type="button" onclick="adminDeleteReview('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                </div>
             </div>
             <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(r.text)}</p>
             ${buildReportReasonsHtml(r.reportReasons)}
         </div>`).join('');
+}
+
+/* 신고를 검토한 뒤 실제 위반이 아니라고 판단하면 콘텐츠를 지우지 않고 신고만
+ * 종료할 방법이 지금까지 없었다 — 계약 취소 심사(approve/reject)와 동일한 승인/반려
+ * 대칭 구조를 신고 처리에도 적용한다. 신고 표시만 초기화하고 신고자에게 알린다. */
+function dismissReviewReport(partnerName, reviewIdx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const rev = partner && partner.reviews && partner.reviews[reviewIdx];
+    if (!rev || !rev.reportedBy || rev.reportedBy.length === 0) return;
+    const reportedBy = rev.reportedBy;
+    rev.reportedBy = [];
+    rev.reportReasons = [];
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_REPORT_DISMISS', `[후기 신고 반려] '${partnerName}' 파트너의 후기 신고를 검토 후 반려(콘텐츠 유지)했습니다.`, 'INFO');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 [${partnerName}]의 후기를 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
+    showToast('신고를 반려했습니다. 후기는 그대로 유지됩니다.', 'info');
+    openPartnerMetricsModal(partnerName);
 }
 
 /* 커뮤니티 글/후기 신고는 관리자가 검토할 수 있는데, 파트너가 올리는 시공사례
@@ -2788,11 +2807,27 @@ function buildAdminPortfolioModerationHtml(partner) {
                     <span class="text-xs font-black text-ink-800">${escapeHtml(p.title || '(제목 없음)')}</span>
                     ${reportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${reportCount}건</span>` : ''}
                 </div>
-                <button type="button" onclick="adminDeletePortfolio('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                <div class="flex items-center gap-2 shrink-0">
+                    ${reportCount > 0 ? `<button type="button" onclick="dismissPortfolioReport('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">신고 반려</button>` : ''}
+                    <button type="button" onclick="adminDeletePortfolio('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                </div>
             </div>
             <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(p.desc || '')}</p>
             ${buildReportReasonsHtml(p.reportReasons)}
         </div>`).join('');
+}
+
+function dismissPortfolioReport(partnerName, idx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const port = partner && partner.portfolios && partner.portfolios[idx];
+    if (!port || !port.reportedBy || port.reportedBy.length === 0) return;
+    const reportedBy = port.reportedBy;
+    port.reportedBy = [];
+    port.reportReasons = [];
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PORTFOLIO_REPORT_DISMISS', `[시공사례 신고 반려] '${partnerName}' 파트너의 시공사례 신고를 검토 후 반려(콘텐츠 유지)했습니다.`, 'INFO');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 [${partnerName}]의 시공사례를 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
+    showToast('신고를 반려했습니다. 시공사례는 그대로 유지됩니다.', 'info');
+    openPartnerMetricsModal(partnerName);
 }
 
 /* 고객이 신고한 파트너 계약 불이행/부실 시공 신고(submitPartnerReport, client_panel.js)를
@@ -3798,6 +3833,8 @@ window.updateAdminBroadcastSegmentUI = updateAdminBroadcastSegmentUI;
 window.downloadContractDoc = downloadContractDoc;
 window.downloadPartnerSettlementReceipt = downloadPartnerSettlementReceipt;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
+window.dismissReviewReport = dismissReviewReport;
+window.dismissPortfolioReport = dismissPortfolioReport;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
 window.resetPartnerStrikes = resetPartnerStrikes;
