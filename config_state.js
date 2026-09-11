@@ -279,6 +279,10 @@ window.AppState = {
     // (clientNotifications와 동일한 패턴 — pushPartnerNotification 참고).
     partnerNotifications: [],
 
+    // 고객센터 1:1 문의 티켓. clientId로 소유자를 구분하고, 관리자 콘솔 '고객 문의'
+    // 탭에서 답변하면 status가 'answered'로 바뀌고 고객 알림이 발송된다.
+    supportTickets: [],
+
     // 히어로 좌측 "업체 광고" 슬라이더에 수동으로 지정한 업체+시공사례 목록 (최대 5개, [{partnerName, portIdx}]).
     // 비어있으면 평점 높은 순으로 자동 노출된다 (getFeaturedHeroSlides 참고). 매니저 콘솔 > 노출 관리에서 편집.
     featuredPartners: [],

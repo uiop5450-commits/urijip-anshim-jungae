@@ -893,6 +893,62 @@ function updateClientPassword() {
     renderClientAccountSettings();
 }
 
+/* 고객센터 1:1 문의 — 지금까지 "고객센터" 링크는 showComingSoon()만 띄우는 죽은
+ * 링크였다. 실제 문의를 등록하고 관리자 답변을 받아볼 수 있는 티켓 시스템으로
+ * 교체한다(clientId로 소유자를 구분, 관리자 답변 시 알림 발송). */
+function openSupportInquiryModal() {
+    if (!requireClientLoginForCommunity()) return;
+    safeUpdateValue('support-inquiry-subject', '');
+    safeUpdateValue('support-inquiry-message', '');
+    renderMySupportTickets();
+    openModal('support-inquiry-modal', 'support-inquiry-modal-card');
+}
+
+function closeSupportInquiryModal() { closeModal('support-inquiry-modal', 'support-inquiry-modal-card'); }
+
+function submitSupportInquiry() {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return;
+    const subject = document.getElementById('support-inquiry-subject')?.value.trim();
+    const message = document.getElementById('support-inquiry-message')?.value.trim();
+    if (!subject || !message) { showToast('제목과 문의 내용을 모두 입력해 주세요.', 'warning'); return; }
+
+    const ticket = {
+        id: `tk-${Date.now()}`, clientId: auth.id, clientName: auth.name, clientPhone: auth.phone,
+        subject, message, date: getLocalDateString(), status: 'open', adminReply: null, adminReplyDate: null
+    };
+    if (!window.AppState.supportTickets) window.AppState.supportTickets = [];
+    window.AppState.supportTickets.unshift(ticket);
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'SUPPORT_INQUIRY', `'${auth.name}' 고객님이 1:1 문의를 등록했습니다. (${subject})`, 'INFO');
+    showToast('문의가 등록되었습니다. 빠르게 답변드릴게요!', 'success');
+    safeUpdateValue('support-inquiry-subject', '');
+    safeUpdateValue('support-inquiry-message', '');
+    renderMySupportTickets();
+    if (typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
+}
+
+function renderMySupportTickets() {
+    const container = document.getElementById('support-inquiry-my-tickets');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    const myTickets = (window.AppState.supportTickets || []).filter(t => t.clientId === auth.id);
+
+    if (myTickets.length === 0) {
+        container.innerHTML = `<p class="text-xs text-ink-400 font-bold text-center py-4">아직 등록한 문의가 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = myTickets.map(t => `
+        <div class="p-3.5 bg-ink-50 rounded-xl space-y-1.5 text-left">
+            <div class="flex justify-between items-center">
+                <h6 class="text-xs font-black text-ink-950">${escapeHtml(t.subject)}</h6>
+                <span class="badge ${t.status === 'answered' ? 'badge-emerald' : 'badge-amber'}">${t.status === 'answered' ? '답변 완료' : '답변 대기'}</span>
+            </div>
+            <p class="text-[11px] text-ink-600 font-medium leading-relaxed">${escapeHtml(t.message)}</p>
+            <p class="text-[10px] text-ink-400 font-bold">${t.date}</p>
+            ${t.adminReply ? `<div class="mt-1.5 p-2.5 rounded-lg" style="background:var(--brand-50)"><p class="text-[10px] font-black text-brand-700 mb-0.5">고객센터 답변</p><p class="text-[11px] text-ink-700 font-medium leading-relaxed">${escapeHtml(t.adminReply)}</p></div>` : ''}
+        </div>`).join('');
+}
+
 function selectMyPageEstimate(orderCode) {
     window.AppState.selectedMyPageOrderCode = orderCode;
     const order = window.AppState.orders.find(o => o.code === orderCode);
@@ -1730,6 +1786,10 @@ window.markAllClientNotificationsRead = markAllClientNotificationsRead;
 window.renderClientAccountSettings = renderClientAccountSettings;
 window.updateClientProfileInfo = updateClientProfileInfo;
 window.updateClientPassword = updateClientPassword;
+window.openSupportInquiryModal = openSupportInquiryModal;
+window.closeSupportInquiryModal = closeSupportInquiryModal;
+window.submitSupportInquiry = submitSupportInquiry;
+window.renderMySupportTickets = renderMySupportTickets;
 window.selectMyPageEstimate = selectMyPageEstimate;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;

@@ -448,14 +448,14 @@ const ALL_ADMIN_TABS = [
     ['applications', 'clipboard-check', '파트너 가입 심사'],
     ['blacklist', 'shield-alert', '삼진아웃 블랙리스트 DB'], ['logs', 'list', '플랫폼 관제 로그'],
     ['display', 'image', '노출 관리'], ['staff', 'users', '직원 권한 관리'],
-    ['community', 'flag', '커뮤니티 관리']
+    ['community', 'flag', '커뮤니티 관리'], ['support', 'inbox', '고객 문의']
 ];
 
 // 'super_admin'은 전체 탭에 접근 가능. 'partner_manager'는 고액 오더 배정(재무),
 // 시스템 로그, 마케팅 노출 관리, 직원 권한 부여처럼 상위 권한이 필요한 영역은
 // 제외하고 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
 const ROLE_TAB_ACCESS = {
-    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community'],
+    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support'],
     partner_manager: ['monitor', 'applications', 'blacklist']
 };
 
@@ -474,15 +474,18 @@ function switchAdminMode(mode) {
     const tabBar = document.getElementById('admin-console-tab-bar');
     if (tabBar) {
         const pendingCount = (window.AppState.partners || []).filter(p => p.status === 'pending').length;
+        const openTicketCount = (window.AppState.supportTickets || []).filter(t => t.status === 'open').length;
         const tabs = ALL_ADMIN_TABS.filter(([id]) => allowedTabs.includes(id)).map(([id, icon, label]) => {
-            const finalLabel = id === 'applications' && pendingCount > 0 ? `${label} (${pendingCount})` : label;
+            let finalLabel = label;
+            if (id === 'applications' && pendingCount > 0) finalLabel = `${label} (${pendingCount})`;
+            else if (id === 'support' && openTicketCount > 0) finalLabel = `${label} (${openTicketCount})`;
             return [id, icon, finalLabel];
         });
         tabBar.innerHTML = tabs.map(([id, icon, label]) => `<button type="button" id="btn-admin-view-${id}" onclick="switchAdminMode('${id}')" class="gnb-tab ${mode === id ? 'active' : ''}"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i> ${label}</button>`).join('');
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
+    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
     document.getElementById(`admin-mode-${mode}-view`)?.classList.remove('hidden');
 
     const kpiGrid = document.getElementById('admin-kpi-grid');
@@ -496,6 +499,7 @@ function switchAdminMode(mode) {
     else if (mode === 'display') renderAdminDisplayManager();
     else if (mode === 'staff') renderAdminStaffManager();
     else if (mode === 'community' && typeof renderAdminCommunityModeration === 'function') renderAdminCommunityModeration();
+    else if (mode === 'support' && typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -1350,6 +1354,62 @@ function searchOrderLookup() {
             </div>
             <span class="font-black text-ink-950 shrink-0">₩ ${(o.finalPrice || o.budget || 0).toLocaleString()}만원</span>
         </div>`).join('');
+}
+
+/* 매니저 콘솔 > 고객 문의 — "고객센터" 링크로 접수된 1:1 문의에 답변한다.
+ * 답변 대기(open) 건을 우선 노출하고, 답변하면 status가 answered로 바뀌면서
+ * 고객에게 pushClientNotification으로 알림이 간다. */
+function renderAdminSupportTickets() {
+    const container = document.getElementById('admin-support-ticket-list');
+    if (!container) return;
+    const tickets = (window.AppState.supportTickets || []).slice()
+        .sort((a, b) => (a.status === b.status ? 0 : a.status === 'open' ? -1 : 1) || (new Date(b.date) - new Date(a.date)));
+
+    if (tickets.length === 0) {
+        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap"><i data-lucide="inbox" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">등록된 고객 문의가 없습니다.</p></div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = tickets.map(t => `
+        <div class="surface p-4 space-y-2.5 text-left ${t.status === 'open' ? 'border border-amber-200' : ''}">
+            <div class="flex justify-between items-start gap-2">
+                <div class="space-y-0.5 min-w-0">
+                    <div class="flex items-center gap-2 text-[10px] font-bold text-ink-400">
+                        <span class="badge ${t.status === 'answered' ? 'badge-emerald' : 'badge-amber'}">${t.status === 'answered' ? '답변 완료' : '답변 대기'}</span>
+                        <span>${t.date} · ${escapeHtml(t.clientName)} (${t.clientPhone || '-'})</span>
+                    </div>
+                    <h5 class="text-sm font-black text-ink-950">${escapeHtml(t.subject)}</h5>
+                    <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(t.message)}</p>
+                </div>
+            </div>
+            ${t.adminReply ? `
+                <div class="p-3 rounded-lg" style="background:var(--brand-50)"><p class="text-[10px] font-black text-brand-700 mb-0.5">답변 (${t.adminReplyDate})</p><p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(t.adminReply)}</p></div>
+            ` : `
+                <div class="flex gap-2 pt-1">
+                    <input type="text" id="ticket-reply-input-${t.id}" placeholder="답변을 입력하세요" class="input flex-1 text-xs">
+                    <button type="button" onclick="replyToSupportTicket('${t.id}')" class="btn btn-dark btn-sm shrink-0">답변 등록</button>
+                </div>
+            `}
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function replyToSupportTicket(ticketId) {
+    const ticket = (window.AppState.supportTickets || []).find(t => t.id === ticketId);
+    if (!ticket) return;
+    const input = document.getElementById(`ticket-reply-input-${ticketId}`);
+    const reply = input ? input.value.trim() : '';
+    if (!reply) { showToast('답변 내용을 입력해 주세요.', 'warning'); return; }
+
+    ticket.adminReply = reply;
+    ticket.adminReplyDate = getLocalDateString();
+    ticket.status = 'answered';
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'SUPPORT_REPLY', `[고객 문의 답변] '${ticket.clientName}' 고객님의 문의(${ticket.subject})에 답변 완료.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(ticket.clientPhone, `고객센터에서 문의(${ticket.subject})에 답변을 남겼어요.`);
+    showToast('답변이 등록되었습니다.', 'success');
+    renderAdminSupportTickets();
 }
 
 function renderAdminOrderAllocation() {
@@ -2338,6 +2398,8 @@ window.recalculateKPIs = recalculateKPIs;
 window.syncAuditLogs = syncAuditLogs;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
 window.searchOrderLookup = searchOrderLookup;
+window.renderAdminSupportTickets = renderAdminSupportTickets;
+window.replyToSupportTicket = replyToSupportTicket;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
 window.renderPartnerPerformanceView = renderPartnerPerformanceView;
 window.closePartnerMetricsModal = closePartnerMetricsModal;
