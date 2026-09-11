@@ -574,6 +574,12 @@
                         <div class="border-b border-ink-100 pb-3.5 space-y-3">
                             <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="clipboard-list" class="w-4 h-4 text-brand-500"></i> 나의 안심 중개 의뢰이력</h4>
                             <div id="client-mypage-history-tabs" class="flex items-center flex-wrap gap-1.5"></div>
+                            <select id="client-mypage-history-status-select" onchange="setClientMyPageHistoryStatusFilter(this.value)" class="select text-xs">
+                                <option value="all">전체 상태</option>
+                                <option value="bidding">입찰 심사중</option>
+                                <option value="contracted">계약 체결</option>
+                                <option value="withdrawn">철회됨</option>
+                            </select>
                         </div>
                         <div id="client-mypage-estimates-container" class="space-y-3 max-h-[500px] overflow-y-auto pr-1 custom-scroll flex-1"></div>
                     </div>

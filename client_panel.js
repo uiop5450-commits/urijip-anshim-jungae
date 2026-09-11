@@ -572,9 +572,19 @@ function toggleClientAuthUI() {
 
 /* 의뢰이력 필터 — '1:1 지정 매칭'은 자동매칭 견적과 성격이 달라 따로 걸러볼 수 있게 한다. */
 let clientMyPageHistoryFilter = 'all';
+/* 의뢰가 쌓일수록 "지금 진행 중인 것만", "철회된 건 제외하고" 같은 걸 찾기
+ * 어려워진다 — 매칭 방식(자동/1:1) 필터와 별개로 상태(입찰중/계약체결/철회)
+ * 필터를 추가한다. */
+let clientMyPageHistoryStatusFilter = 'all';
 
 function setClientMyPageHistoryFilter(filterKey) {
     clientMyPageHistoryFilter = filterKey;
+    window.AppState.selectedMyPageOrderCode = null;
+    renderClientMyPage();
+}
+
+function setClientMyPageHistoryStatusFilter(statusKey) {
+    clientMyPageHistoryStatusFilter = statusKey;
     window.AppState.selectedMyPageOrderCode = null;
     renderClientMyPage();
 }
@@ -637,9 +647,11 @@ function renderClientMyPage() {
         ).join('');
     }
 
-    const myOrders = clientMyPageHistoryFilter === 'all' ? allMyOrders
+    const myOrdersByType = clientMyPageHistoryFilter === 'all' ? allMyOrders
         : clientMyPageHistoryFilter === '1on1' ? allMyOrders.filter(o => o.is1on1)
         : allMyOrders.filter(o => !o.is1on1);
+    const myOrders = clientMyPageHistoryStatusFilter === 'all' ? myOrdersByType
+        : myOrdersByType.filter(o => o.status === clientMyPageHistoryStatusFilter);
 
     if (myOrders.length === 0) {
         listContainer.innerHTML = `
@@ -1814,6 +1826,7 @@ window.setPostLoginRedirect = setPostLoginRedirect;
 window.completePostLoginRedirect = completePostLoginRedirect;
 window.renderClientMyPage = renderClientMyPage;
 window.setClientMyPageHistoryFilter = setClientMyPageHistoryFilter;
+window.setClientMyPageHistoryStatusFilter = setClientMyPageHistoryStatusFilter;
 window.switchClientMyPageSubtab = switchClientMyPageSubtab;
 window.renderClientMyPagePosts = renderClientMyPagePosts;
 window.jumpToMyCommunityPost = jumpToMyCommunityPost;
