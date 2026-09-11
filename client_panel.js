@@ -1083,7 +1083,8 @@ function submitSupportInquiry() {
 
     const ticket = {
         id: `tk-${Date.now()}`, clientId: auth.id, clientName: auth.name, clientPhone: auth.phone,
-        subject, message, date: getLocalDateString(), status: 'open', adminReply: null, adminReplyDate: null
+        subject, message, date: getLocalDateString(), status: 'open', adminReply: null, adminReplyDate: null,
+        followUps: []
     };
     if (!window.AppState.supportTickets) window.AppState.supportTickets = [];
     window.AppState.supportTickets.unshift(ticket);
@@ -1105,19 +1106,59 @@ function renderMySupportTickets() {
         container.innerHTML = `<p class="text-xs text-ink-400 font-bold text-center py-4">아직 등록한 문의가 없습니다.</p>`;
         return;
     }
-    container.innerHTML = myTickets.map(t => `
+    container.innerHTML = myTickets.map(t => {
+        const followUps = t.followUps || [];
+        const followUpsHtml = followUps.map(f => `
+            <div class="mt-1.5 pl-2.5 border-l-2 border-ink-200 space-y-1">
+                <p class="text-[11px] text-ink-700 font-semibold leading-relaxed">${escapeHtml(f.clientMessage)} <span class="text-[9px] text-ink-400 font-bold">(${f.clientDate})</span></p>
+                ${f.adminReply ? `<div class="p-2.5 rounded-lg" style="background:var(--brand-50)"><p class="text-[10px] font-black text-brand-700 mb-0.5">고객센터 답변</p><p class="text-[11px] text-ink-700 font-medium leading-relaxed">${escapeHtml(f.adminReply)}</p></div>` : `<p class="text-[10px] text-amberCustom font-bold">답변 대기중</p>`}
+            </div>`).join('');
+        const hasPendingFollowUp = followUps.length > 0 && !followUps[followUps.length - 1].adminReply;
+        const canFollowUp = t.status === 'answered' && !hasPendingFollowUp;
+
+        return `
         <div class="p-3.5 bg-ink-50 rounded-xl space-y-1.5 text-left">
             <div class="flex justify-between items-center">
                 <h6 class="text-xs font-black text-ink-950">${escapeHtml(t.subject)}</h6>
                 <div class="flex items-center gap-2">
                     <span class="badge ${t.status === 'answered' ? 'badge-emerald' : 'badge-amber'}">${t.status === 'answered' ? '답변 완료' : '답변 대기'}</span>
-                    ${t.status === 'open' ? `<button type="button" onclick="cancelSupportTicket('${t.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">취소</button>` : ''}
+                    ${(t.status === 'open' && followUps.length === 0) ? `<button type="button" onclick="cancelSupportTicket('${t.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">취소</button>` : ''}
                 </div>
             </div>
             <p class="text-[11px] text-ink-600 font-medium leading-relaxed">${escapeHtml(t.message)}</p>
             <p class="text-[10px] text-ink-400 font-bold">${t.date}</p>
             ${t.adminReply ? `<div class="mt-1.5 p-2.5 rounded-lg" style="background:var(--brand-50)"><p class="text-[10px] font-black text-brand-700 mb-0.5">고객센터 답변</p><p class="text-[11px] text-ink-700 font-medium leading-relaxed">${escapeHtml(t.adminReply)}</p></div>` : ''}
-        </div>`).join('');
+            ${followUpsHtml}
+            ${canFollowUp ? `
+                <div class="flex gap-1.5 pt-1.5">
+                    <input type="text" id="ticket-followup-input-${t.id}" placeholder="추가로 궁금한 점을 남겨주세요" class="input flex-1 text-xs">
+                    <button type="button" onclick="submitSupportFollowUp('${t.id}')" class="btn btn-dark btn-sm shrink-0">추가 문의</button>
+                </div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+/* 답변이 완료되면 그 뒤로는 추가 질문을 할 방법이 전혀 없어서, 후속 질문이 있으면
+ * 전혀 무관한 새 문의를 다시 등록해야 했던 데드엔드를 해소한다. 기존 message/
+ * adminReply 필드는 그대로 두고(하위 호환), 후속 대화는 followUps 배열에 라운드별로
+ * 쌓아서 여러 번 주고받을 수 있게 한다. */
+function submitSupportFollowUp(ticketId) {
+    const auth = window.AppState.clientAuth;
+    const ticket = (window.AppState.supportTickets || []).find(t => t.id === ticketId);
+    if (!ticket || ticket.clientId !== auth.id || ticket.status !== 'answered') return;
+
+    const input = document.getElementById(`ticket-followup-input-${ticketId}`);
+    const text = input ? input.value.trim() : '';
+    if (!text) { showToast('추가 문의 내용을 입력해 주세요.', 'warning'); return; }
+
+    if (!ticket.followUps) ticket.followUps = [];
+    ticket.followUps.push({ clientMessage: text, clientDate: getLocalDateString(), adminReply: null, adminReplyDate: null });
+    ticket.status = 'open';
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'SUPPORT_FOLLOWUP', `'${auth.name}' 고객님이 문의(${ticket.subject})에 추가 질문을 남겼습니다.`, 'INFO');
+    showToast('추가 문의가 등록되었습니다.', 'success');
+    renderMySupportTickets();
+    if (typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
 }
 
 /* 문의를 잘못 등록했거나 중복 등록한 경우를 위해, 아직 답변받지 않은(open) 본인
@@ -1129,7 +1170,7 @@ function cancelSupportTicket(ticketId) {
     if (idx === -1) return;
     const ticket = window.AppState.supportTickets[idx];
     if (ticket.clientId !== auth.id) return;
-    if (ticket.status !== 'open') { showToast('이미 답변이 등록된 문의는 취소할 수 없어요.', 'warning'); return; }
+    if (ticket.status !== 'open' || (ticket.followUps && ticket.followUps.length > 0)) { showToast('이미 답변이 등록된 문의는 취소할 수 없어요.', 'warning'); return; }
     window.AppState.supportTickets.splice(idx, 1);
     showToast('문의가 취소되었습니다.', 'info');
     renderMySupportTickets();
@@ -2221,6 +2262,7 @@ window.closeSupportInquiryModal = closeSupportInquiryModal;
 window.submitSupportInquiry = submitSupportInquiry;
 window.renderMySupportTickets = renderMySupportTickets;
 window.cancelSupportTicket = cancelSupportTicket;
+window.submitSupportFollowUp = submitSupportFollowUp;
 window.selectMyPageEstimate = selectMyPageEstimate;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;

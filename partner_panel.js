@@ -1661,7 +1661,23 @@ function renderAdminSupportTickets() {
         return;
     }
 
-    container.innerHTML = tickets.map(t => `
+    container.innerHTML = tickets.map(t => {
+        const followUps = t.followUps || [];
+        const followUpsHtml = followUps.map((f, idx) => {
+            const isLastPending = !f.adminReply && idx === followUps.length - 1;
+            return `
+            <div class="pl-3 border-l-2 border-ink-200 space-y-1.5">
+                <p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(f.clientMessage)} <span class="text-[10px] text-ink-400 font-bold">(${f.clientDate})</span></p>
+                ${f.adminReply
+                    ? `<div class="p-3 rounded-lg" style="background:var(--brand-50)"><p class="text-[10px] font-black text-brand-700 mb-0.5">답변 (${f.adminReplyDate})</p><p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(f.adminReply)}</p></div>`
+                    : isLastPending
+                        ? `<div class="flex gap-2 pt-1"><input type="text" id="ticket-followup-reply-input-${t.id}" placeholder="추가 문의에 답변을 입력하세요" class="input flex-1 text-xs"><button type="button" onclick="replyToSupportTicketFollowUp('${t.id}')" class="btn btn-dark btn-sm shrink-0">답변 등록</button></div>`
+                        : ''}
+            </div>`;
+        }).join('');
+        const hasPendingFollowUp = followUps.length > 0 && !followUps[followUps.length - 1].adminReply;
+
+        return `
         <div class="surface p-4 space-y-2.5 text-left ${t.status === 'open' ? 'border border-amber-200' : ''}">
             <div class="flex justify-between items-start gap-2">
                 <div class="space-y-0.5 min-w-0">
@@ -1675,13 +1691,15 @@ function renderAdminSupportTickets() {
             </div>
             ${t.adminReply ? `
                 <div class="p-3 rounded-lg" style="background:var(--brand-50)"><p class="text-[10px] font-black text-brand-700 mb-0.5">답변 (${t.adminReplyDate})</p><p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(t.adminReply)}</p></div>
-            ` : `
+            ` : !hasPendingFollowUp ? `
                 <div class="flex gap-2 pt-1">
                     <input type="text" id="ticket-reply-input-${t.id}" placeholder="답변을 입력하세요" class="input flex-1 text-xs">
                     <button type="button" onclick="replyToSupportTicket('${t.id}')" class="btn btn-dark btn-sm shrink-0">답변 등록</button>
                 </div>
-            `}
-        </div>`).join('');
+            ` : ''}
+            ${followUpsHtml ? `<div class="space-y-2.5 pt-1">${followUpsHtml}</div>` : ''}
+        </div>`;
+    }).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -1698,6 +1716,29 @@ function replyToSupportTicket(ticketId) {
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'SUPPORT_REPLY', `[고객 문의 답변] '${ticket.clientName}' 고객님의 문의(${ticket.subject})에 답변 완료.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(ticket.clientPhone, `고객센터에서 문의(${ticket.subject})에 답변을 남겼어요.`);
+    showToast('답변이 등록되었습니다.', 'success');
+    renderAdminSupportTickets();
+}
+
+/* 답변 완료 후 고객이 남긴 추가 문의(followUps)에 답변한다 — replyToSupportTicket과
+ * 동일한 검증/알림 패턴이지만 대상이 원본 문의가 아니라 followUps 배열의 마지막
+ * (아직 답변 안 된) 라운드라는 점만 다르다. */
+function replyToSupportTicketFollowUp(ticketId) {
+    const ticket = (window.AppState.supportTickets || []).find(t => t.id === ticketId);
+    if (!ticket || !ticket.followUps || ticket.followUps.length === 0) return;
+    const followUp = ticket.followUps[ticket.followUps.length - 1];
+    if (followUp.adminReply) return;
+
+    const input = document.getElementById(`ticket-followup-reply-input-${ticketId}`);
+    const reply = input ? input.value.trim() : '';
+    if (!reply) { showToast('답변 내용을 입력해 주세요.', 'warning'); return; }
+
+    followUp.adminReply = reply;
+    followUp.adminReplyDate = getLocalDateString();
+    ticket.status = 'answered';
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'SUPPORT_REPLY', `[고객 문의 추가답변] '${ticket.clientName}' 고객님의 추가 문의(${ticket.subject})에 답변 완료.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(ticket.clientPhone, `고객센터에서 추가 문의(${ticket.subject})에 답변을 남겼어요.`);
     showToast('답변이 등록되었습니다.', 'success');
     renderAdminSupportTickets();
 }
@@ -2950,6 +2991,7 @@ window.exportLogsToCsv = exportLogsToCsv;
 window.exportPartnerListToCsv = exportPartnerListToCsv;
 window.exportClientListToCsv = exportClientListToCsv;
 window.replyToSupportTicket = replyToSupportTicket;
+window.replyToSupportTicketFollowUp = replyToSupportTicketFollowUp;
 window.sendAdminBroadcastNotification = sendAdminBroadcastNotification;
 window.renderAdminClientManager = renderAdminClientManager;
 window.jumpToClientOrderLookup = jumpToClientOrderLookup;
