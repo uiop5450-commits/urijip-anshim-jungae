@@ -561,6 +561,37 @@ function submitPartnerPortfolio() {
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
 }
 
+/* 파트너가 휴가/예약 초과로 바쁠 때 신규 자동매칭 대상에서 스스로 빠질 방법이
+ * 없었다 — 지금까지는 "심사대기/제명"만 있고 "일시적으로 바쁨" 상태가 없어서,
+ * 실제로 못 받는 오더까지 계속 배정됐다. 완전 탈퇴/제명이 아니라 새 매칭만
+ * 잠시 멈추는 가벼운 토글이며, 기존 고객의 1:1 지정 상담은 그대로 받을 수 있다
+ * (completeMatchingSim/triggerRebidding/autoAllocateOrderCore의 후보 필터 참고). */
+function renderPartnerPauseToggle(partner) {
+    const btn = document.getElementById('partner-pause-toggle-btn');
+    const desc = document.getElementById('partner-pause-status-desc');
+    if (!btn) return;
+    if (partner.isPaused) {
+        btn.textContent = '일시중단 해제하기';
+        btn.className = 'btn btn-dark shrink-0';
+        if (desc) desc.innerHTML = '<span class="text-amberCustom font-black">⏸ 현재 신규 오더 매칭이 일시중단된 상태예요.</span> 다시 받으려면 해제해 주세요.';
+    } else {
+        btn.textContent = '일시중단 켜기';
+        btn.className = 'btn btn-secondary shrink-0';
+        if (desc) desc.textContent = '휴가나 예약 초과로 바쁠 때 켜두면, 자동매칭·재매칭·관리자 일괄배정 대상에서 빠져요. 기존 고객의 1:1 지정 상담은 계속 받을 수 있어요.';
+    }
+}
+
+function togglePartnerPauseStatus() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    partner.isPaused = !partner.isPaused;
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PAUSE_TOGGLE', `[${partnerName}]가 신규 오더 매칭을 ${partner.isPaused ? '일시중단' : '재개'}했습니다.`, 'INFO');
+    showToast(partner.isPaused ? '신규 오더 매칭이 일시중단되었습니다.' : '신규 오더 매칭이 재개되었습니다.', partner.isPaused ? 'warning' : 'success');
+    renderPartnerPauseToggle(partner);
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
 function renderPartnerProfileManager() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -572,6 +603,7 @@ function renderPartnerProfileManager() {
 
     safeUpdateValue('partner-promo-slogan', partner.promoSlogan || '');
     safeUpdateValue('partner-promo-text', partner.promoText || '');
+    renderPartnerPauseToggle(partner);
 
     const img = document.getElementById('partner-hero-slide-img');
     if (img) img.src = partner.heroImages[partner.heroSlideIndex];
@@ -1238,6 +1270,7 @@ window.openReviewDetailModal = openReviewDetailModal;
 window.closeReviewDetailModal = closeReviewDetailModal;
 window.renderPartnerMyReviews = renderPartnerMyReviews;
 window.updatePartnerPhone = updatePartnerPhone;
+window.togglePartnerPauseStatus = togglePartnerPauseStatus;
 window.updatePartnerPassword = updatePartnerPassword;
 window.submitReviewReply = submitReviewReply;
 window.removeReviewReply = removeReviewReply;

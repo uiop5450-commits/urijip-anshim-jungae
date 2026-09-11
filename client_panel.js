@@ -278,7 +278,7 @@ function completeMatchingSim() {
         // 심사 대기(pending)·반려(rejected)·삼진아웃 제명(banned) 파트너는 '안심' 매칭
         // 대상에서 제외한다 — 이 필터가 없으면 이제 막 접수된 첫 견적 신청에서부터
         // 아직 검증되지 않았거나 이미 제명된 파트너가 무작위로 뽑힐 수 있었다.
-        const availablePartners = window.AppState.partners.filter(p => p.status === 'active');
+        const availablePartners = window.AppState.partners.filter(p => p.status === 'active' && !p.isPaused);
         const count = Math.min(newOrder.partnerCountLimit, availablePartners.length);
         const shuffled = [...availablePartners].sort(() => 0.5 - Math.random());
         const selected = shuffled.slice(0, count);
@@ -988,7 +988,7 @@ function triggerRebidding(orderCode) {
     if (slotsNeeded <= 0) { showToast('이미 배정 인원이 모두 채워져 있어요.', 'info'); return; }
 
     const excluded = new Set([...(order.excludedPartners || []), ...(order.bids || []).map(b => b.partner)]);
-    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !excluded.has(p.name));
+    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name));
     if (candidates.length === 0) { showToast('현재 매칭 가능한 새로운 파트너사가 없어요.', 'warning'); return; }
 
     const shuffled = [...candidates].sort(() => 0.5 - Math.random());

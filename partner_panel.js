@@ -1437,7 +1437,7 @@ function autoAllocateOrderCore(orderCode) {
     const slotsNeeded = totalSlotLimit - currentMatchedCount;
     if (slotsNeeded <= 0) return { assignedCount: 0, reason: 'full' };
 
-    let candidates = (window.AppState.partners || []).filter(p => p.status !== 'banned' && p.isCertified && !order.bids.some(b => b.partner === p.name));
+    let candidates = (window.AppState.partners || []).filter(p => p.status !== 'banned' && !p.isPaused && p.isCertified && !order.bids.some(b => b.partner === p.name));
     if (candidates.length === 0) return { assignedCount: 0, reason: 'no-candidates' };
 
     candidates.sort((a, b) => b.rating - a.rating);
@@ -1492,7 +1492,7 @@ function renderAdminPartnerMonitor() {
             <div class="space-y-3">
                 <div class="flex justify-between items-start gap-2">
                     <div class="space-y-1">
-                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증</span>` : ''}</div>
+                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증</span>` : ''}${p.isPaused ? `<span class="badge badge-amber"><i data-lucide="pause-circle" class="w-2.5 h-2.5"></i> 매칭 일시중단</span>` : ''}</div>
                         <h4 class="text-sm font-black text-ink-950">${p.name}</h4>
                         <p class="text-[10px] text-ink-400 font-mono">사업자 번호: ${p.bizFile || '미등록'}</p>
                     </div>

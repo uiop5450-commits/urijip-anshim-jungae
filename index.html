@@ -703,6 +703,16 @@
                 <div id="partner-mode-contracts-view" class="hidden space-y-6 transition-all duration-300"></div>
 
                 <div id="partner-mode-myinfo-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg p-6 sm:p-8 text-left">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                            <div class="space-y-0.5">
+                                <h4 class="text-sm font-black text-ink-950 tracking-tight flex items-center gap-1.5"><i data-lucide="pause-circle" class="w-4 h-4 text-brand-500"></i> 신규 오더 매칭 일시중단</h4>
+                                <p id="partner-pause-status-desc" class="text-[11px] text-ink-500 font-medium">휴가나 예약 초과로 바쁠 때 켜두면, 자동매칭·재매칭·관리자 일괄배정 대상에서 빠져요. 기존 고객의 1:1 지정 상담은 계속 받을 수 있어요.</p>
+                            </div>
+                            <button type="button" id="partner-pause-toggle-btn" onclick="togglePartnerPauseStatus()" class="btn btn-secondary shrink-0">일시중단 켜기</button>
+                        </div>
+                    </div>
+
                     <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-4">
                             <div>
