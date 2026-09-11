@@ -1219,6 +1219,91 @@ function deleteCommunityReply(postId, commentIndex, replyIndex) {
     openCommunityDetail(postId);
 }
 
+/* 매니저 콘솔 > 커뮤니티 관리 — 지금까지는 글쓴이 본인만 자기 글/댓글/답글을 지울 수
+ * 있어서, 부적절하거나 신고 대상인 게시물이 올라와도 관리자가 대응할 방법이 전혀
+ * 없었다. 소유권 검증 없이(관리자 권한이므로) 어떤 게시물/댓글/답글이든 삭제한다. */
+function renderAdminCommunityModeration() {
+    const container = document.getElementById('admin-community-post-list');
+    if (!container) return;
+    const query = (document.getElementById('admin-community-search-input')?.value || '').trim().toLowerCase();
+
+    const posts = (window.AppState.communityPosts || [])
+        .filter(p => !query || p.title.toLowerCase().includes(query) || p.content.toLowerCase().includes(query) || p.authorName.toLowerCase().includes(query))
+        .slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (posts.length === 0) {
+        container.innerHTML = buildEmptyStateHtml('message-square', query ? '검색 결과가 없습니다.' : '등록된 게시글이 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = posts.map(post => {
+        const commentsHtml = (post.comments || []).length > 0
+            ? post.comments.map((c, cIdx) => {
+                const repliesHtml = (c.replies || []).length > 0
+                    ? `<div class="ml-5 pl-3 border-l-2 border-ink-200 space-y-1.5 mt-1.5">${c.replies.map((r, rIdx) => `
+                        <div class="flex justify-between items-start gap-2 text-[11px]">
+                            <p class="text-ink-600 font-medium leading-relaxed"><b class="text-ink-800">${escapeHtml(r.authorName)}</b> ${escapeHtml(r.text)}</p>
+                            <button type="button" onclick="adminDeleteCommunityReply('${post.id}', ${cIdx}, ${rIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>
+                        </div>`).join('')}</div>` : '';
+                return `
+                    <div class="p-2.5 bg-ink-50 rounded-lg">
+                        <div class="flex justify-between items-start gap-2 text-[11px]">
+                            <p class="text-ink-700 font-medium leading-relaxed"><b class="text-ink-900">${escapeHtml(c.authorName)}</b> ${escapeHtml(c.text)}</p>
+                            <button type="button" onclick="adminDeleteCommunityComment('${post.id}', ${cIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>
+                        </div>
+                        ${repliesHtml}
+                    </div>`;
+            }).join('')
+            : '';
+
+        return `
+        <div class="surface p-4 space-y-2.5 text-left">
+            <div class="flex justify-between items-start gap-3">
+                <div class="space-y-0.5 min-w-0">
+                    <div class="flex items-center gap-2 text-[10px] font-bold text-ink-400">
+                        <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
+                        <span>${post.date} · ${escapeHtml(post.authorName)}</span>
+                    </div>
+                    <h5 class="text-sm font-black text-ink-950">${escapeHtml(post.title)}</h5>
+                    <p class="text-xs text-ink-600 font-medium leading-relaxed line-clamp-2">${escapeHtml(post.content)}</p>
+                </div>
+                <button type="button" onclick="adminDeleteCommunityPost('${post.id}')" class="btn btn-secondary btn-sm shrink-0 text-roseCustom">글 삭제</button>
+            </div>
+            ${commentsHtml ? `<div class="space-y-1.5 pt-2 border-t border-ink-100">${commentsHtml}</div>` : ''}
+        </div>`;
+    }).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function adminDeleteCommunityPost(postId) {
+    const idx = (window.AppState.communityPosts || []).findIndex(p => p.id === postId);
+    if (idx === -1) return;
+    window.AppState.communityPosts.splice(idx, 1);
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})을 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    showToast('게시글을 삭제했습니다.', 'info');
+    renderAdminCommunityModeration();
+}
+
+function adminDeleteCommunityComment(postId, commentIndex) {
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post || !post.comments || !post.comments[commentIndex]) return;
+    post.comments.splice(commentIndex, 1);
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})의 댓글을 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    showToast('댓글을 삭제했습니다.', 'info');
+    renderAdminCommunityModeration();
+}
+
+function adminDeleteCommunityReply(postId, commentIndex, replyIndex) {
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    const comment = post && post.comments && post.comments[commentIndex];
+    if (!comment || !comment.replies || !comment.replies[replyIndex]) return;
+    comment.replies.splice(replyIndex, 1);
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})의 답글을 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    showToast('답글을 삭제했습니다.', 'info');
+    renderAdminCommunityModeration();
+}
+
 /* 댓글/답글 삭제는 있었지만 정작 글 작성자 본인이 자기 글(게시물)은 지울 방법이
  * 없었던 기능 공백을 메운다 — 댓글/답글과 동일하게 authorId 소유권 검증 후 목록에서
  * 제거한다. */
@@ -1528,5 +1613,9 @@ window.toggleReplyBox = toggleReplyBox;
 window.submitCommunityReply = submitCommunityReply;
 window.deleteCommunityComment = deleteCommunityComment;
 window.deleteCommunityReply = deleteCommunityReply;
+window.renderAdminCommunityModeration = renderAdminCommunityModeration;
+window.adminDeleteCommunityPost = adminDeleteCommunityPost;
+window.adminDeleteCommunityComment = adminDeleteCommunityComment;
+window.adminDeleteCommunityReply = adminDeleteCommunityReply;
 window.deleteCommunityPost = deleteCommunityPost;
 window.openCommunityEdit = openCommunityEdit;

@@ -444,14 +444,15 @@ const ALL_ADMIN_TABS = [
     ['allocation', 'wallet', '수동 오더 배정관'], ['monitor', 'building-2', '파트너 모니터링'],
     ['applications', 'clipboard-check', '파트너 가입 심사'],
     ['blacklist', 'shield-alert', '삼진아웃 블랙리스트 DB'], ['logs', 'list', '플랫폼 관제 로그'],
-    ['display', 'image', '노출 관리'], ['staff', 'users', '직원 권한 관리']
+    ['display', 'image', '노출 관리'], ['staff', 'users', '직원 권한 관리'],
+    ['community', 'flag', '커뮤니티 관리']
 ];
 
 // 'super_admin'은 전체 탭에 접근 가능. 'partner_manager'는 고액 오더 배정(재무),
 // 시스템 로그, 마케팅 노출 관리, 직원 권한 부여처럼 상위 권한이 필요한 영역은
 // 제외하고 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
 const ROLE_TAB_ACCESS = {
-    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff'],
+    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community'],
     partner_manager: ['monitor', 'applications', 'blacklist']
 };
 
@@ -478,7 +479,7 @@ function switchAdminMode(mode) {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
+    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
     document.getElementById(`admin-mode-${mode}-view`)?.classList.remove('hidden');
 
     const kpiGrid = document.getElementById('admin-kpi-grid');
@@ -491,6 +492,7 @@ function switchAdminMode(mode) {
     else if (mode === 'logs') syncAuditLogs();
     else if (mode === 'display') renderAdminDisplayManager();
     else if (mode === 'staff') renderAdminStaffManager();
+    else if (mode === 'community' && typeof renderAdminCommunityModeration === 'function') renderAdminCommunityModeration();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
