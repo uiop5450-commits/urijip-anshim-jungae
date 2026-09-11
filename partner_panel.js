@@ -3292,7 +3292,43 @@ function buildAdminPartnerReportsHtml(partner) {
                 <span class="text-[10px] text-ink-400 font-bold">${r.orderCode} · ${r.date}</span>
             </div>
             <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(r.reason)}</p>
+            ${r.appeal ? (r.appeal.status === 'pending' ? `
+            <div class="pl-3 flex items-center justify-between gap-2">
+                <p class="text-[10px] font-black text-brand-700">이의신청: ${escapeHtml(r.appeal.reason)}</p>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="openReportReasonPrompt((reason) => adminRejectPartnerReportAppeal('${r.id}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">반려</button>
+                    <button type="button" onclick="adminApprovePartnerReportAppeal('${r.id}')" class="text-[10px] font-bold text-ink-500 hover:text-emeraldCustom bg-transparent border-0 cursor-pointer p-0">승인(신고 취하)</button>
+                </div>
+            </div>` : `<p class="pl-3 text-[10px] font-bold text-ink-400">이의신청 반려됨 — ${escapeHtml(r.appeal.adminResponse || '')}</p>`) : ''}
         </div>`).join('');
+}
+
+function adminApprovePartnerReportAppeal(reportId) {
+    const report = (window.AppState.partnerReports || []).find(r => r.id === reportId);
+    if (!report || !report.appeal || report.appeal.status !== 'pending') return;
+    window.AppState.partnerReports = window.AppState.partnerReports.filter(r => r.id !== reportId);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_REPORT_APPEAL_APPROVE', `[이의신청 승인] '${report.partnerName}' 파트너에 대한 고객 신고(${report.orderCode})를 이의신청 승인으로 취하 처리했습니다.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(report.partnerName, `제출하신 이의신청이 승인되어 신고가 취하되었습니다.`);
+    showToast(`[${report.partnerName}] 파트너의 이의신청을 승인하여 신고를 취하했습니다.`, 'success');
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+    const modal = document.getElementById('admin-partner-metrics-modal');
+    if (modal && !modal.classList.contains('hidden')) openPartnerMetricsModal(report.partnerName);
+}
+
+function adminRejectPartnerReportAppeal(reportId, reason) {
+    const report = (window.AppState.partnerReports || []).find(r => r.id === reportId);
+    if (!report || !report.appeal || report.appeal.status !== 'pending') return;
+    report.appeal.status = 'rejected';
+    report.appeal.adminResponse = reason;
+    report.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_REPORT_APPEAL_REJECT', `[이의신청 반려] '${report.partnerName}' 파트너의 고객 신고(${report.orderCode}) 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(report.partnerName, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast(`[${report.partnerName}] 파트너의 이의신청을 반려했습니다.`, 'info');
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+    const modal = document.getElementById('admin-partner-metrics-modal');
+    if (modal && !modal.classList.contains('hidden')) openPartnerMetricsModal(report.partnerName);
 }
 
 function adminDeletePortfolio(partnerName, idx) {
@@ -4727,6 +4763,8 @@ window.adminResolveScheduleChangeRequest = adminResolveScheduleChangeRequest;
 window.adminResolvePriceChangeRequest = adminResolvePriceChangeRequest;
 window.adminApproveClientReportAppeal = adminApproveClientReportAppeal;
 window.adminRejectClientReportAppeal = adminRejectClientReportAppeal;
+window.adminApprovePartnerReportAppeal = adminApprovePartnerReportAppeal;
+window.adminRejectPartnerReportAppeal = adminRejectPartnerReportAppeal;
 window.isClientFavorited = isClientFavorited;
 window.toggleFavoriteClient = toggleFavoriteClient;
 window.requestReviewFromClient = requestReviewFromClient;

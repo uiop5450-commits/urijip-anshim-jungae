@@ -955,6 +955,7 @@ function submitPartnerReport() {
     });
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'PARTNER_REPORT', `[${auth.name}] 고객님이 오더 ${order.code}의 계약 파트너사(${order.acceptedPartner})를 신고했습니다.`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객으로부터 신고가 접수되어 매니저 센터가 검토 중입니다. 부당하다고 생각되시면 마이페이지 계정 정보에서 소명하실 수 있어요.`);
     showToast('신고가 접수되었습니다. 매니저 센터에서 검토할게요.', 'success');
     closeReportPartnerModal();
     renderClientMyPage();

@@ -690,6 +690,69 @@ function renderPartnerStrikeAppealStatus(partner) {
         : resolvedHtml;
 }
 
+/* 고객은 부실 시공·계약 불이행 파트너를 신고할 수 있지만(submitPartnerReport,
+ * client_panel.js) 파트너는 자신이 신고당한 사실조차 알 방법이 없었고(알림조차
+ * 가지 않았음) 소명할 방법도 없었다 — 방금 추가한 고객측 이의신청(clientReports[].appeal)
+ * 과 정반대 방향의 동일한 비대칭이다. 동일한 제출→심사 패턴을 그대로 적용한다. */
+let partnerReportAppealTargetId = null;
+
+function openPartnerReportAppealModal(reportId) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const report = (window.AppState.partnerReports || []).find(r => r.id === reportId && r.partnerName === partnerName);
+    if (!report) return;
+    if (report.appeal && report.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    partnerReportAppealTargetId = reportId;
+    safeUpdateValue('partner-report-appeal-reason-input', '');
+    openModal('partner-report-appeal-modal', 'partner-report-appeal-modal-card');
+}
+
+function closePartnerReportAppealModal() {
+    partnerReportAppealTargetId = null;
+    closeModal('partner-report-appeal-modal', 'partner-report-appeal-modal-card');
+}
+
+function submitPartnerReportAppeal() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const report = (window.AppState.partnerReports || []).find(r => r.id === partnerReportAppealTargetId && r.partnerName === partnerName);
+    if (!report) { closePartnerReportAppealModal(); return; }
+    const reason = document.getElementById('partner-report-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    report.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PARTNER_REPORT_APPEAL', `[${partnerName}]가 고객 신고(${report.orderCode})에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closePartnerReportAppealModal();
+    renderPartnerReportedStatus(partnerName);
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
+function renderPartnerReportedStatus(partnerName) {
+    const container = document.getElementById('partner-reported-status');
+    if (!container) return;
+    const myReports = (window.AppState.partnerReports || []).filter(r => r.partnerName === partnerName);
+
+    if (myReports.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">접수된 신고가 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = myReports.map(r => {
+        let statusHtml;
+        if (r.appeal && r.appeal.status === 'pending') {
+            statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">이의신청 심사 대기중</p>`;
+        } else if (r.appeal && r.appeal.status === 'rejected') {
+            statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">이의신청 반려됨${r.appeal.adminResponse ? ` — ${escapeHtml(r.appeal.adminResponse)}` : ''}</p>`;
+        } else {
+            statusHtml = `<button type="button" onclick="openPartnerReportAppealModal('${r.id}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">이의신청하기</button>`;
+        }
+        return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5">
+            <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">고객이 오더(${r.orderCode})와 관련해 신고를 접수했습니다. (${r.date})</p>
+            ${statusHtml}
+        </div>`;
+    }).join('');
+}
+
 function renderPartnerProfileManager() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -705,6 +768,7 @@ function renderPartnerProfileManager() {
     renderPartnerPauseToggle(partner);
     renderPartnerNotificationPrefToggle(partner);
     renderPartnerStrikeAppealStatus(partner);
+    renderPartnerReportedStatus(partnerName);
     safeUpdateText('partner-account-bizcert-filename', partner.bizCertDoc ? partner.bizCertDoc.name : '첨부된 사업자등록증이 없습니다.');
 
     const img = document.getElementById('partner-hero-slide-img');
@@ -1841,6 +1905,10 @@ window.openStrikeAppealModal = openStrikeAppealModal;
 window.closeStrikeAppealModal = closeStrikeAppealModal;
 window.submitStrikeAppeal = submitStrikeAppeal;
 window.renderPartnerStrikeAppealStatus = renderPartnerStrikeAppealStatus;
+window.openPartnerReportAppealModal = openPartnerReportAppealModal;
+window.closePartnerReportAppealModal = closePartnerReportAppealModal;
+window.submitPartnerReportAppeal = submitPartnerReportAppeal;
+window.renderPartnerReportedStatus = renderPartnerReportedStatus;
 window.togglePartnerNotificationPref = togglePartnerNotificationPref;
 window.updatePartnerPassword = updatePartnerPassword;
 window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;
