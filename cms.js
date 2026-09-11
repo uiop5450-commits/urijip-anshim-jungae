@@ -518,7 +518,11 @@ function closePortfolioEditor() {
     renderPartnerConsolePortfolios();
 }
 
-function submitPartnerPortfolio() {
+/* 지금까지는 저장 버튼이 하나뿐이라 클릭하는 즉시 고객 탐색 페이지·프로필에
+ * 바로 노출됐다 — 사진/글을 다 정리하기 전에 미리 저장해두고 나중에 이어서
+ * 쓸 방법이 없었다. isDraft 플래그를 두고, 초안은 파트너 콘솔에만 보이며
+ * 고객에게 노출되는 모든 화면(공개 프로필, 히어로 슬라이더 선택 등)에서 제외한다. */
+function submitPartnerPortfolio(isDraft = false) {
     const titleEl = document.getElementById('editor-title');
     const pyungEl = document.getElementById('editor-pyung');
     if (!titleEl || !pyungEl) return;
@@ -549,14 +553,15 @@ function submitPartnerPortfolio() {
         desc: desc || plainText.substring(0, 80),
         img: coverImg,
         likes: (editIndex !== null && partner.portfolios[editIndex]) ? (partner.portfolios[editIndex].likes || 0) : 0,
-        bodyHtml
+        bodyHtml,
+        isDraft
     };
 
     if (editIndex !== null) partner.portfolios[editIndex] = newPort;
     else partner.portfolios.unshift(newPort);
 
-    if (typeof pushLog === 'function') pushLog('PARTNER', 'PORTFOLIO', `[${partnerName}]가 포트폴리오 "${title}"를 발행했습니다.`, 'SUCCESS');
-    showToast('포트폴리오가 발행되었습니다!', 'success');
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PORTFOLIO', `[${partnerName}]가 포트폴리오 "${title}"를 ${isDraft ? '초안으로 저장' : '발행'}했습니다.`, isDraft ? 'INFO' : 'SUCCESS');
+    showToast(isDraft ? '초안으로 저장되었습니다. 고객에게는 보이지 않아요.' : '포트폴리오가 발행되었습니다!', 'success');
     closePortfolioEditor();
     if (typeof renderHeroPortfolioSlider === 'function') renderHeroPortfolioSlider();
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
@@ -867,7 +872,7 @@ function renderPartnerConsolePortfolios() {
         const itemDiv = document.createElement('div');
         itemDiv.className = "portfolio-card text-left";
         itemDiv.innerHTML = `
-            <div class="portfolio-img relative" onclick="openPortfolioBlogDetail('${partner.name}', ${idx})">${item.isPrimary ? `<span class="badge badge-gold absolute top-2 left-2 z-10"><i data-lucide="star" class="w-2.5 h-2.5"></i> 대표</span>` : ''}${buildPortfolioCardMediaHtml(item)}</div>
+            <div class="portfolio-img relative" onclick="openPortfolioBlogDetail('${partner.name}', ${idx})">${item.isPrimary ? `<span class="badge badge-gold absolute top-2 left-2 z-10"><i data-lucide="star" class="w-2.5 h-2.5"></i> 대표</span>` : ''}${item.isDraft ? `<span class="badge badge-neutral absolute top-2 right-2 z-10"><i data-lucide="file-edit" class="w-2.5 h-2.5"></i> 초안</span>` : ''}${buildPortfolioCardMediaHtml(item)}</div>
             <div class="p-4 space-y-1.5">
                 <h5 class="font-black text-ink-950 text-xs line-clamp-1">${escapeHtml(item.title)}</h5>
                 <p class="text-[10px] text-ink-500 line-clamp-2">${escapeHtml(item.desc || '')}</p>
@@ -1046,8 +1051,10 @@ function openClientPartnerProfile(partnerName) {
     const portGrid = document.getElementById('profile-portfolios-grid');
     if (portGrid) {
         portGrid.innerHTML = '';
-        if (partner.portfolios && partner.portfolios.length > 0) {
+        const publishedPortfolios = (partner.portfolios || []).filter(p => !p.isDraft);
+        if (publishedPortfolios.length > 0) {
             partner.portfolios.forEach((port, idx) => {
+                if (port.isDraft) return;
                 const itemDiv = document.createElement('div');
                 itemDiv.className = "portfolio-card text-left group";
                 itemDiv.onclick = (e) => { e.stopPropagation(); openPortfolioBlogDetail(partner.name, idx); };
@@ -1258,6 +1265,7 @@ function openPortfolioBlogDetail(partnerName, idx) {
             let allPartnerPhotos = [];
             if (partner.portfolios && partner.portfolios.length > 0) {
                 partner.portfolios.forEach((pItem) => {
+                    if (pItem.isDraft && pItem !== port) return;
                     const tmp = document.createElement('div');
                     tmp.innerHTML = portfolioToBodyHtml(pItem);
                     tmp.querySelectorAll('img').forEach((im) => allPartnerPhotos.push({ src: im.getAttribute('src') || '', title: pItem.title }));

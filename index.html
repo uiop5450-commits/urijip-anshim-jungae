@@ -897,7 +897,10 @@
                                     <div id="portfolio-body-editor" class="blog-body-editor blog-body-content" contenteditable="true" data-placeholder="이곳을 클릭해서 사진과 글을 자유롭게 적어보세요. 네이버 블로그를 쓰는 것처럼요." oninput="onPortfolioBodyEditorInput()" onkeyup="updatePortfolioToolbarActiveState()" onmouseup="updatePortfolioToolbarActiveState()" onclick="event.target===this && this.focus()" onfocus="try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch(err) {}"></div>
                                 </div>
 
-                                <button type="button" onclick="submitPartnerPortfolio()" class="btn btn-primary btn-lg btn-block"><span id="port-submit-btn-text">안심 포트폴리오 스토리 발행하기</span></button>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="submitPartnerPortfolio(true)" class="btn btn-secondary btn-lg shrink-0">초안으로 저장</button>
+                                    <button type="button" onclick="submitPartnerPortfolio(false)" class="btn btn-primary btn-lg flex-1"><span id="port-submit-btn-text">안심 포트폴리오 스토리 발행하기</span></button>
+                                </div>
                             </div>
                         </form>
                     </div>

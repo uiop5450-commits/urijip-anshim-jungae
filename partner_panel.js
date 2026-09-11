@@ -407,13 +407,14 @@ function renderPartnerSearchGrid() {
 
     container.innerHTML = '';
     filtered.forEach(p => {
-        const samplePort = p.portfolios && p.portfolios.length > 0 ? p.portfolios[0] : null;
+        const publishedPortfolios = (p.portfolios || []).filter(port => !port.isDraft);
+        const samplePort = publishedPortfolios.length > 0 ? publishedPortfolios[0] : null;
         const repImg = (p.heroImages && p.heroImages.length > 0) ? p.heroImages[0] : (samplePort ? samplePort.img : 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&auto=format&fit=crop&q=60');
         const safePName = escapeHtml(p.name);
         const slogan = p.promoSlogan ? escapeHtml(p.promoSlogan) : `${safePName} - 부산 지역 대표 인테리어`;
         const promo = p.promoText ? escapeHtml(p.promoText) : (p.desc ? escapeHtml(p.desc) : '검증된 1군 실내건축 종합면허 보유사입니다.');
         const certifiedBadge = p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 인증</span>` : '';
-        const portfolioCount = p.portfolios ? p.portfolios.length : 0;
+        const portfolioCount = publishedPortfolios.length;
         const metaParts = [];
         if (p.region) metaParts.push(`<span class="flex items-center gap-1"><i data-lucide="map-pin" class="w-3 h-3"></i>부산 ${escapeHtml(p.region)}</span>`);
         metaParts.push(`<span>완공사례 ${portfolioCount}건</span>`);
@@ -2797,7 +2798,7 @@ function renderAdminHeroPortfolioOptions() {
         portSel.innerHTML = `<option value="">-</option>`;
         return;
     }
-    portSel.innerHTML = partner.portfolios.map((port, idx) => `<option value="${idx}">${port.title}</option>`).join('');
+    portSel.innerHTML = partner.portfolios.map((port, idx) => port.isDraft ? '' : `<option value="${idx}">${port.title}</option>`).join('');
 }
 
 function addFeaturedHeroPartner() {
