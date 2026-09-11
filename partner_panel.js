@@ -622,8 +622,56 @@ function togglePartnerConsoleVisibility() {
                 if (typeof lucide !== 'undefined') lucide.createIcons();
                 if (typeof updatePartnerNotificationBadge === 'function') updatePartnerNotificationBadge();
             }
+            renderPartnerOnboardingBanner();
         }
     } else { consoleBox.classList.add('hidden'); gatewayBox.classList.remove('hidden'); }
+}
+
+/* 승인되면 바로 빈 콘솔에 던져질 뿐, 사업자등록증/활동지역/시공사례 중 뭘 먼저
+ * 채워야 안심 매칭이 원활해지는지 안내가 전혀 없었다 — 체크리스트를 통해 남은
+ * 항목을 알려주고, 전부 채우거나 직접 닫으면 다시 뜨지 않는다. */
+function renderPartnerOnboardingBanner() {
+    const banner = document.getElementById('partner-onboarding-banner');
+    if (!banner) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) { banner.classList.add('hidden'); return; }
+
+    const items = [
+        { label: '사업자등록증 첨부', done: !!partner.bizCertDoc },
+        { label: '활동 지역 설정', done: !!partner.region },
+        { label: '시공사례 1건 이상 등록', done: (partner.portfolios || []).length > 0 }
+    ];
+    const allDone = items.every(i => i.done);
+
+    // onboardingDismissed가 명시적으로 false일 때만(=approvePartnerApplication을 거쳐
+    // 새로 승인된 파트너만) 노출한다 — undefined인 기존 파트너들에게 뒤늦게
+    // 소급 적용되어 계속 떠 있는 것을 방지한다.
+    if (partner.onboardingDismissed !== false || allDone) { banner.classList.add('hidden'); return; }
+
+    banner.classList.remove('hidden');
+    banner.innerHTML = `
+        <div class="surface surface-lg p-5 space-y-3 text-left" style="background:var(--brand-50);border-color:var(--brand-100,#dbe8ff)">
+            <div class="flex justify-between items-start gap-3">
+                <div class="space-y-0.5">
+                    <span class="badge badge-brand">시작 가이드</span>
+                    <h4 class="text-sm font-black text-ink-950 mt-1">아래 항목을 채우면 안심 매칭 확률이 높아져요!</h4>
+                </div>
+                <button type="button" onclick="dismissPartnerOnboardingBanner()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                ${items.map(i => `<span class="badge ${i.done ? 'badge-emerald' : 'badge-neutral'}"><i data-lucide="${i.done ? 'check-circle-2' : 'circle'}" class="w-3 h-3"></i> ${i.label}</span>`).join('')}
+            </div>
+        </div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function dismissPartnerOnboardingBanner() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    partner.onboardingDismissed = true;
+    renderPartnerOnboardingBanner();
 }
 
 /* 파트너 콘솔 > 알림 탭 — 새 오더 매칭/계약 체결/후기 등록/경고·제명 시
@@ -2526,6 +2574,7 @@ function approvePartnerApplication(partnerId) {
     const partner = (window.AppState.partners || []).find(p => p.id === partnerId);
     if (!partner) return;
     partner.status = 'active';
+    partner.onboardingDismissed = false;
     if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_APPROVE', `[입점 승인] '${partner.name}'(${partner.id}) 파트너 계정을 승인했습니다.`, 'SUCCESS');
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, '입점 신청이 승인되었습니다! 이제 로그인 후 오더를 받아보실 수 있어요.');
     showToast(`[${partner.name}] 파트너사의 입점을 승인했습니다.`, 'success');
@@ -2990,6 +3039,8 @@ window.partnerLogout = partnerLogout;
 window.submitPartnerBid = submitPartnerBid;
 window.selectOrderForAudit = selectOrderForAudit;
 window.togglePartnerConsoleVisibility = togglePartnerConsoleVisibility;
+window.renderPartnerOnboardingBanner = renderPartnerOnboardingBanner;
+window.dismissPartnerOnboardingBanner = dismissPartnerOnboardingBanner;
 window.renderPartnerNotifications = renderPartnerNotifications;
 window.markAllPartnerNotificationsRead = markAllPartnerNotificationsRead;
 window.markPartnerNotificationRead = markPartnerNotificationRead;

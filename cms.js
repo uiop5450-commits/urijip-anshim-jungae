@@ -598,6 +598,7 @@ function renderPartnerProfileManager() {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
 
+    if (typeof renderPartnerOnboardingBanner === 'function') renderPartnerOnboardingBanner();
     if (!partner.heroImages || partner.heroImages.length === 0) partner.heroImages = ['https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&auto=format&fit=crop&q=60'];
     if (typeof partner.heroSlideIndex !== 'number') partner.heroSlideIndex = 0;
     if (partner.heroSlideIndex >= partner.heroImages.length) partner.heroSlideIndex = 0;
@@ -852,6 +853,7 @@ function renderPartnerConsolePortfolios() {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
 
+    if (typeof renderPartnerOnboardingBanner === 'function') renderPartnerOnboardingBanner();
     safeUpdateText('partner-port-count-badge', `등록된 시공사례 ${partner.portfolios.length}건`);
 
     if (partner.portfolios.length === 0) {
