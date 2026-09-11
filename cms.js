@@ -1229,6 +1229,31 @@ function reportReview(partnerName, reviewIdx) {
     }
 }
 
+/* 커뮤니티 글·후기는 신고할 수 있는데 파트너가 올리는 시공사례(포트폴리오)는
+ * 저작권 도용이나 허위 사진이 올라와도 신고할 방법이 없었다 — 동일한 1인 1회
+ * reportedBy 배열 패턴을 포트폴리오 항목에도 적용한다. */
+function isPortfolioReportedByMe(port) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return false;
+    return !!(port.reportedBy && port.reportedBy.includes(auth.id));
+}
+
+function reportPortfolio() {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) { showToast('로그인 후 이용할 수 있어요.', 'warning'); return; }
+    const { partnerName, idx } = _blogDetailContext;
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const port = partner && partner.portfolios && partner.portfolios[idx];
+    if (!port) return;
+    if (!port.reportedBy) port.reportedBy = [];
+    if (port.reportedBy.includes(auth.id)) { showToast('이미 신고한 시공사례입니다.', 'info'); return; }
+    port.reportedBy.push(auth.id);
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PORTFOLIO_REPORT', `'${auth.name}' 고객님이 [${partnerName}]의 시공사례(${port.title || '-'})를 신고했습니다.`, 'WARNING');
+    showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
+    const reportBtn = document.getElementById('blog-modal-report-btn');
+    if (reportBtn) { reportBtn.classList.add('text-roseCustom'); reportBtn.title = '신고 완료'; }
+}
+
 function closeReviewDetailModal() { closeModal('review-detail-modal', 'review-detail-modal-card'); }
 function closeClientPartnerProfile() { closeModal('client-partner-profile-modal', 'client-partner-profile-modal-card'); }
 
@@ -1248,6 +1273,8 @@ function openPortfolioBlogDetail(partnerName, idx) {
     if (catBadge) { catBadge.textContent = catLabel; catBadge.classList.toggle('hidden', !catLabel); }
 
     renderBlogLikeButton(port.likes || 0);
+    const reportBtn = document.getElementById('blog-modal-report-btn');
+    if (reportBtn) { const reported = isPortfolioReportedByMe(port); reportBtn.classList.toggle('text-roseCustom', reported); reportBtn.title = reported ? '신고 완료' : '시공사례 신고'; }
 
     const ctaBtn = document.getElementById('blog-modal-cta-btn');
     if (ctaBtn) ctaBtn.onclick = () => requestDirectQuoteFromPortfolio(partnerName, idx);
@@ -1465,6 +1492,8 @@ window.toggleReviewHelpful = toggleReviewHelpful;
 window.isReviewHelpfulByMe = isReviewHelpfulByMe;
 window.reportReview = reportReview;
 window.isReviewReportedByMe = isReviewReportedByMe;
+window.reportPortfolio = reportPortfolio;
+window.isPortfolioReportedByMe = isPortfolioReportedByMe;
 window.closeReviewDetailModal = closeReviewDetailModal;
 window.renderPartnerMyReviews = renderPartnerMyReviews;
 window.updatePartnerPhone = updatePartnerPhone;

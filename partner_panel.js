@@ -2535,6 +2535,42 @@ function buildAdminReviewModerationHtml(partner) {
         </div>`).join('');
 }
 
+/* 커뮤니티 글/후기 신고는 관리자가 검토할 수 있는데, 파트너가 올리는 시공사례
+ * (포트폴리오)는 저작권 도용·허위 사진이 신고되어도 검토할 창구가 없었다 —
+ * buildAdminReviewModerationHtml과 동일한 신고순 정렬 + 삭제 패턴을 적용한다.
+ * 초안(isDraft)은 고객에게 아직 노출되지 않아 신고 대상이 아니므로 제외한다. */
+function buildAdminPortfolioModerationHtml(partner) {
+    const portfolios = (partner.portfolios || []).filter(p => !p.isDraft);
+    if (portfolios.length === 0) {
+        return `<div class="p-4 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 font-bold">등록된 시공사례가 없습니다.</div>`;
+    }
+    return partner.portfolios
+        .map((p, idx) => ({ p, idx, reportCount: (p.reportedBy || []).length }))
+        .filter(({ p }) => !p.isDraft)
+        .sort((a, b) => b.reportCount - a.reportCount)
+        .map(({ p, idx, reportCount }) => `
+        <div class="p-3.5 bg-ink-50/80 rounded-xl border ${reportCount > 0 ? 'border-rose-200' : 'border-ink-100'} space-y-1.5 text-left">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-black text-ink-800">${escapeHtml(p.title || '(제목 없음)')}</span>
+                    ${reportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${reportCount}건</span>` : ''}
+                </div>
+                <button type="button" onclick="adminDeletePortfolio('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+            </div>
+            <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(p.desc || '')}</p>
+        </div>`).join('');
+}
+
+function adminDeletePortfolio(partnerName, idx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || !partner.portfolios || !partner.portfolios[idx]) return;
+    partner.portfolios.splice(idx, 1);
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PORTFOLIO_MODERATE', `[시공사례 삭제] '${partnerName}' 파트너의 시공사례를 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    showToast('시공사례를 삭제했습니다.', 'info');
+    openPartnerMetricsModal(partnerName);
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+}
+
 function adminDeleteReview(partnerName, reviewIdx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
@@ -2647,6 +2683,10 @@ function openPartnerMetricsModal(partnerName) {
                 <div class="space-y-2.5 pt-2">
                     <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="star" class="w-4 h-4 text-ink-600"></i> 등록된 안심 후기 관리 (${(partner.reviews || []).length}건)</h4>
                     <div class="space-y-2">${buildAdminReviewModerationHtml(partner)}</div>
+                </div>
+                <div class="space-y-2.5 pt-2">
+                    <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="image" class="w-4 h-4 text-ink-600"></i> 등록된 시공사례 관리 (${(partner.portfolios || []).filter(p => !p.isDraft).length}건)</h4>
+                    <div class="space-y-2">${buildAdminPortfolioModerationHtml(partner)}</div>
                 </div>
             </div>
             <div class="pt-3 border-t border-ink-100 flex justify-end"><button type="button" onclick="closePartnerMetricsModal()" class="btn btn-dark">확인 및 닫기</button></div>
@@ -3435,6 +3475,7 @@ window.renderPartnerPerformanceView = renderPartnerPerformanceView;
 window.exportPartnerPerformanceCsv = exportPartnerPerformanceCsv;
 window.closePartnerMetricsModal = closePartnerMetricsModal;
 window.adminDeleteReview = adminDeleteReview;
+window.adminDeletePortfolio = adminDeletePortfolio;
 window.downloadContractDoc = downloadContractDoc;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
