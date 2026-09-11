@@ -964,6 +964,7 @@
                     <div class="flex gap-2">
                         <input type="text" id="admin-order-lookup-input" placeholder="예: WJ-2026-0711L, 박민서, 010-1234-5678" class="input flex-1" onkeydown="if(event.key==='Enter') searchOrderLookup()">
                         <button type="button" onclick="searchOrderLookup()" class="btn btn-dark btn-sm shrink-0">조회</button>
+                        <button type="button" onclick="exportOrderLookupResultsToCsv()" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV</button>
                     </div>
                     <div id="admin-order-lookup-result" class="space-y-2"></div>
                 </div>

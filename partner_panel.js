@@ -1887,6 +1887,14 @@ function recalculateKPIs() {
  * 검색이 안 됐다. 고객이 전화로 "제 의뢰 어떻게 됐나요" 물어볼 때 관리자가 즉시
  * 찾을 수 있도록, 모든 탭에서 공통으로 보이는 조회창을 추가한다(전체 오더 대상,
  * 의뢰코드/고객명/연락처로 검색). */
+function getOrderLookupMatches(query) {
+    return (window.AppState.orders || []).filter(o =>
+        o.code.toLowerCase().includes(query) ||
+        (o.clientName && o.clientName.toLowerCase().includes(query)) ||
+        (o.clientPhone && o.clientPhone.includes(query))
+    );
+}
+
 function searchOrderLookup() {
     const input = document.getElementById('admin-order-lookup-input');
     const resultEl = document.getElementById('admin-order-lookup-result');
@@ -1894,11 +1902,7 @@ function searchOrderLookup() {
     const query = input.value.trim().toLowerCase();
     if (!query) { resultEl.innerHTML = ''; return; }
 
-    const matches = (window.AppState.orders || []).filter(o =>
-        o.code.toLowerCase().includes(query) ||
-        (o.clientName && o.clientName.toLowerCase().includes(query)) ||
-        (o.clientPhone && o.clientPhone.includes(query))
-    ).slice(0, 10);
+    const matches = getOrderLookupMatches(query).slice(0, 10);
 
     if (matches.length === 0) {
         resultEl.innerHTML = `<p class="text-xs font-bold text-ink-400 text-center py-3">조회 조건에 해당되는 의뢰를 찾을 수 없습니다.</p>`;
@@ -1919,6 +1923,37 @@ function searchOrderLookup() {
             </div>
             <span class="font-black text-ink-950 shrink-0">₩ ${(o.finalPrice || o.budget || 0).toLocaleString()}만원</span>
         </div>`).join('');
+}
+
+/* 파트너/고객/로그는 전부 CSV로 내보낼 수 있는데, 어느 관리자 탭에서든 쓸 수 있는
+ * 통합 오더 조회창(searchOrderLookup)만 CSV 내보내기가 없었다 — 화면에는 10건까지만
+ * 보여주지만(성능/가독성 목적) CSV는 검색 조건에 맞는 전체 건수를 내보낸다. */
+function exportOrderLookupResultsToCsv() {
+    const input = document.getElementById('admin-order-lookup-input');
+    const query = (input?.value || '').trim().toLowerCase();
+    if (!query) { showToast('먼저 조회할 의뢰코드·고객명·연락처를 입력해 주세요.', 'warning'); return; }
+
+    const matches = getOrderLookupMatches(query);
+    if (matches.length === 0) { showToast('내보낼 조회 결과가 없습니다.', 'warning'); return; }
+
+    const escapeCsvCell = (val) => `"${String(val == null ? '' : val).replace(/"/g, '""')}"`;
+    const statusText = (o) => o.status === 'withdrawn' ? '철회됨' : o.status === 'contracted' ? '계약 체결' : o.is1on1 ? '1:1 지정' : '입찰 심사중';
+    const header = ['의뢰코드', '고객명', '연락처', '주소', '평형', '입찰수', '참여사제한', '계약파트너', '상태', '금액(만원)'].map(escapeCsvCell).join(',');
+    const rows = matches.map(o => [
+        o.code, o.clientName, o.clientPhone || '-', o.clientAddress || '-', o.pyung || '-',
+        o.bids ? o.bids.length : 0, o.partnerCountLimit || '-', o.acceptedPartner || '-', statusText(o), (o.finalPrice || o.budget || 0)
+    ].map(escapeCsvCell).join(','));
+    const csv = '﻿' + [header, ...rows].join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `우리집안심중개_오더조회_${getLocalDateString()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'ORDER_LOOKUP_EXPORT', `[오더 조회] 매니저가 "${query}" 조회 결과 ${matches.length}건을 CSV로 내보냄.`, 'INFO');
+    showToast(`오더 ${matches.length}건을 CSV로 내보냈습니다.`, 'success');
 }
 
 /* 매니저 콘솔 > 고객 문의 — "고객센터" 링크로 접수된 1:1 문의에 답변한다.
@@ -3514,6 +3549,7 @@ window.closePartnerMetricsModal = closePartnerMetricsModal;
 window.adminDeleteReview = adminDeleteReview;
 window.adminDeletePortfolio = adminDeletePortfolio;
 window.setAdminClientStatusFilter = setAdminClientStatusFilter;
+window.exportOrderLookupResultsToCsv = exportOrderLookupResultsToCsv;
 window.downloadContractDoc = downloadContractDoc;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
