@@ -1945,7 +1945,7 @@ function renderAdminOrderAllocation() {
 
         let assignedListHtml = `<div class="pt-2.5 border-t border-ink-100 space-y-2"><div class="flex justify-between items-center text-[10px] font-bold"><span class="text-ink-500 flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5 text-ink-400"></i> 현재 배정 현황:</span><span class="badge ${currentMatchedCount === totalSlotLimit ? 'badge-emerald' : 'badge-neutral'}">${currentMatchedCount} / ${totalSlotLimit} 개사 배정 완료</span></div>`;
         assignedListHtml += currentMatchedCount > 0
-            ? `<div class="flex flex-wrap gap-1.5">${o.bids.map(b => `<span class="badge badge-neutral"><span class="badge-dot bg-emeraldCustom"></span> ${b.partner}</span>`).join('')}</div>`
+            ? `<div class="flex flex-wrap gap-1.5">${o.bids.map(b => `<span class="badge badge-neutral">${escapeHtml(b.partner)}<button type="button" onclick="unassignOrderFromPartner('${o.code}', '${b.partner}')" class="bg-transparent border-0 cursor-pointer p-0 ml-1 text-ink-400 hover:text-roseCustom" aria-label="배정 취소" title="배정 취소"><i data-lucide="x" class="w-2.5 h-2.5"></i></button></span>`).join('')}</div>`
             : `<div class="p-2.5 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center"><p class="text-[10px] text-ink-400 font-bold">아직 배정된 파트너사가 없습니다. (인증 파트너 전속 수동 배정 또는 일괄 자동 배정 가능)</p></div>`;
         assignedListHtml += `</div>`;
 
@@ -2024,6 +2024,25 @@ function allocateOrderToPartner(orderCode) {
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `매니저 센터가 고액 오더(${orderCode})를 전속 배정했어요. (예산 ₩ ${order.budget.toLocaleString()}만원)`);
     renderAdminOrderAllocation(); recalculateKPIs();
     showToast(`[${partnerName}] 파트너사에 고액 오더 배정이 완료되었습니다!`, "success");
+}
+
+/* 배정 실수를 되돌릴 방법이 전혀 없었다 — 수동/자동 배정 모두 order.bids에 한 번
+ * push되면 관리자가 직접 상태를 고치지 않는 한 영구히 남아있었다. 계약이 이미
+ * 체결된 건(더 이상 이 화면에 노출되지 않는 status='bidding' 대상 밖)은 이 함수가
+ * 호출될 상황 자체가 없지만, 방어적으로 한 번 더 확인한다. */
+function unassignOrderFromPartner(orderCode, partnerName) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'bidding') { showToast('이미 계약이 진행된 오더는 배정을 취소할 수 없어요.', 'warning'); return; }
+    const idx = order.bids.findIndex(b => b.partner === partnerName);
+    if (idx === -1) return;
+    order.bids.splice(idx, 1);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'UNASSIGN', `[매니저 센터] 오더(${orderCode})에서 [${partnerName}] 파트너사 배정을 취소했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사의 배정이 취소되었어요. (의뢰 코드: ${orderCode})`);
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `매니저 센터가 오더(${orderCode}) 배정을 취소했어요.`);
+    showToast(`[${partnerName}] 파트너사의 배정을 취소했습니다.`, 'info');
+    renderAdminOrderAllocation();
+    recalculateKPIs();
 }
 
 /* 오더 하나에 대해 남은 슬롯만큼 평점 우수 인증 파트너를 채워 배정하는 핵심 로직.
@@ -3017,6 +3036,7 @@ window.toggleSelectAllOrders = toggleSelectAllOrders;
 window.syncSelectAllOrdersCheckbox = syncSelectAllOrdersCheckbox;
 window.bulkAutoAllocateSelectedOrders = bulkAutoAllocateSelectedOrders;
 window.allocateOrderToPartner = allocateOrderToPartner;
+window.unassignOrderFromPartner = unassignOrderFromPartner;
 window.renderHomeEventSlider = renderHomeEventSlider;
 window.openPamphletDetail = openPamphletDetail;
 window.closePamphletDetail = closePamphletDetail;
