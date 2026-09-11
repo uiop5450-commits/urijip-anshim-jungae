@@ -1350,7 +1350,7 @@ function renderAdminCommunityModeration() {
 
     const posts = (window.AppState.communityPosts || [])
         .filter(p => !query || p.title.toLowerCase().includes(query) || p.content.toLowerCase().includes(query) || p.authorName.toLowerCase().includes(query))
-        .slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+        .slice().sort((a, b) => ((b.reportedBy || []).length - (a.reportedBy || []).length) || (new Date(b.date) - new Date(a.date)));
 
     if (posts.length === 0) {
         container.innerHTML = buildEmptyStateHtml('message-square', query ? '검색 결과가 없습니다.' : '등록된 게시글이 없습니다.');
@@ -1378,13 +1378,15 @@ function renderAdminCommunityModeration() {
             }).join('')
             : '';
 
+        const reportCount = (post.reportedBy || []).length;
         return `
-        <div class="surface p-4 space-y-2.5 text-left">
+        <div class="surface p-4 space-y-2.5 text-left ${reportCount > 0 ? 'border border-rose-200' : ''}">
             <div class="flex justify-between items-start gap-3">
                 <div class="space-y-0.5 min-w-0">
                     <div class="flex items-center gap-2 text-[10px] font-bold text-ink-400">
                         <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
                         <span>${post.date} · ${escapeHtml(post.authorName)}</span>
+                        ${reportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${reportCount}건</span>` : ''}
                     </div>
                     <h5 class="text-sm font-black text-ink-950">${escapeHtml(post.title)}</h5>
                     <p class="text-xs text-ink-600 font-medium leading-relaxed line-clamp-2">${escapeHtml(post.content)}</p>
@@ -1436,6 +1438,24 @@ function deleteCommunityPost(postId) {
     window.AppState.communityPosts.splice(idx, 1);
     showToast('게시글을 삭제했습니다.', 'info');
     closeCommunityDetail();
+}
+
+/* 부적절한 게시글을 발견해도 신고할 방법이 없어서, 관리자가 커뮤니티 관리 탭
+ * (renderAdminCommunityModeration)에서 모든 글을 처음부터 끝까지 훑어야만
+ * 문제 게시물을 찾을 수 있었다. 신고하면 관리자 목록에서 신고 배지가 뜨고
+ * 신고 많은 순으로 정렬되어 우선 검토할 수 있게 된다. 같은 사용자의 중복
+ * 신고는 막는다(reportedBy로 추적). */
+function reportCommunityPost(postId) {
+    if (!requireClientLoginForCommunity()) return;
+    const auth = window.AppState.clientAuth;
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post) return;
+    if (!post.reportedBy) post.reportedBy = [];
+    if (post.reportedBy.includes(auth.id)) { showToast('이미 신고한 게시글입니다.', 'info'); return; }
+    post.reportedBy.push(auth.id);
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPORT', `'${auth.name}' 고객님이 게시글(${postId})을 신고했습니다. (누적 신고 ${post.reportedBy.length}건)`, 'WARNING');
+    showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
+    openCommunityDetail(postId);
 }
 
 function openCommunityDetail(postId) {
@@ -1500,7 +1520,8 @@ function openCommunityDetail(postId) {
                         <div class="flex items-center gap-2.5 shrink-0">
                             <button type="button" onclick="openCommunityEdit('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button>
                             <button type="button" onclick="deleteCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
-                        </div>` : ''}
+                        </div>` : (myId ? `
+                        <button type="button" onclick="reportCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0 flex items-center gap-1"><i data-lucide="flag" class="w-3 h-3"></i> ${(post.reportedBy || []).includes(myId) ? '신고 완료' : '신고'}</button>` : '')}
                 </div>
                 <h3 class="text-lg font-black text-ink-950">${escapeHtml(post.title)}</h3>
             </div>
@@ -1742,6 +1763,7 @@ window.deleteCommunityComment = deleteCommunityComment;
 window.deleteCommunityReply = deleteCommunityReply;
 window.renderAdminCommunityModeration = renderAdminCommunityModeration;
 window.adminDeleteCommunityPost = adminDeleteCommunityPost;
+window.reportCommunityPost = reportCommunityPost;
 window.adminDeleteCommunityComment = adminDeleteCommunityComment;
 window.adminDeleteCommunityReply = adminDeleteCommunityReply;
 window.deleteCommunityPost = deleteCommunityPost;
