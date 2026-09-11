@@ -2158,6 +2158,15 @@ function searchOrderLookup() {
             </div>`;
     };
 
+    const buildBidInvalidateRowHtml = (o) => {
+        if (o.status !== 'bidding' || !o.bids || o.bids.length === 0) return '';
+        return `<div class="w-full space-y-1.5 pt-1">${o.bids.map(b => `
+            <div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-lg border border-ink-100">
+                <span class="text-[11px] font-bold text-ink-700 truncate">${escapeHtml(b.partner)} · ₩${(b.price || 0).toLocaleString()}만원</span>
+                <button type="button" onclick="openReportReasonPrompt((reason) => adminInvalidateBid('${o.code}', '${escapeHtml(b.partner)}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">입찰 무효화</button>
+            </div>`).join('')}</div>`;
+    };
+
     resultEl.innerHTML = matches.map(o => `
         <div class="p-3.5 bg-ink-50 rounded-xl flex flex-wrap justify-between items-center gap-2 text-xs">
             <div class="space-y-0.5 min-w-0">
@@ -2170,7 +2179,30 @@ function searchOrderLookup() {
                 ${o.status === 'contracted' ? `<button type="button" onclick="openReportReasonPrompt((reason) => adminForceCancelContract('${o.code}', reason))" class="btn btn-secondary btn-sm text-roseCustom">계약 강제 취소</button>` : ''}
             </div>
             ${(o.contractDoc || o.estimateDoc) ? `<div class="w-full space-y-1.5 pt-1">${buildDocReviewRowHtml(o, 'contract', '계약서')}${buildDocReviewRowHtml(o, 'estimate', '견적서')}</div>` : ''}
+            ${buildBidInvalidateRowHtml(o)}
         </div>`).join('');
+}
+
+/* 관리자는 이미 체결된 계약을 직권으로 취소할 수 있지만(adminForceCancelContract),
+ * 계약 전 입찰 단계에서 특정 파트너의 제안이 허위·위반 소지가 있어도 관리자가
+ * 개별 입찰을 무효화할 방법은 없었다 — cancelPartnerBid(client_panel.js)와 동일한
+ * excludedPartners 등록 패턴을 관리자 직권 조치로도 열어준다. */
+function adminInvalidateBid(orderCode, partnerName, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || order.status !== 'bidding') { showToast('입찰 심사중 상태의 오더만 개별 입찰을 무효화할 수 있어요.', 'warning'); return; }
+    if (!order.bids || !order.bids.some(b => b.partner === partnerName)) return;
+
+    order.bids = order.bids.filter(b => b.partner !== partnerName);
+    if (!order.excludedPartners) order.excludedPartners = [];
+    if (!order.excludedPartners.includes(partnerName)) order.excludedPartners.push(partnerName);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'BID_INVALIDATE', `[입찰 직권 무효화] 오더 ${order.code}의 [${partnerName}] 입찰을 매니저가 무효화했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `오더(${orderCode}) 입찰이 매니저 센터 직권으로 무효화되었습니다. 사유: ${reason}`);
+    if (order.bids.length === 0 && typeof pushClientNotification === 'function') {
+        pushClientNotification(order.clientPhone, `오더(${orderCode})에 남은 입찰 제안이 없어요. 마이페이지에서 재매칭을 받아보세요.`);
+    }
+    showToast(`[${partnerName}] 입찰을 무효화했습니다.`, 'success');
+    searchOrderLookup();
 }
 
 /* 지금까지 관리자는 고객/파트너가 먼저 계약 취소를 요청해야만(cancel_requested)
@@ -4404,6 +4436,7 @@ window.initPartnerSignatureCanvas = initPartnerSignatureCanvas;
 window.clearPartnerSignatureCanvas = clearPartnerSignatureCanvas;
 window.submitPartnerSignatureCanvas = submitPartnerSignatureCanvas;
 window.adminForceCancelContract = adminForceCancelContract;
+window.adminInvalidateBid = adminInvalidateBid;
 window.isClientFavorited = isClientFavorited;
 window.toggleFavoriteClient = toggleFavoriteClient;
 window.requestReviewFromClient = requestReviewFromClient;
