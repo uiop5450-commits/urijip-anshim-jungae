@@ -1078,7 +1078,10 @@
                                 <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="users-round" class="w-4 h-4"></i> 고객 관리</h4>
                                 <p class="text-[11px] text-ink-500 font-medium">가입된 고객의 의뢰·계약·후기 현황을 확인하고, 상단 통합 조회창으로 바로 이동할 수 있어요.</p>
                             </div>
-                            <input type="text" id="admin-client-search-input" oninput="renderAdminClientManager()" placeholder="고객명·아이디·연락처 검색..." class="input max-w-xs">
+                            <div class="flex items-center gap-2">
+                                <input type="text" id="admin-client-search-input" oninput="renderAdminClientManager()" placeholder="고객명·아이디·연락처 검색..." class="input max-w-xs">
+                                <button type="button" onclick="exportClientListToCsv()" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV로 내보내기</button>
+                            </div>
                         </div>
                         <div id="admin-client-manager-list" class="space-y-2.5"></div>
                     </div>

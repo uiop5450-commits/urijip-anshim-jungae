@@ -1383,6 +1383,33 @@ function exportPartnerListToCsv() {
     showToast(`파트너사 ${partners.length}건을 CSV로 내보냈습니다.`, 'success');
 }
 
+/* 파트너 목록 CSV 내보내기와 동일한 패턴으로, 새로 추가된 고객 관리 탭의 목록도
+ * 오프라인 검토·보관용으로 내려받을 수 있게 한다. */
+function exportClientListToCsv() {
+    const clients = (window.AppState.clientAccounts || []).filter(a => !a.managerRole);
+    if (clients.length === 0) { showToast('내보낼 고객이 없습니다.', 'warning'); return; }
+
+    const escapeCsvCell = (val) => `"${String(val == null ? '' : val).replace(/"/g, '""')}"`;
+    const header = ['이름', '아이디', '연락처', '의뢰건수', '계약건수', '후기건수', '계정상태'].map(escapeCsvCell).join(',');
+    const rows = clients.map(acc => {
+        const myOrders = (window.AppState.orders || []).filter(o => o.clientPhone === acc.phone);
+        const contractedCount = myOrders.filter(o => o.status === 'contracted').length;
+        const reviewCount = myOrders.filter(o => o.reviewWritten).length;
+        return [acc.name, acc.id, acc.phone || '-', myOrders.length, contractedCount, reviewCount, acc.isSuspended ? '이용 정지' : '정상'].map(escapeCsvCell).join(',');
+    });
+    const csv = '﻿' + [header, ...rows].join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `우리집안심중개_고객목록_${getLocalDateString()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_EXPORT', `[고객 관리] 매니저가 고객 ${clients.length}건을 CSV로 내보냄.`, 'INFO');
+    showToast(`고객 ${clients.length}건을 CSV로 내보냈습니다.`, 'success');
+}
+
 function recalculateKPIs() {
     let gmv = 0, escrow = 0, revenue = 0;
     const orders = window.AppState.orders || [];
@@ -2655,6 +2682,7 @@ window.setAdminSupportStatusFilter = setAdminSupportStatusFilter;
 window.setAdminPartnerMonitorStatusFilter = setAdminPartnerMonitorStatusFilter;
 window.exportLogsToCsv = exportLogsToCsv;
 window.exportPartnerListToCsv = exportPartnerListToCsv;
+window.exportClientListToCsv = exportClientListToCsv;
 window.replyToSupportTicket = replyToSupportTicket;
 window.sendAdminBroadcastNotification = sendAdminBroadcastNotification;
 window.renderAdminClientManager = renderAdminClientManager;
