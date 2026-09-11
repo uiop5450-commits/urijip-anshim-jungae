@@ -515,7 +515,7 @@ function switchAdminMode(mode) {
     else if (mode === 'community' && typeof renderAdminCommunityModeration === 'function') renderAdminCommunityModeration();
     else if (mode === 'support' && typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
     else if (mode === 'clients') renderAdminClientManager();
-    else if (mode === 'cancellations') { renderAdminContractCancellations(); renderAdminRefundPendingList(); }
+    else if (mode === 'cancellations') { renderAdminContractCancellations(); renderAdminRefundPendingList(); renderAdminStrikeAppeals(); }
     else if (mode === 'broadcast' && typeof updateAdminBroadcastSegmentUI === 'function') updateAdminBroadcastSegmentUI();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -3839,6 +3839,69 @@ function resetPartnerStrikes(partnerName) {
     renderAdminPartnerMonitor();
 }
 
+/* 파트너가 옐로카드/제명 조치에 이의신청을 제출할 수 있게 됐으니(cms.js의
+ * openStrikeAppealModal), 관리자 쪽에도 심사(승인/반려) 화면이 필요하다.
+ * approveContractCancellation과 동일한 제출→심사 패턴. */
+function renderAdminStrikeAppeals() {
+    const container = document.getElementById('admin-strike-appeals-list');
+    if (!container) return;
+    const pending = (window.AppState.partners || []).filter(p => p.strikeAppeal && p.strikeAppeal.status === 'pending');
+
+    if (pending.length === 0) {
+        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap" style="background:var(--emerald-50);color:var(--emerald-600)"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">현재 심사 대기 중인 이의신청이 없습니다.</p></div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = pending.map(p => `
+        <div class="surface p-5 space-y-3 text-left">
+            <div class="flex justify-between items-start gap-2">
+                <div class="space-y-1">
+                    <span class="badge badge-amber">이의신청 심사대기</span>
+                    <h4 class="text-sm font-black text-ink-950">${escapeHtml(p.name)} ${p.strikeAppeal.wasBanned ? '(영구 제명)' : `(옐로카드 ${p.strikeAppeal.strikeCountAtAppeal}회)`}</h4>
+                </div>
+            </div>
+            <div class="p-3 bg-ink-50 rounded-xl">
+                <p class="text-[10px] font-black text-ink-500 uppercase tracking-wider mb-1">이의신청 내용 (${p.strikeAppeal.date})</p>
+                <p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(p.strikeAppeal.reason)}</p>
+            </div>
+            <div class="flex items-center gap-2 justify-end pt-1">
+                <button type="button" onclick="openReportReasonPrompt((reason) => adminRejectStrikeAppeal('${escapeHtml(p.name)}', reason))" class="btn btn-secondary btn-sm">이의신청 반려</button>
+                <button type="button" onclick="adminApproveStrikeAppeal('${escapeHtml(p.name)}')" class="btn btn-dark btn-sm text-emeraldCustom">승인 (경고 취소)</button>
+            </div>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function adminApproveStrikeAppeal(partnerName) {
+    const partner = (window.AppState.partners || []).find(p => p.name === partnerName);
+    if (!partner || !partner.strikeAppeal || partner.strikeAppeal.status !== 'pending') return;
+    const wasBanned = partner.status === 'banned';
+    partner.strikeCount = Math.max(0, (partner.strikeCount || 0) - 1);
+    if (wasBanned && partner.strikeCount < 3) partner.status = 'active';
+    partner.strikeAppeal.status = 'approved';
+    partner.strikeAppeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE_APPEAL_APPROVE', `[이의신청 승인] '${partner.name}' 파트너의 이의신청을 승인하여 경고 1회를 취소했습니다.${wasBanned ? ' 제명도 해제되었습니다.' : ''} (현재 누적 ${partner.strikeCount}회)`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `이의신청이 승인되어 경고가 취소되었습니다.${wasBanned ? ' 제명도 해제되었습니다.' : ''} (현재 누적 ${partner.strikeCount}회)`);
+    showToast(`[${partnerName}] 이의신청을 승인했습니다.`, 'success');
+    renderAdminStrikeAppeals();
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
+function adminRejectStrikeAppeal(partnerName, reason) {
+    const partner = (window.AppState.partners || []).find(p => p.name === partnerName);
+    if (!partner || !partner.strikeAppeal || partner.strikeAppeal.status !== 'pending') return;
+    partner.strikeAppeal.status = 'rejected';
+    partner.strikeAppeal.adminResponse = reason;
+    partner.strikeAppeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE_APPEAL_REJECT', `[이의신청 반려] '${partner.name}' 파트너의 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast(`[${partnerName}] 이의신청을 반려했습니다.`, 'info');
+    renderAdminStrikeAppeals();
+}
+
 function togglePartnerCertification(partnerName) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
@@ -4566,6 +4629,9 @@ window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
 window.resetPartnerStrikes = resetPartnerStrikes;
 window.togglePartnerCertification = togglePartnerCertification;
+window.renderAdminStrikeAppeals = renderAdminStrikeAppeals;
+window.adminApproveStrikeAppeal = adminApproveStrikeAppeal;
+window.adminRejectStrikeAppeal = adminRejectStrikeAppeal;
 window.renderBlacklistDb = renderBlacklistDb;
 window.autoAllocateOrder = autoAllocateOrder;
 window.toggleSelectAllOrders = toggleSelectAllOrders;

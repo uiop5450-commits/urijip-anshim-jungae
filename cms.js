@@ -629,6 +629,67 @@ function togglePartnerNotificationPref() {
     renderPartnerNotificationPrefToggle(partner);
 }
 
+/* 관리자는 옐로카드(issuePartnerStrike)와 삼진아웃 영구 제명을 일방적으로 부여할 수
+ * 있지만, 파트너가 그 조치가 부당하다고 여겨도 이의를 제기할 방법이 전혀 없었다 —
+ * 계약 취소 요청(cancelRequest)과 동일한 제출→심사 패턴으로 소명 절차를 둔다. */
+function openStrikeAppealModal() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    if ((partner.strikeCount || 0) <= 0 && partner.status !== 'banned') { showToast('이의신청할 경고 기록이 없어요.', 'info'); return; }
+    if (partner.strikeAppeal && partner.strikeAppeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    safeUpdateValue('strike-appeal-reason-input', '');
+    openModal('strike-appeal-modal', 'strike-appeal-modal-card');
+}
+
+function closeStrikeAppealModal() {
+    closeModal('strike-appeal-modal', 'strike-appeal-modal-card');
+}
+
+function submitStrikeAppeal() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) { closeStrikeAppealModal(); return; }
+    const reason = document.getElementById('strike-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    partner.strikeAppeal = { reason, strikeCountAtAppeal: partner.strikeCount || 0, wasBanned: partner.status === 'banned', status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'STRIKE_APPEAL', `[${partnerName}]가 옐로카드/제명 조치에 대해 이의신청을 제출했습니다. (당시 누적 ${partner.strikeCount || 0}회)`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeStrikeAppealModal();
+    renderPartnerStrikeAppealStatus(partner);
+    if (typeof renderAdminStrikeAppeals === 'function') renderAdminStrikeAppeals();
+}
+
+function renderPartnerStrikeAppealStatus(partner) {
+    const container = document.getElementById('partner-strike-appeal-status');
+    if (!container) return;
+    const isBanned = partner.status === 'banned';
+    const hasStrikes = (partner.strikeCount || 0) > 0 || isBanned;
+    const appeal = partner.strikeAppeal;
+
+    if (!hasStrikes && !appeal) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">현재 경고 기록이 없습니다.</p>`;
+        return;
+    }
+    if (appeal && appeal.status === 'pending') {
+        container.innerHTML = `<div class="p-2.5 bg-amber-50 rounded-xl space-y-1"><p class="text-[10px] font-black text-amberCustom">이의신청 심사 대기중</p><p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${escapeHtml(appeal.reason)}</p></div>`;
+        return;
+    }
+    let resolvedHtml = '';
+    if (appeal && appeal.status !== 'pending') {
+        resolvedHtml = `<div class="p-2.5 ${appeal.status === 'approved' ? 'bg-emerald-50' : 'bg-ink-50'} rounded-xl space-y-1 mb-2">
+            <p class="text-[10px] font-black ${appeal.status === 'approved' ? 'text-emeraldCustom' : 'text-ink-500'}">이의신청 ${appeal.status === 'approved' ? '승인됨' : '반려됨'} (${appeal.resolvedDate || ''})</p>
+            ${appeal.adminResponse ? `<p class="text-[10px] text-ink-500 font-semibold leading-relaxed">매니저 답변: ${escapeHtml(appeal.adminResponse)}</p>` : ''}
+        </div>`;
+    }
+    container.innerHTML = hasStrikes
+        ? `${resolvedHtml}<button type="button" onclick="openStrikeAppealModal()" class="btn btn-secondary btn-sm">${isBanned ? '영구 제명' : '옐로카드'} 이의신청하기</button>`
+        : resolvedHtml;
+}
+
 function renderPartnerProfileManager() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -643,6 +704,7 @@ function renderPartnerProfileManager() {
     safeUpdateValue('partner-promo-text', partner.promoText || '');
     renderPartnerPauseToggle(partner);
     renderPartnerNotificationPrefToggle(partner);
+    renderPartnerStrikeAppealStatus(partner);
     safeUpdateText('partner-account-bizcert-filename', partner.bizCertDoc ? partner.bizCertDoc.name : '첨부된 사업자등록증이 없습니다.');
 
     const img = document.getElementById('partner-hero-slide-img');
@@ -1775,6 +1837,10 @@ window.updatePartnerRegion = updatePartnerRegion;
 window.updatePartnerBizFile = updatePartnerBizFile;
 window.togglePartnerPauseStatus = togglePartnerPauseStatus;
 window.renderPartnerNotificationPrefToggle = renderPartnerNotificationPrefToggle;
+window.openStrikeAppealModal = openStrikeAppealModal;
+window.closeStrikeAppealModal = closeStrikeAppealModal;
+window.submitStrikeAppeal = submitStrikeAppeal;
+window.renderPartnerStrikeAppealStatus = renderPartnerStrikeAppealStatus;
 window.togglePartnerNotificationPref = togglePartnerNotificationPref;
 window.updatePartnerPassword = updatePartnerPassword;
 window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;

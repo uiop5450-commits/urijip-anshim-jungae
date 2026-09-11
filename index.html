@@ -772,6 +772,14 @@
                         </div>
                     </div>
 
+                    <div class="surface surface-lg p-6 sm:p-8 space-y-3 text-left">
+                        <div>
+                            <h4 class="text-sm font-black text-ink-950 tracking-tight flex items-center gap-1.5"><i data-lucide="shield-alert" class="w-4 h-4 text-roseCustom"></i> 옐로카드/제명 이의신청</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">부당하다고 생각되는 옐로카드나 영구 제명에 대해 매니저 센터에 이의를 제기할 수 있어요.</p>
+                        </div>
+                        <div id="partner-strike-appeal-status"></div>
+                    </div>
+
                     <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-4">
                             <div>
@@ -1217,6 +1225,13 @@
                             <p class="text-[11px] text-ink-500 font-medium">계약 취소가 승인됐지만 파트너사가 이미 납부한 플랫폼 수수료가 있는 건이에요. 환불 처리를 완료하면 파트너사에 알림이 갑니다.</p>
                         </div>
                         <div id="admin-refund-pending-list" class="space-y-3"></div>
+                    </div>
+                    <div class="surface surface-lg p-6 space-y-5 text-left">
+                        <div class="border-b border-ink-100 pb-4 space-y-1">
+                            <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="shield-alert" class="w-4 h-4"></i> 옐로카드/제명 이의신청 심사</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">파트너사가 옐로카드 또는 삼진아웃 제명에 대해 제출한 이의신청이에요. 승인하면 경고가 취소(1회 차감)되고, 필요 시 제명도 해제됩니다.</p>
+                        </div>
+                        <div id="admin-strike-appeals-list" class="space-y-3"></div>
                     </div>
                 </div>
             </div>
@@ -1684,6 +1699,20 @@
                 <div><label class="field-label">새 계약 금액 (만원)</label><input type="number" id="partner-price-change-amount-input" min="1" class="input"></div>
                 <div><label class="field-label">변경 사유</label><textarea id="partner-price-change-reason-input" rows="3" placeholder="추가 공사, 자재 변경 등 금액 변경이 필요한 사유를 적어주세요." class="textarea"></textarea></div>
                 <button type="button" onclick="submitPartnerPriceChangeRequest()" class="btn btn-primary btn-block">변경 요청 보내기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="strike-appeal-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="strike-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">이의신청</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">옐로카드/제명 조치에 이의를 제기합니다</h3></div>
+                <button type="button" onclick="closeStrikeAppealModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">제출하시면 매니저 센터가 심사 후 경고 취소 또는 반려 여부를 안내해드려요.</p>
+                <div><label class="field-label">이의신청 내용</label><textarea id="strike-appeal-reason-input" rows="4" placeholder="어떤 조치가 부당한지, 소명할 내용을 자세히 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitStrikeAppeal()" class="btn btn-primary btn-block">이의신청 제출</button>
             </div>
         </div>
     </div>
