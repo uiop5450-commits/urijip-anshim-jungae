@@ -983,8 +983,12 @@ function openClientPartnerProfile(partnerName) {
                     <p class="text-xs text-ink-700 font-medium leading-relaxed line-clamp-3">${escapeHtml(rev.text)}</p>
                     ${photosHtml}
                     ${rev.reply && rev.reply.text ? `<div class="text-[10px] font-bold text-brand-600 flex items-center gap-1"><i data-lucide="reply" class="w-3 h-3"></i> 사장님 답글이 있어요</div>` : ''}
-                    <div class="flex justify-between items-center pt-2 border-t border-ink-100 text-[10px] text-ink-400 font-semibold">
-                        <span>작성일: ${rev.date}</span><span class="text-ink-800 font-extrabold group-hover:underline">자세히 보기 →</span>
+                    <div class="flex justify-between items-center pt-2 border-t border-ink-100 text-[10px] font-semibold">
+                        <span class="text-ink-400">작성일: ${rev.date}</span>
+                        <div class="flex items-center gap-3">
+                            <button type="button" onclick="event.stopPropagation(); toggleReviewHelpful('${partner.name}', ${revIdx})" class="flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 ${isReviewHelpfulByMe(rev) ? 'text-brand-600' : 'text-ink-400 hover:text-ink-700'}"><i data-lucide="thumbs-up" class="w-3 h-3"></i> 도움돼요 ${(rev.helpfulBy || []).length}</button>
+                            <span class="text-ink-800 font-extrabold group-hover:underline">자세히 보기 →</span>
+                        </div>
                     </div>`;
                 reviewsList.appendChild(cardEl);
             });
@@ -1037,7 +1041,39 @@ function openReviewDetailModal(partnerName, reviewIdx) {
         replyWrapper?.classList.add('hidden');
     }
 
+    const helpfulBtn = document.getElementById('review-detail-helpful-btn');
+    if (helpfulBtn) {
+        helpfulBtn.onclick = () => { toggleReviewHelpful(partnerName, reviewIdx); openReviewDetailModal(partnerName, reviewIdx); };
+        helpfulBtn.classList.toggle('btn-dark', isReviewHelpfulByMe(rev));
+        helpfulBtn.classList.toggle('btn-secondary', !isReviewHelpfulByMe(rev));
+    }
+    safeUpdateText('review-detail-helpful-label', `도움돼요 ${(rev.helpfulBy || []).length}`);
+
     openModal('review-detail-modal', 'review-detail-modal-card');
+}
+
+/* 후기가 많이 쌓이면 어떤 후기가 실제로 도움이 됐는지 알기 어렵다 — "도움돼요"
+ * 투표를 추가해 방문자가 신뢰할 만한 후기를 가려낼 수 있게 한다. 로그인한
+ * 고객 1인당 후기 1건에 1votes만 허용한다(rev.helpfulBy로 추적, 토글 가능). */
+function isReviewHelpfulByMe(rev) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return false;
+    return !!(rev.helpfulBy && rev.helpfulBy.includes(auth.id));
+}
+
+function toggleReviewHelpful(partnerName, reviewIdx) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) { showToast('로그인 후 이용할 수 있어요.', 'warning'); return; }
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const rev = partner && partner.reviews && partner.reviews[reviewIdx];
+    if (!rev) return;
+    if (!rev.helpfulBy) rev.helpfulBy = [];
+    const idx = rev.helpfulBy.indexOf(auth.id);
+    if (idx >= 0) rev.helpfulBy.splice(idx, 1);
+    else rev.helpfulBy.push(auth.id);
+    if (typeof window.openClientPartnerProfile === 'function' && !document.getElementById('client-partner-profile-modal')?.classList.contains('hidden')) {
+        window.openClientPartnerProfile(partnerName);
+    }
 }
 
 function closeReviewDetailModal() { closeModal('review-detail-modal', 'review-detail-modal-card'); }
@@ -1271,6 +1307,8 @@ window.prevPartnerHeroSlide = prevPartnerHeroSlide;
 window.jumpToPartnerHeroSlide = jumpToPartnerHeroSlide;
 window.deleteCurrentPartnerHeroSlide = deleteCurrentPartnerHeroSlide;
 window.openReviewDetailModal = openReviewDetailModal;
+window.toggleReviewHelpful = toggleReviewHelpful;
+window.isReviewHelpfulByMe = isReviewHelpfulByMe;
 window.closeReviewDetailModal = closeReviewDetailModal;
 window.renderPartnerMyReviews = renderPartnerMyReviews;
 window.updatePartnerPhone = updatePartnerPhone;
