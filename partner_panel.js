@@ -118,10 +118,18 @@ function buildPamphletCardHtml(evt, idx = 0, total = 1) {
         <span class="absolute bottom-4 right-4 sm:bottom-5 sm:right-5 z-10 text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-black/35 backdrop-blur-md text-white border border-white/20">${idx + 1} / ${total}</span>`;
 }
 
+/* 종료일이 지난 팜플렛은 관리자 목록에는 계속 보여야 하지만(이력 확인용),
+ * 홈 화면 슬라이더에는 더 이상 노출되면 안 된다 — 홈 슬라이더/좌우 이동
+ * 세 곳(renderHomeEventSlider, nextHomeEvent, prevHomeEvent)이 전부 이 목록
+ * 하나만 기준으로 인덱싱해야 currentHomeEventIndex가 어긋나지 않는다. */
+function getVisiblePamphlets() {
+    return (window.AppState.pamphlets || []).filter(evt => !isPamphletExpired(evt));
+}
+
 function renderHomeEventSlider(direction) {
     const container = document.getElementById('home-event-slider-container');
     if (!container) return;
-    const pamphlets = window.AppState.pamphlets || [];
+    const pamphlets = getVisiblePamphlets();
     if (typeof window.AppState.currentHomeEventIndex !== 'number' || window.AppState.currentHomeEventIndex >= pamphlets.length) {
         window.AppState.currentHomeEventIndex = 0;
     }
@@ -172,8 +180,8 @@ function openPamphletDetail(pamphletId) {
     openModal('pamphlet-detail-modal', 'pamphlet-detail-modal-card');
 }
 function closePamphletDetail() { closeModal('pamphlet-detail-modal', 'pamphlet-detail-modal-card'); }
-function nextHomeEvent(e) { if (e) e.stopPropagation(); const total = (window.AppState.pamphlets || []).length || 1; const current = window.AppState.currentHomeEventIndex || 0; window.AppState.currentHomeEventIndex = (current + 1) % total; renderHomeEventSlider('next'); }
-function prevHomeEvent(e) { if (e) e.stopPropagation(); const total = (window.AppState.pamphlets || []).length || 1; const current = window.AppState.currentHomeEventIndex || 0; window.AppState.currentHomeEventIndex = (current - 1 + total) % total; renderHomeEventSlider('prev'); }
+function nextHomeEvent(e) { if (e) e.stopPropagation(); const total = getVisiblePamphlets().length || 1; const current = window.AppState.currentHomeEventIndex || 0; window.AppState.currentHomeEventIndex = (current + 1) % total; renderHomeEventSlider('next'); }
+function prevHomeEvent(e) { if (e) e.stopPropagation(); const total = getVisiblePamphlets().length || 1; const current = window.AppState.currentHomeEventIndex || 0; window.AppState.currentHomeEventIndex = (current - 1 + total) % total; renderHomeEventSlider('prev'); }
 
 /* ----------------------------------------------------------------
  * 홈 히어로 슬라이더 / 이벤트 배너 자동 전환
@@ -2663,6 +2671,13 @@ function renderAdminHeroFeaturedList() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+/* 팜플렛/이벤트는 지금까지 종료일 개념이 없어서 관리자가 직접 지우기 전까지
+ * 영원히 노출됐다 — 프로모션은 보통 기간이 정해져 있는데, 끝난 이벤트를
+ * 수동으로 매번 지워야 했던 공백을 해소한다. endDate가 없으면 계속 노출된다. */
+function isPamphletExpired(evt) {
+    return !!(evt.endDate && evt.endDate < getLocalDateString());
+}
+
 function renderAdminPamphletList() {
     const container = document.getElementById('admin-pamphlet-list');
     if (!container) return;
@@ -2673,10 +2688,13 @@ function renderAdminPamphletList() {
         return;
     }
     container.innerHTML = pamphlets.map((evt, idx) => `
-        <div class="flex items-center gap-3 p-3 surface-flat">
+        <div class="flex items-center gap-3 p-3 surface-flat ${isPamphletExpired(evt) ? 'opacity-60' : ''}">
             <div class="w-14 h-14 rounded-xl overflow-hidden shrink-0 flex items-center justify-center bg-ink-100">${evt.img ? `<img src="${evt.img}" class="w-full h-full object-cover">` : `<i data-lucide="image-plus" class="w-4 h-4 text-ink-300"></i>`}</div>
             <div class="min-w-0 flex-1">
-                <p class="text-xs font-black text-ink-950 truncate">${evt.title || '(제목 없음)'}</p>
+                <div class="flex items-center gap-1.5">
+                    <p class="text-xs font-black text-ink-950 truncate">${evt.title || '(제목 없음)'}</p>
+                    ${isPamphletExpired(evt) ? '<span class="badge badge-neutral shrink-0">종료됨</span>' : evt.endDate ? `<span class="badge badge-amber shrink-0">~${evt.endDate}</span>` : ''}
+                </div>
                 <p class="text-[11px] text-ink-500 font-medium truncate">${evt.detail || evt.sub || ''}</p>
             </div>
             <div class="flex items-center gap-1 shrink-0">
@@ -2714,6 +2732,7 @@ function openPamphletEditor(pamphletId) {
     const evt = isEdit ? (window.AppState.pamphlets || []).find(e => e.id === pamphletId) : null;
     safeUpdateValue('pamphlet-form-title', evt ? evt.title : '');
     safeUpdateValue('pamphlet-form-detail', evt ? (evt.detail || evt.sub || '') : '');
+    safeUpdateValue('pamphlet-form-enddate', evt ? (evt.endDate || '') : '');
 
     _pamphletDraftImg = evt ? (evt.img || '') : '';
     _pamphletDraftDetailImg = evt ? (evt.detailImg || '') : '';
@@ -2812,11 +2831,13 @@ function removePamphletDetailDraftImage() {
 function savePamphlet() {
     const title = (document.getElementById('pamphlet-form-title')?.value || '').trim();
     const detail = (document.getElementById('pamphlet-form-detail')?.value || '').trim();
+    const endDate = (document.getElementById('pamphlet-form-enddate')?.value || '') || null;
     const img = _pamphletDraftImg || '';
     const detailImg = _pamphletDraftDetailImg || '';
 
     if (!img) { showToast('광고판 이미지를 업로드해 주세요.', 'warning'); return; }
     if (!title) { showToast('제목을 입력해 주세요.', 'warning'); return; }
+    if (endDate && endDate < getLocalDateString()) { showToast('노출 종료일은 오늘 이후 날짜로 설정해 주세요.', 'warning'); return; }
 
     const pamphlets = window.AppState.pamphlets || (window.AppState.pamphlets = []);
     const editingId = window.AppState.editingPamphletId;
@@ -2824,12 +2845,12 @@ function savePamphlet() {
     if (editingId) {
         const idx = pamphlets.findIndex(e => e.id === editingId);
         if (idx > -1) {
-            pamphlets[idx] = { ...pamphlets[idx], title, detail, img, detailImg };
+            pamphlets[idx] = { ...pamphlets[idx], title, detail, img, detailImg, endDate };
         }
         showToast('팜플렛을 수정했습니다.', 'success');
         if (typeof pushLog === 'function') pushLog('MANAGER', 'DISPLAY', `[팜플렛] '${title}' 이벤트 팜플렛 수정.`, 'INFO');
     } else {
-        pamphlets.push({ id: `pamphlet-${Date.now()}`, title, detail, img, detailImg });
+        pamphlets.push({ id: `pamphlet-${Date.now()}`, title, detail, img, detailImg, endDate });
         showToast('새 팜플렛을 등록했습니다.', 'success');
         if (typeof pushLog === 'function') pushLog('MANAGER', 'DISPLAY', `[팜플렛] '${title}' 이벤트 팜플렛 신규 등록.`, 'SUCCESS');
     }
