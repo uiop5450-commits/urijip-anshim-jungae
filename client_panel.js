@@ -628,7 +628,12 @@ function clientFinalizeContract(orderCode, partnerName, finalPrice) {
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'CONTRACT', `${maskName(order.clientName)} 고객님이 [${partnerName}]와 계약 합의서에 서명함.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}와 계약이 체결됐어요. (의뢰 코드: ${orderCode})`);
-    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `고객님과 계약이 체결됐어요! (의뢰 코드: ${orderCode}, 계약금액 ₩ ${finalPrice.toLocaleString()}만원)`);
+    if (typeof pushPartnerNotification === 'function') {
+        pushPartnerNotification(partnerName, `고객님과 계약이 체결됐어요! (의뢰 코드: ${orderCode}, 계약금액 ₩ ${finalPrice.toLocaleString()}만원)`);
+        // 낙찰되지 않은 다른 입찰 참여사는 지금까지 아무 알림도 못 받고, 오더 상세를
+        // 다시 열어봐야만 "다른 파트너사와 계약 체결됨"을 우연히 확인할 수 있었다.
+        (order.bids || []).filter(b => b.partner !== partnerName).forEach(b => pushPartnerNotification(b.partner, `오더(${orderCode})가 다른 파트너사와 계약 체결되어 매칭이 마감됐어요.`));
+    }
     showToast(`${partnerName}와 시공 계약 합의 체결 완료!`, 'success');
 }
 
