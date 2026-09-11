@@ -2099,12 +2099,42 @@ function sendAdminBroadcastNotification() {
  * 풍부한데, 고객 계정 목록을 한눈에 조회할 방법이 전혀 없었다(전화로 문의가 와도
  * 오더 코드를 모르면 검색조차 불가능). 고객별 의뢰/계약/후기 통계를 모아 보여주고,
  * 이미 있는 통합 오더 조회창(searchOrderLookup)으로 바로 넘겨준다. */
+/* 파트너 모니터링에는 상태별 필터 탭이 있는데(renderAdminPartnerMonitor), 파트너
+ * 신고가 쌓이는 '고객 관리' 탭은 자유 검색만 있어서 신고/정지 계정만 모아 보며
+ * 트리아지할 방법이 없었다 — 동일한 필터 탭 패턴을 적용한다. */
+let adminClientStatusFilter = 'all';
+
+function setAdminClientStatusFilter(key) {
+    adminClientStatusFilter = key;
+    renderAdminClientManager();
+}
+
 function renderAdminClientManager() {
     const container = document.getElementById('admin-client-manager-list');
     if (!container) return;
     const query = (document.getElementById('admin-client-search-input')?.value || '').trim().toLowerCase();
 
-    const clients = (window.AppState.clientAccounts || []).filter(a => !a.managerRole);
+    const allClients = (window.AppState.clientAccounts || []).filter(a => !a.managerRole);
+    const reportedCount = allClients.filter(a => (window.AppState.clientReports || []).some(r => r.clientPhone === a.phone)).length;
+    const suspendedCount = allClients.filter(a => a.isSuspended).length;
+
+    const tabsEl = document.getElementById('admin-client-status-tabs');
+    if (tabsEl) {
+        const statusTabs = [
+            ['all', '전체', allClients.length],
+            ['reported', '신고됨', reportedCount],
+            ['suspended', '이용 정지', suspendedCount]
+        ];
+        tabsEl.innerHTML = statusTabs.map(([key, label, count]) =>
+            `<button type="button" onclick="setAdminClientStatusFilter('${key}')" class="gnb-tab ${adminClientStatusFilter === key ? 'active' : ''}">${label} (${count})</button>`
+        ).join('');
+    }
+
+    const clients = adminClientStatusFilter === 'reported'
+        ? allClients.filter(a => (window.AppState.clientReports || []).some(r => r.clientPhone === a.phone))
+        : adminClientStatusFilter === 'suspended'
+            ? allClients.filter(a => a.isSuspended)
+            : allClients;
     const filtered = clients.filter(a =>
         !query || a.name.toLowerCase().includes(query) || a.id.toLowerCase().includes(query) || (a.phone && a.phone.includes(query))
     );
@@ -3483,6 +3513,7 @@ window.exportPartnerPerformanceCsv = exportPartnerPerformanceCsv;
 window.closePartnerMetricsModal = closePartnerMetricsModal;
 window.adminDeleteReview = adminDeleteReview;
 window.adminDeletePortfolio = adminDeletePortfolio;
+window.setAdminClientStatusFilter = setAdminClientStatusFilter;
 window.downloadContractDoc = downloadContractDoc;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
