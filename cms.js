@@ -1420,6 +1420,7 @@ function openPortfolioBlogDetail(partnerName, idx) {
     if (reportBtn) { const reported = isPortfolioReportedByMe(port); reportBtn.classList.toggle('text-roseCustom', reported); reportBtn.title = reported ? '신고 완료' : '시공사례 신고'; }
     const saveBtn = document.getElementById('blog-modal-save-btn');
     if (saveBtn) { const saved = isPortfolioSaved(partnerName, idx); saveBtn.classList.toggle('text-brand-600', saved); saveBtn.title = saved ? '저장됨' : '시공사례 저장'; saveBtn.onclick = () => toggleSavePortfolio(partnerName, idx); }
+    renderPortfolioQnaSection(partnerName, idx);
 
     const ctaBtn = document.getElementById('blog-modal-cta-btn');
     if (ctaBtn) ctaBtn.onclick = () => requestDirectQuoteFromPortfolio(partnerName, idx);
@@ -1460,6 +1461,81 @@ function openPortfolioBlogDetail(partnerName, idx) {
 }
 
 function closePortfolioBlogDetail() { closeModal('portfolio-blog-modal', 'portfolio-blog-modal-card'); _blogDetailContext = { partnerName: null, idx: null }; }
+
+/* 계약 전 입찰 문의(openBidQuestionModal/submitBidQuestion, client_panel.js)는
+ * 이미 매칭된 오더 안에서만 동작해, 아직 오더를 넣기 전 "탐색 중" 단계에서 특정
+ * 시공사례를 보고 궁금한 점을 물어볼 방법이 없었다 — 동일한 질문/답변 패턴을
+ * 시공사례 하나(id 기반, 재정렬에도 안전)에 적용한다. */
+function renderPortfolioQnaSection(partnerName, idx) {
+    const container = document.getElementById('blog-modal-qna-section');
+    if (!container) return;
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const port = partner && partner.portfolios && partner.portfolios[idx];
+    if (!port) return;
+    const questions = port.questions || [];
+    const isOwnerPartnerView = window.AppState.partnerLoggedIn && window.AppState.partnerName === partnerName;
+
+    const listHtml = questions.length > 0 ? questions.map((q, qIdx) => `
+        <div class="p-3 bg-ink-50 rounded-xl space-y-1.5">
+            <p class="text-xs text-ink-700 font-semibold leading-relaxed"><i data-lucide="help-circle" class="w-3 h-3 inline text-ink-400"></i> ${escapeHtml(q.text)} <span class="text-[10px] text-ink-400 font-bold">(${q.date})</span></p>
+            ${q.reply
+                ? `<p class="text-xs text-brand-700 font-semibold leading-relaxed pl-4"><i data-lucide="reply" class="w-3 h-3 inline"></i> ${escapeHtml(q.reply)}</p>`
+                : isOwnerPartnerView
+                    ? `<div class="flex gap-1.5 pl-4"><input type="text" id="portfolio-qna-reply-input-${idx}-${qIdx}" placeholder="답변을 입력하세요" class="input flex-1 text-xs"><button type="button" onclick="replyToPortfolioQuestion('${escapeHtml(partnerName)}', ${idx}, ${qIdx})" class="btn btn-dark btn-sm shrink-0">답변</button></div>`
+                    : `<p class="text-[10px] text-ink-400 font-bold pl-4">답변 대기중</p>`}
+        </div>`).join('') : `<p class="text-xs text-ink-400 font-bold text-center py-3">아직 등록된 문의가 없습니다.</p>`;
+
+    const composeHtml = !isOwnerPartnerView ? `
+        <div class="flex gap-1.5 pt-1">
+            <input type="text" id="portfolio-question-input-${idx}" placeholder="이 시공사례에 대해 궁금한 점을 물어보세요" class="input flex-1 text-xs">
+            <button type="button" onclick="submitPortfolioQuestion('${escapeHtml(partnerName)}', ${idx})" class="btn btn-dark btn-sm shrink-0">문의하기</button>
+        </div>` : '';
+
+    container.innerHTML = `
+        <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5"><i data-lucide="message-circle-question" class="w-4 h-4 text-brand-500"></i> 시공사례 문의 ${questions.length}건</h5>
+        <div class="space-y-2">${listHtml}</div>
+        ${composeHtml}`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function submitPortfolioQuestion(partnerName, idx) {
+    if (!requireClientLoginForCommunity()) return;
+    const auth = window.AppState.clientAuth;
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const port = partner && partner.portfolios && partner.portfolios[idx];
+    if (!port) return;
+
+    const input = document.getElementById(`portfolio-question-input-${idx}`);
+    const text = input ? input.value.trim() : '';
+    if (!text) { showToast('문의 내용을 입력해 주세요.', 'warning'); return; }
+
+    if (!port.questions) port.questions = [];
+    port.questions.push({ text, authorId: auth.id, authorPhone: auth.phone, date: getLocalDateString(), reply: null, replyDate: null });
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PORTFOLIO_QUESTION', `'${auth.name}' 고객님이 [${partnerName}]의 시공사례(${port.title || '-'})에 문의를 남겼습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `시공사례(${port.title || '-'})에 대해 고객님이 문의를 남겼어요: "${text}"`);
+    showToast('문의를 보냈습니다. 답변이 도착하면 알려드릴게요.', 'success');
+    renderPortfolioQnaSection(partnerName, idx);
+}
+
+function replyToPortfolioQuestion(partnerName, idx, questionIdx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const port = partner && partner.portfolios && partner.portfolios[idx];
+    const question = port && port.questions && port.questions[questionIdx];
+    if (!question) return;
+
+    const input = document.getElementById(`portfolio-qna-reply-input-${idx}-${questionIdx}`);
+    const reply = input ? input.value.trim() : '';
+    if (!reply) { showToast('답변 내용을 입력해 주세요.', 'warning'); return; }
+
+    question.reply = reply;
+    question.replyDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PORTFOLIO_QUESTION_REPLY', `[${partnerName}]가 시공사례(${port.title || '-'}) 문의에 답변했습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function' && question.authorPhone) pushClientNotification(question.authorPhone, `문의하신 시공사례(${port.title || '-'})에 답변이 도착했어요.`);
+    showToast('답변이 등록되었습니다.', 'success');
+    renderPortfolioQnaSection(partnerName, idx);
+}
 
 function renderBlogLikeButton(count) {
     const btn = document.getElementById('blog-modal-like-btn');
@@ -1640,6 +1716,9 @@ window.isReviewReportedByMe = isReviewReportedByMe;
 window.reportPortfolio = reportPortfolio;
 window.isPortfolioReportedByMe = isPortfolioReportedByMe;
 window.isPortfolioSaved = isPortfolioSaved;
+window.renderPortfolioQnaSection = renderPortfolioQnaSection;
+window.submitPortfolioQuestion = submitPortfolioQuestion;
+window.replyToPortfolioQuestion = replyToPortfolioQuestion;
 window.toggleSavePortfolio = toggleSavePortfolio;
 window.renderClientSavedPortfolios = renderClientSavedPortfolios;
 window.closeReviewDetailModal = closeReviewDetailModal;
