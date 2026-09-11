@@ -3216,6 +3216,7 @@ function sweepExpiredManagerRoles() {
         if (a.managerRole && a.managerRoleExpiresAt && a.managerRoleExpiresAt < today) {
             const roleLabel = a.managerRole === 'super_admin' ? '최고관리자' : '파트너 매니저';
             if (typeof pushLog === 'function') pushLog('MANAGER', 'STAFF_EXPIRE', `'${a.name}'(${a.id})의 ${roleLabel} 권한이 만료일(${a.managerRoleExpiresAt})을 지나 자동 회수되었습니다.`, 'WARNING');
+            if (typeof pushClientNotification === 'function' && a.phone) pushClientNotification(a.phone, `${roleLabel} 권한 만료일이 지나 권한이 자동 회수되었습니다.`);
             a.managerRole = null;
             a.managerRoleExpiresAt = null;
         }
@@ -3261,6 +3262,7 @@ function grantManagerRole(clientId, role) {
     account.managerRoleExpiresAt = expiresAt || null;
     const roleLabel = role === 'super_admin' ? '최고관리자' : '파트너 매니저';
     if (typeof pushLog === 'function') pushLog('MANAGER', 'STAFF_GRANT', `'${account.name}'(${account.id}) 계정에 ${roleLabel} 권한을 부여했습니다.${expiresAt ? ` (만료일: ${expiresAt})` : ' (상시 권한)'}`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `${roleLabel} 권한이 부여되었습니다.${expiresAt ? ` (만료일: ${expiresAt})` : ''}`);
     showToast(`[${account.name}]님에게 ${roleLabel} 권한을 부여했습니다.${expiresAt ? ` (${expiresAt}까지)` : ''}`, 'success');
     searchClientForManagerGrant();
     renderAdminStaffGrantedList();
@@ -3269,9 +3271,11 @@ function grantManagerRole(clientId, role) {
 function revokeManagerRole(clientId) {
     const account = (window.AppState.clientAccounts || []).find(a => a.id === clientId);
     if (!account) return;
+    const roleLabel = account.managerRole === 'super_admin' ? '최고관리자' : '파트너 매니저';
     account.managerRole = null;
     account.managerRoleExpiresAt = null;
     if (typeof pushLog === 'function') pushLog('MANAGER', 'STAFF_REVOKE', `'${account.name}'(${account.id}) 계정의 매니저 권한을 회수했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `${roleLabel} 권한이 회수되었습니다.`);
     showToast(`[${account.name}]님의 매니저 권한을 회수했습니다.`, 'info');
     searchClientForManagerGrant();
     renderAdminStaffGrantedList();
