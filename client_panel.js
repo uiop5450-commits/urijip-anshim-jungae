@@ -1129,6 +1129,11 @@ function deleteCommunityComment(postId, commentIndex) {
     if (!post || !post.comments || !post.comments[commentIndex]) return;
     if (post.comments[commentIndex].authorId !== auth.id) return;
     post.comments.splice(commentIndex, 1);
+    // openReplyBoxKeys는 '게시글id-댓글인덱스'로 답글창 열림 상태를 기억하는데, 댓글이 하나
+    // 지워지면 뒤에 있던 댓글들의 인덱스가 한 칸씩 앞으로 밀린다. 이 상태를 그대로 두면
+    // 엉뚱한(밀려난) 댓글에 답글창이 열려있는 것처럼 보일 수 있어, 이 글의 답글창 열림
+    // 상태를 전부 초기화한다.
+    Array.from(openReplyBoxKeys).forEach(key => { if (key.startsWith(`${postId}-`)) openReplyBoxKeys.delete(key); });
     showToast('댓글을 삭제했습니다.', 'info');
     openCommunityDetail(postId);
 }
