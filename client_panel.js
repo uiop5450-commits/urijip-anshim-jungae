@@ -329,6 +329,11 @@ function cancelPartnerBid(orderCode, partnerName) {
 function clientFinalizeContract(orderCode, partnerName, finalPrice) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return;
+    const partnerInfo = window.AppState.partners.find(p => p.name === partnerName);
+    if (partnerInfo && partnerInfo.status === 'banned') {
+        showToast(`[${partnerName}] 파트너사는 삼진아웃으로 영구 제명되어 계약을 체결할 수 없어요. 매칭취소 후 다른 파트너사를 이용해 주세요.`, 'warning');
+        return;
+    }
     order.status = 'contracted';
     order.acceptedPartner = partnerName;
     order.finalPrice = finalPrice;
@@ -755,13 +760,18 @@ function renderMyPageEstimateDetails(order) {
             const isContracted = order.status === 'contracted' && order.acceptedPartner === bid.partner;
             const partnerInfo = window.AppState.partners.find(p => p.name === bid.partner);
             const ratingVal = partnerInfo ? partnerInfo.rating.toFixed(1) : "5.0";
+            // 입찰 당시엔 정상이었더라도 그 이후 삼진아웃으로 영구 제명될 수 있다 — '안심'
+            // 중개 플랫폼인데 제명된 파트너와 계약을 체결할 수 있으면 블랙리스트 정책이
+            // 무의미해지므로, 제명된 파트너의 입찰은 계약 체결을 막고 매칭취소만 유도한다.
+            const isBannedBid = partnerInfo && partnerInfo.status === 'banned';
 
             bidsHtml += `
-                <div class="p-4 rounded-2xl border ${isContracted ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : 'border-ink-100 bg-ink-50/70'} text-left space-y-3">
+                <div class="p-4 rounded-2xl border ${isContracted ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : (isBannedBid ? 'border-rose-200 bg-rose-50/40' : 'border-ink-100 bg-ink-50/70')} text-left space-y-3">
                     <div class="flex justify-between items-center text-xs">
                         <div class="flex items-center gap-2">
                             <span class="font-black text-ink-950 cursor-pointer hover:underline" onclick="openPartnerPortfolioModal('${bid.partner}')">${escapeHtml(bid.partner)}</span>
                             <span class="text-gold-500 font-extrabold text-xs">★ ${ratingVal}</span>
+                            ${isBannedBid ? `<span class="badge badge-rose">영구 제명</span>` : ''}
                         </div>
                         <span class="font-black text-ink-950 text-sm">₩ ${bid.price.toLocaleString()} 만원</span>
                     </div>
@@ -770,12 +780,17 @@ function renderMyPageEstimateDetails(order) {
                         <button type="button" onclick="openPartnerPortfolioModal('${bid.partner}')" class="btn btn-ghost btn-sm px-0"><i data-lucide="palette" class="w-3.5 h-3.5"></i> 시공 포트폴리오 및 후기</button>
                         ${order.status === 'contracted' ? (isContracted ? `
                             <span class="badge badge-emerald">✓ 안심 계약 체결사</span>
-                        ` : `<span class="text-[10px] font-bold text-ink-400">계약 마감</span>`) : `
+                        ` : `<span class="text-[10px] font-bold text-ink-400">계약 마감</span>`) : (isBannedBid ? `
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[10px] font-bold text-roseCustom">삼진아웃으로 제명되어 계약할 수 없어요</span>
+                                <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}')" class="btn btn-secondary btn-sm">매칭취소</button>
+                            </div>
+                        ` : `
                             <div class="flex items-center gap-1.5">
                                 <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}')" class="btn btn-secondary btn-sm">매칭취소</button>
                                 <button type="button" onclick="clientFinalizeContract('${order.code}', '${bid.partner}', ${bid.price})" class="btn btn-dark btn-sm">이 파트너와 계약 체결하기</button>
                             </div>
-                        `}
+                        `)}
                     </div>
                 </div>`;
         });
