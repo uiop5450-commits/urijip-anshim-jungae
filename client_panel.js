@@ -500,10 +500,17 @@ function saveOrderBudgetEdit() {
     order.budget = newBudget;
 
     const biddingPartners = (order.bids || []).map(b => b.partner);
+    // 이미 입찰한 파트너에게만 알림이 갔는데, 아직 입찰 전이라도 관심 오더로 찜해둔
+    // 파트너(favoriteOrders)는 바뀐 조건을 보고 입찰 여부를 다시 판단해야 하므로
+    // 똑같이 알려야 한다 — 중복 알림 방지를 위해 이미 입찰한 파트너는 제외한다.
+    const favoritedNotBidding = (window.AppState.partners || [])
+        .filter(p => (p.favoriteOrders || []).includes(order.code) && !biddingPartners.includes(p.name))
+        .map(p => p.name);
     const changeSummary = changedLabels.join(', ');
     if (typeof pushLog === 'function') pushLog('CLIENT', 'EDIT_ORDER_BUDGET', `[${order.clientName}] 고객님이 의뢰(${order.code})의 상세정보(${changeSummary})를 수정했습니다.`, 'INFO');
     if (typeof pushPartnerNotification === 'function') {
         biddingPartners.forEach(partnerName => pushPartnerNotification(partnerName, `고객님이 오더(${order.code})의 상세정보(${changeSummary})를 수정했어요.`));
+        favoritedNotBidding.forEach(partnerName => pushPartnerNotification(partnerName, `찜해두신 오더(${order.code})의 상세정보(${changeSummary})가 변경됐어요.`));
     }
     showToast('의뢰 상세정보가 수정되었습니다.', 'success');
 
