@@ -778,6 +778,24 @@
 
                     <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
                         <div class="space-y-4">
+                            <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="map-pin" class="w-4 h-4 text-brand-500"></i> 사업 정보 수정</h4>
+                            <div><label class="field-label">활동 지역 (부산)</label>
+                                <select id="partner-account-edit-region" class="input">
+                                    <option value="">지역 선택 안 함</option>
+                                    <option value="강서구">강서구</option><option value="금정구">금정구</option><option value="기장군">기장군</option>
+                                    <option value="남구">남구</option><option value="동구">동구</option><option value="동래구">동래구</option>
+                                    <option value="부산진구">부산진구</option><option value="북구">북구</option><option value="사상구">사상구</option>
+                                    <option value="사하구">사하구</option><option value="서구">서구</option><option value="수영구">수영구</option>
+                                    <option value="연제구">연제구</option><option value="영도구">영도구</option><option value="중구">중구</option>
+                                    <option value="해운대구">해운대구</option>
+                                </select>
+                            </div>
+                            <button type="button" onclick="updatePartnerRegion()" class="btn btn-secondary btn-sm">지역 저장</button>
+                            <div class="pt-2"><label class="field-label">사업자등록번호</label><input type="text" id="partner-account-edit-bizfile" placeholder="000-00-00000" class="input"></div>
+                            <p class="text-[10px] text-ink-400 font-semibold leading-relaxed">사업자등록번호를 변경하면 매니저 센터에 변경 이력이 기록됩니다.</p>
+                            <button type="button" onclick="updatePartnerBizFile()" class="btn btn-secondary btn-sm">사업자등록번호 저장</button>
+                        </div>
+                        <div class="space-y-4 pt-2">
                             <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="phone" class="w-4 h-4 text-brand-500"></i> 담당자 연락처 수정</h4>
                             <div><label class="field-label">담당자 연락처</label><input type="text" id="partner-account-edit-phone" oninput="handlePhoneInput(this)" placeholder="010-0000-0000" class="input"></div>
                             <button type="button" onclick="updatePartnerPhone()" class="btn btn-primary">연락처 저장</button>

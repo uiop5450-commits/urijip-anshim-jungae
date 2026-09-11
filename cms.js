@@ -622,6 +622,8 @@ function renderPartnerProfileManager() {
     }
 
     renderPartnerMyReviews(partner);
+    safeUpdateValue('partner-account-edit-region', partner.region || '');
+    safeUpdateValue('partner-account-edit-bizfile', partner.bizFile || '');
     safeUpdateValue('partner-account-edit-phone', partner.phone || '');
     safeUpdateValue('partner-account-edit-current-pw', '');
     safeUpdateValue('partner-account-edit-new-pw', '');
@@ -632,6 +634,39 @@ function renderPartnerProfileManager() {
  * 연락처나 비밀번호를 바꿀 방법이 없었다(업체명/아이디는 여러 화면에서 식별자로
  * 쓰이므로 의도적으로 수정 불가 상태 유지). 고객 계정 정보 수정(updateClientProfileInfo/
  * updateClientPassword)과 동일한 검증 패턴을 그대로 따른다. */
+
+/* 가입 시 활동 지역을 입력받지 않아서(파트너 가입 폼에 지역 필드 자체가 없음),
+ * 신규 가입 파트너는 region이 계속 비어있어 지역별 검색/필터(고객 탐색 페이지,
+ * 관리자 모니터링 보드 모두)에 영원히 노출되지 않는 공백이 있었다 — 계정 설정에서
+ * 직접 지정/수정할 수 있게 한다. */
+function updatePartnerRegion() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    const regionVal = document.getElementById('partner-account-edit-region')?.value || '';
+    partner.region = regionVal || null;
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PROFILE_UPDATE', `[${partnerName}]가 활동 지역을 '${regionVal || '미지정'}'으로 설정했습니다.`, 'INFO');
+    showToast('활동 지역이 저장되었습니다.', 'success');
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
+function updatePartnerBizFile() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    const bizFileVal = document.getElementById('partner-account-edit-bizfile')?.value.trim();
+    if (!bizFileVal || bizFileVal.replace(/[^0-9]/g, '').length !== 10) { showToast('사업자등록번호 10자리를 올바르게 입력해 주세요. (예: 000-00-00000)', 'warning'); return; }
+    if (window.AppState.partners.some(p => p !== partner && p.bizFile === bizFileVal)) { showToast('이미 등록된 사업자등록번호입니다.', 'warning'); return; }
+    if (bizFileVal === partner.bizFile) return;
+
+    const oldBizFile = partner.bizFile;
+    partner.bizFile = bizFileVal;
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'BIZFILE_UPDATE', `[${partnerName}]가 사업자등록번호를 변경했습니다. (${oldBizFile || '없음'} → ${bizFileVal})`, 'WARNING');
+    showToast('사업자등록번호가 변경되었습니다.', 'success');
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
 function updatePartnerPhone() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -1363,6 +1398,8 @@ window.isReviewHelpfulByMe = isReviewHelpfulByMe;
 window.closeReviewDetailModal = closeReviewDetailModal;
 window.renderPartnerMyReviews = renderPartnerMyReviews;
 window.updatePartnerPhone = updatePartnerPhone;
+window.updatePartnerRegion = updatePartnerRegion;
+window.updatePartnerBizFile = updatePartnerBizFile;
 window.togglePartnerPauseStatus = togglePartnerPauseStatus;
 window.updatePartnerPassword = updatePartnerPassword;
 window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;
