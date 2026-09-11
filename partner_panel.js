@@ -2417,9 +2417,10 @@ function renderPartnerPerformanceView() {
 
     container.innerHTML = `
         <div class="surface surface-lg p-6 sm:p-8 space-y-5 text-left">
-            <div class="border-b border-ink-100 pb-4">
-                <span class="badge badge-brand">경영 지표</span>
-                <h4 class="text-sm sm:text-base font-black text-ink-950 tracking-tight mt-1 flex items-center gap-1.5"><i data-lucide="bar-chart-2" class="w-4 h-4 text-brand-500"></i> 내 실적 요약</h4>
+            <div class="border-b border-ink-100 pb-4 flex flex-wrap justify-between items-center gap-2">
+                <div><span class="badge badge-brand">경영 지표</span>
+                <h4 class="text-sm sm:text-base font-black text-ink-950 tracking-tight mt-1 flex items-center gap-1.5"><i data-lucide="bar-chart-2" class="w-4 h-4 text-brand-500"></i> 내 실적 요약</h4></div>
+                <button type="button" onclick="exportPartnerPerformanceCsv()" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV로 내보내기</button>
             </div>
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div class="article-spec-chip"><span>참여 입찰 오더</span><span class="val">${participatedCount} 건</span></div>
@@ -2436,6 +2437,34 @@ function renderPartnerPerformanceView() {
             </div>
         </div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 관리자 쪽에는 고객/파트너/로그 CSV 내보내기가 다 있는데, 파트너 본인의 "내 실적"은
+ * 화면으로만 볼 수 있고 엑셀 등으로 내려받아 세무·정산 자료로 보관할 방법이 없었다 —
+ * 동일한 exportXToCsv 패턴을 재사용한다. */
+function exportPartnerPerformanceCsv() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const { contractedOrders } = computePartnerMetrics(partnerName);
+    if (contractedOrders.length === 0) { showToast('내보낼 계약 체결 내역이 없습니다.', 'warning'); return; }
+
+    const escapeCsvCell = (val) => `"${String(val == null ? '' : val).replace(/"/g, '""')}"`;
+    const header = ['의뢰코드', '고객명', '시공장소', '계약금액(만원)', '수수료(만원)', '수수료납부여부'].map(escapeCsvCell).join(',');
+    const rows = contractedOrders.map(o => {
+        const price = o.finalPrice || 0;
+        const commission = Math.floor(price * PLATFORM_COMMISSION_RATE);
+        return [o.code, o.clientName, o.clientAddress, price, commission, o.commissionPaid ? '납부완료' : '납부대기'].map(escapeCsvCell).join(',');
+    });
+    const csv = '﻿' + [header, ...rows].join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `우리집안심중개_내실적_${partnerName}_${getLocalDateString()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PERFORMANCE_EXPORT', `[${partnerName}]가 내 실적 계약 내역 ${contractedOrders.length}건을 CSV로 내보냄.`, 'INFO');
+    showToast(`계약 체결 내역 ${contractedOrders.length}건을 CSV로 내보냈습니다.`, 'success');
 }
 
 function buildDocFile(content, filename) {
@@ -3080,6 +3109,7 @@ window.approveContractCancellation = approveContractCancellation;
 window.rejectContractCancellation = rejectContractCancellation;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
 window.renderPartnerPerformanceView = renderPartnerPerformanceView;
+window.exportPartnerPerformanceCsv = exportPartnerPerformanceCsv;
 window.closePartnerMetricsModal = closePartnerMetricsModal;
 window.adminDeleteReview = adminDeleteReview;
 window.downloadContractDoc = downloadContractDoc;
