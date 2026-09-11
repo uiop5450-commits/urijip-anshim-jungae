@@ -1952,17 +1952,21 @@ function renderAdminCommunityModeration() {
 
     container.innerHTML = posts.map(post => {
         const commentsHtml = (post.comments || []).length > 0
-            ? post.comments.map((c, cIdx) => {
+            ? post.comments.slice().map((c, cIdx) => ({ c, cIdx })).sort((a, b) => ((b.c.reportedBy || []).length - (a.c.reportedBy || []).length)).map(({ c, cIdx }) => {
                 const repliesHtml = (c.replies || []).length > 0
-                    ? `<div class="ml-5 pl-3 border-l-2 border-ink-200 space-y-1.5 mt-1.5">${c.replies.map((r, rIdx) => `
+                    ? `<div class="ml-5 pl-3 border-l-2 border-ink-200 space-y-1.5 mt-1.5">${c.replies.map((r, rIdx) => {
+                        const rReportCount = (r.reportedBy || []).length;
+                        return `
                         <div class="flex justify-between items-start gap-2 text-[11px]">
-                            <p class="text-ink-600 font-medium leading-relaxed"><b class="text-ink-800">${escapeHtml(r.authorName)}</b> ${escapeHtml(r.text)}</p>
+                            <p class="text-ink-600 font-medium leading-relaxed"><b class="text-ink-800">${escapeHtml(r.authorName)}</b> ${escapeHtml(r.text)} ${rReportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${rReportCount}건</span>` : ''}</p>
                             <button type="button" onclick="adminDeleteCommunityReply('${post.id}', ${cIdx}, ${rIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>
-                        </div>`).join('')}</div>` : '';
+                        </div>`;
+                    }).join('')}</div>` : '';
+                const cReportCount = (c.reportedBy || []).length;
                 return `
-                    <div class="p-2.5 bg-ink-50 rounded-lg">
+                    <div class="p-2.5 bg-ink-50 rounded-lg ${cReportCount > 0 ? 'border border-rose-200' : ''}">
                         <div class="flex justify-between items-start gap-2 text-[11px]">
-                            <p class="text-ink-700 font-medium leading-relaxed"><b class="text-ink-900">${escapeHtml(c.authorName)}</b> ${escapeHtml(c.text)}</p>
+                            <p class="text-ink-700 font-medium leading-relaxed"><b class="text-ink-900">${escapeHtml(c.authorName)}</b> ${escapeHtml(c.text)} ${cReportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${cReportCount}건</span>` : ''}</p>
                             <button type="button" onclick="adminDeleteCommunityComment('${post.id}', ${cIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>
                         </div>
                         ${repliesHtml}
@@ -2077,6 +2081,44 @@ function isCommunityUserBlockedByMe(authorId) {
     return !!(account && account.blockedUsers && account.blockedUsers.includes(authorId));
 }
 
+/* 게시글은 신고할 수 있는데(reportCommunityPost) 댓글/답글은 본인 것만 수정·삭제할
+ * 수 있고 타인의 악성 댓글·답글을 신고할 방법이 없었다 — 동일한 1인 1회 reportedBy
+ * 배열 패턴을 댓글/답글 각각에 적용한다. */
+function isCommunityCommentReportedByMe(comment) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return false;
+    return !!(comment.reportedBy && comment.reportedBy.includes(auth.id));
+}
+
+function reportCommunityComment(postId, commentIndex) {
+    if (!requireClientLoginForCommunity()) return;
+    const auth = window.AppState.clientAuth;
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    const comment = post && post.comments && post.comments[commentIndex];
+    if (!comment) return;
+    if (!comment.reportedBy) comment.reportedBy = [];
+    if (comment.reportedBy.includes(auth.id)) { showToast('이미 신고한 댓글입니다.', 'info'); return; }
+    comment.reportedBy.push(auth.id);
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_COMMENT_REPORT', `'${auth.name}' 고객님이 댓글(작성자: ${comment.authorName})을 신고했습니다.`, 'WARNING');
+    showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
+    openCommunityDetail(postId);
+}
+
+function reportCommunityReply(postId, commentIndex, replyIndex) {
+    if (!requireClientLoginForCommunity()) return;
+    const auth = window.AppState.clientAuth;
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    const comment = post && post.comments && post.comments[commentIndex];
+    const reply = comment && comment.replies && comment.replies[replyIndex];
+    if (!reply) return;
+    if (!reply.reportedBy) reply.reportedBy = [];
+    if (reply.reportedBy.includes(auth.id)) { showToast('이미 신고한 답글입니다.', 'info'); return; }
+    reply.reportedBy.push(auth.id);
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPLY_REPORT', `'${auth.name}' 고객님이 답글(작성자: ${reply.authorName})을 신고했습니다.`, 'WARNING');
+    showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
+    openCommunityDetail(postId);
+}
+
 function toggleBlockCommunityUser(authorId, authorName, postId) {
     if (!requireClientLoginForCommunity()) return;
     const auth = window.AppState.clientAuth;
@@ -2119,7 +2161,8 @@ function openCommunityDetail(postId) {
                                 <span class="text-[10px] text-ink-400 font-bold">${r.date}${r.edited ? ' (수정됨)' : ''}</span>
                                 ${myId && r.authorId === myId ? `
                                 <button type="button" onclick="toggleReplyEdit('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">${isReplyEditing ? '취소' : '수정'}</button>
-                                <button type="button" onclick="deleteCommunityReply('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : ''}
+                                <button type="button" onclick="deleteCommunityReply('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (myId && r.authorId !== myId ? `
+                                <button type="button" onclick="reportCommunityReply('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${isCommunityCommentReportedByMe(r) ? '신고됨' : '신고'}</button>` : '')}
                             </div>
                         </div>
                         ${isReplyEditing
@@ -2154,7 +2197,8 @@ function openCommunityDetail(postId) {
                     <button type="button" onclick="toggleReplyBox('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0">답글 달기</button>
                     ${myId && c.authorId === myId ? `
                     <button type="button" onclick="toggleCommentEdit('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">${isCommentEditing ? '취소' : '수정'}</button>
-                    <button type="button" onclick="deleteCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : ''}
+                    <button type="button" onclick="deleteCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (myId && c.authorId !== myId ? `
+                    <button type="button" onclick="reportCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${isCommunityCommentReportedByMe(c) ? '신고됨' : '신고'}</button>` : '')}
                 </div>
                 ${repliesHtml}
                 ${replyBoxHtml}
@@ -2468,6 +2512,9 @@ window.renderAdminCommunityModeration = renderAdminCommunityModeration;
 window.adminDeleteCommunityPost = adminDeleteCommunityPost;
 window.toggleCommunityPostPin = toggleCommunityPostPin;
 window.reportCommunityPost = reportCommunityPost;
+window.isCommunityCommentReportedByMe = isCommunityCommentReportedByMe;
+window.reportCommunityComment = reportCommunityComment;
+window.reportCommunityReply = reportCommunityReply;
 window.toggleBlockCommunityUser = toggleBlockCommunityUser;
 window.isCommunityUserBlockedByMe = isCommunityUserBlockedByMe;
 window.renderBlockedUsersList = renderBlockedUsersList;
