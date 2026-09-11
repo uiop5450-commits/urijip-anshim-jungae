@@ -1240,6 +1240,17 @@
         </div>
     </div>
 
+    <div id="footer-info-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="footer-info-modal-card" class="modal-card w-full max-w-lg p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <h3 id="footer-info-modal-title" class="text-base font-black text-ink-950 tracking-tight">제목</h3>
+                <button type="button" onclick="closeFooterInfoModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="footer-info-modal-body" class="text-xs text-ink-600 font-medium leading-relaxed whitespace-pre-line max-h-[60vh] overflow-y-auto custom-scroll pr-1"></div>
+            <div class="pt-2 border-t border-ink-100"><button type="button" onclick="closeFooterInfoModal()" class="btn btn-dark btn-block">확인</button></div>
+        </div>
+    </div>
+
     <div id="support-inquiry-modal" class="hidden modal-overlay" style="z-index:220">
         <div id="support-inquiry-modal-card" class="modal-card w-full max-w-lg p-6 sm:p-8 space-y-5 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">
@@ -1283,9 +1294,9 @@
                     <p class="text-[11px] leading-relaxed">상호 (주)우리집안심중개 · 대표 박서준 · 사업자등록번호 000-00-00000<br>부산광역시 해운대구 센텀중앙로 90, 8층 · 고객센터 1588-0000 (평일 09:00~18:00)</p>
                 </div>
                 <div class="flex items-center flex-wrap gap-x-4 gap-y-1.5 text-[11px] font-bold shrink-0">
-                    <button type="button" onclick="showComingSoon('이용약관')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">이용약관</button>
-                    <button type="button" onclick="showComingSoon('개인정보처리방침')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">개인정보처리방침</button>
-                    <button type="button" onclick="showComingSoon('사업자정보확인')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">사업자정보확인</button>
+                    <button type="button" onclick="openFooterInfoModal('terms')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">이용약관</button>
+                    <button type="button" onclick="openFooterInfoModal('privacy')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">개인정보처리방침</button>
+                    <button type="button" onclick="openFooterInfoModal('bizinfo')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">사업자정보확인</button>
                     <button type="button" onclick="openSupportInquiryModal()" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">고객센터</button>
                 </div>
             </div>

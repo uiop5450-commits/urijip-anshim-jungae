@@ -144,6 +144,78 @@ function showComingSoon(label) {
     showToast(`${label}은(는) 준비 중인 페이지예요.`, 'info');
 }
 
+/* 푸터의 이용약관/개인정보처리방침/사업자정보확인 링크 — 지금까지는 showComingSoon()만
+ * 띄우는 죽은 링크였다. 실제 내용을 보여주는 모달로 교체한다("고객센터"는 별도의
+ * 1:1 문의 티켓 시스템으로 이미 교체됨 — openSupportInquiryModal 참고). */
+const FOOTER_INFO_CONTENT = {
+    terms: {
+        title: '이용약관',
+        body: `제1조 (목적)
+이 약관은 (주)우리집안심중개(이하 "회사")가 제공하는 인테리어 중개 서비스의
+이용조건 및 절차, 회사와 이용자의 권리·의무 및 책임사항을 규정합니다.
+
+제2조 (서비스의 제공)
+회사는 이용자와 검증된 인테리어 파트너사를 중개하며, 매칭·견적 비교·계약
+체결 지원 서비스를 제공합니다.
+
+제3조 (회원의 의무)
+이용자는 서비스 이용 시 허위 정보를 등록하거나 타인의 권리를 침해하는
+행위를 해서는 안 됩니다.
+
+제4조 (책임의 한계)
+회사는 중개 플랫폼으로서 파트너사와 이용자 간 실제 계약의 이행에 대해
+보증 범위 내에서만 책임을 부담합니다.`
+    },
+    privacy: {
+        title: '개인정보처리방침',
+        body: `(주)우리집안심중개는 이용자의 개인정보를 중요시하며, 관련 법령을 준수합니다.
+
+1. 수집하는 개인정보
+성명, 휴대폰 번호, 시공 희망 주소, 예산 등 견적 신청 시 입력하는 정보를
+수집합니다.
+
+2. 이용 목적
+파트너사 매칭, 계약 진행 안내, 고객센터 문의 응대 목적으로만 이용합니다.
+
+3. 보유 및 이용 기간
+서비스 이용 종료 또는 회원 탈퇴 시까지 보유하며, 관계 법령에 따라 일정
+기간 보관이 필요한 정보는 해당 기간 동안 보관합니다.
+
+4. 문의
+개인정보 관련 문의는 고객센터(1:1 문의)를 통해 접수해 주세요.`
+    },
+    bizinfo: {
+        title: '사업자정보확인',
+        body: `상호: (주)우리집안심중개
+대표자: 박서준
+사업자등록번호: 000-00-00000
+주소: 부산광역시 해운대구 센텀중앙로 90, 8층
+고객센터: 1588-0000 (평일 09:00~18:00)
+
+본 서비스는 프로토타입 데모이며, 위 사업자 정보는 실제 등록된 사업자가
+아닌 데모용 예시 정보입니다.`
+    }
+};
+
+function openFooterInfoModal(type) {
+    const info = FOOTER_INFO_CONTENT[type];
+    if (!info) return;
+    safeUpdateText('footer-info-modal-title', info.title);
+    const bodyEl = document.getElementById('footer-info-modal-body');
+    if (bodyEl) bodyEl.innerText = info.body;
+    const modal = document.getElementById('footer-info-modal');
+    const card = document.getElementById('footer-info-modal-card');
+    if (!modal || !card) return;
+    modal.classList.remove('hidden');
+    setTimeout(() => card.classList.add('modal-open'), 30);
+}
+
+function closeFooterInfoModal() {
+    const modal = document.getElementById('footer-info-modal');
+    const card = document.getElementById('footer-info-modal-card');
+    if (modal && card) { card.classList.remove('modal-open'); setTimeout(() => modal.classList.add('hidden'), 150); }
+}
+
 /* ----------------------------------------------------------------
  * 실시간 알림(Toast) 스택 — 비차단형, 자동 소멸, 접근성 aria-live
  * ---------------------------------------------------------------- */
@@ -227,6 +299,8 @@ window.clearSearchInput = clearSearchInput;
 window.pushClientNotification = pushClientNotification;
 window.pushPartnerNotification = pushPartnerNotification;
 window.showComingSoon = showComingSoon;
+window.openFooterInfoModal = openFooterInfoModal;
+window.closeFooterInfoModal = closeFooterInfoModal;
 window.getLocalDateString = getLocalDateString;
 window.showToast = showToast;
 window.closeToast = closeToast;
