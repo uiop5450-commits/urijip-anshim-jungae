@@ -1313,6 +1313,45 @@ function recalculateKPIs() {
     renderAdminOrderAllocation();
 }
 
+/* 지금까지는 관리자가 오더 하나를 찾으려면 그 오더의 성격(고액/파트너 참여 여부)에
+ * 맞는 특정 탭으로 들어가야 했음 — 예를 들어 일반 예산 오더는 어느 관리자 탭에서도
+ * 검색이 안 됐다. 고객이 전화로 "제 의뢰 어떻게 됐나요" 물어볼 때 관리자가 즉시
+ * 찾을 수 있도록, 모든 탭에서 공통으로 보이는 조회창을 추가한다(전체 오더 대상,
+ * 의뢰코드/고객명/연락처로 검색). */
+function searchOrderLookup() {
+    const input = document.getElementById('admin-order-lookup-input');
+    const resultEl = document.getElementById('admin-order-lookup-result');
+    if (!input || !resultEl) return;
+    const query = input.value.trim().toLowerCase();
+    if (!query) { resultEl.innerHTML = ''; return; }
+
+    const matches = (window.AppState.orders || []).filter(o =>
+        o.code.toLowerCase().includes(query) ||
+        (o.clientName && o.clientName.toLowerCase().includes(query)) ||
+        (o.clientPhone && o.clientPhone.includes(query))
+    ).slice(0, 10);
+
+    if (matches.length === 0) {
+        resultEl.innerHTML = `<p class="text-xs font-bold text-ink-400 text-center py-3">조회 조건에 해당되는 의뢰를 찾을 수 없습니다.</p>`;
+        return;
+    }
+
+    const statusLabel = (o) => o.status === 'withdrawn' ? '<span class="badge badge-neutral">철회됨</span>'
+        : o.status === 'contracted' ? '<span class="badge badge-emerald">계약 체결</span>'
+        : o.is1on1 ? '<span class="badge badge-neutral">1:1 지정</span>'
+        : '<span class="badge badge-amber">입찰 심사중</span>';
+
+    resultEl.innerHTML = matches.map(o => `
+        <div class="p-3.5 bg-ink-50 rounded-xl flex flex-wrap justify-between items-center gap-2 text-xs">
+            <div class="space-y-0.5 min-w-0">
+                <div class="flex items-center gap-2"><span class="font-mono text-[10px] font-black text-ink-500">${o.code}</span>${statusLabel(o)}</div>
+                <p class="font-bold text-ink-900">${escapeHtml(o.clientName)} 고객님 (${o.clientPhone || '-'})</p>
+                <p class="text-[10px] text-ink-500 font-medium truncate">${escapeHtml(o.clientAddress || '')} · ${o.pyung || '-'}평형 · 입찰 ${o.bids ? o.bids.length : 0}/${o.partnerCountLimit || '-'}개사${o.acceptedPartner ? ` · 계약: ${escapeHtml(o.acceptedPartner)}` : ''}</p>
+            </div>
+            <span class="font-black text-ink-950 shrink-0">₩ ${(o.finalPrice || o.budget || 0).toLocaleString()}만원</span>
+        </div>`).join('');
+}
+
 function renderAdminOrderAllocation() {
     const container = document.getElementById('admin-order-allocation-container');
     if (!container) return;
@@ -2298,6 +2337,7 @@ window.setPartnerContractsStatusFilter = setPartnerContractsStatusFilter;
 window.recalculateKPIs = recalculateKPIs;
 window.syncAuditLogs = syncAuditLogs;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
+window.searchOrderLookup = searchOrderLookup;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
 window.renderPartnerPerformanceView = renderPartnerPerformanceView;
 window.closePartnerMetricsModal = closePartnerMetricsModal;

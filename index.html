@@ -894,6 +894,15 @@
                     </div>
                 </div>
 
+                <div class="surface p-4 sm:p-5 space-y-3 text-left">
+                    <h5 class="text-xs font-black text-ink-700 flex items-center gap-1.5"><i data-lucide="search" class="w-3.5 h-3.5"></i> 오더 조회 (고객 문의 대응용) — 의뢰코드·고객명·연락처로 어느 탭에서든 즉시 조회</h5>
+                    <div class="flex gap-2">
+                        <input type="text" id="admin-order-lookup-input" placeholder="예: WJ-2026-0711L, 박민서, 010-1234-5678" class="input flex-1" onkeydown="if(event.key==='Enter') searchOrderLookup()">
+                        <button type="button" onclick="searchOrderLookup()" class="btn btn-dark btn-sm shrink-0">조회</button>
+                    </div>
+                    <div id="admin-order-lookup-result" class="space-y-2"></div>
+                </div>
+
                 <div id="admin-mode-allocation-view" class="space-y-6 transition-all duration-300"><div id="admin-order-allocation-container"></div></div>
 
                 <div id="admin-mode-monitor-view" class="hidden space-y-6 transition-all duration-300">
