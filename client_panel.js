@@ -1009,6 +1009,32 @@ function renderClientAccountSettings() {
     safeUpdateValue('account-edit-current-pw', '');
     safeUpdateValue('account-edit-new-pw', '');
     safeUpdateValue('account-edit-new-pw2', '');
+    renderBlockedUsersList();
+}
+
+/* 게시글 화면에서 차단해도 그 뒤로는 누굴 차단했는지 확인/해제할 방법이 없었다 —
+ * 관심 파트너 목록과 동일하게 계정 설정에서 차단 목록을 관리할 수 있게 한다. */
+function renderBlockedUsersList() {
+    const container = document.getElementById('blocked-users-list');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    const blockedIds = (account && account.blockedUsers) || [];
+
+    if (blockedIds.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-bold text-center py-3">차단한 사용자가 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = blockedIds.map(id => {
+        const blockedAccount = window.AppState.clientAccounts.find(acc => acc.id === id);
+        const post = (window.AppState.communityPosts || []).find(p => p.authorId === id);
+        const displayName = (blockedAccount && blockedAccount.name) || (post && post.authorName) || id;
+        return `
+        <div class="flex items-center justify-between p-3 bg-ink-50 rounded-xl">
+            <span class="text-xs font-bold text-ink-800">${escapeHtml(displayName)}</span>
+            <button type="button" onclick="toggleBlockCommunityUser('${escapeHtml(id)}', '${escapeHtml(displayName)}')" class="text-[11px] font-bold text-brand-600 hover:underline bg-transparent border-0 cursor-pointer p-0">차단 해제</button>
+        </div>`;
+    }).join('');
 }
 
 function updateClientProfileInfo() {
@@ -1675,6 +1701,7 @@ function renderCommunityList() {
     const posts = (window.AppState.communityPosts || [])
         .filter(p => communityActiveCategory === 'all' || p.category === communityActiveCategory)
         .filter(p => !query || p.title.toLowerCase().includes(query) || p.content.toLowerCase().includes(query))
+        .filter(p => !isCommunityUserBlockedByMe(p.authorId))
         .slice()
         .sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0) || (sortMode === 'popular'
             ? (b.likedBy || []).length - (a.likedBy || []).length || new Date(b.date) - new Date(a.date)
@@ -1959,6 +1986,35 @@ function reportCommunityPost(postId) {
     openCommunityDetail(postId);
 }
 
+/* 특정 게시글 신고(reportCommunityPost)는 있는데, 특정 사용자가 반복적으로 불편한
+ * 글을 올려도 그 사람 글 전체를 안 보이게 할 방법이 전혀 없었다 — 즐겨찾기
+ * 파트너와 동일하게 내 계정에 blockedUsers 배열을 두고, 커뮤니티 목록 렌더링에서
+ * 차단한 작성자의 글을 걸러낸다(삭제가 아니라 내 화면에서만 숨김).*/
+function isCommunityUserBlockedByMe(authorId) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn || !authorId) return false;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    return !!(account && account.blockedUsers && account.blockedUsers.includes(authorId));
+}
+
+function toggleBlockCommunityUser(authorId, authorName, postId) {
+    if (!requireClientLoginForCommunity()) return;
+    const auth = window.AppState.clientAuth;
+    if (authorId === auth.id) return;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+    if (!account.blockedUsers) account.blockedUsers = [];
+    const idx = account.blockedUsers.indexOf(authorId);
+    if (idx >= 0) { account.blockedUsers.splice(idx, 1); showToast(`[${authorName}]님을 차단 해제했습니다.`, 'info'); }
+    else {
+        account.blockedUsers.push(authorId);
+        if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_BLOCK', `'${auth.name}' 고객님이 '${authorName}'님을 커뮤니티에서 차단했습니다.`, 'INFO');
+        showToast(`[${authorName}]님을 차단했습니다. 이 사용자의 글이 더 이상 보이지 않아요.`, 'success');
+    }
+    if (postId) openCommunityDetail(postId); else renderCommunityList();
+    renderBlockedUsersList();
+}
+
 function openCommunityDetail(postId) {
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     if (!post) return;
@@ -2040,7 +2096,10 @@ function openCommunityDetail(postId) {
                             <button type="button" onclick="openCommunityEdit('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button>
                             <button type="button" onclick="deleteCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
                         </div>` : (myId ? `
-                        <button type="button" onclick="reportCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0 flex items-center gap-1"><i data-lucide="flag" class="w-3 h-3"></i> ${(post.reportedBy || []).includes(myId) ? '신고 완료' : '신고'}</button>` : '')}
+                        <div class="flex items-center gap-2.5 shrink-0">
+                            <button type="button" onclick="toggleBlockCommunityUser('${escapeHtml(post.authorId)}', '${escapeHtml(post.authorName)}', '${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"><i data-lucide="user-x" class="w-3 h-3"></i> ${isCommunityUserBlockedByMe(post.authorId) ? '차단 해제' : '작성자 차단'}</button>
+                            <button type="button" onclick="reportCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"><i data-lucide="flag" class="w-3 h-3"></i> ${(post.reportedBy || []).includes(myId) ? '신고 완료' : '신고'}</button>
+                        </div>` : '')}
                 </div>
                 <h3 class="text-lg font-black text-ink-950">${escapeHtml(post.title)}</h3>
             </div>
@@ -2326,6 +2385,9 @@ window.renderAdminCommunityModeration = renderAdminCommunityModeration;
 window.adminDeleteCommunityPost = adminDeleteCommunityPost;
 window.toggleCommunityPostPin = toggleCommunityPostPin;
 window.reportCommunityPost = reportCommunityPost;
+window.toggleBlockCommunityUser = toggleBlockCommunityUser;
+window.isCommunityUserBlockedByMe = isCommunityUserBlockedByMe;
+window.renderBlockedUsersList = renderBlockedUsersList;
 window.adminDeleteCommunityComment = adminDeleteCommunityComment;
 window.adminDeleteCommunityReply = adminDeleteCommunityReply;
 window.deleteCommunityPost = deleteCommunityPost;

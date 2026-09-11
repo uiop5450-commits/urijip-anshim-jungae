@@ -631,6 +631,10 @@
                         <button type="button" onclick="updateClientPassword()" class="btn btn-secondary">비밀번호 변경</button>
                     </div>
                     <div class="space-y-3 pt-2">
+                        <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="user-x" class="w-4 h-4 text-brand-500"></i> 차단한 사용자 관리</h4>
+                        <div id="blocked-users-list" class="space-y-2"></div>
+                    </div>
+                    <div class="space-y-3 pt-2">
                         <h4 class="text-xs font-black text-roseCustom uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="alert-triangle" class="w-4 h-4"></i> 회원 탈퇴</h4>
                         <p class="text-[11px] text-ink-500 font-medium leading-relaxed">탈퇴하면 즉시 로그아웃되며 더 이상 로그인할 수 없어요. 진행 중인 의뢰가 있다면 탈퇴 전에 확인해 주세요.</p>
                         <button type="button" onclick="openAccountDeleteModal()" class="btn btn-secondary btn-sm text-roseCustom">회원 탈퇴하기</button>
