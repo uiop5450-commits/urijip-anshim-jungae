@@ -902,17 +902,27 @@ function renderClientFavoritePartners() {
         return;
     }
 
-    container.innerHTML = favoritePartners.map(p => `
+    // 즐겨찾기한 파트너가 나중에 삼진아웃으로 영구 제명되거나 일시중단되어도 지금까지는
+    // 아무 표시 없이 그대로 노출됐다 — '안심' 중개 플랫폼인데 고객이 이미 제명된 업체를
+    // 계속 찜해두고 있다는 사실조차 모를 수 있어서, 입찰 목록의 isBannedBid 배지와
+    // 동일한 패턴으로 상태를 표시한다.
+    container.innerHTML = favoritePartners.map(p => {
+        const isBanned = p.status === 'banned';
+        const isPaused = !!p.isPaused;
+        const statusBadge = isBanned ? `<span class="badge badge-rose">영구 제명</span>` : isPaused ? `<span class="badge badge-amber">일시중단</span>` : '';
+        return `
         <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl gap-3">
             <div class="min-w-0 flex-1 cursor-pointer" onclick="window.openClientPartnerProfile('${p.name}')">
                 <div class="flex items-center gap-2">
                     <h5 class="text-xs font-black text-ink-950 truncate">${escapeHtml(p.name)}</h5>
                     <span class="text-gold-500 font-extrabold text-[11px]">★ ${p.rating.toFixed(1)}</span>
+                    ${statusBadge}
                 </div>
                 <p class="text-[10px] text-ink-400 font-bold">${p.region ? `부산 ${escapeHtml(p.region)} · ` : ''}완공사례 ${p.portfolios ? p.portfolios.length : 0}건</p>
             </div>
             <button type="button" onclick="toggleFavoritePartner('${p.name}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">찜 해제</button>
-        </div>`).join('');
+        </div>`;
+    }).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
