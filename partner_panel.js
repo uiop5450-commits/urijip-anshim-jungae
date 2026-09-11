@@ -1614,14 +1614,46 @@ function autoAllocateOrder(orderCode) {
     showToast(`${result.assignedCount}개 인증 파트너사에 일괄 자동 배정이 성공적으로 완료되었습니다!`, "success");
 }
 
+/* 업체가 쌓일수록 "제명된 곳만", "지금 일시중단 중인 곳만" 같은 걸 눈으로 하나씩
+ * 찾기 번거로워진다 — 텍스트 검색과 별개로 상태 필터 탭을 추가한다. */
+function getPartnerMonitorStatusKey(p) {
+    if (p.status === 'banned') return 'banned';
+    if (p.isPaused) return 'paused';
+    if (p.strikeCount > 0) return 'warning';
+    return 'active';
+}
+
+let adminPartnerMonitorStatusFilter = 'all';
+
+function setAdminPartnerMonitorStatusFilter(key) {
+    adminPartnerMonitorStatusFilter = key;
+    renderAdminPartnerMonitor();
+}
+
 function renderAdminPartnerMonitor() {
     const container = document.getElementById('admin-partner-monitor-list');
     if (!container) return;
     const input = document.getElementById('admin-partner-search');
     const query = input ? input.value.trim().toLowerCase() : '';
+    const allPartners = window.AppState.partners || [];
 
-    const partners = window.AppState.partners || [];
-    const filtered = partners.filter(p => !query || p.name.toLowerCase().includes(query) || (p.bizFile && p.bizFile.includes(query)));
+    const statusTabsEl = document.getElementById('admin-partner-status-tabs');
+    if (statusTabsEl) {
+        const statusTabs = [
+            ['all', '전체', allPartners.length],
+            ['active', '정상', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'active').length],
+            ['warning', '경고', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'warning').length],
+            ['paused', '일시중단', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'paused').length],
+            ['banned', '제명', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'banned').length]
+        ];
+        statusTabsEl.innerHTML = statusTabs.map(([key, label, count]) =>
+            `<button type="button" onclick="setAdminPartnerMonitorStatusFilter('${key}')" class="gnb-tab ${adminPartnerMonitorStatusFilter === key ? 'active' : ''}">${label} (${count})</button>`
+        ).join('');
+    }
+
+    const filtered = allPartners
+        .filter(p => adminPartnerMonitorStatusFilter === 'all' || getPartnerMonitorStatusKey(p) === adminPartnerMonitorStatusFilter)
+        .filter(p => !query || p.name.toLowerCase().includes(query) || (p.bizFile && p.bizFile.includes(query)));
 
     if (filtered.length === 0) { container.innerHTML = '<p class="text-xs font-bold text-ink-500 text-center col-span-full py-12">검색 조건에 해당되는 파트너사가 존재하지 않습니다.</p>'; return; }
 
@@ -2447,6 +2479,7 @@ window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
 window.searchOrderLookup = searchOrderLookup;
 window.renderAdminSupportTickets = renderAdminSupportTickets;
 window.setAdminSupportStatusFilter = setAdminSupportStatusFilter;
+window.setAdminPartnerMonitorStatusFilter = setAdminPartnerMonitorStatusFilter;
 window.exportLogsToCsv = exportLogsToCsv;
 window.replyToSupportTicket = replyToSupportTicket;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
