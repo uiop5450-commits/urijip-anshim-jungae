@@ -218,11 +218,13 @@ function resumeHomeEventAutoplay() { if (!_homeEventAutoplayTimer && window.AppS
  * ---------------------------------------------------------------- */
 function getFeaturedHeroSlides(limit = 5) {
     // 매니저 콘솔 > 노출 관리에서 수동으로 지정한 업체가 있으면 그 순서 그대로 노출.
+    // 지정해둔 이후 그 업체가 삼진아웃 등으로 제명될 수 있으므로, 여기서도 상태를
+    // 다시 확인한다 — '안심' 플랫폼 첫 화면에 제명된 업체가 뜨면 신뢰도에 직결된다.
     const manual = window.AppState.featuredPartners || [];
     if (manual.length > 0) {
         return manual.slice(0, limit).map(item => {
             const p = (window.AppState.partners || []).find(pp => pp.name === item.partnerName);
-            if (!p || !p.portfolios || !p.portfolios[item.portIdx]) return null;
+            if (!p || p.status !== 'active' || !p.portfolios || !p.portfolios[item.portIdx]) return null;
             return {
                 partnerName: p.name, portIdx: item.portIdx, rating: p.rating || 0,
                 isCertified: !!p.isCertified, reviewsCount: p.reviews ? p.reviews.length : 0,
@@ -231,7 +233,7 @@ function getFeaturedHeroSlides(limit = 5) {
         }).filter(Boolean);
     }
     // 수동 지정이 없으면 평점(rating) 높은 순으로 자동 선정 (폴백).
-    const partners = (window.AppState.partners || []).filter(p => p.portfolios && p.portfolios.length > 0);
+    const partners = (window.AppState.partners || []).filter(p => p.status === 'active' && p.portfolios && p.portfolios.length > 0);
     const sorted = [...partners].sort((a, b) => (b.rating || 0) - (a.rating || 0));
     return sorted.slice(0, limit).map(p => ({
         partnerName: p.name, portIdx: 0, rating: p.rating || 0,
@@ -1847,7 +1849,7 @@ function renderAdminHeroPartnerSelectOptions() {
     const sel = document.getElementById('admin-hero-add-partner');
     if (!sel) return;
     const prevVal = sel.value;
-    const eligible = (window.AppState.partners || []).filter(p => p.portfolios && p.portfolios.length > 0);
+    const eligible = (window.AppState.partners || []).filter(p => p.status === 'active' && p.portfolios && p.portfolios.length > 0);
     if (eligible.length === 0) {
         sel.innerHTML = `<option value="">등록된 시공사례가 있는 업체가 없습니다</option>`;
         renderAdminHeroPortfolioOptions();
@@ -1877,6 +1879,8 @@ function addFeaturedHeroPartner() {
     const featured = window.AppState.featuredPartners || (window.AppState.featuredPartners = []);
     if (featured.length >= 5) { showToast('히어로 업체 슬라이더는 최대 5개까지만 등록할 수 있어요.', 'warning'); return; }
     const partnerName = partnerSel.value;
+    const targetPartner = (window.AppState.partners || []).find(p => p.name === partnerName);
+    if (!targetPartner || targetPartner.status !== 'active') { showToast('제명되었거나 심사 중인 업체는 히어로 슬라이더에 노출할 수 없어요.', 'warning'); return; }
     const portIdx = Number(portSel.value || 0);
     if (featured.some(f => f.partnerName === partnerName && f.portIdx === portIdx)) {
         showToast('이미 등록된 업체+시공사례 조합이에요.', 'warning');
