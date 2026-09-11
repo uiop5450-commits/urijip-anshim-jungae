@@ -1070,7 +1070,10 @@ function renderMyPageEstimateDetails(order) {
                 <button type="button" onclick="openReviewWriteModal('${order.code}')" class="btn btn-primary">후기 작성하기</button>
             </div>`;
     } else if (order.reviewWritten) {
-        reviewBtnHtml = `<div class="p-3 bg-ink-100 rounded-xl text-center text-xs font-bold text-ink-600 flex items-center justify-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 솔직 안심 리뷰 생성이 성공적으로 등록 완료되었습니다.</div>`;
+        reviewBtnHtml = `<div class="p-3 bg-ink-100 rounded-xl flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-ink-600">
+            <span class="flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 솔직 안심 리뷰 생성이 성공적으로 등록 완료되었습니다.</span>
+            <button type="button" onclick="openReviewWriteModal('${order.code}')" class="text-brand-600 hover:underline bg-transparent border-0 cursor-pointer p-0 font-black">수정하기</button>
+        </div>`;
     }
 
     const designationBannerHtml = `
@@ -1177,11 +1180,18 @@ function openReviewWriteModal(orderCode) {
     if (!order) return;
 
     window.AppState.reviewOrderTarget = orderCode;
-    window.AppState.reviewPhotoDrafts = [];
-    window.AppState.activeReviewRating = 5;
+
+    // 이미 후기를 작성한 오더면 기존 내용을 불러와 채운다(수정 모드) — 지금까지는
+    // 한 번 등록하면 오타나 별점을 다시 고칠 방법이 전혀 없었다.
+    const partner = window.AppState.partners.find(p => p.name === order.acceptedPartner);
+    const existingReview = order.reviewWritten && partner ? (partner.reviews || []).find(r => r.orderCode === orderCode) : null;
+
+    window.AppState.reviewPhotoDrafts = existingReview ? (existingReview.photos || []).slice() : [];
+    window.AppState.activeReviewRating = existingReview ? existingReview.rating : 5;
 
     safeUpdateText('write-review-project-name', `프로젝트 번호: ${order.code} · ${order.acceptedPartner || ''}`);
-    safeUpdateValue('input-review-text', '');
+    safeUpdateValue('input-review-text', existingReview ? existingReview.text : '');
+    safeUpdateText('write-review-submit-btn-label', existingReview ? '후기 수정하기' : '후기 등록하기');
     renderReviewPhotoPreview();
     renderReviewRatingStars();
 
@@ -1257,15 +1267,25 @@ function submitClientReview() {
     if (text.length < 10) { showToast("후기는 최소 10자 이상 작성해 주세요.", "warning"); return; }
 
     const partner = window.AppState.partners.find(p => p.name === order.acceptedPartner);
+    const isEditing = order.reviewWritten;
     if (partner) {
         if (!partner.reviews) partner.reviews = [];
-        partner.reviews.unshift({
-            client: (typeof maskName === 'function') ? maskName(order.clientName) : order.clientName,
-            rating: window.AppState.activeReviewRating || 5,
-            text: text,
-            date: getLocalDateString(),
-            photos: window.AppState.reviewPhotoDrafts.slice()
-        });
+        const existingReview = isEditing ? partner.reviews.find(r => r.orderCode === orderCode) : null;
+        if (existingReview) {
+            existingReview.rating = window.AppState.activeReviewRating || 5;
+            existingReview.text = text;
+            existingReview.photos = window.AppState.reviewPhotoDrafts.slice();
+            existingReview.editedDate = getLocalDateString();
+        } else {
+            partner.reviews.unshift({
+                orderCode,
+                client: (typeof maskName === 'function') ? maskName(order.clientName) : order.clientName,
+                rating: window.AppState.activeReviewRating || 5,
+                text: text,
+                date: getLocalDateString(),
+                photos: window.AppState.reviewPhotoDrafts.slice()
+            });
+        }
         const total = partner.reviews.reduce((acc, r) => acc + r.rating, 0);
         partner.rating = Math.round((total / partner.reviews.length) * 10) / 10;
     }
@@ -1273,9 +1293,9 @@ function submitClientReview() {
     order.reviewWritten = true;
     window.AppState.reviewPhotoDrafts = [];
 
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW', `${maskName(order.clientName)} 고객님이 [${order.acceptedPartner}]에 대한 안심 후기를 등록함.`, 'SUCCESS');
-    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 새 후기를 남겼어요! (★ ${window.AppState.activeReviewRating || 5}.0)`);
-    showToast("소중한 안심 후기가 정상적으로 등록되었습니다. 감사합니다!", "success");
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW', `${maskName(order.clientName)} 고객님이 [${order.acceptedPartner}]에 대한 안심 후기를 ${isEditing ? '수정' : '등록'}함.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 후기를 ${isEditing ? '수정했어요' : '남겼어요'}! (★ ${window.AppState.activeReviewRating || 5}.0)`);
+    showToast(isEditing ? "후기가 수정되었습니다." : "소중한 안심 후기가 정상적으로 등록되었습니다. 감사합니다!", "success");
 
     closeReviewWriteModal();
     renderClientMyPage();
