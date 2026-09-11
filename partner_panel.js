@@ -2279,6 +2279,41 @@ function sendAdminBroadcastNotification() {
     if (msgInput) msgInput.value = '';
 }
 
+/* 전체 공지 발송(sendAdminBroadcastNotification)은 세그먼트(지역/상태) 단위로만
+ * 보낼 수 있었고, 특정 파트너/고객 한 명에게 개별적으로 알릴 방법이 없었다 —
+ * 예를 들어 신고를 검토한 뒤 "정보 보완이 필요합니다"처럼 한 명에게만 전달할
+ * 메시지를 보내려면 억지로 전체 공지를 쓰거나 아예 방법이 없었다. */
+let _adminDmTarget = null;
+
+function openAdminDirectMessageModal(type, identifier, displayName) {
+    _adminDmTarget = { type, identifier, displayName: displayName || identifier };
+    safeUpdateText('admin-direct-message-modal-title', `${_adminDmTarget.displayName}님께 쪽지 보내기`);
+    safeUpdateValue('admin-direct-message-text', '');
+    openModal('admin-direct-message-modal', 'admin-direct-message-modal-card');
+}
+
+function closeAdminDirectMessageModal() {
+    _adminDmTarget = null;
+    closeModal('admin-direct-message-modal', 'admin-direct-message-modal-card');
+}
+
+function submitAdminDirectMessage() {
+    if (!_adminDmTarget) return;
+    const text = document.getElementById('admin-direct-message-text')?.value.trim();
+    if (!text) { showToast('보낼 내용을 입력해 주세요.', 'warning'); return; }
+
+    const { type, identifier, displayName } = _adminDmTarget;
+    if (type === 'partner' && typeof pushPartnerNotification === 'function') {
+        pushPartnerNotification(identifier, `[매니저 쪽지] ${text}`);
+    } else if (type === 'client' && typeof pushClientNotification === 'function') {
+        pushClientNotification(identifier, `[매니저 쪽지] ${text}`);
+    }
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'DIRECT_MESSAGE', `[1:1 쪽지] ${type === 'partner' ? '파트너' : '고객'} '${displayName}'에게 쪽지를 보냈습니다: "${text.slice(0, 40)}${text.length > 40 ? '...' : ''}"`, 'INFO');
+    showToast(`${displayName}님께 쪽지를 보냈습니다.`, 'success');
+    closeAdminDirectMessageModal();
+}
+
 /* 지금까지 관리자 콘솔은 파트너 모니터링/블랙리스트/가입심사처럼 파트너 관리 도구는
  * 풍부한데, 고객 계정 목록을 한눈에 조회할 방법이 전혀 없었다(전화로 문의가 와도
  * 오더 코드를 모르면 검색조차 불가능). 고객별 의뢰/계약/후기 통계를 모아 보여주고,
@@ -2349,6 +2384,7 @@ function renderAdminClientManager() {
                 <div class="flex items-center flex-wrap gap-3 text-[11px] font-bold text-ink-600 w-full sm:w-auto sm:shrink-0">
                     <span>의뢰 ${myOrders.length}건</span><span>계약 ${contractedCount}건</span><span>후기 ${reviewCount}건</span><span>관심업체 ${favoriteCount}곳</span>
                     <button type="button" onclick="jumpToClientOrderLookup('${escapeHtml(acc.phone || '')}')" class="btn btn-secondary btn-sm">의뢰 조회</button>
+                    <button type="button" onclick="openAdminDirectMessageModal('client', '${escapeHtml(acc.phone || '')}', '${escapeHtml(acc.name)}')" class="btn btn-secondary btn-sm"><i data-lucide="send" class="w-3 h-3"></i> 쪽지 보내기</button>
                     <button type="button" onclick="toggleClientSuspension('${acc.id}')" class="btn ${acc.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${acc.isSuspended ? '정지 해제' : '계정 정지'}</button>
                 </div>
             </div>
@@ -2778,10 +2814,11 @@ function renderAdminPartnerMonitor() {
                 </div>
             </div>
             <div class="pt-3 border-t border-ink-100 flex flex-wrap items-center justify-between gap-2">
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center flex-wrap gap-1.5">
                     <button type="button" onclick="window.openClientPartnerProfile('${p.name}')" class="btn btn-secondary btn-sm">프로필 조회</button>
                     <button type="button" onclick="openPartnerMetricsModal('${p.name}')" class="btn btn-dark btn-sm"><i data-lucide="bar-chart-2" class="w-3 h-3"></i> 상세 성과</button>
                     <button type="button" onclick="viewPartnerBizCertDoc('${p.id}')" class="btn btn-secondary btn-sm"><i data-lucide="file-text" class="w-3 h-3"></i> 사업자등록증</button>
+                    <button type="button" onclick="openAdminDirectMessageModal('partner', '${escapeHtml(p.name)}')" class="btn btn-secondary btn-sm"><i data-lucide="send" class="w-3 h-3"></i> 쪽지 보내기</button>
                 </div>
                 <div class="flex items-center gap-1.5">
                     <button type="button" onclick="togglePartnerCertification('${p.name}')" class="btn btn-secondary btn-sm">${p.isCertified ? '인증 해제' : '인증 부여'}</button>
@@ -3892,6 +3929,9 @@ window.exportClientListToCsv = exportClientListToCsv;
 window.replyToSupportTicket = replyToSupportTicket;
 window.replyToSupportTicketFollowUp = replyToSupportTicketFollowUp;
 window.sendAdminBroadcastNotification = sendAdminBroadcastNotification;
+window.openAdminDirectMessageModal = openAdminDirectMessageModal;
+window.closeAdminDirectMessageModal = closeAdminDirectMessageModal;
+window.submitAdminDirectMessage = submitAdminDirectMessage;
 window.renderAdminClientManager = renderAdminClientManager;
 window.jumpToClientOrderLookup = jumpToClientOrderLookup;
 window.toggleClientSuspension = toggleClientSuspension;
