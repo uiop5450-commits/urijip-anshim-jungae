@@ -1246,6 +1246,16 @@ function selectOrderForAudit(code) {
 
             ${isAlreadyBid ? `
                 <div class="p-4 surface-flat text-left space-y-1"><h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-ink-700"></i> 선착순 즉시 입찰 선점 완료</h5><p class="text-[10px] text-ink-500 font-semibold leading-relaxed">의뢰자가 우리 시공사의 포트폴리오를 검토 중입니다.</p></div>
+                ${order.status === 'bidding' ? (() => {
+                    const myBid = order.bids.find(b => b.partner === currentPartnerName);
+                    return `
+                <div class="surface-flat p-4 space-y-3 text-left">
+                    <h5 class="text-xs font-black text-ink-950">제출한 입찰 내용 수정</h5>
+                    <div><label class="field-label">입찰 제안 금액 (만원)</label><input type="number" id="partner-bid-price-input" value="${myBid ? myBid.price : ''}" min="1" class="input"></div>
+                    <div><label class="field-label">제안 메시지</label><textarea id="partner-bid-desc-input" class="textarea h-20">${escapeHtml(myBid ? myBid.desc : '')}</textarea></div>
+                    <button type="button" onclick="editPartnerBid('${order.code}')" class="btn btn-secondary btn-lg btn-block">입찰 내용 수정 완료</button>
+                </div>`;
+                })() : ''}
             ` : `
                 <div class="surface-flat p-4 space-y-3 text-left">
                     <div><label class="field-label">입찰 제안 금액 (만원)</label><input type="number" id="partner-bid-price-input" value="${Math.floor(order.budget * 0.95)}" min="1" class="input"></div>
@@ -1276,6 +1286,34 @@ function submitPartnerBid() {
     recalculateKPIs();
     pushLog('PARTNER', 'BID', `[${partnerName}]가 오더 ${code} 입찰 선점.`, 'SUCCESS');
     showToast("선착순 입찰에 참여했습니다!", "success");
+}
+
+/* 지금까지 입찰 제출 후 오탈자나 경쟁사 대비 금액을 조정하려면 철회(withdrawMyPartnerBid)
+ * 후 재입찰해야 했는데, 철회는 즉시 excludedPartners에 등록되어 해당 오더에 다시는
+ * 입찰할 수 없게 막아버린다 — 사실상 "수정"의 대가가 영구 퇴장이었다. 계약 확정 전
+ * (status === 'bidding')이라면 기존 입찰을 그대로 두고 금액/제안 내용만 바꿀 수 있게 한다. */
+function editPartnerBid(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'bidding') { showToast('이미 계약이 진행 중이거나 종료된 오더는 입찰을 수정할 수 없어요.', 'warning'); return; }
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const bid = order.bids.find(b => b.partner === partnerName);
+    if (!bid) return;
+
+    const priceInput = document.getElementById('partner-bid-price-input');
+    const price = priceInput ? parseInt(priceInput.value, 10) : NaN;
+    if (!price || price <= 0) { showToast('입찰 제안 금액을 올바르게 입력해 주세요.', 'warning'); return; }
+    const descInput = document.getElementById('partner-bid-desc-input');
+    const desc = (descInput && descInput.value.trim()) || bid.desc;
+
+    const oldPrice = bid.price;
+    bid.price = price;
+    bid.desc = desc;
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'BID_EDIT', `[${partnerName}]가 오더 ${orderCode}의 입찰 금액을 ₩${oldPrice.toLocaleString()}만원 → ₩${price.toLocaleString()}만원으로 수정했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 입찰 제안 내용을 수정했어요. (의뢰 코드: ${orderCode})`);
+    showToast('입찰 내용을 수정했습니다.', 'success');
+    selectOrderForAudit(orderCode);
+    recalculateKPIs();
 }
 
 /* 지금까지는 고객만 파트너의 입찰을 취소(cancelPartnerBid)할 수 있었고, 파트너
@@ -3552,6 +3590,7 @@ window.closePartnerReapplyModal = closePartnerReapplyModal;
 window.submitPartnerReapplication = submitPartnerReapplication;
 window.partnerLogout = partnerLogout;
 window.submitPartnerBid = submitPartnerBid;
+window.editPartnerBid = editPartnerBid;
 window.selectOrderForAudit = selectOrderForAudit;
 window.togglePartnerConsoleVisibility = togglePartnerConsoleVisibility;
 window.renderPartnerOnboardingBanner = renderPartnerOnboardingBanner;
