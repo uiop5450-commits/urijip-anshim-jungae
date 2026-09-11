@@ -47,8 +47,8 @@ function closeModal(modalId, cardId, delay = 180) {
 
 function switchPartnerMode(mode) {
     window.AppState.partnerConsoleMode = mode;
-    const tabs = { orders: 'btn-partner-view-orders', contracts: 'btn-partner-view-contracts', portfolio: 'btn-partner-view-portfolio', myinfo: 'btn-partner-view-myinfo' };
-    const views = { orders: 'partner-mode-orders-view', contracts: 'partner-mode-contracts-view', portfolio: 'partner-mode-portfolio-view', myinfo: 'partner-mode-myinfo-view' };
+    const tabs = { orders: 'btn-partner-view-orders', contracts: 'btn-partner-view-contracts', portfolio: 'btn-partner-view-portfolio', myinfo: 'btn-partner-view-myinfo', notifications: 'btn-partner-view-notifications' };
+    const views = { orders: 'partner-mode-orders-view', contracts: 'partner-mode-contracts-view', portfolio: 'partner-mode-portfolio-view', myinfo: 'partner-mode-myinfo-view', notifications: 'partner-mode-notifications-view' };
 
     Object.values(tabs).forEach(id => document.getElementById(id)?.classList.remove('active'));
     Object.values(views).forEach(id => document.getElementById(id)?.classList.add('hidden'));
@@ -60,6 +60,7 @@ function switchPartnerMode(mode) {
     else if (mode === 'contracts' && typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
     else if (mode === 'myinfo') renderPartnerProfileManager();
     else if (mode === 'portfolio') renderPartnerConsolePortfolios();
+    else if (mode === 'notifications' && typeof renderPartnerNotifications === 'function') renderPartnerNotifications();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }

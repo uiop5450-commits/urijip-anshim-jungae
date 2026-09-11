@@ -291,6 +291,9 @@ function completeMatchingSim() {
         if (typeof pushClientNotification === 'function') {
             pushClientNotification(auth.phone, `안심 견적(${code})에 파트너사 ${newOrder.bids.length}곳이 자동 매칭되어 견적서를 보냈어요.`);
         }
+        if (typeof pushPartnerNotification === 'function') {
+            selected.forEach(partner => pushPartnerNotification(partner.name, `새 오더(${code})에 매칭되었어요. 고객: ${maskName(newOrder.clientName)}님, ${newOrder.pyung}평형.`));
+        }
     }
 
     window.AppState.orders.unshift(newOrder);
@@ -322,6 +325,7 @@ function cancelPartnerBid(orderCode, partnerName) {
     if (!order.excludedPartners.includes(partnerName)) order.excludedPartners.push(partnerName);
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'CANCEL_BID', `[${order.clientName}] 고객님이 [${partnerName}] 파트너의 매칭을 취소하였습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `고객님이 오더(${orderCode}) 매칭을 취소했어요.`);
     showToast(`[${partnerName}] 매칭을 취소했습니다.`, 'info');
 
     renderClientMyPage();
@@ -361,6 +365,7 @@ function clientFinalizeContract(orderCode, partnerName, finalPrice) {
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'CONTRACT', `${maskName(order.clientName)} 고객님이 [${partnerName}]와 계약 합의서에 서명함.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}와 계약이 체결됐어요. (의뢰 코드: ${orderCode})`);
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `고객님과 계약이 체결됐어요! (의뢰 코드: ${orderCode}, 계약금액 ₩ ${finalPrice.toLocaleString()}만원)`);
     showToast(`${partnerName}와 시공 계약 합의 체결 완료!`, 'success');
 }
 
@@ -883,6 +888,9 @@ function triggerRebidding(orderCode) {
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'REBID', `[${order.clientName}] 고객님 요청으로 오더 ${orderCode}에 파트너사 ${selected.length}곳 재매칭.`, 'INFO');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `새로운 파트너사 ${selected.length}곳이 매칭되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
+    if (typeof pushPartnerNotification === 'function') {
+        selected.forEach(partner => pushPartnerNotification(partner.name, `재매칭으로 새 오더(${orderCode})에 매칭되었어요. 고객: ${maskName(order.clientName)}님.`));
+    }
     showToast(`새로운 파트너사 ${selected.length}곳이 매칭되었습니다!`, 'success');
 
     renderClientMyPage();
@@ -1009,6 +1017,7 @@ function submitClientReview() {
     window.AppState.reviewPhotoDrafts = [];
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW', `${maskName(order.clientName)} 고객님이 [${order.acceptedPartner}]에 대한 안심 후기를 등록함.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 새 후기를 남겼어요! (★ ${window.AppState.activeReviewRating || 5}.0)`);
     showToast("소중한 안심 후기가 정상적으로 등록되었습니다. 감사합니다!", "success");
 
     closeReviewWriteModal();

@@ -125,6 +125,20 @@ function pushClientNotification(clientPhone, message) {
     if (typeof renderClientMyPage === 'function') renderClientMyPage();
 }
 
+/* 파트너 콘솔 > 알림 탭에 쌓이는 개인화 알림. 지금까지 파트너는 새 오더 매칭·계약
+ * 체결·후기 등록·경고/제명 같은 중요한 이벤트를 알 방법이 전혀 없었다(고객에게만
+ * pushClientNotification이 있었음) — 동일한 패턴으로 파트너용도 추가한다. */
+function pushPartnerNotification(partnerName, message) {
+    if (!partnerName) return;
+    window.AppState.partnerNotifications.unshift({
+        id: `pntf-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        partnerName, message, date: new Date().toISOString(), read: false
+    });
+    if (window.AppState.partnerNotifications.length > 200) window.AppState.partnerNotifications.length = 200;
+    if (typeof renderPartnerNotifications === 'function') renderPartnerNotifications();
+    if (typeof updatePartnerNotificationBadge === 'function') updatePartnerNotificationBadge();
+}
+
 /* 아직 구현되지 않은 부가 링크(이용약관 등) 클릭 시 보여줄 안내 — 죽은 링크로 보이지 않게. */
 function showComingSoon(label) {
     showToast(`${label}은(는) 준비 중인 페이지예요.`, 'info');
@@ -211,6 +225,7 @@ window.toggleSearchClearBtn = toggleSearchClearBtn;
 window.buildEmptyStateHtml = buildEmptyStateHtml;
 window.clearSearchInput = clearSearchInput;
 window.pushClientNotification = pushClientNotification;
+window.pushPartnerNotification = pushPartnerNotification;
 window.showComingSoon = showComingSoon;
 window.getLocalDateString = getLocalDateString;
 window.showToast = showToast;

@@ -593,11 +593,64 @@ function togglePartnerConsoleVisibility() {
                     <button type="button" id="btn-partner-view-contracts" onclick="switchPartnerMode('contracts')" class="gnb-tab">안심 계약·입찰 내역</button>
                     <button type="button" id="btn-partner-view-portfolio" onclick="switchPartnerMode('portfolio')" class="gnb-tab">포트폴리오 관리</button>
                     <button type="button" id="btn-partner-view-myinfo" onclick="switchPartnerMode('myinfo')" class="gnb-tab">내정보 관리</button>
+                    <button type="button" id="btn-partner-view-notifications" onclick="switchPartnerMode('notifications')" class="gnb-tab">알림<span id="partner-notif-badge-count"></span></button>
                     <button type="button" onclick="partnerLogout()" class="btn btn-ghost btn-sm"><i data-lucide="log-out" class="w-3.5 h-3.5"></i> 퇴근</button>`;
                 if (typeof lucide !== 'undefined') lucide.createIcons();
+                if (typeof updatePartnerNotificationBadge === 'function') updatePartnerNotificationBadge();
             }
         }
     } else { consoleBox.classList.add('hidden'); gatewayBox.classList.remove('hidden'); }
+}
+
+/* 파트너 콘솔 > 알림 탭 — 새 오더 매칭/계약 체결/후기 등록/경고·제명 시
+ * pushPartnerNotification()으로 쌓인 개인 알림을 나열한다. 고객 마이페이지의
+ * 알림 탭(renderClientMyPageNotifications)과 동일한 타임라인 형식을 그대로 쓴다. */
+function renderPartnerNotifications() {
+    const container = document.getElementById('partner-notifications-container');
+    if (!container) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const myNotifications = (window.AppState.partnerNotifications || []).filter(n => n.partnerName === partnerName);
+
+    if (myNotifications.length === 0) {
+        container.innerHTML = buildEmptyStateHtml('bell', '아직 도착한 알림이 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = `<div class="notif-timeline">` + myNotifications.map((n, idx) => {
+        const d = new Date(n.date);
+        const dateLabel = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        const isLast = idx === myNotifications.length - 1;
+        return `
+        <div class="notif-tl-item">
+            <div class="notif-tl-marker">
+                <span class="notif-tl-dot ${n.read ? 'read' : ''}"><i data-lucide="bell" class="w-3 h-3"></i></span>
+                ${isLast ? '' : '<span class="notif-tl-line"></span>'}
+            </div>
+            <div class="notif-tl-body ${isLast ? '' : 'has-line'}">
+                <p class="text-xs font-bold text-ink-800 leading-relaxed">${escapeHtml(n.message)}</p>
+                <p class="text-[10px] text-ink-400 font-bold mt-0.5">${dateLabel}</p>
+            </div>
+        </div>`;
+    }).join('') + `</div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function markAllPartnerNotificationsRead() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    (window.AppState.partnerNotifications || []).forEach(n => { if (n.partnerName === partnerName) n.read = true; });
+    renderPartnerNotifications();
+    updatePartnerNotificationBadge();
+}
+
+/* 콘솔 탭 버튼에 안 읽은 알림 개수를 표시한다. 탭 전체 재생성 없이 배지 텍스트만
+ * 갱신하므로 pushPartnerNotification 등에서 가볍게 호출할 수 있다. */
+function updatePartnerNotificationBadge() {
+    const badge = document.getElementById('partner-notif-badge-count');
+    if (!badge) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const unreadCount = (window.AppState.partnerNotifications || []).filter(n => n.partnerName === partnerName && !n.read).length;
+    badge.textContent = unreadCount > 0 ? ` (${unreadCount})` : '';
 }
 
 /* 로그인 폼 인라인 에러 — 이전엔 메시지 문구에 ⚠️/❌/⏳ 이모지를 박아 넣었는데,
@@ -1360,6 +1413,7 @@ function allocateOrderToPartner(orderCode) {
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'ALLOCATE', `[매니저 센터] 고액 오더(${orderCode}, ₩ ${order.budget.toLocaleString()}만원)를 [${partnerName}] 파트너사에 수동 배정완료.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 배정되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `매니저 센터가 고액 오더(${orderCode})를 전속 배정했어요. (예산 ₩ ${order.budget.toLocaleString()}만원)`);
     renderAdminOrderAllocation(); recalculateKPIs();
     showToast(`[${partnerName}] 파트너사에 고액 오더 배정이 완료되었습니다!`, "success");
 }
@@ -1386,6 +1440,9 @@ function autoAllocateOrderCore(orderCode) {
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'AUTO_ALLOCATE', `[자동 배정] 오더 ${orderCode} -> [${selectedToAssign.map(s => s.name).join(', ')}] ${selectedToAssign.length}개 인증 파트너사 일괄 자동 배정 완료.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `파트너사 ${selectedToAssign.length}곳이 추가로 배정되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
+    if (typeof pushPartnerNotification === 'function') {
+        selectedToAssign.forEach(selected => pushPartnerNotification(selected.name, `자동 배정으로 새 오더(${orderCode})에 매칭되었어요.`));
+    }
     return { assignedCount: selectedToAssign.length, assignedNames: selectedToAssign.map(s => s.name) };
 }
 
@@ -1624,9 +1681,11 @@ function issuePartnerStrike(partnerName) {
         partner.status = 'banned';
         window.AppState.blacklistDb.unshift({ company: partner.name, bizFile: partner.bizFile || '미등록', phone: '010-****-****', reason: '누적 옐로카드 3회 초과로 매니저 센터 직할 영구 제명 처리', date: getLocalDateString() });
         if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE_OUT', `[삼진아웃] '${partner.name}' 경고 3회 초과로 영구 제명 및 블랙리스트 등록.`, 'WARNING');
+        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, '삼진아웃(경고 3회 초과)으로 영구 제명 처리되었습니다.');
         showToast(`[${partner.name}] 파트너사가 삼진아웃(경고 3회)으로 영구 제명되었습니다.`, "warning");
     } else {
         if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE', `'${partner.name}' 파트너사에 옐로카드 부여 (누적 ${partner.strikeCount}회).`, 'INFO');
+        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `옐로카드가 부여되었습니다. (누적 ${partner.strikeCount}/3회 — 3회 누적 시 영구 제명됩니다)`);
         showToast(`[${partner.name}] 파트너사에 옐로카드가 부여되었습니다. (누적: ${partner.strikeCount}/3회)`, "info");
     }
     renderAdminPartnerMonitor(); renderBlacklistDb();
@@ -1635,8 +1694,10 @@ function issuePartnerStrike(partnerName) {
 function resetPartnerStrikes(partnerName) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
+    const wasBanned = partner.status === 'banned';
     partner.strikeCount = 0;
-    if (partner.status === 'banned') partner.status = 'active';
+    if (wasBanned) partner.status = 'active';
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, wasBanned ? '제명이 해제되고 경고 기록이 초기화되었습니다.' : '경고 기록이 초기화되었습니다.');
     showToast(`[${partnerName}] 파트너사의 경고가 정상 초기화되었습니다.`, "success");
     renderAdminPartnerMonitor();
 }
@@ -1725,6 +1786,7 @@ function approvePartnerApplication(partnerId) {
     if (!partner) return;
     partner.status = 'active';
     if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_APPROVE', `[입점 승인] '${partner.name}'(${partner.id}) 파트너 계정을 승인했습니다.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, '입점 신청이 승인되었습니다! 이제 로그인 후 오더를 받아보실 수 있어요.');
     showToast(`[${partner.name}] 파트너사의 입점을 승인했습니다.`, 'success');
     switchAdminMode('applications');
 }
@@ -2165,6 +2227,9 @@ window.partnerLogout = partnerLogout;
 window.submitPartnerBid = submitPartnerBid;
 window.selectOrderForAudit = selectOrderForAudit;
 window.togglePartnerConsoleVisibility = togglePartnerConsoleVisibility;
+window.renderPartnerNotifications = renderPartnerNotifications;
+window.markAllPartnerNotificationsRead = markAllPartnerNotificationsRead;
+window.updatePartnerNotificationBadge = updatePartnerNotificationBadge;
 window.renderPartnerOrderList = renderPartnerOrderList;
 window.renderPartnerContractsView = renderPartnerContractsView;
 window.setPartnerContractsStatusFilter = setPartnerContractsStatusFilter;

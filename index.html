@@ -728,6 +728,16 @@
                     </div>
                 </div>
 
+                <div id="partner-mode-notifications-view" class="hidden space-y-6">
+                    <div class="surface surface-lg p-5 sm:p-6 space-y-4 text-left">
+                        <div class="border-b border-ink-100 pb-3.5 flex items-center justify-between">
+                            <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="bell" class="w-4 h-4 text-brand-500"></i> 알림</h4>
+                            <button type="button" onclick="markAllPartnerNotificationsRead()" class="btn btn-ghost btn-sm">모두 읽음 처리</button>
+                        </div>
+                        <div id="partner-notifications-container" class="space-y-2.5"></div>
+                    </div>
+                </div>
+
                 <div id="partner-mode-portfolio-view" class="hidden space-y-6">
                     <div id="portfolio-list-subview" class="space-y-6">
                         <div class="flex justify-between items-center pt-2">

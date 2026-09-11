@@ -275,6 +275,10 @@ window.AppState = {
     // (오더가 clientPhone으로 매칭되는 기존 관례와 동일 — pushClientNotification 참고).
     clientNotifications: [],
 
+    // 파트너 콘솔 > 알림 탭에 쌓이는 개인 알림. partnerName으로 소유자를 구분한다
+    // (clientNotifications와 동일한 패턴 — pushPartnerNotification 참고).
+    partnerNotifications: [],
+
     // 히어로 좌측 "업체 광고" 슬라이더에 수동으로 지정한 업체+시공사례 목록 (최대 5개, [{partnerName, portIdx}]).
     // 비어있으면 평점 높은 순으로 자동 노출된다 (getFeaturedHeroSlides 참고). 매니저 콘솔 > 노출 관리에서 편집.
     featuredPartners: [],
