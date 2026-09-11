@@ -449,14 +449,14 @@ const ALL_ADMIN_TABS = [
     ['blacklist', 'shield-alert', '삼진아웃 블랙리스트 DB'], ['logs', 'list', '플랫폼 관제 로그'],
     ['display', 'image', '노출 관리'], ['staff', 'users', '직원 권한 관리'],
     ['community', 'flag', '커뮤니티 관리'], ['support', 'inbox', '고객 문의'],
-    ['broadcast', 'megaphone', '전체 공지 발송']
+    ['broadcast', 'megaphone', '전체 공지 발송'], ['clients', 'users-round', '고객 관리']
 ];
 
 // 'super_admin'은 전체 탭에 접근 가능. 'partner_manager'는 고액 오더 배정(재무),
 // 시스템 로그, 마케팅 노출 관리, 직원 권한 부여처럼 상위 권한이 필요한 영역은
 // 제외하고 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
 const ROLE_TAB_ACCESS = {
-    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast'],
+    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients'],
     partner_manager: ['monitor', 'applications', 'blacklist']
 };
 
@@ -486,7 +486,7 @@ function switchAdminMode(mode) {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
+    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
     document.getElementById(`admin-mode-${mode}-view`)?.classList.remove('hidden');
 
     const kpiGrid = document.getElementById('admin-kpi-grid');
@@ -501,6 +501,7 @@ function switchAdminMode(mode) {
     else if (mode === 'staff') renderAdminStaffManager();
     else if (mode === 'community' && typeof renderAdminCommunityModeration === 'function') renderAdminCommunityModeration();
     else if (mode === 'support' && typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
+    else if (mode === 'clients') renderAdminClientManager();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -1560,6 +1561,53 @@ function sendAdminBroadcastNotification() {
     if (msgInput) msgInput.value = '';
 }
 
+/* 지금까지 관리자 콘솔은 파트너 모니터링/블랙리스트/가입심사처럼 파트너 관리 도구는
+ * 풍부한데, 고객 계정 목록을 한눈에 조회할 방법이 전혀 없었다(전화로 문의가 와도
+ * 오더 코드를 모르면 검색조차 불가능). 고객별 의뢰/계약/후기 통계를 모아 보여주고,
+ * 이미 있는 통합 오더 조회창(searchOrderLookup)으로 바로 넘겨준다. */
+function renderAdminClientManager() {
+    const container = document.getElementById('admin-client-manager-list');
+    if (!container) return;
+    const query = (document.getElementById('admin-client-search-input')?.value || '').trim().toLowerCase();
+
+    const clients = (window.AppState.clientAccounts || []).filter(a => !a.managerRole);
+    const filtered = clients.filter(a =>
+        !query || a.name.toLowerCase().includes(query) || a.id.toLowerCase().includes(query) || (a.phone && a.phone.includes(query))
+    );
+
+    if (filtered.length === 0) {
+        container.innerHTML = `<p class="text-xs font-bold text-ink-400 text-center py-12">검색 조건에 해당되는 고객이 없습니다.</p>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map(acc => {
+        const myOrders = (window.AppState.orders || []).filter(o => o.clientPhone === acc.phone);
+        const contractedCount = myOrders.filter(o => o.status === 'contracted').length;
+        const reviewCount = myOrders.filter(o => o.reviewWritten).length;
+        const favoriteCount = (acc.favoritePartners || []).length;
+
+        return `
+        <div class="surface-flat p-4 flex flex-wrap items-center justify-between gap-3 text-left">
+            <div class="space-y-0.5 min-w-0">
+                <p class="text-sm font-black text-ink-950">${escapeHtml(acc.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(acc.id)})</span></p>
+                <p class="text-[11px] text-ink-500 font-bold">연락처 ${escapeHtml(acc.phone || '-')}</p>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] font-bold text-ink-600 shrink-0">
+                <span>의뢰 ${myOrders.length}건</span><span>계약 ${contractedCount}건</span><span>후기 ${reviewCount}건</span><span>관심업체 ${favoriteCount}곳</span>
+                <button type="button" onclick="jumpToClientOrderLookup('${escapeHtml(acc.phone || '')}')" class="btn btn-secondary btn-sm">의뢰 조회</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function jumpToClientOrderLookup(phone) {
+    const input = document.getElementById('admin-order-lookup-input');
+    if (!input) return;
+    input.value = phone;
+    if (typeof searchOrderLookup === 'function') searchOrderLookup();
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 function renderAdminOrderAllocation() {
     const container = document.getElementById('admin-order-allocation-container');
     if (!container) return;
@@ -2592,6 +2640,8 @@ window.exportLogsToCsv = exportLogsToCsv;
 window.exportPartnerListToCsv = exportPartnerListToCsv;
 window.replyToSupportTicket = replyToSupportTicket;
 window.sendAdminBroadcastNotification = sendAdminBroadcastNotification;
+window.renderAdminClientManager = renderAdminClientManager;
+window.jumpToClientOrderLookup = jumpToClientOrderLookup;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
 window.renderPartnerPerformanceView = renderPartnerPerformanceView;
 window.closePartnerMetricsModal = closePartnerMetricsModal;

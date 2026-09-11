@@ -1070,6 +1070,19 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="admin-mode-clients-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg p-6 space-y-5 text-left">
+                        <div class="flex flex-wrap justify-between items-center gap-3 border-b border-ink-100 pb-4">
+                            <div class="space-y-1">
+                                <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="users-round" class="w-4 h-4"></i> 고객 관리</h4>
+                                <p class="text-[11px] text-ink-500 font-medium">가입된 고객의 의뢰·계약·후기 현황을 확인하고, 상단 통합 조회창으로 바로 이동할 수 있어요.</p>
+                            </div>
+                            <input type="text" id="admin-client-search-input" oninput="renderAdminClientManager()" placeholder="고객명·아이디·연락처 검색..." class="input max-w-xs">
+                        </div>
+                        <div id="admin-client-manager-list" class="space-y-2.5"></div>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
