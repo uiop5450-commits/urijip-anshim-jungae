@@ -2544,6 +2544,7 @@ function renderAdminPartnerMonitor() {
 
         const activeBidsCount = (window.AppState.orders || []).filter(o => o.bids && o.bids.some(b => b.partner === p.name)).length;
         const completedContractsCount = (window.AppState.orders || []).filter(o => o.status === 'contracted' && o.acceptedPartner === p.name).length;
+        const myPartnerReports = (window.AppState.partnerReports || []).filter(r => r.partnerName === p.name);
 
         const card = document.createElement('div');
         card.className = "surface p-5 space-y-4 hover:border-ink-300 transition-all text-left flex flex-col justify-between";
@@ -2551,7 +2552,7 @@ function renderAdminPartnerMonitor() {
             <div class="space-y-3">
                 <div class="flex justify-between items-start gap-2">
                     <div class="space-y-1">
-                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증</span>` : ''}${p.isPaused ? `<span class="badge badge-amber"><i data-lucide="pause-circle" class="w-2.5 h-2.5"></i> 매칭 일시중단</span>` : ''}</div>
+                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증</span>` : ''}${p.isPaused ? `<span class="badge badge-amber"><i data-lucide="pause-circle" class="w-2.5 h-2.5"></i> 매칭 일시중단</span>` : ''}${myPartnerReports.length > 0 ? `<span class="badge badge-rose">고객 신고 ${myPartnerReports.length}건</span>` : ''}</div>
                         <h4 class="text-sm font-black text-ink-950">${p.name}</h4>
                         <p class="text-[10px] text-ink-400 font-mono">사업자 번호: ${p.bizFile || '미등록'}</p>
                     </div>
@@ -2630,6 +2631,24 @@ function buildAdminPortfolioModerationHtml(partner) {
                 <button type="button" onclick="adminDeletePortfolio('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
             </div>
             <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(p.desc || '')}</p>
+        </div>`).join('');
+}
+
+/* 고객이 신고한 파트너 계약 불이행/부실 시공 신고(submitPartnerReport, client_panel.js)를
+ * 관리자가 검토할 수 있게, 후기/시공사례 관리와 동일한 목록 블록을 파트너 상세 성과
+ * 모달에 추가한다. 신고는 삭제 대상이 아니라 참고 기록이므로 삭제 버튼은 두지 않는다. */
+function buildAdminPartnerReportsHtml(partner) {
+    const reports = (window.AppState.partnerReports || []).filter(r => r.partnerName === partner.name);
+    if (reports.length === 0) {
+        return `<div class="p-4 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 font-bold">접수된 고객 신고가 없습니다.</div>`;
+    }
+    return reports.map(r => `
+        <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-200 space-y-1.5 text-left">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-black text-ink-800">${escapeHtml(r.clientName)}</span>
+                <span class="text-[10px] text-ink-400 font-bold">${r.orderCode} · ${r.date}</span>
+            </div>
+            <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(r.reason)}</p>
         </div>`).join('');
 }
 
@@ -2759,6 +2778,10 @@ function openPartnerMetricsModal(partnerName) {
                 <div class="space-y-2.5 pt-2">
                     <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="image" class="w-4 h-4 text-ink-600"></i> 등록된 시공사례 관리 (${(partner.portfolios || []).filter(p => !p.isDraft).length}건)</h4>
                     <div class="space-y-2">${buildAdminPortfolioModerationHtml(partner)}</div>
+                </div>
+                <div class="space-y-2.5 pt-2">
+                    <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="flag" class="w-4 h-4 text-roseCustom"></i> 고객 신고 내역 (${((window.AppState.partnerReports || []).filter(r => r.partnerName === partner.name)).length}건)</h4>
+                    <div class="space-y-2">${buildAdminPartnerReportsHtml(partner)}</div>
                 </div>
             </div>
             <div class="pt-3 border-t border-ink-100 flex justify-end"><button type="button" onclick="closePartnerMetricsModal()" class="btn btn-dark">확인 및 닫기</button></div>

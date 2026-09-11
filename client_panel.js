@@ -546,6 +546,56 @@ function retractContractCancellationRequest(orderCode) {
     if (typeof renderAdminContractCancellations === 'function') renderAdminContractCancellations();
 }
 
+/* 파트너는 노쇼·상습 갑질 고객을 신고할 수 있게 됐는데(openReportClientModal,
+ * partner_panel.js) 정작 반대 방향(고객이 부실 시공·계약 불이행 파트너를 신고)은
+ * 방법이 없었다 — 동일한 window.AppState.clientReports 패턴을 대칭으로 두되,
+ * 파트너 대상이므로 별도 partnerReports 배열에 쌓아 관리자 파트너 모니터링에서 확인한다. */
+let reportPartnerTargetCode = null;
+
+function isPartnerReportedByMeForOrder(orderCode) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return false;
+    return (window.AppState.partnerReports || []).some(r => r.orderCode === orderCode && r.reportedByClient === auth.id);
+}
+
+function openReportPartnerModal(orderCode) {
+    const auth = window.AppState.clientAuth;
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!auth || !auth.loggedIn || !order || order.status !== 'contracted') return;
+    if (isPartnerReportedByMeForOrder(orderCode)) { showToast('이미 신고를 접수한 계약입니다.', 'info'); return; }
+    reportPartnerTargetCode = orderCode;
+    safeUpdateValue('report-partner-reason', '');
+    openModal('report-partner-modal', 'report-partner-modal-card');
+}
+
+function closeReportPartnerModal() {
+    reportPartnerTargetCode = null;
+    closeModal('report-partner-modal', 'report-partner-modal-card');
+}
+
+function submitPartnerReport() {
+    const auth = window.AppState.clientAuth;
+    const order = window.AppState.orders.find(o => o.code === reportPartnerTargetCode);
+    if (!order) { closeReportPartnerModal(); return; }
+    if (isPartnerReportedByMeForOrder(order.code)) { showToast('이미 신고를 접수한 계약입니다.', 'info'); closeReportPartnerModal(); return; }
+
+    const reason = document.getElementById('report-partner-reason')?.value.trim();
+    if (!reason) { showToast('신고 사유를 입력해 주세요.', 'warning'); return; }
+
+    if (!window.AppState.partnerReports) window.AppState.partnerReports = [];
+    window.AppState.partnerReports.unshift({
+        id: `prpt-${Date.now()}`, orderCode: order.code, partnerName: order.acceptedPartner,
+        reportedByClient: auth.id, clientName: auth.name, reason, date: getLocalDateString()
+    });
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PARTNER_REPORT', `[${auth.name}] 고객님이 오더 ${order.code}의 계약 파트너사(${order.acceptedPartner})를 신고했습니다.`, 'WARNING');
+    showToast('신고가 접수되었습니다. 매니저 센터에서 검토할게요.', 'success');
+    closeReportPartnerModal();
+    renderClientMyPage();
+    selectMyPageEstimate(order.code);
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
 function clientFinalizeContract(orderCode, partnerName, finalPrice) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return;
@@ -1473,7 +1523,10 @@ function renderMyPageEstimateDetails(order) {
                     </div>`;
             }).join('')}
         </div>
-        <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>` : '';
+        <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>
+        ${isPartnerReportedByMeForOrder(order.code)
+            ? `<div class="mt-2 text-center"><span class="badge badge-neutral">계약 파트너사 신고 접수됨</span></div>`
+            : `<button type="button" onclick="openReportPartnerModal('${order.code}')" class="btn btn-ghost btn-sm btn-block mt-2 text-roseCustom"><i data-lucide="flag" class="w-3.5 h-3.5"></i> 계약 파트너사 신고하기</button>`}` : '';
 
     detailBoard.innerHTML = `
         <div class="space-y-6 text-left">
@@ -2433,6 +2486,10 @@ window.closeEditOrderBudgetModal = closeEditOrderBudgetModal;
 window.saveOrderBudgetEdit = saveOrderBudgetEdit;
 window.downloadTransactionReceipt = downloadTransactionReceipt;
 window.openContractCancelRequestModal = openContractCancelRequestModal;
+window.isPartnerReportedByMeForOrder = isPartnerReportedByMeForOrder;
+window.openReportPartnerModal = openReportPartnerModal;
+window.closeReportPartnerModal = closeReportPartnerModal;
+window.submitPartnerReport = submitPartnerReport;
 window.closeContractCancelRequestModal = closeContractCancelRequestModal;
 window.submitContractCancellationRequest = submitContractCancellationRequest;
 window.retractContractCancellationRequest = retractContractCancellationRequest;
