@@ -620,7 +620,10 @@
                 <div id="client-mypage-subtab-notifications-view" class="hidden surface surface-lg p-5 sm:p-6 space-y-4 text-left transition-all duration-300">
                     <div class="border-b border-ink-100 pb-3.5 flex items-center justify-between">
                         <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="bell" class="w-4 h-4 text-brand-500"></i> 알림</h4>
-                        <button type="button" onclick="markAllClientNotificationsRead()" class="btn btn-ghost btn-sm">모두 읽음 처리</button>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="markAllClientNotificationsRead()" class="btn btn-ghost btn-sm">모두 읽음 처리</button>
+                            <button type="button" onclick="clearAllClientNotifications()" class="btn btn-ghost btn-sm text-roseCustom">모두 삭제</button>
+                        </div>
                     </div>
                     <div id="client-mypage-notifications-container" class="space-y-2.5"></div>
                 </div>
@@ -859,7 +862,10 @@
                     <div class="surface surface-lg p-5 sm:p-6 space-y-4 text-left">
                         <div class="border-b border-ink-100 pb-3.5 flex items-center justify-between">
                             <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="bell" class="w-4 h-4 text-brand-500"></i> 알림</h4>
-                            <button type="button" onclick="markAllPartnerNotificationsRead()" class="btn btn-ghost btn-sm">모두 읽음 처리</button>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" onclick="markAllPartnerNotificationsRead()" class="btn btn-ghost btn-sm">모두 읽음 처리</button>
+                                <button type="button" onclick="clearAllPartnerNotifications()" class="btn btn-ghost btn-sm text-roseCustom">모두 삭제</button>
+                            </div>
                         </div>
                         <div id="partner-notifications-container" class="space-y-2.5"></div>
                     </div>

@@ -699,13 +699,16 @@ function renderPartnerNotifications() {
         const dateLabel = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         const isLast = idx === myNotifications.length - 1;
         return `
-        <div class="notif-tl-item ${n.read ? '' : 'cursor-pointer'}" ${n.read ? '' : `onclick="markPartnerNotificationRead('${n.id}')"`}>
+        <div class="notif-tl-item">
             <div class="notif-tl-marker">
                 <span class="notif-tl-dot ${n.read ? 'read' : ''}"><i data-lucide="bell" class="w-3 h-3"></i></span>
                 ${isLast ? '' : '<span class="notif-tl-line"></span>'}
             </div>
             <div class="notif-tl-body ${isLast ? '' : 'has-line'}">
-                <p class="text-xs font-bold text-ink-800 leading-relaxed">${escapeHtml(n.message)}</p>
+                <div class="flex justify-between items-start gap-2">
+                    <p class="text-xs font-bold text-ink-800 leading-relaxed ${n.read ? '' : 'cursor-pointer'}" ${n.read ? '' : `onclick="markPartnerNotificationRead('${n.id}')"`}>${escapeHtml(n.message)}</p>
+                    <button type="button" onclick="deletePartnerNotification('${n.id}')" class="text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0" aria-label="알림 삭제"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                </div>
                 <p class="text-[10px] text-ink-400 font-bold mt-0.5">${dateLabel}${n.read ? '' : ' · <span class="text-brand-600">탭하여 읽음 처리</span>'}</p>
             </div>
         </div>`;
@@ -716,6 +719,24 @@ function renderPartnerNotifications() {
 function markAllPartnerNotificationsRead() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     (window.AppState.partnerNotifications || []).forEach(n => { if (n.partnerName === partnerName) n.read = true; });
+    renderPartnerNotifications();
+    updatePartnerNotificationBadge();
+}
+
+/* 고객측(deleteClientNotification/clearAllClientNotifications)과 동일하게, 읽음
+ * 처리만 가능하고 삭제는 불가능해서 알림이 계속 쌓이기만 했던 공백을 해소한다. */
+function deletePartnerNotification(notifId) {
+    const idx = (window.AppState.partnerNotifications || []).findIndex(n => n.id === notifId);
+    if (idx === -1) return;
+    window.AppState.partnerNotifications.splice(idx, 1);
+    renderPartnerNotifications();
+    updatePartnerNotificationBadge();
+}
+
+function clearAllPartnerNotifications() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    window.AppState.partnerNotifications = (window.AppState.partnerNotifications || []).filter(n => n.partnerName !== partnerName);
+    showToast('알림을 모두 삭제했습니다.', 'info');
     renderPartnerNotifications();
     updatePartnerNotificationBadge();
 }
@@ -3724,6 +3745,8 @@ window.dismissPartnerOnboardingBanner = dismissPartnerOnboardingBanner;
 window.renderPartnerNotifications = renderPartnerNotifications;
 window.markAllPartnerNotificationsRead = markAllPartnerNotificationsRead;
 window.markPartnerNotificationRead = markPartnerNotificationRead;
+window.deletePartnerNotification = deletePartnerNotification;
+window.clearAllPartnerNotifications = clearAllPartnerNotifications;
 window.updatePartnerNotificationBadge = updatePartnerNotificationBadge;
 window.submitPartnerSupportInquiry = submitPartnerSupportInquiry;
 window.renderMyPartnerSupportTickets = renderMyPartnerSupportTickets;
