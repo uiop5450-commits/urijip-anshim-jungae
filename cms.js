@@ -605,6 +605,7 @@ function renderPartnerProfileManager() {
     safeUpdateValue('partner-promo-slogan', partner.promoSlogan || '');
     safeUpdateValue('partner-promo-text', partner.promoText || '');
     renderPartnerPauseToggle(partner);
+    safeUpdateText('partner-account-bizcert-filename', partner.bizCertDoc ? partner.bizCertDoc.name : '첨부된 사업자등록증이 없습니다.');
 
     const img = document.getElementById('partner-hero-slide-img');
     if (img) img.src = partner.heroImages[partner.heroSlideIndex];
@@ -658,6 +659,31 @@ function updatePartnerPassword() {
     safeUpdateValue('partner-account-edit-current-pw', '');
     safeUpdateValue('partner-account-edit-new-pw', '');
     safeUpdateValue('partner-account-edit-new-pw2', '');
+}
+
+/* 지금까지 사업자등록증은 입점 신청 때 딱 한 번 첨부하면 다시는 바꿀 방법이
+ * 없었다 — 사업자 정보가 갱신되거나 잘못 첨부한 경우에도 매니저 센터에 별도로
+ * 요청해야 했을 것. 파트너 본인이 직접 새 파일로 교체할 수 있게 한다. */
+function handlePartnerBizCertReupload(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) { showToast('파일 용량은 15MB 이하로 올려주세요.', 'warning'); return; }
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+        showToast('이미지 또는 PDF 파일만 업로드할 수 있어요.', 'warning'); return;
+    }
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        partner.bizCertDoc = { name: file.name, uploadedAt: new Date().toLocaleString('ko-KR'), dataUrl: e.target.result };
+        safeUpdateText('partner-account-bizcert-filename', file.name);
+        if (typeof pushLog === 'function') pushLog('PARTNER', 'BIZCERT_UPDATE', `[${partnerName}]가 사업자등록증을 새 파일로 교체했습니다.`, 'INFO');
+        showToast('사업자등록증이 교체되었습니다.', 'success');
+    };
+    reader.readAsDataURL(file);
 }
 
 /* 파트너 콘솔 '내 정보' 탭 — 받은 후기 목록과 답글 작성 UI. 지금까지는 파트너가
@@ -1314,6 +1340,7 @@ window.renderPartnerMyReviews = renderPartnerMyReviews;
 window.updatePartnerPhone = updatePartnerPhone;
 window.togglePartnerPauseStatus = togglePartnerPauseStatus;
 window.updatePartnerPassword = updatePartnerPassword;
+window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;
 window.submitReviewReply = submitReviewReply;
 window.removeReviewReply = removeReviewReply;
 window.toggleLikePortfolio = toggleLikePortfolio;

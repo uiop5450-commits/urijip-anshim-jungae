@@ -775,6 +775,13 @@
                             <div><label class="field-label">새 비밀번호 확인</label><input type="password" id="partner-account-edit-new-pw2" class="input"></div>
                             <button type="button" onclick="updatePartnerPassword()" class="btn btn-secondary">비밀번호 변경</button>
                         </div>
+                        <div class="space-y-3 pt-2">
+                            <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="file-text" class="w-4 h-4 text-brand-500"></i> 사업자등록증 갱신</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">사업자등록증이 갱신되었거나 잘못 첨부된 경우 새 파일로 교체할 수 있어요.</p>
+                            <p id="partner-account-bizcert-filename" class="text-[11px] font-bold text-ink-700 bg-ink-50 px-3 py-2 rounded-lg">첨부된 사업자등록증이 없습니다.</p>
+                            <input type="file" id="partner-account-bizcert-input" accept="image/*,.pdf" class="hidden" onchange="handlePartnerBizCertReupload(this)">
+                            <button type="button" onclick="document.getElementById('partner-account-bizcert-input').click()" class="btn btn-secondary btn-sm"><i data-lucide="upload" class="w-3.5 h-3.5"></i> 새 파일로 교체</button>
+                        </div>
                     </div>
                 </div>
 
