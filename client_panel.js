@@ -538,6 +538,7 @@ function loginClientWithId() {
 
     const account = window.AppState.clientAccounts.find(acc => acc.id === idVal && acc.pw === pwVal);
     if (!account) { showToast("아이디 또는 비밀번호가 일치하지 않습니다.", "warning"); return; }
+    if (account.isSuspended) { showToast("이용이 정지된 계정입니다. 고객센터로 문의해 주세요.", "warning"); return; }
 
     const auth = window.AppState.clientAuth;
     auth.loggedIn = true; auth.id = account.id; auth.name = account.name; auth.phone = account.phone;

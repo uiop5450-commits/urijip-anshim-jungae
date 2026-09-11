@@ -1589,15 +1589,32 @@ function renderAdminClientManager() {
         return `
         <div class="surface-flat p-4 flex flex-wrap items-center justify-between gap-3 text-left">
             <div class="space-y-0.5 min-w-0">
-                <p class="text-sm font-black text-ink-950">${escapeHtml(acc.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(acc.id)})</span></p>
+                <div class="flex items-center gap-1.5">
+                    <p class="text-sm font-black text-ink-950">${escapeHtml(acc.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(acc.id)})</span></p>
+                    ${acc.isSuspended ? '<span class="badge badge-rose">이용 정지</span>' : ''}
+                </div>
                 <p class="text-[11px] text-ink-500 font-bold">연락처 ${escapeHtml(acc.phone || '-')}</p>
             </div>
             <div class="flex items-center gap-3 text-[11px] font-bold text-ink-600 shrink-0">
                 <span>의뢰 ${myOrders.length}건</span><span>계약 ${contractedCount}건</span><span>후기 ${reviewCount}건</span><span>관심업체 ${favoriteCount}곳</span>
                 <button type="button" onclick="jumpToClientOrderLookup('${escapeHtml(acc.phone || '')}')" class="btn btn-secondary btn-sm">의뢰 조회</button>
+                <button type="button" onclick="toggleClientSuspension('${acc.id}')" class="btn ${acc.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${acc.isSuspended ? '정지 해제' : '계정 정지'}</button>
             </div>
         </div>`;
     }).join('');
+}
+
+/* 파트너에는 제명/일시중단/옐로카드 같은 제재 수단이 이미 있는데, 고객 계정에는
+ * 어떤 제재 수단도 없었다 — 악성 후기·허위 의뢰가 반복되는 계정을 막을 방법이
+ * 전혀 없던 공백. isSuspended 플래그만으로 가볍게 로그인을 막는다(파트너의
+ * isPaused와 동일한 boolean 토글 패턴). */
+function toggleClientSuspension(accountId) {
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === accountId);
+    if (!account) return;
+    account.isSuspended = !account.isSuspended;
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_SUSPEND', `'${account.name}'(${account.id}) 고객 계정을 ${account.isSuspended ? '이용 정지' : '정지 해제'}했습니다.`, account.isSuspended ? 'WARNING' : 'INFO');
+    showToast(`[${account.name}] 고객 계정이 ${account.isSuspended ? '이용 정지되었습니다' : '정지 해제되었습니다'}.`, account.isSuspended ? 'warning' : 'success');
+    renderAdminClientManager();
 }
 
 function jumpToClientOrderLookup(phone) {
@@ -2642,6 +2659,7 @@ window.replyToSupportTicket = replyToSupportTicket;
 window.sendAdminBroadcastNotification = sendAdminBroadcastNotification;
 window.renderAdminClientManager = renderAdminClientManager;
 window.jumpToClientOrderLookup = jumpToClientOrderLookup;
+window.toggleClientSuspension = toggleClientSuspension;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
 window.renderPartnerPerformanceView = renderPartnerPerformanceView;
 window.closePartnerMetricsModal = closePartnerMetricsModal;
