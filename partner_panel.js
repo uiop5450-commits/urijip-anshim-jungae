@@ -515,7 +515,7 @@ function switchAdminMode(mode) {
     else if (mode === 'community' && typeof renderAdminCommunityModeration === 'function') renderAdminCommunityModeration();
     else if (mode === 'support' && typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
     else if (mode === 'clients') renderAdminClientManager();
-    else if (mode === 'cancellations') renderAdminContractCancellations();
+    else if (mode === 'cancellations') { renderAdminContractCancellations(); renderAdminRefundPendingList(); }
     else if (mode === 'broadcast' && typeof updateAdminBroadcastSegmentUI === 'function') updateAdminBroadcastSegmentUI();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -2327,16 +2327,69 @@ function renderAdminContractCancellations() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+/* 계약 취소가 승인되면 recalculateKPIs()의 'contracted' 필터에서 자동으로 빠져
+ * GMV/에스크로/수수료 집계는 되돌려지지만, 파트너가 이미 결제한 수수료
+ * (commissionPaid)는 그대로 "결제됨" 상태로 남아 실제 환불이 됐는지 알 방법이
+ * 없었다 — 계약이 사라졌는데 돈은 계속 낸 것으로 표시되는 공백. 환불 대상 플래그를
+ * 세워 별도 환불 처리 큐에서 관리자가 명시적으로 완료 처리하게 한다. */
 function approveContractCancellation(orderCode) {
     const order = (window.AppState.orders || []).find(o => o.code === orderCode);
     if (!order || order.status !== 'cancel_requested') return;
     order.status = 'cancelled';
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'CONTRACT_CANCEL_APPROVE', `[계약 취소 승인] 오더 ${order.code}의 계약 취소 요청을 승인했습니다.`, 'WARNING');
+
+    const needsRefund = !!order.commissionPaid;
+    if (needsRefund) {
+        order.refundStatus = 'pending';
+        order.refundAmount = Math.floor((order.finalPrice || 0) * PLATFORM_COMMISSION_RATE);
+    }
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CONTRACT_CANCEL_APPROVE', `[계약 취소 승인] 오더 ${order.code}의 계약 취소 요청을 승인했습니다.${needsRefund ? ` (수수료 환불 대상 ₩${order.refundAmount.toLocaleString()}만원)` : ''}`, 'WARNING');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `요청하신 계약(${order.code}) 취소가 승인되었습니다.`);
-    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `계약(${order.code}) 취소 요청이 승인되어 계약이 취소되었습니다.`);
-    showToast(`오더 ${order.code}의 계약 취소를 승인했습니다.`, 'success');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) {
+        pushPartnerNotification(order.acceptedPartner, needsRefund
+            ? `계약(${order.code}) 취소 요청이 승인되어 계약이 취소되었습니다. 이미 납부하신 플랫폼 수수료 ₩${order.refundAmount.toLocaleString()}만원은 매니저 센터에서 환불 처리할 예정입니다.`
+            : `계약(${order.code}) 취소 요청이 승인되어 계약이 취소되었습니다.`);
+    }
+    showToast(`오더 ${order.code}의 계약 취소를 승인했습니다.${needsRefund ? ' 수수료 환불 대기 목록에 등록되었어요.' : ''}`, 'success');
     renderAdminContractCancellations();
+    if (typeof renderAdminRefundPendingList === 'function') renderAdminRefundPendingList();
     if (typeof recalculateKPIs === 'function') recalculateKPIs();
+}
+
+function renderAdminRefundPendingList() {
+    const container = document.getElementById('admin-refund-pending-list');
+    if (!container) return;
+    const pending = (window.AppState.orders || []).filter(o => o.refundStatus === 'pending');
+
+    if (pending.length === 0) {
+        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap" style="background:var(--emerald-50);color:var(--emerald-600)"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">환불 대기 중인 건이 없습니다.</p></div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = pending.map(o => `
+        <div class="surface p-5 space-y-3 text-left">
+            <div class="flex justify-between items-start gap-2">
+                <div class="space-y-1">
+                    <span class="badge badge-amber">환불 대기</span>
+                    <h4 class="text-sm font-black text-ink-950">${o.code} · ${escapeHtml(o.acceptedPartner || '-')}</h4>
+                    <p class="text-[11px] text-ink-500 font-bold">환불 대상 수수료 ₩ ${(o.refundAmount || 0).toLocaleString()}만원</p>
+                </div>
+                <button type="button" onclick="processCommissionRefund('${o.code}')" class="btn btn-dark btn-sm">환불 처리 완료</button>
+            </div>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function processCommissionRefund(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || order.refundStatus !== 'pending') return;
+    order.refundStatus = 'refunded';
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMISSION_REFUND', `[수수료 환불] 오더 ${order.code}의 플랫폼 수수료 ₩${(order.refundAmount || 0).toLocaleString()}만원을 [${order.acceptedPartner}]에게 환불 처리했습니다.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `취소된 계약(${order.code})의 플랫폼 수수료 ₩${(order.refundAmount || 0).toLocaleString()}만원이 환불 처리되었습니다.`);
+    showToast(`오더 ${order.code}의 수수료 환불 처리를 완료했습니다.`, 'success');
+    renderAdminRefundPendingList();
 }
 
 function rejectContractCancellation(orderCode) {
@@ -3593,6 +3646,8 @@ window.submitPartnerReapplication = submitPartnerReapplication;
 window.partnerLogout = partnerLogout;
 window.submitPartnerBid = submitPartnerBid;
 window.editPartnerBid = editPartnerBid;
+window.renderAdminRefundPendingList = renderAdminRefundPendingList;
+window.processCommissionRefund = processCommissionRefund;
 window.selectOrderForAudit = selectOrderForAudit;
 window.togglePartnerConsoleVisibility = togglePartnerConsoleVisibility;
 window.renderPartnerOnboardingBanner = renderPartnerOnboardingBanner;
