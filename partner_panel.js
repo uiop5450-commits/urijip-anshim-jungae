@@ -82,6 +82,7 @@ function switchPanel(panelId) {
 
     if (panelId === 'home-panel') { renderHeroPortfolioSlider(); renderHomeEventSlider(); renderHeroTrustStats(); startHomeAutoplay(); }
     else { stopHomeAutoplay(); }
+    if (panelId === 'client-panel' && typeof restoreQuoteDraftFromStorage === 'function') restoreQuoteDraftFromStorage();
     if (panelId === 'partner-search-panel') renderPartnerSearchGrid();
     if (panelId === 'community-panel' && typeof renderCommunityList === 'function') renderCommunityList();
     if (panelId === 'client-mypage-panel') {

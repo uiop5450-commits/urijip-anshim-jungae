@@ -64,6 +64,7 @@ function renderCalendar() {
                 window.AppState.formData.preferredDate = dateString;
                 renderCalendar();
                 syncFormStateUI();
+                saveQuoteDraftToStorage();
             };
             cls += 'cursor-pointer ';
             if (isSelected) {
@@ -93,9 +94,44 @@ function renderCalendar() {
     }
 }
 
+/* 파트너는 포트폴리오 작성 중 초안 저장이 가능한데(ab7ffa7), 클라이언트가 주소·평수·
+ * 공정·일정 여러 단계로 구성된 견적 신청 폼을 작성하다 중단하면(다른 탭 이동, 실수로
+ * 새로고침 등) 처음부터 다시 입력해야 했다 — localStorage에 자동 저장해두고 다시
+ * 들어오면 복원한다. 계정 종속 정보(clientName/clientPhone)는 로그인 시 항상 새로
+ * 채워지므로 저장 대상에서 제외한다. */
+const QUOTE_DRAFT_STORAGE_KEY = 'anshim_quote_draft';
+
+function saveQuoteDraftToStorage() {
+    try {
+        const fd = window.AppState.formData;
+        const draft = { clientAddress: fd.clientAddress, spaceType: fd.spaceType, workType: fd.workType, pyung: fd.pyung, vacancy: fd.vacancy, preferredDate: fd.preferredDate, partnerCountLimit: fd.partnerCountLimit, budget: fd.budget };
+        localStorage.setItem(QUOTE_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    } catch (e) { /* localStorage 접근 불가 환경(프라이빗 모드 등)에서도 폼 자체는 정상 동작해야 한다 */ }
+}
+
+function clearQuoteDraftFromStorage() {
+    try { localStorage.removeItem(QUOTE_DRAFT_STORAGE_KEY); } catch (e) { /* no-op */ }
+}
+
+function restoreQuoteDraftFromStorage() {
+    const fd = window.AppState.formData;
+    if (fd.clientAddress || fd.pyung > 0) return; // 이미 작성 중인 내용이 있으면 덮어쓰지 않는다.
+    let draft = null;
+    try { draft = JSON.parse(localStorage.getItem(QUOTE_DRAFT_STORAGE_KEY) || 'null'); } catch (e) { return; }
+    if (!draft || (!draft.clientAddress && !(draft.pyung > 0))) return;
+
+    Object.assign(fd, draft);
+    safeUpdateValue('client-address', draft.clientAddress || '');
+    safeUpdateValue('client-pyung', draft.pyung || '');
+    safeUpdateValue('client-vacancy', draft.vacancy || 'empty');
+    syncFormStateUI();
+    showToast('이전에 작성 중이던 견적 신청 내용을 불러왔어요.', 'info');
+}
+
 function updateFormState(key, value) {
     window.AppState.formData[key] = value;
     syncFormStateUI();
+    saveQuoteDraftToStorage();
 }
 
 /* 순수 입력창 포맷터 — 클라이언트 가입/파트너 입점 신청 두 폼이 공유해서 쓰므로,
@@ -112,11 +148,13 @@ function handlePyungChange(val) {
     const parsed = parseFloat(val);
     window.AppState.formData.pyung = isNaN(parsed) ? 0 : parsed;
     syncFormStateUI();
+    saveQuoteDraftToStorage();
 }
 
 function handleBudgetChange(val) {
     window.AppState.formData.budget = parseInt(val, 10);
     syncFormStateUI();
+    saveQuoteDraftToStorage();
 }
 
 function formatBudget(value) {
@@ -298,6 +336,7 @@ function completeMatchingSim() {
 
     window.AppState.orders.unshift(newOrder);
     window.AppState.lastCreatedOrderCode = code;
+    clearQuoteDraftFromStorage();
 
     if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
     if (typeof recalculateKPIs === 'function') recalculateKPIs();
@@ -2475,6 +2514,9 @@ window.renderCalendar = renderCalendar;
 window.updateFormState = updateFormState;
 window.handlePhoneInput = handlePhoneInput;
 window.handlePyungChange = handlePyungChange;
+window.restoreQuoteDraftFromStorage = restoreQuoteDraftFromStorage;
+window.saveQuoteDraftToStorage = saveQuoteDraftToStorage;
+window.clearQuoteDraftFromStorage = clearQuoteDraftFromStorage;
 window.handleBudgetChange = handleBudgetChange;
 window.formatBudget = formatBudget;
 window.syncFormStateUI = syncFormStateUI;
