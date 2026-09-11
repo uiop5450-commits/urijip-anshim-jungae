@@ -913,7 +913,7 @@ function renderClientMyPage() {
     document.getElementById('client-mypage-subtab-favorites-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'favorites');
     document.getElementById('client-mypage-subtab-notifications-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'notifications');
     document.getElementById('client-mypage-subtab-account-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'account');
-    if (clientMyPageActiveSubtab === 'posts') renderClientMyPagePosts();
+    if (clientMyPageActiveSubtab === 'posts') { renderClientMyPagePosts(); renderClientMyPageSavedPosts(); }
     if (clientMyPageActiveSubtab === 'favorites') renderClientFavoritePartners();
     if (clientMyPageActiveSubtab === 'notifications') renderClientMyPageNotifications(myNotifications);
     if (clientMyPageActiveSubtab === 'account') renderClientAccountSettings();
@@ -1036,6 +1036,67 @@ function renderClientMyPagePosts() {
 function jumpToMyCommunityPost(postId) {
     switchPanel('community-panel');
     openCommunityDetail(postId);
+}
+
+/* 커뮤니티 글을 좋아요·댓글·신고는 할 수 있지만, 지금 당장 답할 시간이 없어 나중에
+ * 다시 보고 싶은 글을 저장해둘 방법이 없었다 — "내가 쓴 글"은 본인 작성 글만 보여줘서
+ * 대체할 수 없다. 관심 파트너(favoritePartners)와 동일한 clientAccounts 저장 패턴을
+ * 적용한다. */
+const MAX_SAVED_POSTS = 30;
+
+function isCommunityPostSaved(postId) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return false;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    return !!(account && account.savedPosts && account.savedPosts.includes(postId));
+}
+
+function toggleSaveCommunityPost(postId) {
+    if (!requireClientLoginForCommunity()) return;
+    const auth = window.AppState.clientAuth;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+    if (!account.savedPosts) account.savedPosts = [];
+    const idx = account.savedPosts.indexOf(postId);
+    if (idx >= 0) { account.savedPosts.splice(idx, 1); showToast('저장한 글에서 제거했습니다.', 'info'); }
+    else {
+        if (account.savedPosts.length >= MAX_SAVED_POSTS) { showToast(`저장한 글은 최대 ${MAX_SAVED_POSTS}건까지 보관할 수 있어요. 기존 항목을 해제한 후 다시 시도해주세요.`, 'warning'); return; }
+        account.savedPosts.push(postId); showToast('글을 저장했습니다!', 'success');
+    }
+    openCommunityDetail(postId);
+    if (typeof renderClientMyPageSavedPosts === 'function') renderClientMyPageSavedPosts();
+}
+
+function renderClientMyPageSavedPosts() {
+    const container = document.getElementById('client-mypage-saved-posts-container');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    const savedIds = (account && account.savedPosts) || [];
+    const savedPosts = savedIds.map(id => (window.AppState.communityPosts || []).find(p => p.id === id)).filter(Boolean);
+
+    if (savedPosts.length === 0) {
+        container.innerHTML = buildEmptyStateHtml('bookmark', '아직 저장한 커뮤니티 글이 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = savedPosts.map(p => `
+        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl cursor-pointer hover:bg-ink-100 transition-colors" onclick="jumpToMyCommunityPost('${p.id}')">
+            <div class="space-y-0.5 min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-brand">${COMMUNITY_CATEGORIES[p.category] || '자유 이야기'}</span>
+                    <span class="text-[10px] text-ink-400 font-bold">${escapeHtml(p.authorName)} · ${p.date}</span>
+                </div>
+                <h5 class="text-xs font-black text-ink-950 truncate">${escapeHtml(p.title)}</h5>
+            </div>
+            <div class="flex items-center gap-3 text-[11px] text-ink-400 font-bold shrink-0 ml-2">
+                <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i> ${(p.likedBy || []).length}</span>
+                <span class="flex items-center gap-1"><i data-lucide="message-square" class="w-3 h-3"></i> ${(p.comments || []).length}</span>
+            </div>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 /* 관심 파트너(찜) — 지금까지는 파트너 탐색 화면을 매번 다시 훑거나 1:1 지정 상담을
@@ -2334,6 +2395,7 @@ function openCommunityDetail(postId) {
             ${post.images && post.images.length > 0 ? `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 py-2" id="community-detail-images">${post.images.map(src => `<img src="${src}" class="w-full aspect-square rounded-xl object-cover border border-ink-100 cursor-pointer">`).join('')}</div>` : ''}
             <div class="flex items-center gap-2 pt-2">
                 <button type="button" onclick="toggleCommunityLike('${post.id}')" class="btn btn-secondary btn-sm like-btn ${liked ? 'liked' : ''}"><i data-lucide="heart" class="w-3.5 h-3.5"></i> 좋아요 ${(post.likedBy || []).length}</button>
+                ${myId ? `<button type="button" onclick="toggleSaveCommunityPost('${post.id}')" class="btn btn-secondary btn-sm ${isCommunityPostSaved(post.id) ? 'liked' : ''}"><i data-lucide="bookmark" class="w-3.5 h-3.5"></i> ${isCommunityPostSaved(post.id) ? '저장됨' : '저장'}</button>` : ''}
             </div>
             <div class="pt-5 border-t border-ink-100 space-y-3">
                 <h5 class="text-xs font-black text-ink-800">댓글 ${(post.comments || []).length}개</h5>
@@ -2621,6 +2683,9 @@ window.saveCommunityReplyEdit = saveCommunityReplyEdit;
 window.renderAdminCommunityModeration = renderAdminCommunityModeration;
 window.adminDeleteCommunityPost = adminDeleteCommunityPost;
 window.toggleCommunityPostPin = toggleCommunityPostPin;
+window.isCommunityPostSaved = isCommunityPostSaved;
+window.toggleSaveCommunityPost = toggleSaveCommunityPost;
+window.renderClientMyPageSavedPosts = renderClientMyPageSavedPosts;
 window.reportCommunityPost = reportCommunityPost;
 window.isCommunityCommentReportedByMe = isCommunityCommentReportedByMe;
 window.reportCommunityComment = reportCommunityComment;
