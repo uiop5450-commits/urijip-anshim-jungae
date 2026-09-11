@@ -865,7 +865,7 @@ function renderPartnerConsolePortfolios() {
         const itemDiv = document.createElement('div');
         itemDiv.className = "portfolio-card text-left";
         itemDiv.innerHTML = `
-            <div class="portfolio-img" onclick="openPortfolioBlogDetail('${partner.name}', ${idx})">${buildPortfolioCardMediaHtml(item)}</div>
+            <div class="portfolio-img relative" onclick="openPortfolioBlogDetail('${partner.name}', ${idx})">${item.isPrimary ? `<span class="badge badge-gold absolute top-2 left-2 z-10"><i data-lucide="star" class="w-2.5 h-2.5"></i> 대표</span>` : ''}${buildPortfolioCardMediaHtml(item)}</div>
             <div class="p-4 space-y-1.5">
                 <h5 class="font-black text-ink-950 text-xs line-clamp-1">${escapeHtml(item.title)}</h5>
                 <p class="text-[10px] text-ink-500 line-clamp-2">${escapeHtml(item.desc || '')}</p>
@@ -875,6 +875,7 @@ function renderPartnerConsolePortfolios() {
                         <button type="button" onclick="event.stopPropagation();deletePartnerPortfolio(${idx})" class="btn btn-ghost btn-sm px-1.5 text-roseCustom">삭제</button>
                         <button type="button" onclick="event.stopPropagation();movePartnerPortfolio(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="btn btn-ghost btn-sm px-1.5" aria-label="위로 이동"><i data-lucide="arrow-up" class="w-3.5 h-3.5"></i></button>
                         <button type="button" onclick="event.stopPropagation();movePartnerPortfolio(${idx}, 1)" ${idx === partner.portfolios.length - 1 ? 'disabled' : ''} class="btn btn-ghost btn-sm px-1.5" aria-label="아래로 이동"><i data-lucide="arrow-down" class="w-3.5 h-3.5"></i></button>
+                        ${!item.isPrimary ? `<button type="button" onclick="event.stopPropagation();setPrimaryPortfolio(${idx})" class="btn btn-ghost btn-sm px-1.5" aria-label="대표 시공사례로 지정"><i data-lucide="star" class="w-3.5 h-3.5"></i></button>` : ''}
                     </div>
                     <span class="text-[10px] text-ink-400 font-bold flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i>${item.likes || 0}</span>
                 </div>
@@ -906,6 +907,27 @@ function movePartnerPortfolio(idx, dir) {
     const targetIdx = idx + dir;
     if (targetIdx < 0 || targetIdx >= partner.portfolios.length) return;
     [partner.portfolios[idx], partner.portfolios[targetIdx]] = [partner.portfolios[targetIdx], partner.portfolios[idx]];
+    renderPartnerConsolePortfolios();
+    if (typeof renderHeroPortfolioSlider === 'function') renderHeroPortfolioSlider();
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+}
+
+/* 관리자가 관리하는 홈 화면 히어로 슬라이더(featuredPartners)와는 별개로, 파트너
+ * 본인이 자기 공개 프로필에서 어떤 시공사례를 대표로 보여줄지 정할 방법이 전혀
+ * 없었다 — 순서 맨 앞으로 옮기는 동시에 "대표" 배지를 달아 눈에 띄게 한다.
+ * 한 번에 하나만 대표로 지정 가능하도록 나머지는 해제한다. */
+function setPrimaryPortfolio(idx) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || !partner.portfolios || !partner.portfolios[idx]) return;
+
+    partner.portfolios.forEach(p => { p.isPrimary = false; });
+    const [selected] = partner.portfolios.splice(idx, 1);
+    selected.isPrimary = true;
+    partner.portfolios.unshift(selected);
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PORTFOLIO', `[${partnerName}]가 "${selected.title}"를 대표 시공사례로 지정했습니다.`, 'INFO');
+    showToast('대표 시공사례로 지정되었습니다.', 'success');
     renderPartnerConsolePortfolios();
     if (typeof renderHeroPortfolioSlider === 'function') renderHeroPortfolioSlider();
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
@@ -1028,7 +1050,7 @@ function openClientPartnerProfile(partnerName) {
                 itemDiv.className = "portfolio-card text-left group";
                 itemDiv.onclick = (e) => { e.stopPropagation(); openPortfolioBlogDetail(partner.name, idx); };
                 itemDiv.innerHTML = `
-                    <div class="portfolio-img">${buildPortfolioCardMediaHtml(port)}</div>
+                    <div class="portfolio-img relative">${port.isPrimary ? `<span class="badge badge-gold absolute top-2 left-2 z-10"><i data-lucide="star" class="w-2.5 h-2.5"></i> 대표 시공사례</span>` : ''}${buildPortfolioCardMediaHtml(port)}</div>
                     <div class="p-4 space-y-1.5">
                         <h5 class="font-black text-ink-950 text-xs truncate group-hover:text-ink-600 transition-colors">${escapeHtml(port.title)}</h5>
                         <p class="text-[11px] text-ink-500 font-medium line-clamp-2 leading-relaxed">${escapeHtml(port.desc || '')}</p>
@@ -1420,4 +1442,5 @@ window.importPortfolioFromUrl = importPortfolioFromUrl;
 window.movePortfolioBodyImage = movePortfolioBodyImage;
 window.deletePartnerPortfolio = deletePartnerPortfolio;
 window.movePartnerPortfolio = movePartnerPortfolio;
+window.setPrimaryPortfolio = setPrimaryPortfolio;
 window.handleBlogLikeClick = handleBlogLikeClick;
