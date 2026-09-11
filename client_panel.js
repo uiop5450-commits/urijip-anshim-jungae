@@ -604,7 +604,8 @@ function renderClientMyPage() {
         const mainTabs = [
             ['history', '의뢰이력'],
             ['posts', `내가 쓴 글 (${myPostsCount})`],
-            ['notifications', unreadCount > 0 ? `알림 (${unreadCount})` : '알림']
+            ['notifications', unreadCount > 0 ? `알림 (${unreadCount})` : '알림'],
+            ['account', '계정 정보']
         ];
         mainTabsEl.innerHTML = mainTabs.map(([key, label]) =>
             `<button type="button" data-tab="${key}" onclick="switchClientMyPageSubtab('${key}')" class="gnb-tab ${clientMyPageActiveSubtab === key ? 'active' : ''}">${label}</button>`
@@ -613,8 +614,10 @@ function renderClientMyPage() {
     document.getElementById('client-mypage-subtab-history-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'history');
     document.getElementById('client-mypage-subtab-posts-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'posts');
     document.getElementById('client-mypage-subtab-notifications-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'notifications');
+    document.getElementById('client-mypage-subtab-account-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'account');
     if (clientMyPageActiveSubtab === 'posts') renderClientMyPagePosts();
     if (clientMyPageActiveSubtab === 'notifications') renderClientMyPageNotifications(myNotifications);
+    if (clientMyPageActiveSubtab === 'account') renderClientAccountSettings();
 
     const allMyOrders = window.AppState.orders.filter(o => o.clientPhone === auth.phone);
 
@@ -770,6 +773,58 @@ function markAllClientNotificationsRead() {
     if (!auth.loggedIn) return;
     (window.AppState.clientNotifications || []).forEach(n => { if (n.clientPhone === auth.phone) n.read = true; });
     renderClientMyPage();
+}
+
+/* 마이페이지 > 계정 정보 탭 — 회원가입 후에는 이름/전화번호/비밀번호를 바꿀 방법이
+ * 전혀 없던 기능 공백을 메운다. 이미 생성된 과거 오더의 clientName/clientPhone
+ * 스냅샷까지 거슬러 바꾸지는 않는다(주문 시점의 정보를 그대로 유지하는 게 맞다). */
+function renderClientAccountSettings() {
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    safeUpdateValue('account-edit-name', auth.name);
+    safeUpdateValue('account-edit-phone', auth.phone);
+    safeUpdateValue('account-edit-current-pw', '');
+    safeUpdateValue('account-edit-new-pw', '');
+    safeUpdateValue('account-edit-new-pw2', '');
+}
+
+function updateClientProfileInfo() {
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    const nameVal = document.getElementById('account-edit-name')?.value.trim();
+    const phoneVal = document.getElementById('account-edit-phone')?.value.trim();
+    if (!nameVal || !phoneVal) { showToast('이름과 휴대폰 연락처를 모두 입력해 주세요.', 'warning'); return; }
+    if (/['"`<>\\]/.test(nameVal)) { showToast('이름에는 따옴표, 백틱, 꺾쇠, 백슬래시를 사용할 수 없습니다.', 'warning'); return; }
+    if (!/^0\d{1,2}-\d{3,4}-\d{4}$/.test(phoneVal)) { showToast('휴대폰 연락처를 올바른 형식으로 입력해 주세요. (예: 010-0000-0000)', 'warning'); return; }
+    if (window.AppState.clientAccounts.some(acc => acc.id !== auth.id && acc.phone === phoneVal)) { showToast('이미 다른 계정에서 사용 중인 휴대폰 번호입니다.', 'warning'); return; }
+
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (account) { account.name = nameVal; account.phone = phoneVal; }
+    auth.name = nameVal; auth.phone = phoneVal;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PROFILE_UPDATE', `'${auth.id}' 고객님이 회원 정보를 수정했습니다.`, 'INFO');
+    showToast('회원 정보가 저장되었습니다.', 'success');
+    toggleClientAuthUI();
+    renderClientMyPage();
+}
+
+function updateClientPassword() {
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+
+    const currentPw = document.getElementById('account-edit-current-pw')?.value || '';
+    const newPw = document.getElementById('account-edit-new-pw')?.value || '';
+    const newPw2 = document.getElementById('account-edit-new-pw2')?.value || '';
+    if (!currentPw || !newPw || !newPw2) { showToast('비밀번호 항목을 모두 입력해 주세요.', 'warning'); return; }
+    if (account.pw !== currentPw) { showToast('현재 비밀번호가 일치하지 않습니다.', 'warning'); return; }
+    if (newPw !== newPw2) { showToast('새 비밀번호가 일치하지 않습니다.', 'warning'); return; }
+
+    account.pw = newPw;
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PASSWORD_CHANGE', `'${auth.id}' 고객님이 비밀번호를 변경했습니다.`, 'INFO');
+    showToast('비밀번호가 변경되었습니다.', 'success');
+    renderClientAccountSettings();
 }
 
 function selectMyPageEstimate(orderCode) {
@@ -1582,6 +1637,9 @@ window.renderClientMyPagePosts = renderClientMyPagePosts;
 window.jumpToMyCommunityPost = jumpToMyCommunityPost;
 window.renderClientMyPageNotifications = renderClientMyPageNotifications;
 window.markAllClientNotificationsRead = markAllClientNotificationsRead;
+window.renderClientAccountSettings = renderClientAccountSettings;
+window.updateClientProfileInfo = updateClientProfileInfo;
+window.updateClientPassword = updateClientPassword;
 window.selectMyPageEstimate = selectMyPageEstimate;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
