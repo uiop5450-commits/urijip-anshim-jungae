@@ -2292,6 +2292,14 @@ function toggleClientSuspension(accountId) {
     if (!account) return;
     account.isSuspended = !account.isSuspended;
     if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_SUSPEND', `'${account.name}'(${account.id}) 고객 계정을 ${account.isSuspended ? '이용 정지' : '정지 해제'}했습니다.`, account.isSuspended ? 'WARNING' : 'INFO');
+    // 파트너 제재(issuePartnerStrike)는 pushPartnerNotification으로 당사자에게 알리는데,
+    // 대칭인 고객 계정 정지는 알림이 전혀 가지 않았다 — 정지 중엔 로그인이 막혀 당장
+    // 볼 수 없어도, 정지 해제 후(또는 문의 시) 이력으로 확인할 수 있게 남겨둔다.
+    if (typeof pushClientNotification === 'function' && account.phone) {
+        pushClientNotification(account.phone, account.isSuspended
+            ? '이용 정지 처리되었습니다. 자세한 사유는 고객센터로 문의해 주세요.'
+            : '이용 정지가 해제되었습니다. 다시 서비스를 이용하실 수 있어요.');
+    }
     showToast(`[${account.name}] 고객 계정이 ${account.isSuspended ? '이용 정지되었습니다' : '정지 해제되었습니다'}.`, account.isSuspended ? 'warning' : 'success');
     renderAdminClientManager();
 }
