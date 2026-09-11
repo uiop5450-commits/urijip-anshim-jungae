@@ -714,8 +714,9 @@
 
                 <div id="partner-mode-orders-view" class="grid grid-cols-1 lg:grid-cols-12 gap-6 transition-all duration-300">
                     <div class="lg:col-span-5 surface surface-lg p-5 space-y-4 text-left">
-                        <div class="flex justify-between items-center border-b border-ink-100 pb-3.5">
+                        <div class="flex justify-between items-center border-b border-ink-100 pb-3.5 gap-2">
                             <span id="partner-live-order-badge" class="text-xs font-black text-ink-800 flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-roseCustom animate-ping"></span> 실시간 수급 오더 분석 중</span>
+                            <button type="button" id="btn-partner-favorite-orders-toggle" onclick="togglePartnerFavoriteOrdersFilter()" class="btn btn-ghost btn-sm shrink-0"><i data-lucide="bookmark" class="w-3.5 h-3.5"></i> 찜한 오더만</button>
                         </div>
                         <div id="partner-order-stream-list" class="space-y-3.5 max-h-[500px] overflow-y-auto pr-1 custom-scroll"></div>
                     </div>

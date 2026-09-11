@@ -1050,6 +1050,37 @@ function submitPartnerSignup() {
     switchPartnerAuthTab('login');
 }
 
+/* 고객의 "관심 파트너" 찜하기(toggleFavoritePartner, client_panel.js)와 대칭되는
+ * 파트너용 기능 — 즉시입찰 스트림이 실시간으로 계속 흘러가기 때문에, 당장 입찰할지
+ * 판단이 안 서는 오더를 놓치지 않게 찜해두고 나중에 모아볼 수 있게 한다.
+ * 고객측과 달리 별도 개수 상한은 두지 않는다(파트너 본인의 업무 도구 성격). */
+let partnerFavoriteOrdersOnly = false;
+
+function isFavoriteOrder(orderCode) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    return !!(partner && partner.favoriteOrders && partner.favoriteOrders.includes(orderCode));
+}
+
+function toggleFavoriteOrder(orderCode, event) {
+    if (event) event.stopPropagation();
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    if (!partner.favoriteOrders) partner.favoriteOrders = [];
+    const idx = partner.favoriteOrders.indexOf(orderCode);
+    if (idx >= 0) { partner.favoriteOrders.splice(idx, 1); showToast(`오더 ${orderCode}를 관심 오더에서 제거했습니다.`, 'info'); }
+    else { partner.favoriteOrders.push(orderCode); showToast(`오더 ${orderCode}를 관심 오더로 저장했습니다!`, 'success'); }
+    renderPartnerOrderList();
+}
+
+function togglePartnerFavoriteOrdersFilter() {
+    partnerFavoriteOrdersOnly = !partnerFavoriteOrdersOnly;
+    const btn = document.getElementById('btn-partner-favorite-orders-toggle');
+    if (btn) btn.classList.toggle('btn-dark', partnerFavoriteOrdersOnly);
+    renderPartnerOrderList();
+}
+
 function renderPartnerOrderList() {
     const streamList = document.getElementById('partner-order-stream-list');
     const liveOrderBadge = document.getElementById('partner-live-order-badge');
@@ -1057,12 +1088,16 @@ function renderPartnerOrderList() {
 
     const currentPartner = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const allOrders = window.AppState.orders;
-    const filteredOrders = allOrders.filter(o => o.status === 'bidding' && o.budget < 7000 && !o.is1on1 && o.bids.length < o.partnerCountLimit && !o.bids.some(b => b.partner === currentPartner) && (!o.excludedPartners || !o.excludedPartners.includes(currentPartner)));
+    let filteredOrders = allOrders.filter(o => o.status === 'bidding' && o.budget < 7000 && !o.is1on1 && o.bids.length < o.partnerCountLimit && !o.bids.some(b => b.partner === currentPartner) && (!o.excludedPartners || !o.excludedPartners.includes(currentPartner)));
+    if (partnerFavoriteOrdersOnly) filteredOrders = filteredOrders.filter(o => isFavoriteOrder(o.code));
 
     if (liveOrderBadge) liveOrderBadge.innerText = `${filteredOrders.length}개 선착순 즉시입찰 참여 가능 오더`;
 
     if (filteredOrders.length === 0) {
-        streamList.innerHTML = `<div class="empty-state !py-16 surface"><p class="text-xs text-ink-800 font-extrabold leading-relaxed">지금 참여 가능한 새로운 안심 입찰 오더가 존재하지 않습니다.<br><span class="text-[10px] text-ink-500 font-semibold mt-1 inline-block">(신청 완료한 건은 상단 '안심계약' 확인)</span></p></div>`;
+        streamList.innerHTML = partnerFavoriteOrdersOnly
+            ? `<div class="empty-state !py-16 surface"><p class="text-xs text-ink-800 font-extrabold leading-relaxed">찜한 오더가 없습니다.<br><span class="text-[10px] text-ink-500 font-semibold mt-1 inline-block">오더 카드의 북마크 아이콘을 눌러 찜해보세요.</span></p></div>`
+            : `<div class="empty-state !py-16 surface"><p class="text-xs text-ink-800 font-extrabold leading-relaxed">지금 참여 가능한 새로운 안심 입찰 오더가 존재하지 않습니다.<br><span class="text-[10px] text-ink-500 font-semibold mt-1 inline-block">(신청 완료한 건은 상단 '안심계약' 확인)</span></p></div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
 
@@ -1070,6 +1105,7 @@ function renderPartnerOrderList() {
     filteredOrders.forEach(order => {
         const item = document.createElement('div');
         const isSelected = order.code === window.AppState.selectedOrderCode;
+        const favorited = isFavoriteOrder(order.code);
         item.className = `p-4 rounded-2xl border ${isSelected ? 'border-2 border-ink-950 bg-ink-50' : 'border-ink-100 bg-white hover:border-ink-300'} transition-all cursor-pointer space-y-2 text-left`;
         item.style.boxShadow = 'var(--shadow-1)';
         item.onclick = () => selectOrderForAudit(order.code);
@@ -1078,13 +1114,18 @@ function renderPartnerOrderList() {
         item.innerHTML = `
             <div class="flex justify-between items-center text-[10px] font-bold">
                 <span class="font-mono text-ink-600 bg-ink-100 px-2 py-0.5 rounded-md border border-ink-200 font-extrabold">${order.code}</span>
-                <span class="badge badge-neutral"><span class="badge-dot ${slotsLeft === 1 ? 'bg-amberCustom' : 'bg-ink-400'}"></span>선착순 ${slotsLeft}개사 남음</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="badge badge-neutral"><span class="badge-dot ${slotsLeft === 1 ? 'bg-amberCustom' : 'bg-ink-400'}"></span>선착순 ${slotsLeft}개사 남음</span>
+                    <button type="button" class="btn btn-ghost btn-sm px-1.5" aria-label="관심 오더 찜하기"><i data-lucide="bookmark" class="w-3.5 h-3.5 ${favorited ? 'text-brand-600' : 'text-ink-300'}" ${favorited ? 'fill="currentColor"' : ''}></i></button>
+                </div>
             </div>
             <h5 class="text-xs font-black text-ink-950">${maskName(order.clientName)} 고객님 (${order.pyung}평형)</h5>
             <p class="text-[10px] text-ink-500 font-medium truncate">${maskAddress(order.clientAddress)}</p>
             <span class="badge badge-brand">희망예산 ₩ ${order.budget.toLocaleString()}만원</span>`;
+        item.querySelector('button[aria-label="관심 오더 찜하기"]').onclick = (e) => toggleFavoriteOrder(order.code, e);
         streamList.appendChild(item);
     });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function selectOrderForAudit(code) {
@@ -3291,6 +3332,9 @@ window.submitPartnerSupportInquiry = submitPartnerSupportInquiry;
 window.renderMyPartnerSupportTickets = renderMyPartnerSupportTickets;
 window.submitPartnerSupportFollowUp = submitPartnerSupportFollowUp;
 window.cancelPartnerSupportTicket = cancelPartnerSupportTicket;
+window.isFavoriteOrder = isFavoriteOrder;
+window.toggleFavoriteOrder = toggleFavoriteOrder;
+window.togglePartnerFavoriteOrdersFilter = togglePartnerFavoriteOrdersFilter;
 window.renderPartnerOrderList = renderPartnerOrderList;
 window.renderPartnerContractsView = renderPartnerContractsView;
 window.setPartnerContractsStatusFilter = setPartnerContractsStatusFilter;
