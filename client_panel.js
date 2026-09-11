@@ -401,6 +401,62 @@ function saveOrderBudgetEdit() {
     if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
 }
 
+let contractCancelRequestTargetCode = null;
+
+/* 계약이 체결되면(order.status='contracted') 지금까지 되돌릴 방법이 전혀 없었다 —
+ * 오탈자나 파트너와의 분쟁 등 어떤 사유든 영구 확정이었던 공백. 즉시 취소하지 않고
+ * 매니저 센터 심사를 거치는 별도 상태(cancel_requested)를 둬서, 관리자가 실제
+ * 계약 취소를 승인/반려하는 절차를 갖춘다. */
+function openContractCancelRequestModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'contracted') return;
+    contractCancelRequestTargetCode = orderCode;
+    safeUpdateValue('contract-cancel-request-reason', '');
+    openModal('contract-cancel-request-modal', 'contract-cancel-request-modal-card');
+}
+
+function closeContractCancelRequestModal() {
+    contractCancelRequestTargetCode = null;
+    closeModal('contract-cancel-request-modal', 'contract-cancel-request-modal-card');
+}
+
+function submitContractCancellationRequest() {
+    const order = window.AppState.orders.find(o => o.code === contractCancelRequestTargetCode);
+    if (!order || order.status !== 'contracted') { closeContractCancelRequestModal(); return; }
+
+    const reason = document.getElementById('contract-cancel-request-reason')?.value.trim();
+    if (!reason) { showToast('취소 요청 사유를 입력해주세요.', 'warning'); return; }
+
+    order.status = 'cancel_requested';
+    order.cancelRequest = { reason, requestedBy: 'client', date: getLocalDateString() };
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'CONTRACT_CANCEL_REQUEST', `[${order.clientName}] 고객님이 계약(${order.code})의 취소를 요청했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 계약(${order.code}) 취소를 요청했어요. 매니저 센터에서 심사 중입니다.`);
+    showToast('취소 요청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeContractCancelRequestModal();
+    renderClientMyPage();
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+    if (typeof renderAdminContractCancellations === 'function') renderAdminContractCancellations();
+}
+
+function retractContractCancellationRequest(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'cancel_requested') return;
+    order.status = 'contracted';
+    order.cancelRequest = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'CONTRACT_CANCEL_RETRACT', `[${order.clientName}] 고객님이 계약(${order.code}) 취소 요청을 철회했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 계약(${order.code}) 취소 요청을 철회했어요. 계약이 그대로 유지됩니다.`);
+    showToast('취소 요청을 철회했습니다. 계약이 그대로 유지됩니다.', 'info');
+
+    renderClientMyPage();
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+    if (typeof renderAdminContractCancellations === 'function') renderAdminContractCancellations();
+}
+
 function clientFinalizeContract(orderCode, partnerName, finalPrice) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return;
@@ -723,6 +779,8 @@ function renderClientMyPage() {
 
         let statusBadge = '';
         if (order.status === 'withdrawn') statusBadge = `<span class="badge badge-neutral"><span class="badge-dot bg-ink-300"></span> 철회됨</span>`;
+        else if (order.status === 'cancel_requested') statusBadge = `<span class="badge badge-amber"><span class="badge-dot bg-amberCustom"></span> 계약 취소 심사중</span>`;
+        else if (order.status === 'cancelled') statusBadge = `<span class="badge badge-rose"><span class="badge-dot bg-roseCustom"></span> 계약 취소됨</span>`;
         else if (order.is1on1) statusBadge = `<span class="badge badge-neutral"><span class="badge-dot bg-ink-950"></span> 1:1 지정 [${order.targetPartner}]</span>`;
         else if (order.status === 'bidding') {
             statusBadge = order.isHighBudgetAdminPending
@@ -1073,6 +1131,34 @@ function renderMyPageEstimateDetails(order) {
         return;
     }
 
+    // 계약이 체결된 이후에는 지금까지 되돌릴 방법이 전혀 없었다(오탈자 하나, 파트너와의
+    // 분쟁 등 어떤 사유든 영구 확정) — 고객이 취소를 요청하면 매니저 센터 심사를 거쳐
+    // 승인/반려되는 별도 상태(cancel_requested → cancelled 또는 contracted 복귀)를 둔다.
+    if (order.status === 'cancel_requested' || order.status === 'cancelled') {
+        const isRequested = order.status === 'cancel_requested';
+        detailBoard.innerHTML = `
+            <div class="space-y-6 text-left">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-4">
+                    <div class="space-y-1">
+                        <span class="px-2 py-0.5 text-[9px] font-mono font-black bg-ink-100 text-ink-700 rounded border border-ink-200">${order.code}</span>
+                        <h3 class="text-base sm:text-lg font-black text-ink-950">${escapeHtml(order.clientAddress)}</h3>
+                    </div>
+                    ${isRequested ? `<span class="badge badge-amber"><span class="badge-dot bg-amberCustom"></span> 계약 취소 심사중</span>` : `<span class="badge badge-rose"><span class="badge-dot bg-roseCustom"></span> 계약 취소됨</span>`}
+                </div>
+                <div class="p-4 rounded-2xl text-xs font-bold text-ink-600 bg-ink-50 space-y-1.5">
+                    <p>${isRequested ? '계약 취소 요청이 매니저 센터에서 심사 중입니다. 승인되면 계약이 취소되고, 반려되면 계약이 그대로 유지됩니다.' : '이 계약은 취소 승인되어 더 이상 유효하지 않습니다.'}</p>
+                    ${order.cancelRequest ? `<p class="text-[11px] text-ink-500 font-semibold">요청 사유: ${escapeHtml(order.cancelRequest.reason)}</p>` : ''}
+                </div>
+                <div class="p-4 rounded-2xl border border-ink-100 bg-white text-left space-y-1">
+                    <p class="text-xs font-black text-ink-950">계약 파트너사: ${escapeHtml(order.acceptedPartner || '-')}</p>
+                    <p class="text-xs text-ink-500 font-semibold">최종 계약금액: ₩ ${(order.finalPrice || 0).toLocaleString()} 만원</p>
+                </div>
+                ${isRequested ? `<button type="button" onclick="retractContractCancellationRequest('${order.code}')" class="btn btn-secondary btn-block">취소 요청 철회하기</button>` : ''}
+            </div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
     let bidsHtml = '';
     if (order.bids && order.bids.length > 0) {
         order.bids.forEach(bid => {
@@ -1177,6 +1263,7 @@ function renderMyPageEstimateDetails(order) {
                         ${order.status === 'bidding' ? `<button type="button" onclick="openEditOrderBudgetModal('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 block mt-0.5">수정</button>` : ''}
                     </div>
                     ${order.status === 'bidding' ? `<button type="button" onclick="withdrawOrder('${order.code}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 whitespace-nowrap">의뢰 철회</button>` : ''}
+                    ${order.status === 'contracted' ? `<button type="button" onclick="openContractCancelRequestModal('${order.code}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 whitespace-nowrap">계약 취소 요청</button>` : ''}
                 </div>
             </div>
 
@@ -1977,6 +2064,10 @@ window.withdrawOrder = withdrawOrder;
 window.openEditOrderBudgetModal = openEditOrderBudgetModal;
 window.closeEditOrderBudgetModal = closeEditOrderBudgetModal;
 window.saveOrderBudgetEdit = saveOrderBudgetEdit;
+window.openContractCancelRequestModal = openContractCancelRequestModal;
+window.closeContractCancelRequestModal = closeContractCancelRequestModal;
+window.submitContractCancellationRequest = submitContractCancellationRequest;
+window.retractContractCancellationRequest = retractContractCancellationRequest;
 
 window.sendClientAuthCode = sendClientAuthCode;
 window.switchClientAuthTab = switchClientAuthTab;

@@ -449,14 +449,15 @@ const ALL_ADMIN_TABS = [
     ['blacklist', 'shield-alert', '삼진아웃 블랙리스트 DB'], ['logs', 'list', '플랫폼 관제 로그'],
     ['display', 'image', '노출 관리'], ['staff', 'users', '직원 권한 관리'],
     ['community', 'flag', '커뮤니티 관리'], ['support', 'inbox', '고객 문의'],
-    ['broadcast', 'megaphone', '전체 공지 발송'], ['clients', 'users-round', '고객 관리']
+    ['broadcast', 'megaphone', '전체 공지 발송'], ['clients', 'users-round', '고객 관리'],
+    ['cancellations', 'ban', '계약 취소 심사']
 ];
 
 // 'super_admin'은 전체 탭에 접근 가능. 'partner_manager'는 고액 오더 배정(재무),
 // 시스템 로그, 마케팅 노출 관리, 직원 권한 부여처럼 상위 권한이 필요한 영역은
 // 제외하고 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
 const ROLE_TAB_ACCESS = {
-    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients'],
+    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients', 'cancellations'],
     partner_manager: ['monitor', 'applications', 'blacklist']
 };
 
@@ -476,17 +477,19 @@ function switchAdminMode(mode) {
     if (tabBar) {
         const pendingCount = (window.AppState.partners || []).filter(p => p.status === 'pending').length;
         const openTicketCount = (window.AppState.supportTickets || []).filter(t => t.status === 'open').length;
+        const cancelRequestCount = (window.AppState.orders || []).filter(o => o.status === 'cancel_requested').length;
         const tabs = ALL_ADMIN_TABS.filter(([id]) => allowedTabs.includes(id)).map(([id, icon, label]) => {
             let finalLabel = label;
             if (id === 'applications' && pendingCount > 0) finalLabel = `${label} (${pendingCount})`;
             else if (id === 'support' && openTicketCount > 0) finalLabel = `${label} (${openTicketCount})`;
+            else if (id === 'cancellations' && cancelRequestCount > 0) finalLabel = `${label} (${cancelRequestCount})`;
             return [id, icon, finalLabel];
         });
         tabBar.innerHTML = tabs.map(([id, icon, label]) => `<button type="button" id="btn-admin-view-${id}" onclick="switchAdminMode('${id}')" class="gnb-tab ${mode === id ? 'active' : ''}"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i> ${label}</button>`).join('');
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
+    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients', 'cancellations'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
     document.getElementById(`admin-mode-${mode}-view`)?.classList.remove('hidden');
 
     const kpiGrid = document.getElementById('admin-kpi-grid');
@@ -502,6 +505,7 @@ function switchAdminMode(mode) {
     else if (mode === 'community' && typeof renderAdminCommunityModeration === 'function') renderAdminCommunityModeration();
     else if (mode === 'support' && typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
     else if (mode === 'clients') renderAdminClientManager();
+    else if (mode === 'cancellations') renderAdminContractCancellations();
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -1026,6 +1030,8 @@ let partnerContractsStatusFilter = 'all';
 
 function getPartnerOrderStatusKey(order, partnerName) {
     if (order.status === 'withdrawn') return 'withdrawn';
+    if (order.status === 'cancel_requested') return 'cancel_requested';
+    if (order.status === 'cancelled') return 'cancelled';
     const isContracted = order.status === 'contracted' && order.acceptedPartner === partnerName;
     if (isContracted) return 'contracted_mine';
     if (order.status === 'contracted') return 'contracted_other';
@@ -1054,6 +1060,8 @@ function renderPartnerContractsView() {
         ['bidding', '입찰 심사중', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'bidding').length],
         ['contracted_mine', '계약 체결', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'contracted_mine').length],
         ['contracted_other', '타사 계약', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'contracted_other').length],
+        ['cancel_requested', '계약 취소 심사중', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'cancel_requested').length],
+        ['cancelled', '계약 취소됨', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'cancelled').length],
         ['withdrawn', '고객 철회', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'withdrawn').length]
     ];
     const tabsHtml = statusTabs.map(([key, label, count]) =>
@@ -1070,6 +1078,8 @@ function renderPartnerContractsView() {
         const statusBadge = statusKey === 'contracted_mine' ? `<span class="badge badge-emerald">계약 체결</span>`
             : statusKey === 'contracted_other' ? `<span class="badge badge-neutral">타사 계약</span>`
             : statusKey === 'withdrawn' ? `<span class="badge badge-rose">고객 철회</span>`
+            : statusKey === 'cancel_requested' ? `<span class="badge badge-amber">계약 취소 심사중</span>`
+            : statusKey === 'cancelled' ? `<span class="badge badge-rose">계약 취소됨</span>`
             : `<span class="badge badge-amber">입찰 심사중</span>`;
         // 이 목록에 뜨는 오더는 전부 우리가 이미 입찰에 참여한 건이므로(이미 안심 잠금해제 대상),
         // selectOrderForAudit()의 "입찰 참여 시 개인정보 잠금해제" 규칙과 동일하게 고객명을 가리지 않는다.
@@ -1120,7 +1130,9 @@ function openPartnerOrderDetailModal(orderCode) {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const myBid = order.bids.find(b => b.partner === partnerName);
     const isContracted = order.status === 'contracted' && order.acceptedPartner === partnerName;
-    const statusBadge = isContracted ? `<span class="badge badge-emerald">계약 체결</span>`
+    const statusBadge = order.status === 'cancel_requested' ? `<span class="badge badge-amber">계약 취소 심사중</span>`
+        : order.status === 'cancelled' ? `<span class="badge badge-rose">계약 취소됨</span>`
+        : isContracted ? `<span class="badge badge-emerald">계약 체결</span>`
         : order.status === 'contracted' ? `<span class="badge badge-neutral">타사 계약</span>`
         : order.status === 'withdrawn' ? `<span class="badge badge-rose">고객 철회</span>`
         : `<span class="badge badge-amber">입찰 심사중</span>`;
@@ -1204,7 +1216,7 @@ function openPartnerOrderDetailModal(orderCode) {
         actionSectionHtml = `
             <div class="p-4 surface-flat text-left space-y-1">
                 <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="lock" class="w-4 h-4 text-ink-500"></i> 계약서·견적서 업로드 및 수수료 결제는 계약 확정 후 가능합니다</h5>
-                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${order.status === 'contracted' ? '이 오더는 다른 파트너사와 계약이 체결되었습니다.' : order.status === 'withdrawn' ? '고객이 이 의뢰를 철회하여 더 이상 진행되지 않습니다.' : '고객이 최종 파트너사를 확정하면 이 오더의 계약서·견적서 업로드와 수수료 결제 기능이 열립니다.'}</p>
+                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${order.status === 'contracted' ? '이 오더는 다른 파트너사와 계약이 체결되었습니다.' : order.status === 'withdrawn' ? '고객이 이 의뢰를 철회하여 더 이상 진행되지 않습니다.' : order.status === 'cancel_requested' ? '고객이 계약 취소를 요청하여 매니저 센터에서 심사 중입니다. 심사가 끝날 때까지 계약 관련 절차가 일시 중단됩니다.' : order.status === 'cancelled' ? '이 계약은 취소 승인되어 더 이상 유효하지 않습니다.' : '고객이 최종 파트너사를 확정하면 이 오더의 계약서·견적서 업로드와 수수료 결제 기능이 열립니다.'}</p>
             </div>
             ${myBid && order.status === 'bidding' ? `
             <div class="p-4 surface-flat text-left space-y-2">
@@ -1695,6 +1707,66 @@ function toggleClientSuspension(accountId) {
     if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_SUSPEND', `'${account.name}'(${account.id}) 고객 계정을 ${account.isSuspended ? '이용 정지' : '정지 해제'}했습니다.`, account.isSuspended ? 'WARNING' : 'INFO');
     showToast(`[${account.name}] 고객 계정이 ${account.isSuspended ? '이용 정지되었습니다' : '정지 해제되었습니다'}.`, account.isSuspended ? 'warning' : 'success');
     renderAdminClientManager();
+}
+
+/* 계약 체결 후에는 되돌릴 방법이 전혀 없었던 공백을 해소하기 위해, 고객이 취소를
+ * 요청하면(order.status='cancel_requested') 이 탭에서 매니저가 승인/반려한다.
+ * 승인 시 order.status='cancelled'로 전환되면 recalculateKPIs()의 'contracted' 필터에서
+ * 자동으로 빠져 GMV/에스크로/수수료 집계가 자연스럽게 되돌려진다(별도 역산 불필요). */
+function renderAdminContractCancellations() {
+    const container = document.getElementById('admin-cancellations-list');
+    if (!container) return;
+    const requests = (window.AppState.orders || []).filter(o => o.status === 'cancel_requested');
+
+    if (requests.length === 0) {
+        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap" style="background:var(--emerald-50);color:var(--emerald-600)"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">현재 심사 대기 중인 계약 취소 요청이 없습니다.</p></div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = requests.map(o => `
+        <div class="surface p-5 space-y-3 text-left">
+            <div class="flex justify-between items-start gap-2">
+                <div class="space-y-1">
+                    <span class="badge badge-amber">취소 심사 대기</span>
+                    <h4 class="text-sm font-black text-ink-950">${o.code} · ${escapeHtml(o.clientName)} 고객님</h4>
+                    <p class="text-[11px] text-ink-500 font-bold">계약 파트너사: ${escapeHtml(o.acceptedPartner || '-')} · 계약금액 ₩ ${(o.finalPrice || 0).toLocaleString()}만원</p>
+                </div>
+            </div>
+            <div class="p-3 bg-ink-50 rounded-xl">
+                <p class="text-[10px] font-black text-ink-500 uppercase tracking-wider mb-1">취소 요청 사유 (${o.cancelRequest ? o.cancelRequest.date : '-'})</p>
+                <p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(o.cancelRequest ? o.cancelRequest.reason : '-')}</p>
+            </div>
+            <div class="flex items-center gap-2 justify-end pt-1">
+                <button type="button" onclick="rejectContractCancellation('${o.code}')" class="btn btn-secondary btn-sm">요청 반려 (계약 유지)</button>
+                <button type="button" onclick="approveContractCancellation('${o.code}')" class="btn btn-dark btn-sm text-roseCustom">취소 승인</button>
+            </div>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function approveContractCancellation(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || order.status !== 'cancel_requested') return;
+    order.status = 'cancelled';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CONTRACT_CANCEL_APPROVE', `[계약 취소 승인] 오더 ${order.code}의 계약 취소 요청을 승인했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `요청하신 계약(${order.code}) 취소가 승인되었습니다.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `계약(${order.code}) 취소 요청이 승인되어 계약이 취소되었습니다.`);
+    showToast(`오더 ${order.code}의 계약 취소를 승인했습니다.`, 'success');
+    renderAdminContractCancellations();
+    if (typeof recalculateKPIs === 'function') recalculateKPIs();
+}
+
+function rejectContractCancellation(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || order.status !== 'cancel_requested') return;
+    order.status = 'contracted';
+    order.cancelRequest = null;
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CONTRACT_CANCEL_REJECT', `[계약 취소 반려] 오더 ${order.code}의 계약 취소 요청을 반려했습니다. 계약이 유지됩니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `요청하신 계약(${order.code}) 취소가 반려되어 계약이 그대로 유지됩니다.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `계약(${order.code}) 취소 요청이 반려되어 계약이 그대로 유지됩니다.`);
+    showToast(`오더 ${order.code}의 계약 취소 요청을 반려했습니다.`, 'info');
+    renderAdminContractCancellations();
 }
 
 function jumpToClientOrderLookup(phone) {
@@ -2750,6 +2822,9 @@ window.sendAdminBroadcastNotification = sendAdminBroadcastNotification;
 window.renderAdminClientManager = renderAdminClientManager;
 window.jumpToClientOrderLookup = jumpToClientOrderLookup;
 window.toggleClientSuspension = toggleClientSuspension;
+window.renderAdminContractCancellations = renderAdminContractCancellations;
+window.approveContractCancellation = approveContractCancellation;
+window.rejectContractCancellation = rejectContractCancellation;
 window.openPartnerMetricsModal = openPartnerMetricsModal;
 window.renderPartnerPerformanceView = renderPartnerPerformanceView;
 window.closePartnerMetricsModal = closePartnerMetricsModal;

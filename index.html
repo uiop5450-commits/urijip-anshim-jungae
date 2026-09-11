@@ -578,6 +578,8 @@
                                 <option value="all">전체 상태</option>
                                 <option value="bidding">입찰 심사중</option>
                                 <option value="contracted">계약 체결</option>
+                                <option value="cancel_requested">계약 취소 심사중</option>
+                                <option value="cancelled">계약 취소됨</option>
                                 <option value="withdrawn">철회됨</option>
                             </select>
                         </div>
@@ -1087,6 +1089,16 @@
                         <div id="admin-client-manager-list" class="space-y-2.5"></div>
                     </div>
                 </div>
+
+                <div id="admin-mode-cancellations-view" class="hidden space-y-6 transition-all duration-300">
+                    <div class="surface surface-lg p-6 space-y-5 text-left">
+                        <div class="border-b border-ink-100 pb-4 space-y-1">
+                            <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="ban" class="w-4 h-4"></i> 계약 취소 심사</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">고객이 요청한 계약 취소를 승인하거나 반려할 수 있어요. 승인하면 계약이 취소되고, 반려하면 계약이 그대로 유지됩니다.</p>
+                        </div>
+                        <div id="admin-cancellations-list" class="space-y-3"></div>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
@@ -1373,6 +1385,20 @@
                 </div>
                 <div><label class="field-label">보완 메모 (선택)</label><textarea id="partner-reapply-memo" rows="3" placeholder="반려 사유에 대한 보완 내용을 적어주세요." class="textarea"></textarea></div>
                 <button type="button" onclick="submitPartnerReapplication()" class="btn btn-primary btn-block">재신청 제출</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="contract-cancel-request-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="contract-cancel-request-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">계약 취소 요청</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">체결된 계약의 취소를 요청합니다</h3></div>
+                <button type="button" onclick="closeContractCancelRequestModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">요청을 제출하면 매니저 센터의 심사를 거쳐 승인 또는 반려됩니다. 심사 중에는 계약서·견적서 업로드 등 계약 관련 절차가 일시 중단됩니다.</p>
+                <div><label class="field-label">취소 요청 사유</label><textarea id="contract-cancel-request-reason" rows="4" placeholder="계약 취소가 필요한 사유를 자세히 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitContractCancellationRequest()" class="btn btn-primary btn-block">취소 요청 제출</button>
             </div>
         </div>
     </div>
