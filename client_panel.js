@@ -401,6 +401,20 @@ function saveOrderBudgetEdit() {
     if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
 }
 
+/* 계약서/견적서 원문 파일은 있는데, 최종 계약금액·수수료·완료일 등을 한눈에
+ * 정리한 짧은 거래 확인서(영수증)는 없어서 매번 원문 서류를 열어 확인해야 했다 —
+ * downloadContractDoc/downloadEstimateDoc과 동일한 buildDocFile 패턴으로 요약본을 만든다. */
+function downloadTransactionReceipt(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'contracted') { showToast('계약이 체결된 의뢰만 확인서를 발급할 수 있어요.', 'warning'); return; }
+
+    const price = order.finalPrice || order.budget;
+    const commission = Math.floor(price * PLATFORM_COMMISSION_RATE);
+    const content = `====================================================\n[우리집 안심 중개] 거래 완료 확인서\n====================================================\n\n1. 거래 정보\n   - 의뢰 코드: ${order.code}\n   - 시공 장소: ${order.clientAddress}\n   - 고객명: ${order.clientName} 고객님\n   - 계약 파트너사: ${order.acceptedPartner || '-'}\n   - 착공 예정일: ${order.preferredDate || '미정'}\n\n2. 정산 내역 (단위: 만원)\n   --------------------------------------------------\n   - 최종 계약 금액: ₩ ${price.toLocaleString()} 만원\n   - 플랫폼 중개 수수료 (${(PLATFORM_COMMISSION_RATE * 100).toFixed(0)}%): ₩ ${commission.toLocaleString()} 만원\n   - 수수료 납부 상태: ${order.commissionPaid ? '납부 완료' : '납부 대기중 (안심 에스크로 보관)'}\n\n3. 서류 현황\n   - 계약서: ${order.contractDoc ? '업로드 완료' : '미업로드'}\n   - 견적서: ${order.estimateDoc ? '업로드 완료' : '미업로드'}\n\n발급일자: ${getLocalDateString()}\n본 확인서는 우리집 안심 중개 플랫폼에서 자동 발급되었습니다.\n====================================================`;
+    buildDocFile(content, `[우리집안심중개]_거래확인서_${order.code}.txt`);
+    showToast('거래 확인서 다운로드가 시작되었습니다.', 'success');
+}
+
 let contractCancelRequestTargetCode = null;
 
 /* 계약이 체결되면(order.status='contracted') 지금까지 되돌릴 방법이 전혀 없었다 —
@@ -1352,7 +1366,8 @@ function renderMyPageEstimateDetails(order) {
                         <p class="text-[10px] text-ink-400 font-semibold leading-relaxed">계약 파트너사가 아직 ${label}를 업로드하지 않았습니다.</p>
                     </div>`;
             }).join('')}
-        </div>` : '';
+        </div>
+        <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>` : '';
 
     detailBoard.innerHTML = `
         <div class="space-y-6 text-left">
@@ -2230,6 +2245,7 @@ window.withdrawOrder = withdrawOrder;
 window.openEditOrderBudgetModal = openEditOrderBudgetModal;
 window.closeEditOrderBudgetModal = closeEditOrderBudgetModal;
 window.saveOrderBudgetEdit = saveOrderBudgetEdit;
+window.downloadTransactionReceipt = downloadTransactionReceipt;
 window.openContractCancelRequestModal = openContractCancelRequestModal;
 window.closeContractCancelRequestModal = closeContractCancelRequestModal;
 window.submitContractCancellationRequest = submitContractCancellationRequest;
