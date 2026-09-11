@@ -1246,7 +1246,7 @@ function renderClientMyPage() {
     document.getElementById('client-mypage-subtab-notifications-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'notifications');
     document.getElementById('client-mypage-subtab-account-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'account');
     if (clientMyPageActiveSubtab === 'posts') { renderClientMyPagePosts(); renderClientMyPageSavedPosts(); }
-    if (clientMyPageActiveSubtab === 'favorites') { renderClientFavoritePartners(); if (typeof renderClientSavedPortfolios === 'function') renderClientSavedPortfolios(); }
+    if (clientMyPageActiveSubtab === 'favorites') { renderClientFavoritePartners(); if (typeof renderClientSavedPortfolios === 'function') renderClientSavedPortfolios(); renderClientRegularOfPartners(); }
     if (clientMyPageActiveSubtab === 'notifications') renderClientMyPageNotifications(myNotifications);
     if (clientMyPageActiveSubtab === 'account') renderClientAccountSettings();
 
@@ -1511,6 +1511,38 @@ function renderClientFavoritePartners() {
             <button type="button" onclick="toggleFavoritePartner('${p.name}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">찜 해제</button>
         </div>`;
     }).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 파트너는 계약한 고객을 "단골"로 저장할 수 있고 저장 시 고객에게 알림도 가지만
+ * (toggleFavoriteClient, partner_panel.js), 정작 고객 쪽에는 그 사실을 나중에 다시
+ * 확인할 방법이 전혀 없었다 — 알림은 한 번 스쳐가면 끝. 읽기 전용으로, 나를 단골로
+ * 등록해둔 파트너 목록을 관심 파트너 탭에 함께 보여준다. */
+function renderClientRegularOfPartners() {
+    const container = document.getElementById('client-mypage-regular-of-container');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    const myPhone = account ? account.phone : auth.phone;
+    const partners = (window.AppState.partners || []).filter(p => (p.favoriteClients || []).some(c => c.phone === myPhone));
+
+    if (partners.length === 0) {
+        container.innerHTML = buildEmptyStateHtml('star', '아직 나를 단골로 등록한 파트너가 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+    container.innerHTML = partners.map(p => `
+        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl gap-3">
+            <div class="min-w-0 flex-1 cursor-pointer" onclick="window.openClientPartnerProfile('${p.name}')">
+                <div class="flex items-center gap-2">
+                    <h5 class="text-xs font-black text-ink-950 truncate">${escapeHtml(p.name)}</h5>
+                    <span class="text-gold-500 font-extrabold text-[11px]">★ ${p.rating.toFixed(1)}</span>
+                </div>
+                <p class="text-[10px] text-ink-400 font-bold">${p.region ? `부산 ${escapeHtml(p.region)}` : ''}</p>
+            </div>
+            <span class="badge badge-amber shrink-0"><i data-lucide="star" class="w-2.5 h-2.5"></i> 단골 등록</span>
+        </div>`).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -3270,6 +3302,7 @@ window.jumpToMyCommunityPost = jumpToMyCommunityPost;
 window.isFavoritePartner = isFavoritePartner;
 window.toggleFavoritePartner = toggleFavoritePartner;
 window.renderClientFavoritePartners = renderClientFavoritePartners;
+window.renderClientRegularOfPartners = renderClientRegularOfPartners;
 window.renderClientMyPageNotifications = renderClientMyPageNotifications;
 window.markAllClientNotificationsRead = markAllClientNotificationsRead;
 window.markClientNotificationRead = markClientNotificationRead;
