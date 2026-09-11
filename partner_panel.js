@@ -2855,7 +2855,17 @@ function buildAdminPortfolioModerationHtml(partner) {
         .map((p, idx) => ({ p, idx, reportCount: (p.reportedBy || []).length }))
         .filter(({ p }) => !p.isDraft)
         .sort((a, b) => b.reportCount - a.reportCount)
-        .map(({ p, idx, reportCount }) => `
+        .map(({ p, idx, reportCount }) => {
+            const reportedQuestions = (p.questions || []).map((q, qIdx) => ({ q, qIdx })).filter(({ q }) => (q.reportedBy || []).length > 0);
+            const questionsHtml = reportedQuestions.length > 0 ? `
+            <div class="pt-1.5 space-y-1.5">
+                ${reportedQuestions.map(({ q, qIdx }) => `
+                <div class="p-2.5 bg-rose-50/60 rounded-lg border border-rose-200 flex justify-between items-start gap-2">
+                    <p class="text-[11px] text-ink-700 font-semibold leading-relaxed">문의: ${escapeHtml(q.text)} <span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${q.reportedBy.length}건</span>${buildReportReasonsHtml(q.reportReasons)}</p>
+                    <button type="button" onclick="adminDeletePortfolioQuestion('${partner.name}', ${idx}, ${qIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>
+                </div>`).join('')}
+            </div>` : '';
+            return `
         <div class="p-3.5 bg-ink-50/80 rounded-xl border ${reportCount > 0 ? 'border-rose-200' : 'border-ink-100'} space-y-1.5 text-left">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
@@ -2869,7 +2879,22 @@ function buildAdminPortfolioModerationHtml(partner) {
             </div>
             <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(p.desc || '')}</p>
             ${buildReportReasonsHtml(p.reportReasons)}
-        </div>`).join('');
+            ${questionsHtml}
+        </div>`;
+        }).join('');
+}
+
+/* 시공사례 문의 신고(reportPortfolioQuestion, cms.js)를 관리자가 검토할 수 있게
+ * 시공사례 관리 카드 안에 신고된 문의만 모아 보여주고, 위반으로 판단되면 문의
+ * 자체를 삭제한다(질문만 삭제, 시공사례/답변에는 영향 없음). */
+function adminDeletePortfolioQuestion(partnerName, idx, questionIdx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const port = partner && partner.portfolios && partner.portfolios[idx];
+    if (!port || !port.questions || !port.questions[questionIdx]) return;
+    port.questions.splice(questionIdx, 1);
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PORTFOLIO_QUESTION_MODERATE', `[시공사례 문의 삭제] '${partnerName}' 파트너의 시공사례 문의를 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    showToast('문의를 삭제했습니다.', 'info');
+    openPartnerMetricsModal(partnerName);
 }
 
 function dismissPortfolioReport(partnerName, idx) {
@@ -3890,6 +3915,7 @@ window.downloadPartnerSettlementReceipt = downloadPartnerSettlementReceipt;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
 window.dismissPortfolioReport = dismissPortfolioReport;
+window.adminDeletePortfolioQuestion = adminDeletePortfolioQuestion;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
 window.resetPartnerStrikes = resetPartnerStrikes;

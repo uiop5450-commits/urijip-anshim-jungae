@@ -1474,16 +1474,26 @@ function renderPortfolioQnaSection(partnerName, idx) {
     if (!port) return;
     const questions = port.questions || [];
     const isOwnerPartnerView = window.AppState.partnerLoggedIn && window.AppState.partnerName === partnerName;
+    const myId = window.AppState.clientAuth && window.AppState.clientAuth.loggedIn ? window.AppState.clientAuth.id : null;
 
-    const listHtml = questions.length > 0 ? questions.map((q, qIdx) => `
+    const listHtml = questions.length > 0 ? questions.map((q, qIdx) => {
+        const isMine = myId && q.authorId === myId;
+        const isReported = myId && (q.reportedBy || []).includes(myId);
+        return `
         <div class="p-3 bg-ink-50 rounded-xl space-y-1.5">
-            <p class="text-xs text-ink-700 font-semibold leading-relaxed"><i data-lucide="help-circle" class="w-3 h-3 inline text-ink-400"></i> ${escapeHtml(q.text)} <span class="text-[10px] text-ink-400 font-bold">(${q.date})</span></p>
+            <div class="flex justify-between items-start gap-2">
+                <p class="text-xs text-ink-700 font-semibold leading-relaxed"><i data-lucide="help-circle" class="w-3 h-3 inline text-ink-400"></i> ${escapeHtml(q.text)} <span class="text-[10px] text-ink-400 font-bold">(${q.date})</span></p>
+                ${isMine && !q.reply
+                    ? `<button type="button" onclick="deleteMyPortfolioQuestion('${escapeHtml(partnerName)}', ${idx}, ${qIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>`
+                    : (!isMine && myId ? `<button type="button" onclick="${isReported ? `showToast('이미 신고한 문의입니다.', 'info')` : `openReportReasonPrompt((reason) => reportPortfolioQuestion('${escapeHtml(partnerName)}', ${idx}, ${qIdx}, reason))`}" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">${isReported ? '신고됨' : '신고'}</button>` : '')}
+            </div>
             ${q.reply
                 ? `<p class="text-xs text-brand-700 font-semibold leading-relaxed pl-4"><i data-lucide="reply" class="w-3 h-3 inline"></i> ${escapeHtml(q.reply)}</p>`
                 : isOwnerPartnerView
                     ? `<div class="flex gap-1.5 pl-4"><input type="text" id="portfolio-qna-reply-input-${idx}-${qIdx}" placeholder="답변을 입력하세요" class="input flex-1 text-xs"><button type="button" onclick="replyToPortfolioQuestion('${escapeHtml(partnerName)}', ${idx}, ${qIdx})" class="btn btn-dark btn-sm shrink-0">답변</button></div>`
                     : `<p class="text-[10px] text-ink-400 font-bold pl-4">답변 대기중</p>`}
-        </div>`).join('') : `<p class="text-xs text-ink-400 font-bold text-center py-3">아직 등록된 문의가 없습니다.</p>`;
+        </div>`;
+    }).join('') : `<p class="text-xs text-ink-400 font-bold text-center py-3">아직 등록된 문의가 없습니다.</p>`;
 
     const composeHtml = !isOwnerPartnerView ? `
         <div class="flex gap-1.5 pt-1">
@@ -1534,6 +1544,41 @@ function replyToPortfolioQuestion(partnerName, idx, questionIdx) {
     if (typeof pushLog === 'function') pushLog('PARTNER', 'PORTFOLIO_QUESTION_REPLY', `[${partnerName}]가 시공사례(${port.title || '-'}) 문의에 답변했습니다.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function' && question.authorPhone) pushClientNotification(question.authorPhone, `문의하신 시공사례(${port.title || '-'})에 답변이 도착했어요.`);
     showToast('답변이 등록되었습니다.', 'success');
+    renderPortfolioQnaSection(partnerName, idx);
+}
+
+/* 커뮤니티 댓글/후기는 본인 것을 삭제하거나 타인 것을 신고할 수 있는데, 시공사례
+ * 문의는 등록(submitPortfolioQuestion)/답변(replyToPortfolioQuestion)만 있고 삭제·신고
+ * 경로가 전혀 없었다 — 동일한 소유권 검증(authorId) + 1인 1회 reportedBy 패턴을
+ * 적용한다. 이미 답변이 달린 문의는 삭제하면 파트너의 답변 기록이 사라지므로
+ * 미답변 상태에서만 삭제를 허용한다. */
+function deleteMyPortfolioQuestion(partnerName, idx, questionIdx) {
+    const auth = window.AppState.clientAuth;
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const port = partner && partner.portfolios && partner.portfolios[idx];
+    const question = port && port.questions && port.questions[questionIdx];
+    if (!question || !auth || question.authorId !== auth.id) return;
+    if (question.reply) { showToast('이미 답변이 등록된 문의는 삭제할 수 없어요.', 'warning'); return; }
+
+    port.questions.splice(questionIdx, 1);
+    showToast('문의를 삭제했습니다.', 'info');
+    renderPortfolioQnaSection(partnerName, idx);
+}
+
+function reportPortfolioQuestion(partnerName, idx, questionIdx, reason) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) { showToast('로그인 후 이용할 수 있어요.', 'warning'); return; }
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const port = partner && partner.portfolios && partner.portfolios[idx];
+    const question = port && port.questions && port.questions[questionIdx];
+    if (!question) return;
+    if (!question.reportedBy) question.reportedBy = [];
+    if (question.reportedBy.includes(auth.id)) { showToast('이미 신고한 문의입니다.', 'info'); return; }
+    question.reportedBy.push(auth.id);
+    if (reason) { if (!question.reportReasons) question.reportReasons = []; question.reportReasons.push({ id: auth.id, reason }); }
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PORTFOLIO_QUESTION_REPORT', `'${auth.name}' 고객님이 [${partnerName}]의 시공사례 문의를 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
+    showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
     renderPortfolioQnaSection(partnerName, idx);
 }
 
@@ -1719,6 +1764,8 @@ window.isPortfolioSaved = isPortfolioSaved;
 window.renderPortfolioQnaSection = renderPortfolioQnaSection;
 window.submitPortfolioQuestion = submitPortfolioQuestion;
 window.replyToPortfolioQuestion = replyToPortfolioQuestion;
+window.deleteMyPortfolioQuestion = deleteMyPortfolioQuestion;
+window.reportPortfolioQuestion = reportPortfolioQuestion;
 window.toggleSavePortfolio = toggleSavePortfolio;
 window.renderClientSavedPortfolios = renderClientSavedPortfolios;
 window.closeReviewDetailModal = closeReviewDetailModal;
