@@ -1549,7 +1549,8 @@ function openPartnerOrderDetailModal(orderCode) {
                 <div class="p-4 surface-flat flex items-center justify-between">
                     <div class="space-y-0.5 text-left"><p class="text-[11px] font-bold text-ink-500">납부 완료 금액 (최종 계약금액 ₩ ${(order.finalPrice || 0).toLocaleString()}만원 기준)</p><p class="text-sm font-black text-ink-950">₩ ${commissionAmount.toLocaleString()} 만원</p></div>
                     <span class="badge badge-emerald">납부 완료</span>
-                </div>`;
+                </div>
+                <button type="button" onclick="downloadPartnerSettlementReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 정산 확인서 다운로드</button>`;
         } else if (!order.estimateDoc) {
             commissionBodyHtml = `
                 <div class="p-4 surface-flat text-left space-y-1">
@@ -3017,6 +3018,24 @@ function buildDocFile(content, filename) {
     URL.revokeObjectURL(url);
 }
 
+/* 고객은 계약 완료 후 최종 금액/수수료/납부상태가 정리된 거래 확인서를 받을 수
+ * 있는데(downloadTransactionReceipt, client_panel.js), 파트너 쪽에는 동일한 정산
+ * 요약본이 없었다 — downloadContractDoc은 표준 계약서 양식일 뿐 실지급액을 담지
+ * 않는다. 수수료 납부가 끝난 계약에 한해 실지급액까지 정리한 확인서를 내려준다. */
+function downloadPartnerSettlementReceipt(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) { showToast('계약이 체결된 오더만 정산 확인서를 발급할 수 있어요.', 'warning'); return; }
+    if (!order.commissionPaid) { showToast('플랫폼 수수료 납부가 완료된 이후에 발급할 수 있어요.', 'warning'); return; }
+
+    const price = order.finalPrice || order.budget;
+    const commission = Math.floor(price * PLATFORM_COMMISSION_RATE);
+    const payout = price - commission;
+    const content = `====================================================\n[우리집 안심 중개] 파트너 정산 확인서\n====================================================\n\n1. 거래 정보\n   - 의뢰 코드: ${order.code}\n   - 시공 장소: ${order.clientAddress}\n   - 고객명: ${order.clientName} 고객님\n   - 파트너사: ${partnerName}\n\n2. 정산 내역 (단위: 만원)\n   --------------------------------------------------\n   - 최종 계약 금액: ₩ ${price.toLocaleString()} 만원\n   - 플랫폼 중개 수수료 (${(PLATFORM_COMMISSION_RATE * 100).toFixed(0)}%): - ₩ ${commission.toLocaleString()} 만원\n   - 실지급액: ₩ ${payout.toLocaleString()} 만원\n   - 수수료 납부 상태: 납부 완료\n\n발급일자: ${getLocalDateString()}\n본 확인서는 우리집 안심 중개 플랫폼에서 자동 발급되었습니다.\n====================================================`;
+    buildDocFile(content, `[우리집안심중개]_파트너정산확인서_${order.code}.txt`);
+    showToast('정산 확인서 다운로드가 시작되었습니다.', 'success');
+}
+
 function downloadContractDoc(orderCode, partnerName) {
     const order = (window.AppState.orders || []).find(o => o.code === orderCode);
     const clientName = order ? order.clientName : "고객";
@@ -3725,6 +3744,7 @@ window.setAdminClientStatusFilter = setAdminClientStatusFilter;
 window.exportOrderLookupResultsToCsv = exportOrderLookupResultsToCsv;
 window.updateAdminBroadcastSegmentUI = updateAdminBroadcastSegmentUI;
 window.downloadContractDoc = downloadContractDoc;
+window.downloadPartnerSettlementReceipt = downloadPartnerSettlementReceipt;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
 window.resetPartnerStrikes = resetPartnerStrikes;
