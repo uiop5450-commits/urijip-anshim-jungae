@@ -641,6 +641,82 @@ function retractContractCancellationRequest(orderCode) {
     if (typeof renderAdminContractCancellations === 'function') renderAdminContractCancellations();
 }
 
+/* "3년 무상 하자보증"이 홈 화면·프로모션 문구에 반복 노출되지만(index.html,
+ * cms.js:1110, config_state.js:296) 실제로 하자보수를 신청할 방법이 어디에도
+ * 없었다 — 양측 서명이 완료된 계약(공사 완료를 나타내는 대체 지표)에 한해
+ * 하자보수/A/S를 신청하고 파트너의 처리 현황(접수→처리중→처리완료)을
+ * 추적할 수 있게 한다. */
+let repairClaimTargetCode = null;
+
+function openRepairClaimModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'contracted') return;
+    if (!order.clientSigned || !order.partnerSigned) { showToast('양측 서명이 완료된 계약만 하자보수를 신청할 수 있어요.', 'warning'); return; }
+    repairClaimTargetCode = orderCode;
+    safeUpdateValue('repair-claim-title', '');
+    safeUpdateValue('repair-claim-desc', '');
+    openModal('repair-claim-modal', 'repair-claim-modal-card');
+}
+
+function closeRepairClaimModal() {
+    repairClaimTargetCode = null;
+    closeModal('repair-claim-modal', 'repair-claim-modal-card');
+}
+
+function submitRepairClaim() {
+    const order = window.AppState.orders.find(o => o.code === repairClaimTargetCode);
+    if (!order) { closeRepairClaimModal(); return; }
+
+    const title = document.getElementById('repair-claim-title')?.value.trim();
+    const desc = document.getElementById('repair-claim-desc')?.value.trim();
+    if (!title || !desc) { showToast('하자 부위와 상세 내용을 모두 입력해주세요.', 'warning'); return; }
+
+    if (!order.repairClaims) order.repairClaims = [];
+    order.repairClaims.unshift({
+        id: `rc-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        title, description: desc,
+        status: 'submitted',
+        createdDate: getLocalDateString(),
+        partnerResponse: null,
+        resolvedDate: null
+    });
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_CLAIM_SUBMIT', `[${order.clientName}] 고객님이 계약(${order.code})에 하자보수를 신청했습니다: ${title}`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 하자보수를 신청했어요: ${title}`);
+    showToast('하자보수 신청이 접수되었습니다.', 'success');
+
+    closeRepairClaimModal();
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+function buildRepairClaimsHtml(order) {
+    if (!order.clientSigned || !order.partnerSigned) return '';
+    const statusMeta = {
+        submitted: { label: '접수됨', cls: 'badge-amber' },
+        in_progress: { label: '처리중', cls: 'badge-brand' },
+        completed: { label: '처리완료', cls: 'badge-emerald' }
+    };
+    const claims = order.repairClaims || [];
+    const listHtml = claims.length === 0 ? '' : `<div class="space-y-2 mt-2">${claims.map(c => {
+        const meta = statusMeta[c.status] || statusMeta.submitted;
+        return `<div class="p-3 bg-ink-50 rounded-xl space-y-1 text-left">
+            <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-950">${escapeHtml(c.title)}</span><span class="badge ${meta.cls}">${meta.label}</span></div>
+            <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${escapeHtml(c.description)}</p>
+            <p class="text-[9px] text-ink-400 font-semibold">신청일: ${c.createdDate}</p>
+            ${c.partnerResponse ? `<p class="text-[10px] text-brand-600 font-bold leading-relaxed mt-1">파트너 안내: ${escapeHtml(c.partnerResponse)}</p>` : ''}
+            ${c.resolvedDate ? `<p class="text-[9px] text-ink-400 font-semibold">처리 완료일: ${c.resolvedDate}</p>` : ''}
+        </div>`;
+    }).join('')}</div>`;
+    return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
+        <div class="flex items-center justify-between">
+            <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="wrench" class="w-3.5 h-3.5 text-brand-500"></i> 하자보수 신청 (3년 무상 보증)</span>
+            <button type="button" onclick="openRepairClaimModal('${order.code}')" class="btn btn-secondary btn-sm">신청하기</button>
+        </div>
+        ${listHtml}
+    </div>`;
+}
+
 /* 파트너는 노쇼·상습 갑질 고객을 신고할 수 있게 됐는데(openReportClientModal,
  * partner_panel.js) 정작 반대 방향(고객이 부실 시공·계약 불이행 파트너를 신고)은
  * 방법이 없었다 — 동일한 window.AppState.clientReports 패턴을 대칭으로 두되,
@@ -1750,6 +1826,7 @@ function renderMyPageEstimateDetails(order) {
             <span class="badge ${order.partnerSigned ? 'badge-emerald' : 'badge-amber'}">${order.partnerSigned ? '완료' : '대기중'}</span>
         </div>
         ${order.clientSigned && order.partnerSigned ? `<div class="p-2.5 text-center"><span class="badge badge-brand"><i data-lucide="shield-check" class="w-3 h-3"></i> 양측 서명 완료 — 계약 합의서 최종 확정</span></div>` : ''}
+        ${buildRepairClaimsHtml(order)}
         <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>
         ${isPartnerReportedByMeForOrder(order.code)
             ? `<div class="mt-2 text-center"><span class="badge badge-neutral">계약 파트너사 신고 접수됨</span></div>`
@@ -2886,6 +2963,10 @@ window.submitPartnerReport = submitPartnerReport;
 window.closeContractCancelRequestModal = closeContractCancelRequestModal;
 window.submitContractCancellationRequest = submitContractCancellationRequest;
 window.retractContractCancellationRequest = retractContractCancellationRequest;
+window.openRepairClaimModal = openRepairClaimModal;
+window.closeRepairClaimModal = closeRepairClaimModal;
+window.submitRepairClaim = submitRepairClaim;
+window.buildRepairClaimsHtml = buildRepairClaimsHtml;
 
 window.sendClientAuthCode = sendClientAuthCode;
 window.switchClientAuthTab = switchClientAuthTab;

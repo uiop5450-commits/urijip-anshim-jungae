@@ -1628,6 +1628,35 @@
         </div>
     </div>
 
+    <div id="repair-claim-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="repair-claim-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-brand">하자보수 신청</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">3년 무상 하자보증을 신청합니다</h3></div>
+                <button type="button" onclick="closeRepairClaimModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">계약 파트너사가 신청 내용을 확인 후 처리 현황을 안내해드려요.</p>
+                <div><label class="field-label">하자 부위/제목</label><input type="text" id="repair-claim-title" placeholder="예: 거실 마루 들뜸" class="input w-full"></div>
+                <div><label class="field-label">상세 내용</label><textarea id="repair-claim-desc" rows="4" placeholder="어떤 부분에 하자가 있는지 자세히 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitRepairClaim()" class="btn btn-primary btn-block">하자보수 신청하기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="repair-claim-response-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="repair-claim-response-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-brand">하자보수 처리</span><h3 id="repair-claim-response-modal-title" class="text-base font-black text-ink-950 tracking-tight mt-1">처리 현황 안내</h3></div>
+                <button type="button" onclick="closeRepairClaimResponseModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">고객에게 전달될 처리 안내 내용을 입력해주세요.</p>
+                <textarea id="repair-claim-response-input" rows="4" placeholder="예: 담당 기사가 2일 내로 방문하여 확인할 예정입니다." class="textarea"></textarea>
+                <button type="button" id="repair-claim-response-submit-btn" onclick="submitRepairClaimResponse()" class="btn btn-primary btn-block">처리 시작으로 등록</button>
+            </div>
+        </div>
+    </div>
+
     <div id="report-client-modal" class="hidden modal-overlay" style="z-index:220">
         <div id="report-client-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">

@@ -1781,6 +1781,7 @@ function openPartnerOrderDetailModal(orderCode) {
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">시공이 마무리됐다면 고객님께 안심 후기 작성을 부탁드려보세요. 평점은 파트너 신뢰도에 반영됩니다.</p>
                 <button type="button" onclick="requestReviewFromClient('${order.code}')" class="btn btn-secondary btn-sm" ${order.lastReviewReminderDate === getLocalDateString() ? 'disabled' : ''}>${order.lastReviewReminderDate === getLocalDateString() ? '오늘 요청 완료' : '후기 작성 요청 보내기'}</button>
             </div>` : ''}
+            ${buildPartnerRepairClaimsHtml(order)}
             <div class="surface p-5 space-y-2">
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="flag" class="w-4 h-4 text-roseCustom"></i> 고객 신고</h5>
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">노쇼, 상습 갑질 등 불량 고객은 매니저 센터에 신고할 수 있어요.</p>
@@ -3169,6 +3170,83 @@ function requestReviewFromClient(orderCode) {
     openPartnerOrderDetailModal(orderCode);
 }
 
+/* 고객이 하자보수를 신청할 수 있게 됐으니(client_panel.js의 openRepairClaimModal),
+ * 파트너 쪽에도 신청 내역을 확인하고 처리 현황(접수→처리중→처리완료)을
+ * 안내할 수단이 필요하다. */
+function buildPartnerRepairClaimsHtml(order) {
+    if (!order.clientSigned || !order.partnerSigned) return '';
+    const claims = order.repairClaims || [];
+    if (claims.length === 0) {
+        return `<div class="surface p-5 space-y-2">
+            <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="wrench" class="w-4 h-4 text-brand-500"></i> 하자보수 신청 내역</h5>
+            <p class="text-[10px] text-ink-400 font-semibold">아직 접수된 하자보수 신청이 없습니다.</p>
+        </div>`;
+    }
+    const statusMeta = {
+        submitted: { label: '접수됨', cls: 'badge-amber' },
+        in_progress: { label: '처리중', cls: 'badge-brand' },
+        completed: { label: '처리완료', cls: 'badge-emerald' }
+    };
+    return `<div class="surface p-5 space-y-3">
+        <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="wrench" class="w-4 h-4 text-brand-500"></i> 하자보수 신청 내역 (${claims.length})</h5>
+        <div class="space-y-2">${claims.map(c => {
+            const meta = statusMeta[c.status] || statusMeta.submitted;
+            return `<div class="p-3 bg-ink-50 rounded-xl space-y-1.5">
+                <div class="flex items-center justify-between"><span class="text-xs font-black text-ink-900">${escapeHtml(c.title)}</span><span class="badge ${meta.cls}">${meta.label}</span></div>
+                <p class="text-[11px] text-ink-600 font-semibold leading-relaxed">${escapeHtml(c.description)}</p>
+                <p class="text-[9px] text-ink-400 font-semibold">신청일: ${c.createdDate}</p>
+                ${c.partnerResponse ? `<p class="text-[10px] text-brand-700 font-semibold leading-relaxed pl-3 border-l-2 border-brand-200">${escapeHtml(c.partnerResponse)}</p>` : ''}
+                ${c.status !== 'completed' ? `<div class="flex gap-1.5 mt-1">
+                    ${c.status === 'submitted' ? `<button type="button" onclick="openRepairClaimResponseModal('${order.code}', '${c.id}', 'in_progress')" class="btn btn-secondary btn-sm flex-1">처리 시작</button>` : ''}
+                    <button type="button" onclick="openRepairClaimResponseModal('${order.code}', '${c.id}', 'completed')" class="btn btn-dark btn-sm flex-1">처리 완료</button>
+                </div>` : ''}
+            </div>`;
+        }).join('')}</div>
+    </div>`;
+}
+
+let _repairClaimResponseTarget = null;
+
+function openRepairClaimResponseModal(orderCode, claimId, newStatus) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.acceptedPartner !== partnerName) return;
+    _repairClaimResponseTarget = { orderCode, claimId, newStatus };
+    const isCompleting = newStatus === 'completed';
+    safeUpdateText('repair-claim-response-modal-title', isCompleting ? '하자보수 처리 완료 안내' : '하자보수 처리 시작 안내');
+    safeUpdateText('repair-claim-response-submit-btn', isCompleting ? '처리 완료로 등록' : '처리 시작으로 등록');
+    safeUpdateValue('repair-claim-response-input', '');
+    openModal('repair-claim-response-modal', 'repair-claim-response-modal-card');
+}
+
+function closeRepairClaimResponseModal() {
+    _repairClaimResponseTarget = null;
+    closeModal('repair-claim-response-modal', 'repair-claim-response-modal-card');
+}
+
+function submitRepairClaimResponse() {
+    if (!_repairClaimResponseTarget) { closeRepairClaimResponseModal(); return; }
+    const { orderCode, claimId, newStatus } = _repairClaimResponseTarget;
+    const response = document.getElementById('repair-claim-response-input')?.value.trim();
+    if (!response) { showToast('고객에게 안내할 내용을 입력해주세요.', 'warning'); return; }
+
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim) { closeRepairClaimResponseModal(); return; }
+
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    claim.status = newStatus;
+    claim.partnerResponse = response;
+    if (newStatus === 'completed') claim.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'REPAIR_CLAIM_UPDATE', `[${partnerName}]가 하자보수 신청("${claim.title}")을 ${newStatus === 'completed' ? '처리 완료' : '처리 시작'} 처리했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수 신청("${claim.title}")이 ${newStatus === 'completed' ? '처리 완료' : '처리 시작'}되었어요.`);
+    showToast('하자보수 처리 현황이 업데이트되었습니다.', 'success');
+
+    closeRepairClaimResponseModal();
+    openPartnerOrderDetailModal(orderCode);
+}
+
 function adminDeleteReview(partnerName, reviewIdx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
@@ -4229,6 +4307,10 @@ window.adminForceCancelContract = adminForceCancelContract;
 window.isClientFavorited = isClientFavorited;
 window.toggleFavoriteClient = toggleFavoriteClient;
 window.requestReviewFromClient = requestReviewFromClient;
+window.buildPartnerRepairClaimsHtml = buildPartnerRepairClaimsHtml;
+window.openRepairClaimResponseModal = openRepairClaimResponseModal;
+window.closeRepairClaimResponseModal = closeRepairClaimResponseModal;
+window.submitRepairClaimResponse = submitRepairClaimResponse;
 window.adminRejectPartnerDoc = adminRejectPartnerDoc;
 window.retractPartnerCancellationRequest = retractPartnerCancellationRequest;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
