@@ -1951,7 +1951,11 @@ function computePartnerMetrics(partnerName) {
         if (o.commissionPaid) totalCommissionPaid += comm; else pendingEscrow += comm;
     });
 
-    return { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders };
+    // 포트폴리오의 '좋아요'처럼 파트너 본인 업체를 몇 명이나 관심 등록했는지 확인할
+    // 방법이 없었다 — 좋아요와 대칭되는 지표로 관심 고객 수를 계산해 넣는다.
+    const favoriteClientCount = (window.AppState.clientAccounts || []).filter(a => (a.favoritePartners || []).includes(partnerName)).length;
+
+    return { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders, favoriteClientCount };
 }
 
 function buildPartnerContractedOrdersListHtml(contractedOrders, partnerName) {
@@ -1989,7 +1993,7 @@ function openPartnerMetricsModal(partnerName) {
     let modal = document.getElementById('admin-partner-metrics-modal');
     if (!modal) { modal = document.createElement('div'); modal.id = 'admin-partner-metrics-modal'; modal.className = "hidden modal-overlay"; modal.style.zIndex = '220'; document.body.appendChild(modal); }
 
-    const { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders } = computePartnerMetrics(partnerName);
+    const { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders, favoriteClientCount } = computePartnerMetrics(partnerName);
     const contractedListHtml = buildPartnerContractedOrdersListHtml(contractedOrders, partnerName);
 
     const isBanned = partner.status === 'banned';
@@ -2016,6 +2020,7 @@ function openPartnerMetricsModal(partnerName) {
                     <div class="article-spec-chip"><span>누적 거래액 (GMV)</span><span class="val">₩ ${totalGmv.toLocaleString()} 만원</span></div>
                     <div class="article-spec-chip"><span>수수료 지불완료</span><span class="val">₩ ${totalCommissionPaid.toLocaleString()} 만원</span></div>
                     <div class="article-spec-chip"><span>보증 에스크로 잔액</span><span class="val">₩ ${pendingEscrow.toLocaleString()} 만원</span></div>
+                    <div class="article-spec-chip"><span>관심 고객 수</span><span class="val">${favoriteClientCount} 명</span></div>
                 </div>
                 <div class="space-y-2.5 pt-2">
                     <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="file-check" class="w-4 h-4 text-ink-600"></i> 최근 안심 계약 체결 및 안심 문서 검증 (${contractedCount}건)</h4>
@@ -2052,7 +2057,7 @@ function renderPartnerPerformanceView() {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
 
-    const { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders } = computePartnerMetrics(partnerName);
+    const { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders, favoriteClientCount } = computePartnerMetrics(partnerName);
     const contractedListHtml = buildPartnerContractedOrdersListHtml(contractedOrders, partnerName);
 
     container.innerHTML = `
@@ -2068,6 +2073,7 @@ function renderPartnerPerformanceView() {
                 <div class="article-spec-chip"><span>누적 거래액 (GMV)</span><span class="val">₩ ${totalGmv.toLocaleString()} 만원</span></div>
                 <div class="article-spec-chip"><span>수수료 지불완료</span><span class="val">₩ ${totalCommissionPaid.toLocaleString()} 만원</span></div>
                 <div class="article-spec-chip"><span>보증 에스크로 잔액</span><span class="val">₩ ${pendingEscrow.toLocaleString()} 만원</span></div>
+                <div class="article-spec-chip"><span>관심 고객 수</span><span class="val">${favoriteClientCount} 명</span></div>
             </div>
             <div class="space-y-2.5 pt-2">
                 <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="file-check" class="w-4 h-4 text-ink-600"></i> 최근 안심 계약 체결 및 안심 문서 검증 (${contractedCount}건)</h4>
