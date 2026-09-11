@@ -1188,6 +1188,10 @@ function toggleFavoriteClient(clientPhone, clientName, orderCode) {
     else {
         if (partner.favoriteClients.length >= MAX_FAVORITE_CLIENTS) { showToast(`단골 고객은 최대 ${MAX_FAVORITE_CLIENTS}명까지 저장할 수 있어요. 기존 항목을 해제한 후 다시 시도해주세요.`, 'warning'); return; }
         partner.favoriteClients.push({ phone: clientPhone, name: clientName }); showToast(`[${clientName}]님을 단골 고객으로 저장했습니다!`, 'success');
+        // 고객이 파트너를 찜하면 파트너에게 알림이 가는데(2f5ff75), 반대로 파트너가
+        // 고객을 단골로 저장해도 고객은 전혀 알 수 없었다 — 대칭으로 알린다
+        // (해제는 굳이 알릴 필요가 없어 저장 시에만 보낸다).
+        if (typeof pushClientNotification === 'function') pushClientNotification(clientPhone, `${partnerName}에서 고객님을 단골로 등록했어요.`);
     }
     if (orderCode) openPartnerOrderDetailModal(orderCode);
     if (typeof renderPartnerPerformanceView === 'function' && window.AppState.partnerConsoleMode === 'performance') renderPartnerPerformanceView();
