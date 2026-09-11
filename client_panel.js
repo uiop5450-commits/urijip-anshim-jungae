@@ -423,10 +423,13 @@ function submitClientSignup() {
     const pwVal = document.getElementById('form-signup-pw')?.value;
     const pw2Val = document.getElementById('form-signup-pw2')?.value;
 
-    if (!idVal || !pwVal || !pw2Val) { showToast("아이디와 비밀번호를 모두 입력해 주세요.", "warning"); return; }
+    if (!nameVal || !idVal || !pwVal || !pw2Val) { showToast("아이디와 비밀번호를 모두 입력해 주세요.", "warning"); return; }
     // 아이디는 영문/숫자/밑줄/하이픈만 허용한다. 이 아이디는 이후 여러 화면에서 onclick="fn('${id}')"
     // 형태로 그대로 삽입되므로, 따옴표 등을 허용하면 저장형 XSS/JS 인젝션으로 이어질 수 있다.
     if (!/^[A-Za-z0-9_-]{3,20}$/.test(idVal)) { showToast("아이디는 영문, 숫자, _, - 조합으로 3~20자로 입력해 주세요.", "warning"); return; }
+    // 이름은 파트너 콘솔·관제 로그 등 여러 화면에서 이스케이프 없이 그대로 노출되는
+    // 곳이 있어, 따옴표/꺾쇠 등을 허용하면 저장형 XSS로 이어질 수 있다.
+    if (/['"`<>\\]/.test(nameVal)) { showToast("성함에는 따옴표, 백틱, 꺾쇠, 백슬래시를 사용할 수 없습니다.", "warning"); return; }
     if (pwVal !== pw2Val) { showToast("비밀번호가 일치하지 않습니다.", "warning"); return; }
     if (window.AppState.clientAccounts.some(acc => acc.id === idVal)) { showToast("이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.", "warning"); return; }
     if (window.AppState.clientAccounts.some(acc => acc.phone === phoneVal)) { showToast("이미 가입된 휴대폰 번호입니다. 아이디를 잊으셨다면 고객센터에 문의해 주세요.", "warning"); return; }
@@ -757,12 +760,12 @@ function renderMyPageEstimateDetails(order) {
                 <div class="p-4 rounded-2xl border ${isContracted ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : 'border-ink-100 bg-ink-50/70'} text-left space-y-3">
                     <div class="flex justify-between items-center text-xs">
                         <div class="flex items-center gap-2">
-                            <span class="font-black text-ink-950 cursor-pointer hover:underline" onclick="openPartnerPortfolioModal('${bid.partner}')">${bid.partner}</span>
+                            <span class="font-black text-ink-950 cursor-pointer hover:underline" onclick="openPartnerPortfolioModal('${bid.partner}')">${escapeHtml(bid.partner)}</span>
                             <span class="text-gold-500 font-extrabold text-xs">★ ${ratingVal}</span>
                         </div>
                         <span class="font-black text-ink-950 text-sm">₩ ${bid.price.toLocaleString()} 만원</span>
                     </div>
-                    <p class="text-xs text-ink-600 font-semibold leading-relaxed">${bid.desc}</p>
+                    <p class="text-xs text-ink-600 font-semibold leading-relaxed">${escapeHtml(bid.desc)}</p>
                     <div class="flex justify-between items-center pt-2 border-t border-ink-100">
                         <button type="button" onclick="openPartnerPortfolioModal('${bid.partner}')" class="btn btn-ghost btn-sm px-0"><i data-lucide="palette" class="w-3.5 h-3.5"></i> 시공 포트폴리오 및 후기</button>
                         ${order.status === 'contracted' ? (isContracted ? `
@@ -807,7 +810,7 @@ function renderMyPageEstimateDetails(order) {
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-4">
                 <div class="space-y-1">
                     <span class="px-2 py-0.5 text-[9px] font-mono font-black bg-ink-100 text-ink-700 rounded border border-ink-200">${order.code}</span>
-                    <h3 class="text-base sm:text-lg font-black text-ink-950">${order.clientAddress}</h3>
+                    <h3 class="text-base sm:text-lg font-black text-ink-950">${escapeHtml(order.clientAddress)}</h3>
                 </div>
                 <div class="text-right"><span class="text-[10px] text-ink-400 block font-bold">희망 예산</span><span class="text-sm font-black text-brand-600">₩ ${order.budget.toLocaleString()} 만원</span></div>
             </div>

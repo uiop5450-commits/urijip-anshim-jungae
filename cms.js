@@ -727,8 +727,8 @@ function renderPartnerConsolePortfolios() {
         itemDiv.innerHTML = `
             <div class="portfolio-img" onclick="openPortfolioBlogDetail('${partner.name}', ${idx})">${buildPortfolioCardMediaHtml(item)}</div>
             <div class="p-4 space-y-1.5">
-                <h5 class="font-black text-ink-950 text-xs line-clamp-1">${item.title}</h5>
-                <p class="text-[10px] text-ink-500 line-clamp-2">${item.desc || ''}</p>
+                <h5 class="font-black text-ink-950 text-xs line-clamp-1">${escapeHtml(item.title)}</h5>
+                <p class="text-[10px] text-ink-500 line-clamp-2">${escapeHtml(item.desc || '')}</p>
                 <div class="flex justify-between items-center pt-2 border-t border-ink-100 mt-1">
                     <div class="flex items-center gap-1">
                         <button type="button" onclick="event.stopPropagation();openPortfolioEditor(${idx})" class="btn btn-ghost btn-sm px-1.5">수정</button>
@@ -863,8 +863,8 @@ function openClientPartnerProfile(partnerName) {
                 itemDiv.innerHTML = `
                     <div class="portfolio-img">${buildPortfolioCardMediaHtml(port)}</div>
                     <div class="p-4 space-y-1.5">
-                        <h5 class="font-black text-ink-950 text-xs truncate group-hover:text-ink-600 transition-colors">${port.title}</h5>
-                        <p class="text-[11px] text-ink-500 font-medium line-clamp-2 leading-relaxed">${port.desc || ''}</p>
+                        <h5 class="font-black text-ink-950 text-xs truncate group-hover:text-ink-600 transition-colors">${escapeHtml(port.title)}</h5>
+                        <p class="text-[11px] text-ink-500 font-medium line-clamp-2 leading-relaxed">${escapeHtml(port.desc || '')}</p>
                         <div class="flex items-center justify-between pt-1.5 mt-0.5 border-t border-ink-100">
                             <span class="text-[10px] text-ink-400 font-bold flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i>${port.likes || 0}</span>
                             <span class="text-[10px] text-ink-800 font-extrabold group-hover:underline">자세히 보기 →</span>

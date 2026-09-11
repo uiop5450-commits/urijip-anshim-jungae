@@ -716,6 +716,12 @@ function submitPartnerSignup() {
     // onclick="fn('${id}')" 형태로 그대로 삽입되므로, 따옴표 등을 허용하면 저장형 XSS/JS
     // 인젝션으로 이어질 수 있다.
     if (!/^[A-Za-z0-9_-]{3,20}$/.test(idVal)) { showToast('아이디는 영문, 숫자, _, - 조합으로 3~20자로 입력해 주세요.', 'warning'); return; }
+    // 업체명(company)도 id와 똑같은 이유로 위험하다 — partner.name은 코드 전반에서
+    // onclick="fn('${partner.name}')" 형태로 그대로 삽입되므로, 따옴표를 허용하면
+    // 그 자리에서 onclick 속성을 빠져나가 임의의 JS를 실행시킬 수 있다(JS 인젝션).
+    // 한글/공백/일반 특수문자는 업체명에 자연스럽게 필요하므로 전체를 제한하지 않고
+    // 인젝션에 쓰이는 문자(따옴표·백틱·꺾쇠·백슬래시)만 막는다.
+    if (/['"`<>\\]/.test(company)) { showToast('업체명에는 따옴표(\', "), 백틱(`), 꺾쇠(<, >), 백슬래시(\\)를 사용할 수 없습니다.', 'warning'); return; }
     if (!/^0\d{1,2}-\d{3,4}-\d{4}$/.test(phone)) { showToast('담당자 연락처를 올바른 형식으로 입력해 주세요. (예: 010-0000-0000)', 'warning'); return; }
     if (bizNum.replace(/[^0-9]/g, '').length !== 10) { showToast('사업자등록번호 10자리를 올바르게 입력해 주세요. (예: 000-00-00000)', 'warning'); return; }
     if (pwVal !== pw2Val) { showToast('비밀번호가 일치하지 않습니다.', 'warning'); return; }
@@ -1055,8 +1061,8 @@ function openPartnerOrderDetailModal(orderCode) {
             <div class="flex justify-between items-start border-b border-ink-100 pb-4">
                 <div class="space-y-1.5">
                     <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot bg-ink-500"></span> 우리집 안심 중개보증</span><span class="text-xs font-mono font-bold text-ink-500 tracking-wider">${order.code}</span>${statusBadge}</div>
-                    <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight">${order.clientName} 고객님 (${order.clientPhone})</h3>
-                    <p class="text-xs text-ink-600 font-bold leading-relaxed max-w-md">${order.clientAddress}</p>
+                    <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight">${escapeHtml(order.clientName)} 고객님 (${order.clientPhone})</h3>
+                    <p class="text-xs text-ink-600 font-bold leading-relaxed max-w-md">${escapeHtml(order.clientAddress)}</p>
                 </div>
                 <button type="button" onclick="closePartnerOrderDetailModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
