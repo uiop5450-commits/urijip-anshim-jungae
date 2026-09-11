@@ -934,6 +934,7 @@ function submitPartnerBid() {
 let partnerContractsStatusFilter = 'all';
 
 function getPartnerOrderStatusKey(order, partnerName) {
+    if (order.status === 'withdrawn') return 'withdrawn';
     const isContracted = order.status === 'contracted' && order.acceptedPartner === partnerName;
     if (isContracted) return 'contracted_mine';
     if (order.status === 'contracted') return 'contracted_other';
@@ -961,7 +962,8 @@ function renderPartnerContractsView() {
         ['all', '전체', allMyOrders.length],
         ['bidding', '입찰 심사중', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'bidding').length],
         ['contracted_mine', '계약 체결', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'contracted_mine').length],
-        ['contracted_other', '타사 계약', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'contracted_other').length]
+        ['contracted_other', '타사 계약', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'contracted_other').length],
+        ['withdrawn', '고객 철회', allMyOrders.filter(o => getPartnerOrderStatusKey(o, partnerName) === 'withdrawn').length]
     ];
     const tabsHtml = statusTabs.map(([key, label, count]) =>
         `<button type="button" onclick="setPartnerContractsStatusFilter('${key}')" class="gnb-tab ${partnerContractsStatusFilter === key ? 'active' : ''}">${label} (${count})</button>`
@@ -976,6 +978,7 @@ function renderPartnerContractsView() {
         const statusKey = getPartnerOrderStatusKey(o, partnerName);
         const statusBadge = statusKey === 'contracted_mine' ? `<span class="badge badge-emerald">계약 체결</span>`
             : statusKey === 'contracted_other' ? `<span class="badge badge-neutral">타사 계약</span>`
+            : statusKey === 'withdrawn' ? `<span class="badge badge-rose">고객 철회</span>`
             : `<span class="badge badge-amber">입찰 심사중</span>`;
         // 이 목록에 뜨는 오더는 전부 우리가 이미 입찰에 참여한 건이므로(이미 안심 잠금해제 대상),
         // selectOrderForAudit()의 "입찰 참여 시 개인정보 잠금해제" 규칙과 동일하게 고객명을 가리지 않는다.
@@ -1026,7 +1029,10 @@ function openPartnerOrderDetailModal(orderCode) {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const myBid = order.bids.find(b => b.partner === partnerName);
     const isContracted = order.status === 'contracted' && order.acceptedPartner === partnerName;
-    const statusBadge = isContracted ? `<span class="badge badge-emerald">계약 체결</span>` : (order.status === 'contracted' ? `<span class="badge badge-neutral">타사 계약</span>` : `<span class="badge badge-amber">입찰 심사중</span>`);
+    const statusBadge = isContracted ? `<span class="badge badge-emerald">계약 체결</span>`
+        : order.status === 'contracted' ? `<span class="badge badge-neutral">타사 계약</span>`
+        : order.status === 'withdrawn' ? `<span class="badge badge-rose">고객 철회</span>`
+        : `<span class="badge badge-amber">입찰 심사중</span>`;
 
     let bidsListHtml = '<p class="text-[11px] text-ink-400 font-bold">아직 입찰 참여 이력이 없습니다.</p>';
     if (order.bids && order.bids.length > 0) {
@@ -1107,7 +1113,7 @@ function openPartnerOrderDetailModal(orderCode) {
         actionSectionHtml = `
             <div class="p-4 surface-flat text-left space-y-1">
                 <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="lock" class="w-4 h-4 text-ink-500"></i> 계약서·견적서 업로드 및 수수료 결제는 계약 확정 후 가능합니다</h5>
-                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${order.status === 'contracted' ? '이 오더는 다른 파트너사와 계약이 체결되었습니다.' : '고객이 최종 파트너사를 확정하면 이 오더의 계약서·견적서 업로드와 수수료 결제 기능이 열립니다.'}</p>
+                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${order.status === 'contracted' ? '이 오더는 다른 파트너사와 계약이 체결되었습니다.' : order.status === 'withdrawn' ? '고객이 이 의뢰를 철회하여 더 이상 진행되지 않습니다.' : '고객이 최종 파트너사를 확정하면 이 오더의 계약서·견적서 업로드와 수수료 결제 기능이 열립니다.'}</p>
             </div>`;
     }
 

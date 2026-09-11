@@ -333,6 +333,30 @@ function cancelPartnerBid(orderCode, partnerName) {
     if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
 }
 
+/* 지금까지는 파트너 매칭을 하나씩 취소(cancelPartnerBid)할 수만 있었고, 의뢰(오더)
+ * 자체를 철회할 방법은 없었다 — 이사 계획이 바뀌거나 마음이 바뀌어도 오더가
+ * '입찰 심사 중'으로 영원히 남아 있었다. 이미 계약이 체결된 오더는 철회 대상이
+ * 아니므로(계약 파기는 다른 절차), status !== 'bidding'이면 막는다. */
+function withdrawOrder(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order) return;
+    if (order.status !== 'bidding') { showToast('이미 계약이 진행 중이거나 완료된 의뢰는 철회할 수 없어요.', 'warning'); return; }
+
+    const biddingPartners = (order.bids || []).map(b => b.partner);
+    order.status = 'withdrawn';
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'WITHDRAW_ORDER', `[${order.clientName}] 고객님이 의뢰(${orderCode})를 철회하였습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') {
+        biddingPartners.forEach(partnerName => pushPartnerNotification(partnerName, `고객님이 오더(${orderCode})를 철회했어요. 더 이상 진행되지 않아요.`));
+    }
+    showToast('의뢰가 철회되었습니다.', 'info');
+
+    renderClientMyPage();
+    selectMyPageEstimate(orderCode);
+    if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
+    if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
+}
+
 function clientFinalizeContract(orderCode, partnerName, finalPrice) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return;
@@ -634,7 +658,8 @@ function renderClientMyPage() {
         div.onclick = () => selectMyPageEstimate(order.code);
 
         let statusBadge = '';
-        if (order.is1on1) statusBadge = `<span class="badge badge-neutral"><span class="badge-dot bg-ink-950"></span> 1:1 지정 [${order.targetPartner}]</span>`;
+        if (order.status === 'withdrawn') statusBadge = `<span class="badge badge-neutral"><span class="badge-dot bg-ink-300"></span> 철회됨</span>`;
+        else if (order.is1on1) statusBadge = `<span class="badge badge-neutral"><span class="badge-dot bg-ink-950"></span> 1:1 지정 [${order.targetPartner}]</span>`;
         else if (order.status === 'bidding') {
             statusBadge = order.isHighBudgetAdminPending
                 ? `<span class="badge badge-gold"><span class="badge-dot bg-gold-500"></span> 7천만+ 본사 배정 대기</span>`
@@ -762,6 +787,39 @@ function renderMyPageEstimateDetails(order) {
     detailEmpty?.classList.add('hidden');
     detailBoard.classList.remove('hidden');
 
+    // 철회된 의뢰는 더 이상 어떤 조작(매칭취소/계약체결/재매칭/1:1지정)도 의미가 없으므로,
+    // 기존 입찰 목록은 참고용으로만 읽기 전용으로 보여주고 별도의 단순한 화면으로 분리한다.
+    if (order.status === 'withdrawn') {
+        const withdrawnBidsHtml = (order.bids && order.bids.length > 0)
+            ? order.bids.map(bid => `
+                <div class="p-3.5 rounded-xl border border-ink-100 bg-ink-50/70 text-left space-y-1 opacity-70">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-black text-ink-950">${escapeHtml(bid.partner)}</span>
+                        <span class="font-black text-ink-950 text-sm">₩ ${bid.price.toLocaleString()} 만원</span>
+                    </div>
+                    <p class="text-xs text-ink-500 font-semibold leading-relaxed">${escapeHtml(bid.desc)}</p>
+                </div>`).join('')
+            : `<p class="text-xs text-ink-400 font-bold text-center py-6">참여했던 입찰서가 없습니다.</p>`;
+
+        detailBoard.innerHTML = `
+            <div class="space-y-6 text-left">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-4">
+                    <div class="space-y-1">
+                        <span class="px-2 py-0.5 text-[9px] font-mono font-black bg-ink-100 text-ink-700 rounded border border-ink-200">${order.code}</span>
+                        <h3 class="text-base sm:text-lg font-black text-ink-950">${escapeHtml(order.clientAddress)}</h3>
+                    </div>
+                    <span class="badge badge-neutral"><span class="badge-dot bg-ink-300"></span> 철회된 의뢰</span>
+                </div>
+                <div class="p-4 rounded-2xl text-xs font-bold text-ink-500 bg-ink-50 text-center">이 의뢰는 철회되어 더 이상 진행되지 않습니다.</div>
+                <div class="space-y-3 pt-2">
+                    <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider flex items-center gap-1.5"><i data-lucide="building" class="w-4 h-4 text-ink-400"></i> 철회 시점의 파트너 제안서 (${order.bids ? order.bids.length : 0})</h4>
+                    <div class="space-y-2.5">${withdrawnBidsHtml}</div>
+                </div>
+            </div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
     let bidsHtml = '';
     if (order.bids && order.bids.length > 0) {
         order.bids.forEach(bid => {
@@ -835,7 +893,10 @@ function renderMyPageEstimateDetails(order) {
                     <span class="px-2 py-0.5 text-[9px] font-mono font-black bg-ink-100 text-ink-700 rounded border border-ink-200">${order.code}</span>
                     <h3 class="text-base sm:text-lg font-black text-ink-950">${escapeHtml(order.clientAddress)}</h3>
                 </div>
-                <div class="text-right"><span class="text-[10px] text-ink-400 block font-bold">희망 예산</span><span class="text-sm font-black text-brand-600">₩ ${order.budget.toLocaleString()} 만원</span></div>
+                <div class="flex items-center gap-3">
+                    <div class="text-right"><span class="text-[10px] text-ink-400 block font-bold">희망 예산</span><span class="text-sm font-black text-brand-600">₩ ${order.budget.toLocaleString()} 만원</span></div>
+                    ${order.status === 'bidding' ? `<button type="button" onclick="withdrawOrder('${order.code}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 whitespace-nowrap">의뢰 철회</button>` : ''}
+                </div>
             </div>
 
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
@@ -1416,6 +1477,7 @@ window.goToClientStep = goToClientStep;
 window.triggerMatchingSim = triggerMatchingSim;
 window.clientFinalizeContract = clientFinalizeContract;
 window.cancelPartnerBid = cancelPartnerBid;
+window.withdrawOrder = withdrawOrder;
 
 window.sendClientAuthCode = sendClientAuthCode;
 window.switchClientAuthTab = switchClientAuthTab;
