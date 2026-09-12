@@ -2745,7 +2745,7 @@ function getAllPendingAppeals() {
     (window.AppState.clientReports || []).forEach(r => {
         if (r.appeal && r.appeal.status === 'pending') {
             items.push({
-                typeLabel: '고객 신고 이의신청 (파트너→고객)', subject: `${r.clientName} · ${r.orderCode}`, reason: r.appeal.reason, date: r.appeal.date,
+                typeLabel: '고객 신고 이의신청 (파트너→고객)', subject: `${r.clientName} · ${r.orderCode}`, reason: r.appeal.reason, date: r.appeal.date, orderCode: r.orderCode,
                 actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectClientReportAppeal('${r.id}', reason))`) + approveBtn('승인(신고 취하)', `adminApproveClientReportAppeal('${r.id}')`)
             });
         }
@@ -2753,7 +2753,7 @@ function getAllPendingAppeals() {
     (window.AppState.partnerReports || []).forEach(r => {
         if (r.appeal && r.appeal.status === 'pending') {
             items.push({
-                typeLabel: '파트너 신고 이의신청 (고객→파트너)', subject: `${r.partnerName} · ${r.orderCode}`, reason: r.appeal.reason, date: r.appeal.date,
+                typeLabel: '파트너 신고 이의신청 (고객→파트너)', subject: `${r.partnerName} · ${r.orderCode}`, reason: r.appeal.reason, date: r.appeal.date, orderCode: r.orderCode,
                 actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectPartnerReportAppeal('${r.id}', reason))`) + approveBtn('승인(신고 취하)', `adminApprovePartnerReportAppeal('${r.id}')`)
             });
         }
@@ -2761,14 +2761,14 @@ function getAllPendingAppeals() {
     (window.AppState.orders || []).forEach(o => {
         if (o.cancelRequest && o.cancelRequest.appeal && o.cancelRequest.appeal.status === 'pending') {
             items.push({
-                typeLabel: '강제 계약취소 이의신청', subject: `${o.code} (${o.cancelRequest.appeal.filedBy === 'client' ? '고객' : '파트너'} 제기)`, reason: o.cancelRequest.appeal.reason, date: o.cancelRequest.appeal.date,
+                typeLabel: '강제 계약취소 이의신청', subject: `${o.code} (${o.cancelRequest.appeal.filedBy === 'client' ? '고객' : '파트너'} 제기)`, reason: o.cancelRequest.appeal.reason, date: o.cancelRequest.appeal.date, orderCode: o.code,
                 actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectForceCancelAppeal('${o.code}', reason))`) + approveBtn('승인(계약 복원)', `adminApproveForceCancelAppeal('${o.code}')`)
             });
         }
         (o.adminInvalidatedBids || []).forEach(ib => {
             if (ib.appeal && ib.appeal.status === 'pending') {
                 items.push({
-                    typeLabel: '입찰 무효화 이의신청', subject: `${ib.partnerName} · ${o.code}`, reason: ib.appeal.reason, date: ib.appeal.date,
+                    typeLabel: '입찰 무효화 이의신청', subject: `${ib.partnerName} · ${o.code}`, reason: ib.appeal.reason, date: ib.appeal.date, orderCode: o.code,
                     actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectInvalidatedBidAppeal('${o.code}', '${escapeHtml(ib.partnerName)}', reason))`) + approveBtn('승인(자격 복원)', `adminRestoreInvalidatedBid('${o.code}', '${escapeHtml(ib.partnerName)}')`)
                 });
             }
@@ -2777,7 +2777,7 @@ function getAllPendingAppeals() {
     (window.AppState.reviewDeletionLog || []).forEach(e => {
         if (e.appeal && e.appeal.status === 'pending') {
             items.push({
-                typeLabel: '후기 삭제 이의신청', subject: `${e.partnerName} · ${e.orderCode}`, reason: e.appeal.reason, date: e.appeal.date,
+                typeLabel: '후기 삭제 이의신청', subject: `${e.partnerName} · ${e.orderCode}`, reason: e.appeal.reason, date: e.appeal.date, orderCode: e.orderCode,
                 actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectReviewDeletionAppeal('${e.id}', reason))`) + approveBtn('승인(후기 복원)', `adminApproveReviewDeletionAppeal('${e.id}')`)
             });
         }
@@ -2786,7 +2786,7 @@ function getAllPendingAppeals() {
         (o.paymentMilestones || []).forEach(m => {
             if (m.status === 'disputed') {
                 items.push({
-                    typeLabel: '공사대금 청구 이의제기', subject: `${o.code} · ${m.label}`, reason: m.disputeReason, date: m.disputeDate,
+                    typeLabel: '공사대금 청구 이의제기', subject: `${o.code} · ${m.label}`, reason: m.disputeReason, date: m.disputeDate, orderCode: o.code,
                     actionsHtml: rejectBtn('반려(청구 유지)', `openReportReasonPrompt((reason) => adminRejectMilestoneDispute('${o.code}', '${m.key}', reason))`) + approveBtn('승인(청구 취소)', `adminApproveMilestoneDispute('${o.code}', '${m.key}')`)
                 });
             }
@@ -2795,7 +2795,7 @@ function getAllPendingAppeals() {
     (window.AppState.clientRatings || []).forEach(r => {
         if (r.appeal && r.appeal.status === 'pending') {
             items.push({
-                typeLabel: '고객 평가 이의신청', subject: `${r.clientName} · ${r.orderCode} (평가자: ${r.partnerName})`, reason: r.appeal.reason, date: r.appeal.date,
+                typeLabel: '고객 평가 이의신청', subject: `${r.clientName} · ${r.orderCode} (평가자: ${r.partnerName})`, reason: r.appeal.reason, date: r.appeal.date, orderCode: r.orderCode,
                 actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectClientRatingAppeal('${r.orderCode}', reason))`) + approveBtn('승인(평가 삭제)', `adminApproveClientRatingAppeal('${r.orderCode}')`)
             });
         }
@@ -2812,7 +2812,7 @@ function getAllPendingAppeals() {
         (o.repairClaims || []).forEach(c => {
             if (c.completionDisputed && !c.completionDisputeResolution) {
                 items.push({
-                    typeLabel: '하자보수 완료처리 이의제기', subject: `${o.code} · ${c.title}`, reason: c.completionDisputeNote, date: c.resolvedDate || c.createdDate,
+                    typeLabel: '하자보수 완료처리 이의제기', subject: `${o.code} · ${c.title}`, reason: c.completionDisputeNote, date: c.resolvedDate || c.createdDate, orderCode: o.code,
                     actionsHtml: rejectBtn('반려(완료 유지)', `openReportReasonPrompt((reason) => adminRejectRepairClaimCompletionDispute('${o.code}', '${c.id}', reason))`) + approveBtn('승인(재작업)', `adminApproveRepairClaimCompletionDispute('${o.code}', '${c.id}')`)
                 });
             }
@@ -2820,14 +2820,14 @@ function getAllPendingAppeals() {
         (o.progressStages || []).forEach((s, idx) => {
             if (s.disputed && !s.disputeResolution) {
                 items.push({
-                    typeLabel: '시공 진행 단계 이의제기', subject: `${o.code} · ${s.label}`, reason: s.disputeReason, date: s.date || getLocalDateString(),
+                    typeLabel: '시공 진행 단계 이의제기', subject: `${o.code} · ${s.label}`, reason: s.disputeReason, date: s.date || getLocalDateString(), orderCode: o.code,
                     actionsHtml: rejectBtn('반려(완료 유지)', `openReportReasonPrompt((reason) => adminRejectProgressStageDispute('${o.code}', ${idx}, reason))`) + approveBtn('승인(재작업)', `adminApproveProgressStageDispute('${o.code}', ${idx})`)
                 });
             }
         });
         if (o.siteVisit && o.siteVisit.disputed && !o.siteVisit.disputeResolution) {
             items.push({
-                typeLabel: '실측 방문 완료처리 이의제기', subject: o.code, reason: o.siteVisit.disputeReason, date: o.siteVisit.completedDate || getLocalDateString(),
+                typeLabel: '실측 방문 완료처리 이의제기', subject: o.code, reason: o.siteVisit.disputeReason, date: o.siteVisit.completedDate || getLocalDateString(), orderCode: o.code,
                 actionsHtml: rejectBtn('반려(완료 유지)', `openReportReasonPrompt((reason) => adminRejectSiteVisitCompletionDispute('${o.code}', reason))`) + approveBtn('승인(재방문)', `adminApproveSiteVisitCompletionDispute('${o.code}')`)
             });
         }
@@ -2847,6 +2847,21 @@ function renderAdminAppealInbox() {
         return;
     }
 
+    /* 이의신청은 구조화된 사유 텍스트 한 줄만 보고 판단해야 했는데, 그 이의의
+     * 배경이 된 실제 대화(order.messages)는 오더 조회에서만 별도로 찾아봐야
+     * 했다 — 판단이 이루어지는 이 화면에 바로 연결해 왕복을 없앤다. */
+    const buildAppealMessagesToggleHtml = (it) => {
+        if (!it.orderCode) return '';
+        const order = (window.AppState.orders || []).find(o => o.code === it.orderCode);
+        const count = order ? (order.messages || []).length : 0;
+        if (count === 0) return '';
+        const expanded = adminOrderLookupExpandedThreads.has(it.orderCode);
+        return `<div class="pt-1">
+            <button type="button" onclick="toggleAdminOrderMessageThread('${it.orderCode}')" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"><i data-lucide="message-circle" class="w-3 h-3"></i> 대화 내역 ${count}건 ${expanded ? '숨기기' : '보기'}</button>
+            ${expanded ? buildAdminOrderMessageThreadHtml(order) : ''}
+        </div>`;
+    };
+
     container.innerHTML = items.map(it => `
         <div class="surface p-4 space-y-2 text-left">
             <div class="flex items-center justify-between gap-2">
@@ -2855,6 +2870,7 @@ function renderAdminAppealInbox() {
             </div>
             <h4 class="text-xs font-black text-ink-950">${escapeHtml(it.subject)}</h4>
             <p class="text-[11px] text-ink-600 font-medium leading-relaxed">${escapeHtml(it.reason)}</p>
+            ${buildAppealMessagesToggleHtml(it)}
             <div class="flex items-center gap-1.5 justify-end pt-1 border-t border-ink-100">${it.actionsHtml}</div>
         </div>`).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -2878,7 +2894,8 @@ let adminOrderLookupExpandedThreads = new Set();
 function toggleAdminOrderMessageThread(orderCode) {
     if (adminOrderLookupExpandedThreads.has(orderCode)) adminOrderLookupExpandedThreads.delete(orderCode);
     else adminOrderLookupExpandedThreads.add(orderCode);
-    searchOrderLookup();
+    if (document.getElementById('admin-order-lookup-result')) searchOrderLookup();
+    if (document.getElementById('admin-appeal-inbox-list')) renderAdminAppealInbox();
 }
 
 function searchOrderLookup() {
