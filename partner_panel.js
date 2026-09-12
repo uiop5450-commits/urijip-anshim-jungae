@@ -5256,7 +5256,7 @@ function requestReviewFromClient(orderCode) {
 
     order.lastReviewReminderDate = today;
     if (typeof pushLog === 'function') pushLog('PARTNER', 'REVIEW_REQUEST', `[${partnerName}]가 오더(${orderCode}) 고객에게 후기 작성을 요청했습니다.`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}에서 안심 후기 작성을 부탁드려요! 솔직한 후기가 큰 도움이 됩니다.`);
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}에서 안심 후기 작성을 부탁드려요! 솔직한 후기가 큰 도움이 됩니다.`, null, 'marketing');
     showToast('후기 작성 요청을 보냈습니다.', 'success');
     openPartnerOrderDetailModal(orderCode);
 }
