@@ -554,6 +554,9 @@ function submitPartnerPortfolio(isDraft = false) {
         desc: desc || plainText.substring(0, 80),
         img: coverImg,
         likes: (editIndex !== null && partner.portfolios[editIndex]) ? (partner.portfolios[editIndex].likes || 0) : 0,
+        views: (editIndex !== null && partner.portfolios[editIndex]) ? (partner.portfolios[editIndex].views || 0) : 0,
+        date: (editIndex !== null && partner.portfolios[editIndex] && partner.portfolios[editIndex].date) ? partner.portfolios[editIndex].date : new Date().toISOString(),
+        id: (editIndex !== null && partner.portfolios[editIndex]) ? partner.portfolios[editIndex].id : undefined,
         bodyHtml,
         isDraft
     };
@@ -1349,18 +1352,23 @@ function openClientPartnerProfile(partnerName) {
         portGrid.innerHTML = '';
         const publishedPortfolios = (partner.portfolios || []).filter(p => !p.isDraft);
         if (publishedPortfolios.length > 0) {
+            const weeklyBestIds = getWeeklyBestPortfolioIds();
             partner.portfolios.forEach((port, idx) => {
                 if (port.isDraft) return;
+                const isWeeklyBest = weeklyBestIds.includes(getOrAssignPortfolioId(port));
                 const itemDiv = document.createElement('div');
                 itemDiv.className = "portfolio-card text-left group";
                 itemDiv.onclick = (e) => { e.stopPropagation(); openPortfolioBlogDetail(partner.name, idx); };
                 itemDiv.innerHTML = `
-                    <div class="portfolio-img relative">${port.isPrimary ? `<span class="badge badge-gold absolute top-2 left-2 z-10"><i data-lucide="star" class="w-2.5 h-2.5"></i> 대표 시공사례</span>` : ''}${buildPortfolioCardMediaHtml(port)}</div>
+                    <div class="portfolio-img relative">${port.isPrimary ? `<span class="badge badge-gold absolute top-2 left-2 z-10"><i data-lucide="star" class="w-2.5 h-2.5"></i> 대표 시공사례</span>` : ''}${isWeeklyBest ? `<span class="badge badge-gold absolute top-2 right-2 z-10">🏆 이번 주 인기</span>` : ''}${buildPortfolioCardMediaHtml(port)}</div>
                     <div class="p-4 space-y-1.5">
                         <h5 class="font-black text-ink-950 text-xs truncate group-hover:text-ink-600 transition-colors">${escapeHtml(port.title)}</h5>
                         <p class="text-[11px] text-ink-500 font-medium line-clamp-2 leading-relaxed">${escapeHtml(port.desc || '')}</p>
                         <div class="flex items-center justify-between pt-1.5 mt-0.5 border-t border-ink-100">
-                            <span class="text-[10px] text-ink-400 font-bold flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i>${port.likes || 0}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] text-ink-400 font-bold flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i>${port.likes || 0}</span>
+                                <span class="text-[10px] text-ink-400 font-bold flex items-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i>${port.views || 0}</span>
+                            </div>
                             <span class="text-[10px] text-ink-800 font-extrabold group-hover:underline">자세히 보기 →</span>
                         </div>
                     </div>`;
@@ -1537,6 +1545,24 @@ function getOrAssignPortfolioId(port) {
     return port.id;
 }
 
+/* 커뮤니티의 "이번 주 베스트"와 동일한 방식 — 최근 7일 내 발행된 시공사례 중
+ * 좋아요×3 + 조회수 점수 상위 3건을 뽑는다. 포트폴리오는 댓글이 없으므로
+ * 커뮤니티 공식(좋아요×3 + 댓글×2 + 조회수)에서 댓글 항목만 뺐다. */
+function getWeeklyBestPortfolioIds() {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const scored = [];
+    (window.AppState.partners || []).forEach(partner => {
+        (partner.portfolios || []).forEach(port => {
+            if (port.isDraft || !port.date) return;
+            if (new Date(port.date) < weekAgo) return;
+            const score = (port.likes || 0) * 3 + (port.views || 0);
+            if (score > 0) scored.push({ id: getOrAssignPortfolioId(port), score });
+        });
+    });
+    return scored.sort((a, b) => b.score - a.score).slice(0, 3).map(p => p.id);
+}
+
 function isPortfolioSaved(partnerName, idx) {
     const auth = window.AppState.clientAuth;
     if (!auth || !auth.loggedIn) return false;
@@ -1633,9 +1659,11 @@ function openPortfolioBlogDetail(partnerName, idx) {
     if (!partner || !partner.portfolios[idx]) return;
     const port = partner.portfolios[idx];
     _blogDetailContext = { partnerName, idx };
+    port.views = (port.views || 0) + 1;
 
     safeUpdateText('blog-modal-partner-name', partnerName);
     safeUpdateText('blog-modal-pyung', `${port.pyung}평형 시공 사례`);
+    safeUpdateText('blog-modal-views', `조회 ${port.views || 0}`);
     safeUpdateText('blog-modal-title', port.title);
     safeUpdateText('blog-modal-overview', port.desc || '');
 
@@ -1972,6 +2000,7 @@ window.openPartnerPortfolioModal = openClientPartnerProfile;
 window.closeClientPartnerProfile = closeClientPartnerProfile;
 window.openPortfolioBlogDetail = openPortfolioBlogDetail;
 window.closePortfolioBlogDetail = closePortfolioBlogDetail;
+window.getWeeklyBestPortfolioIds = getWeeklyBestPortfolioIds;
 window.requestDirectQuoteFromPortfolio = requestDirectQuoteFromPortfolio;
 window.renderPartnerProfileManager = renderPartnerProfileManager;
 window.savePartnerProfileInfo = savePartnerProfileInfo;
