@@ -3042,6 +3042,27 @@ function searchOrderLookup() {
         </div>`;
     };
 
+    /* 오더 조회 화면엔 고객↔파트너 대화(order.messages, buildOrderMessagesRowHtml)까지
+     * 관리자가 볼 수 있는데, 정작 매니저끼리 인수인계할 방법은 전혀 없었다 — 전화
+     * 통화 내용이나 다음 조치 계획 같은 내부 메모는 담당 매니저 머릿속에만 있다가
+     * 교대하면 사라졌다. 고객·파트너에게는 절대 노출되지 않는 매니저 공유 메모를 둔다. */
+    const buildAdminOrderNotesHtml = (o) => {
+        const notes = o.adminNotes || [];
+        const notesHtml = notes.length === 0 ? '' : `<div class="space-y-1 max-h-32 overflow-y-auto custom-scroll pr-1">${notes.map(n => `
+            <div class="flex items-start justify-between gap-2 text-[10px] text-ink-600 font-semibold leading-relaxed bg-white rounded-lg border border-ink-100 px-2 py-1.5">
+                <span><span class="text-ink-400 font-bold">${escapeHtml(n.managerName)} · ${n.date}</span><br>${escapeHtml(n.text)}</span>
+                <button type="button" onclick="deleteAdminOrderNote('${o.code}', '${n.id}')" class="text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0" aria-label="메모 삭제"><i data-lucide="x" class="w-3 h-3"></i></button>
+            </div>`).join('')}</div>`;
+        return `<div class="w-full pt-1 space-y-1.5">
+            <p class="text-[10px] font-black text-ink-400 uppercase tracking-wider flex items-center gap-1"><i data-lucide="sticky-note" class="w-3 h-3"></i> 매니저 메모 (내부 공유, 고객·파트너 비공개)</p>
+            ${notesHtml}
+            <div class="flex gap-1.5">
+                <input type="text" id="admin-order-note-input-${o.code}" placeholder="인수인계용 메모를 입력하세요" class="input flex-1 text-[10px] py-1.5" onkeydown="if(event.key==='Enter'){addAdminOrderNote('${o.code}');}">
+                <button type="button" onclick="addAdminOrderNote('${o.code}')" class="btn btn-secondary btn-sm shrink-0">추가</button>
+            </div>
+        </div>`;
+    };
+
     resultEl.innerHTML = matches.map(o => `
         <div class="p-3.5 bg-ink-50 rounded-xl flex flex-wrap justify-between items-center gap-2 text-xs">
             <div class="space-y-0.5 min-w-0">
@@ -3058,8 +3079,34 @@ function searchOrderLookup() {
             ${buildInvalidatedBidsRowHtml(o)}
             ${buildDisputeRowHtml(o)}
             ${buildOrderMessagesRowHtml(o)}
+            ${buildAdminOrderNotesHtml(o)}
         </div>`).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function addAdminOrderNote(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order) return;
+    const input = document.getElementById(`admin-order-note-input-${orderCode}`);
+    const text = input ? input.value.trim() : '';
+    if (!text) { showToast('메모 내용을 입력해주세요.', 'warning'); return; }
+
+    if (!order.adminNotes) order.adminNotes = [];
+    order.adminNotes.push({ id: `note-${Date.now()}-${Math.floor(Math.random() * 1000)}`, managerName: window.AppState.managerName || '매니저', text, date: getLocalDateString() });
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'ORDER_NOTE_ADD', `[${window.AppState.managerName}]가 오더(${orderCode})에 내부 메모를 남겼습니다.`, 'INFO');
+    showToast('메모를 추가했습니다.', 'success');
+    searchOrderLookup();
+}
+
+function deleteAdminOrderNote(orderCode, noteId) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || !order.adminNotes) return;
+    order.adminNotes = order.adminNotes.filter(n => n.id !== noteId);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'ORDER_NOTE_DELETE', `[${window.AppState.managerName}]가 오더(${orderCode})의 내부 메모를 삭제했습니다.`, 'INFO');
+    showToast('메모를 삭제했습니다.', 'info');
+    searchOrderLookup();
 }
 
 function adminForceCompleteRepairClaim(orderCode, claimId, note) {
@@ -6410,6 +6457,8 @@ window.buildPartnerTierBadgeHtml = buildPartnerTierBadgeHtml;
 window.sendPartnerOrderMessage = sendPartnerOrderMessage;
 window.proposeRepairVisitDate = proposeRepairVisitDate;
 window.completeRepairVisit = completeRepairVisit;
+window.addAdminOrderNote = addAdminOrderNote;
+window.deleteAdminOrderNote = deleteAdminOrderNote;
 window.adminApproveRepairVisitCompletionDispute = adminApproveRepairVisitCompletionDispute;
 window.adminRejectRepairVisitCompletionDispute = adminRejectRepairVisitCompletionDispute;
 window.openChangeOrderModal = openChangeOrderModal;
