@@ -3032,6 +3032,11 @@ function adminDismissOrderMessageReport(orderCode, msgIndex) {
     if (!msg || !msg.report || msg.report.status !== 'pending') return;
     msg.report.status = 'dismissed';
     if (typeof pushLog === 'function') pushLog('MANAGER', 'ORDER_MESSAGE_REPORT_DISMISS', `[메시지 신고 반려] 오더 ${orderCode}의 메시지 신고를 검토 후 반려(메시지 유지)했습니다.`, 'INFO');
+    // dismissReviewReport/dismissReviewReplyReport 등 다른 모든 신고 반려 함수는
+    // 검토 결과를 신고자에게 알리는데, 이 함수만 그 알림이 빠져 있었다 — 동일하게 맞춘다.
+    const reporterRole = msg.report.reportedBy;
+    if (reporterRole === 'client' && typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `신고하신 메시지를 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
+    if (reporterRole === 'partner' && typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `신고하신 메시지를 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
     showToast('신고를 반려했습니다. 메시지는 그대로 유지됩니다.', 'info');
     searchOrderLookup();
     if (typeof renderAdminAppealInbox === 'function') renderAdminAppealInbox();
