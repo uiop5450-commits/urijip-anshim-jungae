@@ -504,6 +504,42 @@ function withdrawOrder(orderCode) {
     if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
 }
 
+/* 계약 취소 후 재매칭(reopenCancelledOrder)은 있는데, 그보다 이른 단계에서
+ * 철회한 의뢰(withdrawOrder)는 되돌릴 방법이 전혀 없었다 — 실수로 철회했거나
+ * 마음이 바뀐 고객은 새 의뢰서를 처음부터 다시 작성해야 했다. 철회 시점의
+ * 낡은 입찰서는 버리고 새로 매칭한다. */
+function restoreWithdrawnOrder(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'withdrawn') return;
+
+    order.status = 'bidding';
+    order.bids = [];
+
+    const slotsNeeded = order.partnerCountLimit || 3;
+    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !isPartnerBlockedByClient(p.name));
+    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, slotsNeeded);
+    selected.forEach(partner => {
+        order.bids.push({
+            partner: partner.name,
+            price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
+            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
+            verified: true, progress: 'bidding'
+        });
+    });
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'RESTORE_WITHDRAWN_ORDER', `[${order.clientName}] 고객님이 철회했던 의뢰(${orderCode})를 재개하여 재매칭했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, selected.length > 0 ? `의뢰를 재개하여 새 파트너사 ${selected.length}곳이 매칭되었어요. (의뢰 코드: ${orderCode})` : `재매칭 가능한 파트너사가 아직 없어요. 잠시 후 다시 시도해주세요.`);
+    if (typeof pushPartnerNotification === 'function') { selected.forEach(partner => pushPartnerNotification(partner.name, `고객님이 재개한 오더(${orderCode})에 매칭되었어요. 고객: ${maskName(order.clientName)}님.`)); }
+    showToast(selected.length > 0 ? `의뢰를 재개했습니다! 새로운 파트너사 ${selected.length}곳이 매칭되었습니다.` : '의뢰를 재개했지만 재매칭 가능한 파트너사를 찾지 못했어요. 잠시 후 다시 시도해주세요.', selected.length > 0 ? 'success' : 'warning');
+
+    renderClientMyPage();
+    selectMyPageEstimate(orderCode);
+    if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
+    if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
+    if (typeof recalculateKPIs === 'function') recalculateKPIs();
+}
+
 let editOrderBudgetTargetCode = null;
 
 /* 지금까지는 의뢰서를 한 번 제출하면 예산을 잘못 적었거나 마음이 바뀌어도 고칠 방법이
@@ -2995,6 +3031,7 @@ function renderMyPageEstimateDetails(order) {
                     <span class="badge badge-neutral"><span class="badge-dot bg-ink-300"></span> 철회된 의뢰</span>
                 </div>
                 <div class="p-4 rounded-2xl text-xs font-bold text-ink-500 bg-ink-50 text-center">이 의뢰는 철회되어 더 이상 진행되지 않습니다.</div>
+                <button type="button" onclick="restoreWithdrawnOrder('${order.code}')" class="btn btn-dark btn-block"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 의뢰 재개하고 재매칭 받기</button>
                 <div class="space-y-3 pt-2">
                     <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider flex items-center gap-1.5"><i data-lucide="building" class="w-4 h-4 text-ink-400"></i> 철회 시점의 파트너 제안서 (${order.bids ? order.bids.length : 0})</h4>
                     <div class="space-y-2.5">${withdrawnBidsHtml}</div>
@@ -4544,6 +4581,7 @@ window.replyToPreBidQuestion = replyToPreBidQuestion;
 window.closeBidQuestionModal = closeBidQuestionModal;
 window.submitBidQuestion = submitBidQuestion;
 window.withdrawOrder = withdrawOrder;
+window.restoreWithdrawnOrder = restoreWithdrawnOrder;
 window.openEditOrderBudgetModal = openEditOrderBudgetModal;
 window.closeEditOrderBudgetModal = closeEditOrderBudgetModal;
 window.saveOrderBudgetEdit = saveOrderBudgetEdit;
