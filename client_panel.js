@@ -378,7 +378,7 @@ function completeMatchingSim() {
     }
 }
 
-function cancelPartnerBid(orderCode, partnerName) {
+function cancelPartnerBid(orderCode, partnerName, reason) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return;
 
@@ -386,8 +386,8 @@ function cancelPartnerBid(orderCode, partnerName) {
     if (!order.excludedPartners) order.excludedPartners = [];
     if (!order.excludedPartners.includes(partnerName)) order.excludedPartners.push(partnerName);
 
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'CANCEL_BID', `[${order.clientName}] 고객님이 [${partnerName}] 파트너의 매칭을 취소하였습니다.`, 'INFO');
-    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `고객님이 오더(${orderCode}) 매칭을 취소했어요.`);
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'CANCEL_BID', `[${order.clientName}] 고객님이 [${partnerName}] 파트너의 매칭을 취소하였습니다.${reason ? ` 사유: ${reason}` : ''}`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `고객님이 오더(${orderCode}) 매칭을 취소했어요.${reason ? ` 사유: ${reason}` : ''}`);
     // 마지막 남은 매칭까지 취소하면 오더가 조용히 "무응답" 상태로 남는다 — 재매칭
     // 버튼(triggerRebidding)이 이미 있지만 존재를 몰라 그냥 방치되는 경우가 많으므로
     // 입찰이 0건이 된 시점에 바로 알려준다.
@@ -2589,12 +2589,12 @@ function renderMyPageEstimateDetails(order) {
                         ` : `<span class="text-[10px] font-bold text-ink-400">계약 마감</span>`) : (isBannedBid ? `
                             <div class="flex items-center gap-1.5">
                                 <span class="text-[10px] font-bold text-roseCustom">삼진아웃으로 제명되어 계약할 수 없어요</span>
-                                <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}')" class="btn btn-secondary btn-sm">매칭취소</button>
+                                <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}', '파트너 영구 제명으로 인한 자동 취소')" class="btn btn-secondary btn-sm">매칭취소</button>
                             </div>
                         ` : `
                             <div class="flex items-center gap-1.5 flex-wrap justify-end">
                                 <button type="button" onclick="openBidQuestionModal('${order.code}', '${bid.partner}')" class="btn btn-ghost btn-sm px-1.5" title="계약 전 궁금한 점 문의하기"><i data-lucide="message-circle-question" class="w-3.5 h-3.5"></i></button>
-                                <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}')" class="btn btn-secondary btn-sm">매칭취소</button>
+                                <button type="button" onclick="openReportReasonPrompt((reason) => cancelPartnerBid('${order.code}', '${bid.partner}', reason))" class="btn btn-secondary btn-sm">매칭취소</button>
                                 <button type="button" onclick="clientFinalizeContract('${order.code}', '${bid.partner}', ${bid.price})" class="btn btn-dark btn-sm">이 파트너와 계약 체결하기</button>
                             </div>
                         `)}
