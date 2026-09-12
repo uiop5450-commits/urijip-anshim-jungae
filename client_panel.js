@@ -2969,6 +2969,7 @@ function openBidCompareModal(orderCode) {
             { label: '견적 금액', render: b => `<span class="font-black text-ink-950">₩ ${b.price.toLocaleString()}만원</span>` },
             { label: '비용 세부내역', render: b => (b.costBreakdown || []).length === 0 ? `<span class="text-ink-400">미제공</span>` : `<div class="space-y-0.5">${b.costBreakdown.map(item => `<div>${escapeHtml(item.label)} ₩${item.amount.toLocaleString()}만원</div>`).join('')}</div>`, alignTop: true },
             { label: '평점', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return `<span class="font-bold text-gold-600">★ ${p ? p.rating.toFixed(1) : '5.0'}</span>`; } },
+            { label: '파트너 등급', render: b => (typeof buildPartnerTierBadgeHtml === 'function' && buildPartnerTierBadgeHtml(b.partner)) || '<span class="text-ink-400">-</span>' },
             { label: '안심 인증', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return p && p.isCertified ? `<span class="badge badge-brand">인증</span>` : '-'; } },
             { label: '제안 내용', render: b => `<span class="text-ink-600">${escapeHtml(b.desc)}</span>`, alignTop: true }
         ];
@@ -3097,6 +3098,7 @@ function renderMyPageEstimateDetails(order) {
                         <div class="flex items-center gap-2">
                             ${showCompareCheckbox ? `<input type="checkbox" onchange="toggleBidCompareSelection('${order.code}', '${bid.partner}')" ${bidCompareSelection.includes(bid.partner) ? 'checked' : ''} class="w-3.5 h-3.5 shrink-0" aria-label="비교 대상으로 선택">` : ''}
                             <span class="font-black text-ink-950 cursor-pointer hover:underline" onclick="openPartnerPortfolioModal('${bid.partner}')">${escapeHtml(bid.partner)}</span>
+                            ${typeof buildPartnerTierBadgeHtml === 'function' ? buildPartnerTierBadgeHtml(bid.partner) : ''}
                             <span class="text-gold-500 font-extrabold text-xs">★ ${ratingVal}</span>
                             ${isBannedBid ? `<span class="badge badge-rose">영구 제명</span>` : ''}
                         </div>
