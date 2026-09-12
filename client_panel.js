@@ -1082,6 +1082,11 @@ function buildRepairClaimsHtml(order) {
                 <p class="text-[10px] font-black text-amberCustom">파트너가 방문 일정을 제안했어요: ${c.visitDate}</p>
                 <div class="flex gap-1.5"><button type="button" onclick="confirmRepairVisitDate('${order.code}', '${c.id}')" class="btn btn-dark btn-sm flex-1">일정 확정</button><button type="button" onclick="openReportReasonPrompt((reason) => declineRepairVisitDate('${order.code}', '${c.id}', reason))" class="btn btn-secondary btn-sm flex-1">거절</button></div>
             </div>` : c.visitStatus === 'confirmed' ? `<p class="text-[10px] font-black text-emeraldCustom mt-1">방문 일정 확정됨: ${c.visitDate}</p><button type="button" onclick="downloadVisitCalendarFile('하자보수 방문: ${escapeHtml(c.title)} (${order.code})', '${escapeHtml(c.description)}', '${c.visitDate}')" class="text-[9px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-0.5"><i data-lucide="calendar-plus" class="w-3 h-3 inline"></i> 캘린더에 추가</button>`
+                : c.visitStatus === 'completed' ? (c.visitCompletionDisputed
+                    ? (c.visitCompletionDisputeResolution === 'rejected'
+                        ? `<p class="text-[10px] font-black text-ink-500 mt-1">방문 완료됨: ${c.visitCompletedDate}</p><p class="text-[9px] text-ink-400 font-semibold mt-0.5">이의제기 반려됨${c.visitCompletionDisputeAdminResponse ? ` — ${escapeHtml(c.visitCompletionDisputeAdminResponse)}` : ''}</p>`
+                        : `<p class="text-[10px] font-black text-ink-500 mt-1">방문 완료됨: ${c.visitCompletedDate}</p><p class="text-[9px] font-black text-amberCustom mt-0.5">이의제기 심사중</p>`)
+                    : `<p class="text-[10px] font-black text-ink-500 mt-1">방문 완료됨: ${c.visitCompletedDate}</p><button type="button" onclick="openReportReasonPrompt((reason) => disputeRepairVisitCompletion('${order.code}', '${c.id}', reason))" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-0.5">완료 처리에 이의있어요</button>`)
                 : c.visitStatus === 'declined' ? `<p class="text-[10px] text-ink-400 font-semibold mt-1">제안된 방문 일정을 거절했어요. 파트너사의 새 제안을 기다려주세요.</p>` : ''}
             ${c.status === 'submitted' ? `<button type="button" onclick="retractRepairClaim('${order.code}', '${c.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">신청 철회</button>` : ''}
             ${c.status === 'rejected' ? (c.escalated
@@ -1116,6 +1121,27 @@ function buildRepairClaimsHtml(order) {
 /* 계약 전 실측 방문은 propose/confirm/decline 전 과정이 있는데(openSiteVisitModal),
  * 계약 후 하자보수(AS) 방문은 파트너가 "처리중"이라고만 표시할 뿐 실제로 언제
  * 방문할지 조율할 방법이 없었다 — 동일한 패턴을 하자보수 신청 건에도 적용한다. */
+/* disputeSiteVisitCompletion과 동일하게, 파트너 단독 완료 처리인 하자보수
+ * 방문 완료(completeRepairVisit, partner_panel.js)에도 고객 이의제기 경로를
+ * 둔다 — 하자보수 신청 자체의 완료 이의제기(disputeCompletedRepairClaim)와는
+ * 별개로, 방문 그 자체가 실제로 있었는지를 다투는 경로다. */
+function disputeRepairVisitCompletion(orderCode, claimId, reason) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.visitStatus !== 'completed' || claim.visitCompletionDisputed) return;
+
+    claim.visitCompletionDisputed = true;
+    claim.visitCompletionDisputeReason = reason;
+    claim.visitCompletionDisputeResolution = null;
+    claim.visitCompletionDisputeAdminResponse = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_VISIT_COMPLETION_DISPUTE', `[${order.clientName}] 고객님이 하자보수("${claim.title}") 방문 완료 처리에 이의를 제기했습니다: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 하자보수("${claim.title}") 방문 완료 처리에 이의를 제기했어요. 매니저 센터가 검토 중입니다.`);
+    showToast('매니저 센터에 이의제기를 접수했습니다.', 'success');
+
+    selectMyPageEstimate(orderCode);
+}
+
 function confirmRepairVisitDate(orderCode, claimId) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
@@ -4526,6 +4552,7 @@ window.toggleBidCompareSelection = toggleBidCompareSelection;
 window.openBidCompareModal = openBidCompareModal;
 window.sendClientOrderMessage = sendClientOrderMessage;
 window.confirmRepairVisitDate = confirmRepairVisitDate;
+window.disputeRepairVisitCompletion = disputeRepairVisitCompletion;
 window.respondChangeOrder = respondChangeOrder;
 window.disputeCompletedRepairClaim = disputeCompletedRepairClaim;
 window.toggleCommunityAcceptedAnswer = toggleCommunityAcceptedAnswer;

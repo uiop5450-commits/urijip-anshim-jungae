@@ -2839,6 +2839,14 @@ function getAllPendingAppeals() {
                 actionsHtml: rejectBtn('반려(완료 유지)', `openReportReasonPrompt((reason) => adminRejectSiteVisitCompletionDispute('${o.code}', reason))`) + approveBtn('승인(재방문)', `adminApproveSiteVisitCompletionDispute('${o.code}')`)
             });
         }
+        (o.repairClaims || []).forEach(c => {
+            if (c.visitCompletionDisputed && !c.visitCompletionDisputeResolution) {
+                items.push({
+                    typeLabel: '하자보수 방문 완료처리 이의제기', subject: `${o.code} · ${c.title}`, reason: c.visitCompletionDisputeReason, date: c.visitCompletedDate || getLocalDateString(), orderCode: o.code,
+                    actionsHtml: rejectBtn('반려(완료 유지)', `openReportReasonPrompt((reason) => adminRejectRepairVisitCompletionDispute('${o.code}', '${c.id}', reason))`) + approveBtn('승인(재방문)', `adminApproveRepairVisitCompletionDispute('${o.code}', '${c.id}')`)
+                });
+            }
+        });
     });
 
     return items.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -3177,6 +3185,39 @@ function adminRejectSiteVisitCompletionDispute(orderCode, reason) {
     visit.disputeAdminResponse = reason;
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'SITE_VISIT_COMPLETION_DISPUTE_REJECT', `[이의제기 반려] 오더 ${order.code}의 실측 방문 완료 처리 이의제기를 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 반려되었습니다. 사유: ${reason}`);
+    showToast('이의제기를 반려했습니다.', 'info');
+    searchOrderLookup();
+}
+
+/* adminApprove/RejectSiteVisitCompletionDispute와 동일한 승인/반려 대칭 구조를
+ * 하자보수 방문 완료 처리 이의제기에도 적용한다 — 승인 시 확정 상태로 되돌려
+ * 파트너가 재방문(completeRepairVisit)을 다시 처리할 수 있게 한다. */
+function adminApproveRepairVisitCompletionDispute(orderCode, claimId) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || !claim.visitCompletionDisputed || claim.visitCompletionDisputeResolution) return;
+    claim.visitStatus = 'confirmed';
+    claim.visitCompletedDate = null;
+    claim.visitCompletionDisputed = false;
+    claim.visitCompletionDisputeResolution = null;
+    claim.visitCompletionDisputeReason = null;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_VISIT_COMPLETION_DISPUTE_APPROVE', `[이의제기 승인] 오더 ${order.code}의 하자보수 방문 완료 처리 이의제기를 승인하여 확정 상태로 되돌렸습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 승인되어 하자보수 방문이 다시 확정 상태로 전환되었습니다.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `하자보수 방문 완료 처리에 고객이 이의제기했고, 매니저 센터가 승인하여 재방문이 필요합니다.`);
+    showToast('이의제기를 승인하여 확정 상태로 되돌렸습니다.', 'success');
+    searchOrderLookup();
+}
+
+function adminRejectRepairVisitCompletionDispute(orderCode, claimId, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || !claim.visitCompletionDisputed || claim.visitCompletionDisputeResolution) return;
+    claim.visitCompletionDisputeResolution = 'rejected';
+    claim.visitCompletionDisputeAdminResponse = reason;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_VISIT_COMPLETION_DISPUTE_REJECT', `[이의제기 반려] 오더 ${order.code}의 하자보수 방문 완료 처리 이의제기를 반려했습니다. 사유: ${reason}`, 'WARNING');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 반려되었습니다. 사유: ${reason}`);
     showToast('이의제기를 반려했습니다.', 'info');
     searchOrderLookup();
@@ -4660,7 +4701,10 @@ function buildPartnerRepairClaimsHtml(order) {
                 ${c.partnerResponse ? `<p class="text-[10px] text-brand-700 font-semibold leading-relaxed pl-3 border-l-2 border-brand-200">${escapeHtml(c.partnerResponse)}</p>` : ''}
                 ${(c.status !== 'completed' && c.status !== 'rejected') ? `<div class="p-2 bg-white rounded-lg border border-ink-100 space-y-1">
                     ${c.visitStatus === 'proposed' ? `<p class="text-[10px] font-black text-amberCustom">방문 일정 제안함: ${c.visitDate} (고객 확인 대기중)</p>`
-                        : c.visitStatus === 'confirmed' ? `<p class="text-[10px] font-black text-emeraldCustom">방문 일정 확정됨: ${c.visitDate}</p><button type="button" onclick="downloadVisitCalendarFile('하자보수 방문: ${escapeHtml(c.title)} (${order.code})', '${escapeHtml(c.description)}', '${c.visitDate}')" class="text-[9px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-0.5"><i data-lucide="calendar-plus" class="w-3 h-3 inline"></i> 캘린더에 추가</button>`
+                        : c.visitStatus === 'confirmed' ? `<p class="text-[10px] font-black text-emeraldCustom">방문 일정 확정됨: ${c.visitDate}</p><div class="flex items-center gap-2 mt-0.5"><button type="button" onclick="completeRepairVisit('${order.code}', '${c.id}')" class="btn btn-dark btn-sm">방문 완료 처리</button><button type="button" onclick="downloadVisitCalendarFile('하자보수 방문: ${escapeHtml(c.title)} (${order.code})', '${escapeHtml(c.description)}', '${c.visitDate}')" class="text-[9px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0"><i data-lucide="calendar-plus" class="w-3 h-3 inline"></i> 캘린더에 추가</button></div>`
+                        : c.visitStatus === 'completed' ? `<p class="text-[10px] font-black text-ink-500">방문 완료됨: ${c.visitCompletedDate}</p>${!c.visitCompletionDisputed ? '' : (c.visitCompletionDisputeResolution === 'rejected'
+                            ? `<p class="text-[9px] font-bold text-ink-400 mt-0.5">고객 이의제기 반려됨(완료 유지)${c.visitCompletionDisputeAdminResponse ? ` — ${escapeHtml(c.visitCompletionDisputeAdminResponse)}` : ''}</p>`
+                            : `<p class="text-[9px] font-black text-roseCustom mt-0.5">고객 이의제기 심사중</p>`)}`
                         : `<div class="flex items-center gap-1.5">
                             ${c.visitStatus === 'declined' ? `<span class="text-[9px] text-ink-400 font-semibold shrink-0">거절됨${c.visitDeclineReason ? ` — ${escapeHtml(c.visitDeclineReason)}` : ''}. 새로 제안:</span>` : `<span class="text-[9px] text-ink-400 font-semibold shrink-0">방문 일정 제안:</span>`}
                             <input type="date" id="repair-visit-date-input-${c.id}" class="input text-[10px] py-1 px-1.5 flex-1">
@@ -4691,13 +4735,37 @@ function proposeRepairVisitDate(orderCode, claimId) {
     const date = input ? input.value : '';
     if (!date) { showToast('방문 희망일을 선택해주세요.', 'warning'); return; }
 
+    const isReschedule = claim.visitStatus === 'confirmed';
     claim.visitStatus = 'proposed';
     claim.visitDate = date;
     claim.visitDeclineReason = null;
+    claim.visitCompletedDate = null;
 
-    if (typeof pushLog === 'function') pushLog('PARTNER', 'REPAIR_VISIT_PROPOSE', `[${partnerName}]가 하자보수("${claim.title}") 방문 일정을 제안했습니다: ${date}`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수("${claim.title}") 방문 일정을 제안했어요: ${date}`);
-    showToast('방문 일정을 제안했습니다.', 'success');
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'REPAIR_VISIT_PROPOSE', `[${partnerName}]가 하자보수("${claim.title}") 방문 일정을 ${isReschedule ? '변경 제안' : '제안'}했습니다: ${date}`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, isReschedule
+        ? `${partnerName}가 확정된 하자보수("${claim.title}") 방문 일정을 ${date}로 변경 제안했어요. 다시 확인해 주세요.`
+        : `하자보수("${claim.title}") 방문 일정을 제안했어요: ${date}`);
+    showToast(isReschedule ? '방문 일정 변경을 제안했습니다. 고객 재확인을 기다려주세요.' : '방문 일정을 제안했습니다.', 'success');
+    openPartnerOrderDetailModal(orderCode);
+}
+
+/* 실측 방문의 completeSiteVisit과 동일하게, 확정(confirmed) 상태에 멈춰 있던
+ * 하자보수 방문도 실제로 다녀왔음을 기록할 방법이 없었다 — 완료 처리로
+ * 마무리하고, 고객이 부당하다고 느끼면 이의제기할 수 있게 한다. */
+function completeRepairVisit(orderCode, claimId) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.acceptedPartner !== partnerName) return;
+    const claim = order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.visitStatus !== 'confirmed') return;
+    claim.visitStatus = 'completed';
+    claim.visitCompletedDate = getLocalDateString();
+    claim.visitCompletionDisputed = false;
+    claim.visitCompletionDisputeResolution = null;
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'REPAIR_VISIT_COMPLETE', `[${partnerName}]가 하자보수("${claim.title}") 방문을 완료 처리했습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수("${claim.title}") 방문이 완료 처리되었습니다.`);
+    showToast('방문을 완료 처리했습니다.', 'success');
     openPartnerOrderDetailModal(orderCode);
 }
 
@@ -6341,6 +6409,9 @@ window.computePartnerTier = computePartnerTier;
 window.buildPartnerTierBadgeHtml = buildPartnerTierBadgeHtml;
 window.sendPartnerOrderMessage = sendPartnerOrderMessage;
 window.proposeRepairVisitDate = proposeRepairVisitDate;
+window.completeRepairVisit = completeRepairVisit;
+window.adminApproveRepairVisitCompletionDispute = adminApproveRepairVisitCompletionDispute;
+window.adminRejectRepairVisitCompletionDispute = adminRejectRepairVisitCompletionDispute;
 window.openChangeOrderModal = openChangeOrderModal;
 window.closeChangeOrderModal = closeChangeOrderModal;
 window.submitChangeOrder = submitChangeOrder;
