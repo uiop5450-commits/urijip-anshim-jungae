@@ -375,6 +375,28 @@ function buildOrderMessageThreadHtml(order, viewerRole) {
     </div>`;
 }
 
+/* 관리자는 진행단계·실측완료·마일스톤 등 거의 모든 분쟁을 구조화된 사유/답변
+ * 필드만 보고 조정해왔는데, 계약 당사자간 실제 대화 내용(order.messages)은
+ * 어디서도 볼 수 없었다 — 정작 분쟁의 맥락이 담긴 채널이다. 읽음 처리는
+ * 당사자 전용이라 관리자가 열람해도 상대방 안읽음 배지가 바뀌면 안 되므로
+ * markOrderMessagesRead를 호출하지 않는 읽기 전용 버전을 따로 둔다. */
+function buildAdminOrderMessageThreadHtml(order) {
+    const messages = order.messages || [];
+    const listHtml = messages.length === 0
+        ? `<p class="text-[11px] text-ink-400 font-semibold text-center py-3">아직 메시지가 없습니다.</p>`
+        : messages.map(m => {
+            const isClient = m.from === 'client';
+            return `<div class="flex ${isClient ? 'justify-start' : 'justify-end'}">
+                <div class="max-w-[80%] ${isClient ? 'bg-ink-100 text-ink-800' : 'bg-brand-500 text-white'} rounded-2xl px-3 py-2">
+                    <p class="text-[9px] ${isClient ? 'text-ink-400' : 'text-white/70'} font-black uppercase tracking-wider">${isClient ? '고객' : '파트너'}</p>
+                    <p class="text-[11px] font-semibold leading-relaxed whitespace-pre-wrap">${escapeHtml(m.text)}</p>
+                    <p class="text-[9px] ${isClient ? 'text-ink-400' : 'text-white/70'} font-bold mt-0.5">${m.date}</p>
+                </div>
+            </div>`;
+        }).join('');
+    return `<div class="space-y-2 max-h-64 overflow-y-auto custom-scroll pr-1 pt-1">${listHtml}</div>`;
+}
+
 /* 실측/하자보수 방문 일정이 확정돼도 개인 캘린더에 옮겨 담을 방법이 없어서,
  * 다른 일정과 겹치는지 확인하려면 앱을 계속 열어봐야 했다 — 표준 .ics 파일로
  * 내려받아 구글/애플/아웃룩 등 아무 캘린더 앱에나 바로 추가할 수 있게 한다. */
@@ -616,6 +638,7 @@ window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
 window.getOrInitOrderMessages = getOrInitOrderMessages;
 window.sendOrderMessage = sendOrderMessage;
 window.buildOrderMessageThreadHtml = buildOrderMessageThreadHtml;
+window.buildAdminOrderMessageThreadHtml = buildAdminOrderMessageThreadHtml;
 window.getUnreadOrderMessageCount = getUnreadOrderMessageCount;
 window.markOrderMessagesRead = markOrderMessagesRead;
 window.downloadVisitCalendarFile = downloadVisitCalendarFile;

@@ -2873,6 +2873,14 @@ function getOrderLookupMatches(query) {
     );
 }
 
+let adminOrderLookupExpandedThreads = new Set();
+
+function toggleAdminOrderMessageThread(orderCode) {
+    if (adminOrderLookupExpandedThreads.has(orderCode)) adminOrderLookupExpandedThreads.delete(orderCode);
+    else adminOrderLookupExpandedThreads.add(orderCode);
+    searchOrderLookup();
+}
+
 function searchOrderLookup() {
     const input = document.getElementById('admin-order-lookup-input');
     const resultEl = document.getElementById('admin-order-lookup-result');
@@ -2988,6 +2996,19 @@ function searchOrderLookup() {
         return rows.length === 0 ? '' : `<div class="w-full space-y-1.5 pt-1">${rows.join('')}</div>`;
     };
 
+    /* 위 분쟁 행들은 구조화된 사유/답변만 보여줄 뿐, 실제로 어떤 대화를 주고받다가
+     * 분쟁까지 이어졌는지는 order.messages 안에만 있고 관리자는 볼 방법이 없었다 —
+     * 목록에 항상 펼쳐두면 화면이 너무 길어지므로 접힌 토글로 필요할 때만 연다. */
+    const buildOrderMessagesRowHtml = (o) => {
+        const count = (o.messages || []).length;
+        if (count === 0) return '';
+        const expanded = adminOrderLookupExpandedThreads.has(o.code);
+        return `<div class="w-full pt-1">
+            <button type="button" onclick="toggleAdminOrderMessageThread('${o.code}')" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"><i data-lucide="message-circle" class="w-3 h-3"></i> 대화 내역 ${count}건 ${expanded ? '숨기기' : '보기'}</button>
+            ${expanded ? buildAdminOrderMessageThreadHtml(o) : ''}
+        </div>`;
+    };
+
     resultEl.innerHTML = matches.map(o => `
         <div class="p-3.5 bg-ink-50 rounded-xl flex flex-wrap justify-between items-center gap-2 text-xs">
             <div class="space-y-0.5 min-w-0">
@@ -3003,7 +3024,9 @@ function searchOrderLookup() {
             ${buildBidInvalidateRowHtml(o)}
             ${buildInvalidatedBidsRowHtml(o)}
             ${buildDisputeRowHtml(o)}
+            ${buildOrderMessagesRowHtml(o)}
         </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function adminForceCompleteRepairClaim(orderCode, claimId, note) {
@@ -6304,6 +6327,7 @@ window.syncAuditLogs = syncAuditLogs;
 window.setAdminLogCategoryFilter = setAdminLogCategoryFilter;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
 window.searchOrderLookup = searchOrderLookup;
+window.toggleAdminOrderMessageThread = toggleAdminOrderMessageThread;
 window.renderAdminSupportTickets = renderAdminSupportTickets;
 window.setAdminSupportStatusFilter = setAdminSupportStatusFilter;
 window.setAdminPartnerMonitorStatusFilter = setAdminPartnerMonitorStatusFilter;
