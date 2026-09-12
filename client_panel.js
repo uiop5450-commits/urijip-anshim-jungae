@@ -2450,6 +2450,28 @@ function cancelSupportTicket(ticketId) {
     if (typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
 }
 
+/* 받은 입찰서가 여러 건이면 지금까지 도착한 순서로만 보여서, 가장 저렴하거나
+ * 평점이 높은 파트너를 찾으려면 전부 눈으로 훑어야 했다 — 정렬 옵션을 추가한다.
+ * 실제 배열(order.bids) 순서는 그대로 두고 화면 표시용으로만 재정렬한다(매칭취소 등
+ * 다른 기능이 bid.partner 이름으로 동작해 배열 순서에 의존하지 않으므로 안전하다). */
+let clientBidSortMode = 'default';
+
+function setClientBidSortMode(orderCode, mode) {
+    clientBidSortMode = mode;
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (order) renderMyPageEstimateDetails(order);
+}
+
+function getSortedBidsForDisplay(bids) {
+    if (clientBidSortMode === 'price_asc') return [...bids].sort((a, b) => a.price - b.price);
+    if (clientBidSortMode === 'rating_desc') return [...bids].sort((a, b) => {
+        const ra = (window.AppState.partners.find(p => p.name === a.partner) || {}).rating || 5.0;
+        const rb = (window.AppState.partners.find(p => p.name === b.partner) || {}).rating || 5.0;
+        return rb - ra;
+    });
+    return bids;
+}
+
 function selectMyPageEstimate(orderCode) {
     window.AppState.selectedMyPageOrderCode = orderCode;
     const order = window.AppState.orders.find(o => o.code === orderCode);
@@ -2535,7 +2557,7 @@ function renderMyPageEstimateDetails(order) {
 
     let bidsHtml = '';
     if (order.bids && order.bids.length > 0) {
-        order.bids.forEach(bid => {
+        getSortedBidsForDisplay(order.bids).forEach(bid => {
             const isContracted = order.status === 'contracted' && order.acceptedPartner === bid.partner;
             const partnerInfo = window.AppState.partners.find(p => p.name === bid.partner);
             const ratingVal = partnerInfo ? partnerInfo.rating.toFixed(1) : "5.0";
@@ -2691,9 +2713,17 @@ function renderMyPageEstimateDetails(order) {
             ${buildClientPreBidQnaHtml(order)}
 
             <div class="space-y-3 pt-2">
-                <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
                     <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider flex items-center gap-1.5"><i data-lucide="building" class="w-4 h-4 text-brand-500"></i> 연결된 안심 파트너 제안서 목록 (${order.bids ? order.bids.length : 0})</h4>
-                    ${(order.status !== 'contracted' && !order.is1on1) ? `<button type="button" onclick="triggerRebidding('${order.code}')" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 새 파트너 재매칭 받기</button>` : ''}
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        ${(order.status === 'bidding' && order.bids && order.bids.length > 1) ? `
+                        <select onchange="setClientBidSortMode('${order.code}', this.value)" class="input text-[10px] py-1.5 px-2 w-auto">
+                            <option value="default" ${clientBidSortMode === 'default' ? 'selected' : ''}>도착순</option>
+                            <option value="price_asc" ${clientBidSortMode === 'price_asc' ? 'selected' : ''}>가격 낮은순</option>
+                            <option value="rating_desc" ${clientBidSortMode === 'rating_desc' ? 'selected' : ''}>평점 높은순</option>
+                        </select>` : ''}
+                        ${(order.status !== 'contracted' && !order.is1on1) ? `<button type="button" onclick="triggerRebidding('${order.code}')" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 새 파트너 재매칭 받기</button>` : ''}
+                    </div>
                 </div>
                 <div class="space-y-3">${bidsHtml}</div>
             </div>
@@ -3912,6 +3942,7 @@ window.renderMySupportTickets = renderMySupportTickets;
 window.cancelSupportTicket = cancelSupportTicket;
 window.submitSupportFollowUp = submitSupportFollowUp;
 window.selectMyPageEstimate = selectMyPageEstimate;
+window.setClientBidSortMode = setClientBidSortMode;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
 window.convertOrderToOpenMatching = convertOrderToOpenMatching;
