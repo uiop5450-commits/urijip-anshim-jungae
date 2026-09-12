@@ -4861,23 +4861,26 @@ function buildAdminReviewModerationHtml(partner) {
     // 신고 수가 많은 후기를 맨 위로 올리고 신고 배지를 표시한다.
     return reviews
         .map((r, idx) => ({ r, idx, reportCount: (r.reportedBy || []).length }))
-        .sort((a, b) => b.reportCount - a.reportCount)
+        .sort((a, b) => (b.reportCount + (b.r.partnerFlagged ? 1 : 0)) - (a.reportCount + (a.r.partnerFlagged ? 1 : 0)))
         .map(({ r, idx, reportCount }) => `
-        <div class="p-3.5 bg-ink-50/80 rounded-xl border ${reportCount > 0 ? 'border-rose-200' : 'border-ink-100'} space-y-1.5 text-left">
+        <div class="p-3.5 bg-ink-50/80 rounded-xl border ${reportCount > 0 || r.partnerFlagged ? 'border-rose-200' : 'border-ink-100'} space-y-1.5 text-left">
             <div class="flex justify-between items-center">
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-black text-ink-800">${escapeHtml(r.client)}</span>
                     <span class="text-gold-500 font-extrabold text-xs">★ ${r.rating}.0</span>
                     <span class="text-[10px] text-ink-400 font-bold">${r.date}</span>
-                    ${reportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${reportCount}건</span>` : ''}
+                    ${reportCount > 0 ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 고객 신고 ${reportCount}건</span>` : ''}
+                    ${r.partnerFlagged ? `<span class="badge badge-rose"><i data-lucide="shield-alert" class="w-2.5 h-2.5"></i> 사장님 신고</span>` : ''}
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     ${reportCount > 0 ? `<button type="button" onclick="dismissReviewReport('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">신고 반려</button>` : ''}
+                    ${r.partnerFlagged ? `<button type="button" onclick="dismissPartnerReviewFlag('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">사장님 신고 반려</button>` : ''}
                     <button type="button" onclick="adminDeleteReview('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
                 </div>
             </div>
             <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(r.text)}</p>
             ${buildReportReasonsHtml(r.reportReasons)}
+            ${r.partnerFlagged && r.partnerFlagReason ? `<p class="text-[11px] text-roseCustom font-bold">사장님 신고 사유: ${escapeHtml(r.partnerFlagReason)}</p>` : ''}
             ${r.reply && r.reply.text ? (() => {
                 const replyReportCount = (r.reply.reportedBy || []).length;
                 return `<div class="mt-1.5 p-2.5 rounded-lg space-y-1" style="background:var(--brand-50)">
@@ -5007,6 +5010,21 @@ function dismissReviewReport(partnerName, reviewIdx) {
     rev.reportReasons = [];
     if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_REPORT_DISMISS', `[후기 신고 반려] '${partnerName}' 파트너의 후기 신고를 검토 후 반려(콘텐츠 유지)했습니다.`, 'INFO');
     if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 [${partnerName}]의 후기를 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
+    showToast('신고를 반려했습니다. 후기는 그대로 유지됩니다.', 'info');
+    openPartnerMetricsModal(partnerName);
+}
+
+/* dismissReviewReport(고객 신고 반려)와 동일한 승인/반려 대칭 구조를 파트너의
+ * 허위 후기 신고(flagReviewAsPartner)에도 적용한다 — 검토 후 실제 위반이 아니라고
+ * 판단되면 신고 표시만 초기화하고 신고한 파트너에게 결과를 알린다. */
+function dismissPartnerReviewFlag(partnerName, reviewIdx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const rev = partner && partner.reviews && partner.reviews[reviewIdx];
+    if (!rev || !rev.partnerFlagged) return;
+    rev.partnerFlagged = false;
+    rev.partnerFlagReason = '';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_PARTNER_FLAG_DISMISS', `[사장님 후기 신고 반려] '${partnerName}' 파트너가 신고한 후기를 검토 후 반려(콘텐츠 유지)했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `신고하신 후기를 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
     showToast('신고를 반려했습니다. 후기는 그대로 유지됩니다.', 'info');
     openPartnerMetricsModal(partnerName);
 }
@@ -7303,6 +7321,7 @@ window.adminRejectDocRejectionAppeal = adminRejectDocRejectionAppeal;
 window.retractPartnerCancellationRequest = retractPartnerCancellationRequest;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
+window.dismissPartnerReviewFlag = dismissPartnerReviewFlag;
 window.dismissReviewReplyReport = dismissReviewReplyReport;
 window.adminDeleteReviewReply = adminDeleteReviewReply;
 window.openReviewReplyDeletionAppealModal = openReviewReplyDeletionAppealModal;

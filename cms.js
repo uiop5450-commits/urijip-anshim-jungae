@@ -1168,12 +1168,15 @@ function renderPartnerMyReviews(partner) {
         return;
     }
     container.innerHTML = reviews.map((rev, idx) => `
-        <div class="p-4 bg-ink-50/70 rounded-xl border border-ink-100 space-y-2 text-left">
+        <div class="p-4 bg-ink-50/70 rounded-xl border ${rev.partnerFlagged ? 'border-rose-200' : 'border-ink-100'} space-y-2 text-left">
             <div class="flex justify-between items-center text-xs">
-                <div class="flex items-center gap-1.5 font-extrabold text-ink-950"><span>${escapeHtml(rev.client)} 고객님</span></div>
+                <div class="flex items-center gap-1.5 font-extrabold text-ink-950"><span>${escapeHtml(rev.client)} 고객님</span>${rev.partnerFlagged ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 접수</span>` : ''}</div>
                 <span class="text-gold-500 font-extrabold text-xs">★ ${rev.rating}.0 <span class="text-ink-400 text-[10px] ml-1">${rev.date}</span></span>
             </div>
             <p class="text-xs text-ink-700 font-medium leading-relaxed">${escapeHtml(rev.text)}</p>
+            <div class="flex justify-end">
+                <button type="button" onclick="${rev.partnerFlagged ? `showToast('이미 신고 접수된 후기입니다.', 'info')` : `openReportReasonPrompt((reason) => flagReviewAsPartner('${partner.name}', ${idx}, reason))`}" class="flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 text-[10px] font-bold text-ink-400 hover:text-roseCustom"><i data-lucide="flag" class="w-3 h-3"></i> ${rev.partnerFlagged ? '허위·부적절 후기 신고 완료' : '허위·부적절 후기로 신고'}</button>
+            </div>
             ${rev.reply && rev.reply.text ? `
                 <div class="p-3 rounded-lg space-y-1" style="background:var(--brand-50)">
                     <div class="flex justify-between items-center">
@@ -1722,6 +1725,24 @@ function reportReview(partnerName, reviewIdx, reason) {
     }
 }
 
+/* 고객은 허위·악의적인 후기를 신고할 수 있는데(reportReview) 정작 그 후기의
+ * 당사자인 파트너는 신고 수단이 전혀 없었다 — submitReviewReply(공개 답글)로는
+ * 관리자 검토 대기열에 올라가지도, 우선순위가 올라가지도 않는다. 고객 신고
+ * (rev.reportedBy)와 집계가 섞이지 않도록 별도 필드(partnerFlagged)로 관리한다. */
+function flagReviewAsPartner(partnerName, reviewIdx, reason) {
+    if (!window.AppState.partnerLoggedIn || window.AppState.partnerName !== partnerName) { showToast('로그인 후 이용할 수 있어요.', 'warning'); return; }
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const rev = partner && partner.reviews && partner.reviews[reviewIdx];
+    if (!rev) return;
+    if (rev.partnerFlagged) { showToast('이미 신고 접수된 후기입니다.', 'info'); return; }
+    rev.partnerFlagged = true;
+    rev.partnerFlagReason = reason || '';
+    rev.partnerFlagDate = getLocalDateString();
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'REVIEW_PARTNER_FLAG', `[${partnerName}]가 자신에게 달린 후기를 허위/부적절 사유로 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
+    showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
+    renderPartnerMyReviews(partner);
+}
+
 /* 후기 본문은 신고할 수 있는데(reportReview) 파트너의 답글(submitReviewReply)엔
  * 신고 수단이 전혀 없었다 — 커뮤니티 댓글/대댓글과 동일한 신고 대상 비대칭이다.
  * 답글 전용 신고 목록(rev.reply.reportedBy)을 별도로 둔다. */
@@ -2227,6 +2248,7 @@ window.toggleReviewHelpful = toggleReviewHelpful;
 window.isReviewHelpfulByMe = isReviewHelpfulByMe;
 window.reportReview = reportReview;
 window.isReviewReportedByMe = isReviewReportedByMe;
+window.flagReviewAsPartner = flagReviewAsPartner;
 window.reportReviewReply = reportReviewReply;
 window.isReviewReplyReportedByMe = isReviewReplyReportedByMe;
 window.reportPortfolio = reportPortfolio;
