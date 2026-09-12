@@ -1602,6 +1602,7 @@ function loginClientWithId() {
 
     const account = window.AppState.clientAccounts.find(acc => acc.id === idVal && acc.pw === pwVal);
     if (!account) { showToast("아이디 또는 비밀번호가 일치하지 않습니다.", "warning"); return; }
+    if (account.status === 'banned') { showToast("삼진아웃 누적 초과(경고 3회 이상)로 영구 제명 처리된 계정입니다.", "warning"); return; }
     if (account.isSuspended) { openSuspensionAppealModal(account.id); return; }
     if (account.status === 'withdrawn') { showToast("탈퇴한 계정입니다. 새로 가입 후 이용해 주세요.", "warning"); return; }
 
@@ -1651,6 +1652,76 @@ function submitSuspensionAppeal() {
 
     closeSuspensionAppealModal();
     if (typeof renderAdminClientManager === 'function') renderAdminClientManager();
+}
+
+/* 파트너 쪽 옐로카드 이의신청(openStrikeAppealModal, cms.js)과 동일한 구조를
+ * 고객 경고(issueClientStrike, partner_panel.js)에도 적용한다 — 영구 제명(status
+ * === 'banned')된 계정은 파트너 제명과 동일하게 로그인 자체가 막히므로(위
+ * loginClientWithId의 하드 블록), 이 모달은 아직 경고만 쌓인 상태에서 로그인 중인
+ * 고객이 마이페이지에서 소명할 때만 실제로 열린다. */
+let clientStrikeAppealTargetId = null;
+
+function openClientStrikeAppealModal() {
+    const auth = window.AppState.clientAuth;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+    if ((account.clientStrikeCount || 0) <= 0 && account.status !== 'banned') { showToast('이의신청할 경고 기록이 없어요.', 'info'); return; }
+    if (account.clientStrikeAppeal && account.clientStrikeAppeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    clientStrikeAppealTargetId = account.id;
+    safeUpdateValue('client-strike-appeal-reason-input', '');
+    openModal('client-strike-appeal-modal', 'client-strike-appeal-modal-card');
+}
+
+function closeClientStrikeAppealModal() {
+    clientStrikeAppealTargetId = null;
+    closeModal('client-strike-appeal-modal', 'client-strike-appeal-modal-card');
+}
+
+function submitClientStrikeAppeal() {
+    const account = window.AppState.clientAccounts.find(acc => acc.id === clientStrikeAppealTargetId);
+    if (!account) { closeClientStrikeAppealModal(); return; }
+    const reason = document.getElementById('client-strike-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    account.clientStrikeAppeal = { reason, strikeCountAtAppeal: account.clientStrikeCount || 0, wasBanned: account.status === 'banned', status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'CLIENT_STRIKE_APPEAL', `[${account.name}] 고객님이 경고/제명 조치에 대해 이의신청을 제출했습니다. (당시 누적 ${account.clientStrikeCount || 0}회)`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeClientStrikeAppealModal();
+    renderClientStrikeAppealStatus();
+    if (typeof renderAdminClientManager === 'function') renderAdminClientManager();
+}
+
+function renderClientStrikeAppealStatus() {
+    const container = document.getElementById('client-strike-appeal-status');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+
+    const isBanned = account.status === 'banned';
+    const hasStrikes = (account.clientStrikeCount || 0) > 0 || isBanned;
+    const appeal = account.clientStrikeAppeal;
+
+    if (!hasStrikes && !appeal) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">현재 경고 기록이 없습니다.</p>`;
+        return;
+    }
+    if (appeal && appeal.status === 'pending') {
+        container.innerHTML = `<div class="p-2.5 bg-amber-50 rounded-xl space-y-1"><p class="text-[10px] font-black text-amberCustom">이의신청 심사 대기중</p><p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${escapeHtml(appeal.reason)}</p></div>`;
+        return;
+    }
+    let resolvedHtml = '';
+    if (appeal && appeal.status !== 'pending') {
+        resolvedHtml = `<div class="p-2.5 ${appeal.status === 'approved' ? 'bg-emerald-50' : 'bg-ink-50'} rounded-xl space-y-1 mb-2">
+            <p class="text-[10px] font-black ${appeal.status === 'approved' ? 'text-emeraldCustom' : 'text-ink-500'}">이의신청 ${appeal.status === 'approved' ? '승인됨' : '반려됨'} (${appeal.resolvedDate || ''})</p>
+            ${appeal.adminResponse ? `<p class="text-[10px] text-ink-500 font-semibold leading-relaxed">매니저 답변: ${escapeHtml(appeal.adminResponse)}</p>` : ''}
+        </div>`;
+    }
+    container.innerHTML = hasStrikes
+        ? `${resolvedHtml}<p class="text-[10px] font-black text-ink-500">누적 경고: ${account.clientStrikeCount || 0}/3회${isBanned ? ' (영구 제명)' : ''}</p><button type="button" onclick="openClientStrikeAppealModal()" class="btn btn-secondary btn-sm mt-1">${isBanned ? '영구 제명' : '경고'} 이의신청하기</button>`
+        : resolvedHtml;
 }
 
 function performClientLogout() {
@@ -2280,6 +2351,7 @@ function renderClientAccountSettings() {
     renderClientCommunityDeletionStatus();
     renderClientBenefitsStatus();
     renderClientRatingStatus();
+    renderClientStrikeAppealStatus();
 }
 
 /* 홈 화면 이벤트 배너가 광고하는 견적신청/후기작성/계약 혜택(grantClientBenefit,
@@ -4524,6 +4596,10 @@ window.toggleFavoritePartner = toggleFavoritePartner;
 window.renderClientFavoritePartners = renderClientFavoritePartners;
 window.renderClientRegularOfPartners = renderClientRegularOfPartners;
 window.openSuspensionAppealModal = openSuspensionAppealModal;
+window.openClientStrikeAppealModal = openClientStrikeAppealModal;
+window.closeClientStrikeAppealModal = closeClientStrikeAppealModal;
+window.submitClientStrikeAppeal = submitClientStrikeAppeal;
+window.renderClientStrikeAppealStatus = renderClientStrikeAppealStatus;
 window.closeSuspensionAppealModal = closeSuspensionAppealModal;
 window.submitSuspensionAppeal = submitSuspensionAppeal;
 window.renderClientMyPageNotifications = renderClientMyPageNotifications;

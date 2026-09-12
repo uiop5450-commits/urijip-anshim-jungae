@@ -2744,6 +2744,12 @@ function getAllPendingAppeals() {
         }
     });
     (window.AppState.clientAccounts || []).forEach(acc => {
+        if (acc.clientStrikeAppeal && acc.clientStrikeAppeal.status === 'pending') {
+            items.push({
+                typeLabel: '고객 경고/제명 이의신청', subject: `${acc.name} (${acc.id})`, reason: acc.clientStrikeAppeal.reason, date: acc.clientStrikeAppeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectClientStrikeAppeal('${acc.id}', reason))`) + approveBtn('승인(경고 취소)', `adminApproveClientStrikeAppeal('${acc.id}')`)
+            });
+        }
         if (acc.isSuspended && acc.suspensionAppeal && acc.suspensionAppeal.status === 'pending') {
             items.push({
                 typeLabel: '고객 계정 정지 이의신청', subject: acc.name, reason: acc.suspensionAppeal.reason, date: acc.suspensionAppeal.date,
@@ -3860,7 +3866,8 @@ function renderAdminClientManager() {
                     <div class="flex items-center gap-1.5">
                         <p class="text-sm font-black text-ink-950">${escapeHtml(acc.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(acc.id)})</span></p>
                         ${tierBadge}
-                        ${acc.status === 'withdrawn' ? '<span class="badge badge-neutral">탈퇴함</span>' : acc.isSuspended ? '<span class="badge badge-rose">이용 정지</span>' : ''}
+                        ${acc.status === 'withdrawn' ? '<span class="badge badge-neutral">탈퇴함</span>' : acc.status === 'banned' ? '<span class="badge badge-rose">영구 제명</span>' : acc.isSuspended ? '<span class="badge badge-rose">이용 정지</span>' : ''}
+                        ${(acc.clientStrikeCount || 0) > 0 ? `<span class="badge badge-amber">경고 ${acc.clientStrikeCount}/3회</span>` : ''}
                         ${myReports.length > 0 ? `<span class="badge badge-amber">파트너 신고 ${myReports.length}건</span>` : ''}
                         ${avgRating ? `<span class="badge badge-neutral"><span class="text-gold-500">★</span> ${avgRating.avg} (파트너 평가 ${avgRating.count}건)</span>` : ''}
                     </div>
@@ -3871,6 +3878,8 @@ function renderAdminClientManager() {
                     <button type="button" onclick="jumpToClientOrderLookup('${escapeHtml(acc.phone || '')}')" class="btn btn-secondary btn-sm">의뢰 조회</button>
                     <button type="button" onclick="openAdminDirectMessageModal('client', '${escapeHtml(acc.phone || '')}', '${escapeHtml(acc.name)}')" class="btn btn-secondary btn-sm relative"><i data-lucide="send" class="w-3 h-3"></i> 쪽지 보내기${hasUnreadDmReply('client', acc.phone) ? `<span class="badge badge-rose absolute -top-2 -right-2 px-1.5">답장</span>` : ''}</button>
                     <button type="button" onclick="toggleClientSuspension('${acc.id}')" class="btn ${acc.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${acc.isSuspended ? '정지 해제' : '계정 정지'}</button>
+                    <button type="button" onclick="issueClientStrike('${acc.id}')" class="btn btn-secondary btn-sm">경고 부여</button>
+                    ${(acc.clientStrikeCount || 0) > 0 || acc.status === 'banned' ? `<button type="button" onclick="resetClientStrikes('${acc.id}')" class="btn btn-secondary btn-sm">경고 초기화</button>` : ''}
                 </div>
             </div>
             ${myReports.length > 0 ? `
@@ -5526,6 +5535,70 @@ function resetPartnerStrikes(partnerName) {
     renderAdminPartnerMonitor();
 }
 
+/* 파트너에는 옐로카드(strikeCount) 누적→삼진아웃(영구 제명) 체계가 있는데, 고객
+ * 계정은 toggleClientSuspension의 가역적 boolean 정지 하나뿐이라 반복 위반자를
+ * 단계적으로 제재하거나 영구 제명할 방법이 없었다 — issuePartnerStrike/
+ * resetPartnerStrikes와 완전히 동일한 구조를 clientAccounts에도 적용한다. */
+function issueClientStrike(accountId) {
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === accountId);
+    if (!account) return;
+    if (account.status === 'banned') { showToast('이미 삼진아웃으로 영구 제명된 고객입니다.', 'info'); return; }
+    account.clientStrikeCount = (account.clientStrikeCount || 0) + 1;
+    if (account.clientStrikeCount >= 3) {
+        account.status = 'banned';
+        if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_STRIKE_OUT', `[삼진아웃] '${account.name}'(${account.id}) 경고 3회 초과로 영구 제명 처리.`, 'WARNING');
+        if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, '삼진아웃(경고 3회 초과)으로 영구 제명 처리되었습니다.');
+        showToast(`[${account.name}] 고객이 삼진아웃(경고 3회)으로 영구 제명되었습니다.`, 'warning');
+    } else {
+        if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_STRIKE', `'${account.name}'(${account.id}) 고객에게 경고 부여 (누적 ${account.clientStrikeCount}회).`, 'INFO');
+        if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `경고가 부여되었습니다. (누적 ${account.clientStrikeCount}/3회 — 3회 누적 시 영구 제명됩니다)`);
+        showToast(`[${account.name}] 고객에게 경고가 부여되었습니다. (누적: ${account.clientStrikeCount}/3회)`, 'info');
+    }
+    renderAdminClientManager();
+}
+
+function resetClientStrikes(accountId) {
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === accountId);
+    if (!account) return;
+    const wasBanned = account.status === 'banned';
+    account.clientStrikeCount = 0;
+    if (wasBanned) account.status = 'active';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_STRIKE_RESET', `'${account.name}'(${account.id}) 고객의 경고 기록을 초기화했습니다.${wasBanned ? ' 제명도 해제되었습니다.' : ''}`, 'INFO');
+    if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, wasBanned ? '제명이 해제되고 경고 기록이 초기화되었습니다.' : '경고 기록이 초기화되었습니다.');
+    showToast(`[${account.name}] 고객의 경고가 정상 초기화되었습니다.`, 'success');
+    renderAdminClientManager();
+}
+
+/* adminApproveStrikeAppeal/adminRejectStrikeAppeal(파트너)과 동일한 승인/반려
+ * 대칭 구조를 고객 경고 이의신청(clientStrikeAppeal)에도 적용한다. */
+function adminApproveClientStrikeAppeal(accountId) {
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === accountId);
+    if (!account || !account.clientStrikeAppeal || account.clientStrikeAppeal.status !== 'pending') return;
+    const wasBanned = account.status === 'banned';
+    account.clientStrikeCount = Math.max(0, (account.clientStrikeCount || 0) - 1);
+    if (wasBanned && account.clientStrikeCount < 3) account.status = 'active';
+    account.clientStrikeAppeal.status = 'approved';
+    account.clientStrikeAppeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_STRIKE_APPEAL_APPROVE', `[이의신청 승인] '${account.name}'(${account.id}) 고객의 이의신청을 승인하여 경고 1회를 취소했습니다.${wasBanned ? ' 제명도 해제되었습니다.' : ''} (현재 누적 ${account.clientStrikeCount}회)`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `이의신청이 승인되어 경고가 취소되었습니다.${wasBanned ? ' 제명도 해제되었습니다.' : ''} (현재 누적 ${account.clientStrikeCount}회)`);
+    showToast(`[${account.name}] 이의신청을 승인했습니다.`, 'success');
+    renderAdminClientManager();
+}
+
+function adminRejectClientStrikeAppeal(accountId, reason) {
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === accountId);
+    if (!account || !account.clientStrikeAppeal || account.clientStrikeAppeal.status !== 'pending') return;
+    account.clientStrikeAppeal.status = 'rejected';
+    account.clientStrikeAppeal.adminResponse = reason;
+    account.clientStrikeAppeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_STRIKE_APPEAL_REJECT', `[이의신청 반려] '${account.name}'(${account.id}) 고객의 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast(`[${account.name}] 이의신청을 반려했습니다.`, 'info');
+    renderAdminClientManager();
+}
+
 /* toggleClientSuspension(고객 계정 즉시 정지)의 파트너 쪽 대칭 기능. 옐로카드는
  * 영구 기록이라 조사 중인 파트너를 잠시만 막아두기엔 과하고, 삼진아웃(영구 제명)
  * 전까지는 매니저가 취할 조치가 전혀 없었다 — isSuspended 플래그만으로 로그인을
@@ -6601,6 +6674,10 @@ window.adminDeletePortfolioQuestion = adminDeletePortfolioQuestion;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
 window.resetPartnerStrikes = resetPartnerStrikes;
+window.issueClientStrike = issueClientStrike;
+window.resetClientStrikes = resetClientStrikes;
+window.adminApproveClientStrikeAppeal = adminApproveClientStrikeAppeal;
+window.adminRejectClientStrikeAppeal = adminRejectClientStrikeAppeal;
 window.togglePartnerSuspension = togglePartnerSuspension;
 window.openPartnerSuspensionAppealModal = openPartnerSuspensionAppealModal;
 window.closePartnerSuspensionAppealModal = closePartnerSuspensionAppealModal;
