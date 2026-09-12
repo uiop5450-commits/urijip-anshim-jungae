@@ -2919,6 +2919,23 @@ let communityPhotoDrafts = [];
  * 값이 있으면 해당 글을 수정하는 중임을 뜻한다 (openCommunityEdit/submitCommunityPost 참고). */
 let communityEditTargetId = null;
 
+/* "완공 포토 후기 페스티벌" 등 이벤트 문구에서 '베스트'가 반복 언급되지만
+ * (config_state.js), 실제로는 좋아요 수 하나만 보는 인기순 정렬 외에 그 어떤
+ * 순위/배지 개념도 없었다 — 조회수를 새로 추적하고, 최근 7일간 참여도
+ * (좋아요·댓글·조회 가중합)가 높은 상위 글에 베스트 배지를 부여한다. */
+function getWeeklyBestPostIds() {
+    const posts = window.AppState.communityPosts || [];
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return posts
+        .filter(p => new Date(p.date) >= weekAgo)
+        .map(p => ({ id: p.id, score: (p.likedBy || []).length * 3 + (p.comments || []).length * 2 + (p.views || 0) }))
+        .filter(p => p.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+        .map(p => p.id);
+}
+
 function renderCommunityList() {
     const tabsEl = document.getElementById('community-category-tabs');
     if (tabsEl) {
@@ -2954,12 +2971,14 @@ function renderCommunityList() {
         return;
     }
 
+    const bestIds = new Set(getWeeklyBestPostIds());
     listEl.innerHTML = posts.map(p => `
         <div class="surface-flat p-5 flex items-start justify-between gap-4 hover:border-ink-300 transition-all cursor-pointer text-left ${p.isPinned ? 'border border-gold-300' : ''}" onclick="openCommunityDetail('${p.id}')">
             ${p.images && p.images.length > 0 ? `<img src="${p.images[0]}" class="w-16 h-16 rounded-xl object-cover shrink-0 border border-ink-100">` : ''}
             <div class="space-y-1.5 flex-1 min-w-0">
                 <div class="flex items-center gap-2">
                     ${p.isPinned ? `<span class="badge badge-gold"><i data-lucide="pin" class="w-2.5 h-2.5"></i> 공지</span>` : ''}
+                    ${bestIds.has(p.id) ? `<span class="badge badge-gold"><i data-lucide="award" class="w-2.5 h-2.5"></i> 이번 주 베스트</span>` : ''}
                     <span class="badge badge-brand">${COMMUNITY_CATEGORIES[p.category] || '자유 이야기'}</span>
                     <span class="text-[10px] text-ink-400 font-bold">${p.date}</span>
                 </div>
@@ -2969,6 +2988,7 @@ function renderCommunityList() {
             <div class="flex flex-col items-end gap-1.5 text-[11px] text-ink-400 font-bold shrink-0">
                 <span class="flex items-center gap-1"><i data-lucide="heart" class="w-3 h-3"></i> ${(p.likedBy || []).length}</span>
                 <span class="flex items-center gap-1"><i data-lucide="message-square" class="w-3 h-3"></i> ${(p.comments || []).length}</span>
+                <span class="flex items-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> ${p.views || 0}</span>
             </div>
         </div>
     `).join('');
@@ -3363,6 +3383,7 @@ function toggleBlockCommunityUser(authorId, authorName, postId) {
 function openCommunityDetail(postId) {
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     if (!post) return;
+    post.views = (post.views || 0) + 1;
 
     document.getElementById('community-list-subview')?.classList.add('hidden');
     document.getElementById('community-write-subview')?.classList.add('hidden');
@@ -3436,7 +3457,7 @@ function openCommunityDetail(postId) {
                 <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2">
                         <span class="badge badge-brand">${COMMUNITY_CATEGORIES[post.category] || '자유 이야기'}</span>
-                        <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${escapeHtml(post.authorName)}</span>
+                        <span class="text-[11px] text-ink-400 font-bold">${post.date} · ${escapeHtml(post.authorName)} · 조회 ${post.views || 0}</span>
                     </div>
                     ${myId && post.authorId === myId ? `
                         <div class="flex items-center gap-2.5 shrink-0">
@@ -3771,6 +3792,7 @@ window.clearSignatureCanvas = clearSignatureCanvas;
 window.submitSignatureCanvas = submitSignatureCanvas;
 
 window.renderCommunityList = renderCommunityList;
+window.getWeeklyBestPostIds = getWeeklyBestPostIds;
 window.setCommunityCategory = setCommunityCategory;
 window.openCommunityDetail = openCommunityDetail;
 window.closeCommunityDetail = closeCommunityDetail;
