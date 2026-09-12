@@ -1433,6 +1433,8 @@ function renderPartnerOrderList() {
         item.onclick = () => selectOrderForAudit(order.code);
 
         const slotsLeft = order.partnerCountLimit - order.bids.length;
+        const clientAvgRating = typeof getClientAverageRating === 'function' ? getClientAverageRating(order.clientPhone) : null;
+        const clientTierBadge = typeof buildClientTierBadgeHtml === 'function' ? buildClientTierBadgeHtml(order.clientPhone) : '';
         item.innerHTML = `
             <div class="flex justify-between items-center text-[10px] font-bold">
                 <span class="font-mono text-ink-600 bg-ink-100 px-2 py-0.5 rounded-md border border-ink-200 font-extrabold">${order.code}</span>
@@ -1441,7 +1443,7 @@ function renderPartnerOrderList() {
                     <button type="button" class="btn btn-ghost btn-sm px-1.5" aria-label="관심 오더 찜하기"><i data-lucide="bookmark" class="w-3.5 h-3.5 ${favorited ? 'text-brand-600' : 'text-ink-300'}" ${favorited ? 'fill="currentColor"' : ''}></i></button>
                 </div>
             </div>
-            <h5 class="text-xs font-black text-ink-950">${maskName(order.clientName)} 고객님 (${order.pyung}평형)</h5>
+            <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5 flex-wrap">${maskName(order.clientName)} 고객님 (${order.pyung}평형) ${clientTierBadge}${clientAvgRating ? `<span class="text-[10px] font-bold text-ink-500"><span class="text-gold-500">★</span> ${clientAvgRating.avg} (${clientAvgRating.count}건)</span>` : ''}</h5>
             <p class="text-[10px] text-ink-500 font-medium truncate">${maskAddress(order.clientAddress)}</p>
             <span class="badge badge-brand">희망예산 ₩ ${order.budget.toLocaleString()}만원</span>`;
         item.querySelector('button[aria-label="관심 오더 찜하기"]').onclick = (e) => toggleFavoriteOrder(order.code, e);
@@ -1467,6 +1469,13 @@ function selectOrderForAudit(code) {
     let displayClientAddress = "입찰 참여 즉시 실제 개인정보 자동 잠금해제";
     if (isAlreadyBid || order.status === 'contracted') { displayClientName = `${order.clientName} 고객님 (${order.clientPhone})`; displayClientAddress = order.clientAddress; }
 
+    /* 고객 쪽엔 파트너를 고르기 전부터 등급 배지·평점이 보이는데(renderPartnerSearchGrid),
+     * 정작 파트너가 입찰 여부를 결정하는 이 화면에는 고객의 단골/평점 이력이 전혀
+     * 노출되지 않았다 — 관심 고객으로 저장한 뒤에야(buildPartnerFavoriteClientsHtml)
+     * 볼 수 있었던 정보를 입찰 결정 시점으로 앞당긴다. */
+    const auditClientTierBadge = typeof buildClientTierBadgeHtml === 'function' ? buildClientTierBadgeHtml(order.clientPhone) : '';
+    const auditClientAvgRating = typeof getClientAverageRating === 'function' ? getClientAverageRating(order.clientPhone) : null;
+
     let competitorBidsHtml = '';
     if (order.bids && order.bids.length > 0) {
         competitorBidsHtml = `<div class="mt-4 pt-4 border-t border-ink-100 text-left"><span class="text-[11px] font-black text-ink-950 block mb-2.5 flex items-center gap-1.5"><i data-lucide="users" class="w-3.5 h-3.5 text-ink-500"></i> 현재 입찰 참여 업체 리스트 (금액 비공개)</span><div class="grid grid-cols-1 sm:grid-cols-2 gap-2">`;
@@ -1489,7 +1498,7 @@ function selectOrderForAudit(code) {
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div class="space-y-1.5">
                         <div class="flex items-center gap-2 flex-wrap"><span class="badge badge-neutral"><span class="badge-dot bg-ink-500"></span> 우리집 안심 중개보증</span><span id="audit-code" class="text-xs font-mono font-bold text-ink-500 tracking-wider">${order.code}</span><span class="badge badge-brand">희망예산 ₩ ${order.budget.toLocaleString()}만원</span></div>
-                        <h4 class="text-base font-black text-ink-950 tracking-tight">${displayClientName}</h4>
+                        <h4 class="text-base font-black text-ink-950 tracking-tight flex items-center gap-1.5 flex-wrap">${displayClientName} ${auditClientTierBadge}${auditClientAvgRating ? `<span class="text-xs font-bold text-ink-500"><span class="text-gold-500">★</span> ${auditClientAvgRating.avg} (파트너 평가 ${auditClientAvgRating.count}건)</span>` : ''}</h4>
                         <p class="text-xs text-ink-600 font-bold leading-relaxed max-w-md">${displayClientAddress}</p>
                     </div>
                 </div>
