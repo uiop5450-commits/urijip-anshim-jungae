@@ -455,6 +455,7 @@ function renderPartnerSearchGrid() {
  * ---------------------------------------------------------------- */
 const ALL_ADMIN_TABS = [
     ['dashboard', 'layout-dashboard', '통합 대시보드'],
+    ['appeals', 'scale', '전체 이의신청'],
     ['allocation', 'wallet', '수동 오더 배정관'], ['monitor', 'building-2', '파트너 모니터링'],
     ['applications', 'clipboard-check', '파트너 가입 심사'],
     ['blacklist', 'shield-alert', '삼진아웃 블랙리스트 DB'], ['logs', 'list', '플랫폼 관제 로그'],
@@ -468,7 +469,7 @@ const ALL_ADMIN_TABS = [
 // 시스템 로그, 마케팅 노출 관리, 직원 권한 부여처럼 상위 권한이 필요한 영역은
 // 제외하고 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
 const ROLE_TAB_ACCESS = {
-    super_admin: ['dashboard', 'allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients', 'cancellations'],
+    super_admin: ['dashboard', 'appeals', 'allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients', 'cancellations'],
     partner_manager: ['monitor', 'applications', 'blacklist']
 };
 
@@ -489,24 +490,27 @@ function switchAdminMode(mode) {
         const pendingCount = (window.AppState.partners || []).filter(p => p.status === 'pending' || p.status === 'info_requested').length;
         const openTicketCount = (window.AppState.supportTickets || []).filter(t => t.status === 'open').length;
         const cancelRequestCount = (window.AppState.orders || []).filter(o => o.status === 'cancel_requested').length;
+        const pendingAppealCount = typeof getAllPendingAppeals === 'function' ? getAllPendingAppeals().length : 0;
         const tabs = ALL_ADMIN_TABS.filter(([id]) => allowedTabs.includes(id)).map(([id, icon, label]) => {
             let finalLabel = label;
             if (id === 'applications' && pendingCount > 0) finalLabel = `${label} (${pendingCount})`;
             else if (id === 'support' && openTicketCount > 0) finalLabel = `${label} (${openTicketCount})`;
             else if (id === 'cancellations' && cancelRequestCount > 0) finalLabel = `${label} (${cancelRequestCount})`;
+            else if (id === 'appeals' && pendingAppealCount > 0) finalLabel = `${label} (${pendingAppealCount})`;
             return [id, icon, finalLabel];
         });
         tabBar.innerHTML = tabs.map(([id, icon, label]) => `<button type="button" id="btn-admin-view-${id}" onclick="switchAdminMode('${id}')" class="gnb-tab ${mode === id ? 'active' : ''}"><i data-lucide="${icon}" class="w-3.5 h-3.5"></i> ${label}</button>`).join('');
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    ['dashboard', 'allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients', 'cancellations'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
+    ['dashboard', 'appeals', 'allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients', 'cancellations'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
     document.getElementById(`admin-mode-${mode}-view`)?.classList.remove('hidden');
 
     const kpiGrid = document.getElementById('admin-kpi-grid');
     if (kpiGrid) kpiGrid.classList.toggle('hidden', window.AppState.managerRole === 'partner_manager');
 
     if (mode === 'dashboard') renderAdminDashboard();
+    else if (mode === 'appeals') renderAdminAppealInbox();
     else if (mode === 'allocation') renderAdminOrderAllocation();
     else if (mode === 'monitor') renderAdminPartnerMonitor();
     else if (mode === 'applications') renderAdminPartnerApplications();
@@ -2432,6 +2436,106 @@ function renderAdminDashboard() {
                     <span class="text-[11px] text-ink-500 font-semibold">계약 ${p.contractCount}건 · ★ ${p.rating.toFixed(1)}</span>
                 </div>`).join('')}</div>
         </div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 이의신청 종류가 세션 내내 하나씩 늘어나 이제 8종(옐로카드/제명, 고객·파트너 계정
+ * 정지, 고객→파트너 신고, 파트너→고객 신고, 강제 계약취소, 입찰 무효화, 후기 삭제)이
+ * 됐는데, 각각 자기 탭(모니터링/고객 관리/계약 취소 심사 등)에 흩어져 있어 관리자가
+ * "지금 처리할 게 뭐가 있는지" 한눈에 보려면 탭을 7~8개 다 열어봐야 했다 — 이미 있는
+ * 개별 승인/반려 함수는 그대로 재사용하고, 대기 중인 것만 한 곳에 모아 보여준다. */
+function getAllPendingAppeals() {
+    const items = [];
+    const rejectBtn = (label, onclick) => `<button type="button" onclick="${onclick}" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${label}</button>`;
+    const approveBtn = (label, onclick) => `<button type="button" onclick="${onclick}" class="text-[10px] font-bold text-ink-500 hover:text-emeraldCustom bg-transparent border-0 cursor-pointer p-0">${label}</button>`;
+
+    (window.AppState.partners || []).forEach(p => {
+        if (p.strikeAppeal && p.strikeAppeal.status === 'pending') {
+            items.push({
+                typeLabel: '옐로카드/제명 이의신청', subject: p.name, reason: p.strikeAppeal.reason, date: p.strikeAppeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectStrikeAppeal('${escapeHtml(p.name)}', reason))`) + approveBtn('승인(경고 취소)', `adminApproveStrikeAppeal('${escapeHtml(p.name)}')`)
+            });
+        }
+        if (p.isSuspended && p.suspensionAppeal && p.suspensionAppeal.status === 'pending') {
+            items.push({
+                typeLabel: '파트너 계정 정지 이의신청', subject: p.name, reason: p.suspensionAppeal.reason, date: p.suspensionAppeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectPartnerSuspensionAppeal('${p.id}', reason))`) + approveBtn('승인(정지 해제)', `adminApprovePartnerSuspensionAppeal('${p.id}')`)
+            });
+        }
+    });
+    (window.AppState.clientAccounts || []).forEach(acc => {
+        if (acc.isSuspended && acc.suspensionAppeal && acc.suspensionAppeal.status === 'pending') {
+            items.push({
+                typeLabel: '고객 계정 정지 이의신청', subject: acc.name, reason: acc.suspensionAppeal.reason, date: acc.suspensionAppeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectClientSuspensionAppeal('${acc.id}', reason))`) + approveBtn('승인(정지 해제)', `adminApproveClientSuspensionAppeal('${acc.id}')`)
+            });
+        }
+    });
+    (window.AppState.clientReports || []).forEach(r => {
+        if (r.appeal && r.appeal.status === 'pending') {
+            items.push({
+                typeLabel: '고객 신고 이의신청 (파트너→고객)', subject: `${r.clientName} · ${r.orderCode}`, reason: r.appeal.reason, date: r.appeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectClientReportAppeal('${r.id}', reason))`) + approveBtn('승인(신고 취하)', `adminApproveClientReportAppeal('${r.id}')`)
+            });
+        }
+    });
+    (window.AppState.partnerReports || []).forEach(r => {
+        if (r.appeal && r.appeal.status === 'pending') {
+            items.push({
+                typeLabel: '파트너 신고 이의신청 (고객→파트너)', subject: `${r.partnerName} · ${r.orderCode}`, reason: r.appeal.reason, date: r.appeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectPartnerReportAppeal('${r.id}', reason))`) + approveBtn('승인(신고 취하)', `adminApprovePartnerReportAppeal('${r.id}')`)
+            });
+        }
+    });
+    (window.AppState.orders || []).forEach(o => {
+        if (o.cancelRequest && o.cancelRequest.appeal && o.cancelRequest.appeal.status === 'pending') {
+            items.push({
+                typeLabel: '강제 계약취소 이의신청', subject: `${o.code} (${o.cancelRequest.appeal.filedBy === 'client' ? '고객' : '파트너'} 제기)`, reason: o.cancelRequest.appeal.reason, date: o.cancelRequest.appeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectForceCancelAppeal('${o.code}', reason))`) + approveBtn('승인(계약 복원)', `adminApproveForceCancelAppeal('${o.code}')`)
+            });
+        }
+        (o.adminInvalidatedBids || []).forEach(ib => {
+            if (ib.appeal && ib.appeal.status === 'pending') {
+                items.push({
+                    typeLabel: '입찰 무효화 이의신청', subject: `${ib.partnerName} · ${o.code}`, reason: ib.appeal.reason, date: ib.appeal.date,
+                    actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectInvalidatedBidAppeal('${o.code}', '${escapeHtml(ib.partnerName)}', reason))`) + approveBtn('승인(자격 복원)', `adminRestoreInvalidatedBid('${o.code}', '${escapeHtml(ib.partnerName)}')`)
+                });
+            }
+        });
+    });
+    (window.AppState.reviewDeletionLog || []).forEach(e => {
+        if (e.appeal && e.appeal.status === 'pending') {
+            items.push({
+                typeLabel: '후기 삭제 이의신청', subject: `${e.partnerName} · ${e.orderCode}`, reason: e.appeal.reason, date: e.appeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectReviewDeletionAppeal('${e.id}', reason))`) + approveBtn('승인(후기 복원)', `adminApproveReviewDeletionAppeal('${e.id}')`)
+            });
+        }
+    });
+
+    return items.sort((a, b) => new Date(b.date) - new Date(a.date));
+}
+
+function renderAdminAppealInbox() {
+    const container = document.getElementById('admin-appeal-inbox-list');
+    if (!container) return;
+    const items = getAllPendingAppeals();
+
+    if (items.length === 0) {
+        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap" style="background:var(--emerald-50);color:var(--emerald-600)"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">현재 심사 대기 중인 이의신청이 없습니다.</p></div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = items.map(it => `
+        <div class="surface p-4 space-y-2 text-left">
+            <div class="flex items-center justify-between gap-2">
+                <span class="badge badge-brand">${it.typeLabel}</span>
+                <span class="text-[10px] text-ink-400 font-bold">${it.date}</span>
+            </div>
+            <h4 class="text-xs font-black text-ink-950">${escapeHtml(it.subject)}</h4>
+            <p class="text-[11px] text-ink-600 font-medium leading-relaxed">${escapeHtml(it.reason)}</p>
+            <div class="flex items-center gap-1.5 justify-end pt-1 border-t border-ink-100">${it.actionsHtml}</div>
+        </div>`).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -5551,6 +5655,8 @@ window.renderPartnerContractsView = renderPartnerContractsView;
 window.setPartnerContractsStatusFilter = setPartnerContractsStatusFilter;
 window.recalculateKPIs = recalculateKPIs;
 window.renderAdminDashboard = renderAdminDashboard;
+window.getAllPendingAppeals = getAllPendingAppeals;
+window.renderAdminAppealInbox = renderAdminAppealInbox;
 window.syncAuditLogs = syncAuditLogs;
 window.setAdminLogCategoryFilter = setAdminLogCategoryFilter;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
