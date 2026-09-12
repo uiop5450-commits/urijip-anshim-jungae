@@ -3823,13 +3823,15 @@ function renderAdminClientManager() {
     const allClients = (window.AppState.clientAccounts || []).filter(a => !a.managerRole);
     const reportedCount = allClients.filter(a => (window.AppState.clientReports || []).some(r => r.clientPhone === a.phone)).length;
     const suspendedCount = allClients.filter(a => a.isSuspended).length;
+    const bannedCount = allClients.filter(a => a.status === 'banned').length;
 
     const tabsEl = document.getElementById('admin-client-status-tabs');
     if (tabsEl) {
         const statusTabs = [
             ['all', '전체', allClients.length],
             ['reported', '신고됨', reportedCount],
-            ['suspended', '이용 정지', suspendedCount]
+            ['suspended', '이용 정지', suspendedCount],
+            ['banned', '영구 제명', bannedCount]
         ];
         tabsEl.innerHTML = statusTabs.map(([key, label, count]) =>
             `<button type="button" onclick="setAdminClientStatusFilter('${key}')" class="gnb-tab ${adminClientStatusFilter === key ? 'active' : ''}">${label} (${count})</button>`
@@ -3840,7 +3842,9 @@ function renderAdminClientManager() {
         ? allClients.filter(a => (window.AppState.clientReports || []).some(r => r.clientPhone === a.phone))
         : adminClientStatusFilter === 'suspended'
             ? allClients.filter(a => a.isSuspended)
-            : allClients;
+            : adminClientStatusFilter === 'banned'
+                ? allClients.filter(a => a.status === 'banned')
+                : allClients;
     const filtered = clients.filter(a =>
         !query || a.name.toLowerCase().includes(query) || a.id.toLowerCase().includes(query) || (a.phone && a.phone.includes(query))
     );
