@@ -1263,12 +1263,85 @@ function buildPartnerFavoriteClientsHtml(partner) {
     return favorites.map(c => {
         const myOrders = (window.AppState.orders || []).filter(o => o.clientPhone === c.phone);
         const contractedCount = myOrders.filter(o => o.status === 'contracted').length;
+        const avgRating = typeof getClientAverageRating === 'function' ? getClientAverageRating(c.phone) : null;
         return `
         <div class="flex items-center justify-between p-3 bg-ink-50 rounded-xl">
-            <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">${escapeHtml(c.name)}</p><p class="text-[10px] text-ink-500 font-bold">${escapeHtml(c.phone)} · 계약 ${contractedCount}건</p></div>
+            <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">${escapeHtml(c.name)}</p><p class="text-[10px] text-ink-500 font-bold">${escapeHtml(c.phone)} · 계약 ${contractedCount}건${avgRating ? ` · <span class="text-gold-500">★ ${avgRating.avg}</span> (${avgRating.count}건 평가)` : ''}</p></div>
             <button type="button" onclick="toggleFavoriteClient('${escapeHtml(c.phone)}', '${escapeHtml(c.name)}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">해제</button>
         </div>`;
     }).join('');
+}
+
+/* 고객→파트너 후기(submitClientReview, client_panel.js)와 대칭으로, 파트너도
+ * 계약 완료 고객의 협조도·소통·결제 신뢰도를 별점으로 남길 수 있게 한다.
+ * partnerReports(노쇼·갑질 블랙리스트 신고)와는 별개의 일반 평가 채널이며,
+ * 평점 집계(getClientAverageRating, utils_ui.js)는 다른 파트너가 재계약/입찰
+ * 전에 참고할 수 있도록 단골 고객 목록에 노출한다. 코멘트는 공개하지 않고
+ * 매니저 센터와 파트너 본인만 볼 수 있게 유지해 고객과의 불필요한 마찰을 막는다. */
+let clientRatingTargetCode = null;
+
+function openClientRatingModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
+    clientRatingTargetCode = orderCode;
+    const existing = (window.AppState.clientRatings || []).find(r => r.orderCode === orderCode);
+    window.AppState.activeClientRating = existing ? existing.rating : 5;
+    safeUpdateValue('client-rating-comment-input', existing ? (existing.comment || '') : '');
+    renderClientRatingStars();
+    openModal('client-rating-modal', 'client-rating-modal-card');
+}
+
+function closeClientRatingModal() {
+    clientRatingTargetCode = null;
+    closeModal('client-rating-modal', 'client-rating-modal-card');
+}
+
+function renderClientRatingStars() {
+    const el = document.getElementById('client-rating-stars');
+    if (!el) return;
+    const rating = window.AppState.activeClientRating || 5;
+    el.innerHTML = [1, 2, 3, 4, 5].map(n => `<button type="button" onclick="setClientRatingStar(${n})" class="bg-transparent border-0 cursor-pointer p-0.5 leading-none ${n <= rating ? 'text-gold-500' : 'text-ink-200'}" aria-label="${n}점">★</button>`).join('');
+}
+
+function setClientRatingStar(n) {
+    window.AppState.activeClientRating = n;
+    renderClientRatingStars();
+}
+
+function submitClientRating() {
+    const order = window.AppState.orders.find(o => o.code === clientRatingTargetCode);
+    if (!order) { closeClientRatingModal(); return; }
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (order.acceptedPartner !== partnerName) { closeClientRatingModal(); return; }
+    const comment = document.getElementById('client-rating-comment-input')?.value.trim() || '';
+    const rating = window.AppState.activeClientRating || 5;
+
+    if (!window.AppState.clientRatings) window.AppState.clientRatings = [];
+    const existing = window.AppState.clientRatings.find(r => r.orderCode === order.code);
+    const isEditing = !!existing;
+    if (existing) {
+        existing.rating = rating; existing.comment = comment; existing.editedDate = getLocalDateString();
+    } else {
+        window.AppState.clientRatings.push({ orderCode: order.code, clientPhone: order.clientPhone, clientName: order.clientName, partnerName, rating, comment, date: getLocalDateString() });
+    }
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'CLIENT_RATING', `[${partnerName}]가 오더(${order.code}) 고객(${order.clientName})을 평가${isEditing ? ' 수정' : ''}했습니다. (★${rating})`, 'INFO');
+    showToast(isEditing ? '고객 평가를 수정했습니다.' : '고객 평가가 등록되었습니다.', 'success');
+
+    closeClientRatingModal();
+    openPartnerOrderDetailModal(order.code);
+}
+
+function buildPartnerClientRatingHtml(order) {
+    const myRating = (window.AppState.clientRatings || []).find(r => r.orderCode === order.code);
+    return `<div class="surface p-5 space-y-2">
+        <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="user-check" class="w-4 h-4 text-gold-500"></i> 고객 평가</h5>
+        <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">협조도·소통·결제 신뢰도 등을 평가해 다른 파트너사가 참고할 수 있게 해요. 코멘트는 공개되지 않아요.</p>
+        ${myRating
+            ? `<div class="flex items-center justify-between"><span class="text-gold-500 font-black text-sm">${'★'.repeat(myRating.rating)}${'☆'.repeat(5 - myRating.rating)}</span><button type="button" onclick="openClientRatingModal('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button></div>`
+            : `<button type="button" onclick="openClientRatingModal('${order.code}')" class="btn btn-secondary btn-sm">고객 평가하기</button>`}
+    </div>`;
 }
 
 function renderPartnerOrderList() {
@@ -2034,7 +2107,8 @@ function openPartnerOrderDetailModal(orderCode) {
                 ${isOrderReportedByMe(order.code)
                     ? `<div class="flex items-center gap-2"><span class="badge badge-neutral">신고 접수 완료</span><button type="button" onclick="retractClientReport('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">철회</button></div>`
                     : `<button type="button" onclick="openReportClientModal('${order.code}')" class="btn btn-secondary btn-sm text-roseCustom">고객 신고하기</button>`}
-            </div>`;
+            </div>
+            ${buildPartnerClientRatingHtml(order)}`;
     } else {
         const isPartnerOwnCancelRequest = order.status === 'cancel_requested' && order.cancelRequest && order.cancelRequest.requestedBy === 'partner' && order.acceptedPartner === partnerName;
         actionSectionHtml = `
@@ -3294,6 +3368,7 @@ function renderAdminClientManager() {
         const reviewCount = myOrders.filter(o => o.reviewWritten).length;
         const favoriteCount = (acc.favoritePartners || []).length;
         const myReports = (window.AppState.clientReports || []).filter(r => r.clientPhone === acc.phone);
+        const avgRating = typeof getClientAverageRating === 'function' ? getClientAverageRating(acc.phone) : null;
 
         return `
         <div class="surface-flat p-4 space-y-2.5 text-left">
@@ -3303,6 +3378,7 @@ function renderAdminClientManager() {
                         <p class="text-sm font-black text-ink-950">${escapeHtml(acc.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(acc.id)})</span></p>
                         ${acc.status === 'withdrawn' ? '<span class="badge badge-neutral">탈퇴함</span>' : acc.isSuspended ? '<span class="badge badge-rose">이용 정지</span>' : ''}
                         ${myReports.length > 0 ? `<span class="badge badge-amber">파트너 신고 ${myReports.length}건</span>` : ''}
+                        ${avgRating ? `<span class="badge badge-neutral"><span class="text-gold-500">★</span> ${avgRating.avg} (파트너 평가 ${avgRating.count}건)</span>` : ''}
                     </div>
                     <p class="text-[11px] text-ink-500 font-bold">연락처 ${escapeHtml(acc.phone || '-')}</p>
                 </div>
@@ -5707,6 +5783,10 @@ window.getAllPendingAppeals = getAllPendingAppeals;
 window.renderAdminAppealInbox = renderAdminAppealInbox;
 window.adminApproveMilestoneDispute = adminApproveMilestoneDispute;
 window.adminRejectMilestoneDispute = adminRejectMilestoneDispute;
+window.openClientRatingModal = openClientRatingModal;
+window.closeClientRatingModal = closeClientRatingModal;
+window.setClientRatingStar = setClientRatingStar;
+window.submitClientRating = submitClientRating;
 window.syncAuditLogs = syncAuditLogs;
 window.setAdminLogCategoryFilter = setAdminLogCategoryFilter;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;

@@ -1851,6 +1851,20 @@
         </div>
     </div>
 
+    <div id="client-rating-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="client-rating-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-neutral">고객 평가</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">고객을 평가해주세요</h3></div>
+                <button type="button" onclick="closeClientRatingModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form class="space-y-5" onsubmit="event.preventDefault();">
+                <div class="space-y-1.5"><label class="field-label mb-0">별점 평가</label><div id="client-rating-stars" class="flex items-center gap-1 text-2xl leading-none"></div></div>
+                <div><label class="field-label">코멘트 (선택, 공개되지 않아요)</label><textarea id="client-rating-comment-input" rows="3" placeholder="협조도, 소통, 결제 신뢰도 등 참고할 내용을 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitClientRating()" class="btn btn-primary btn-block">평가 등록</button>
+            </form>
+        </div>
+    </div>
+
     <div id="invalidated-bid-appeal-modal" class="hidden modal-overlay" style="z-index:220">
         <div id="invalidated-bid-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">

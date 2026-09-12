@@ -295,6 +295,18 @@ function grantClientBenefit(clientPhone, type, label, amount, orderCode) {
     if (typeof renderClientBenefitsStatus === 'function') renderClientBenefitsStatus();
 }
 
+/* 고객은 계약 완료 후 파트너를 별점으로 평가하는데(submitClientReview) 파트너는
+ * 고객을 평가할 방법이 전혀 없었다 — partnerReports는 노쇼·갑질 신고용 블랙리스트
+ * 도구일 뿐, 협조도·소통 등을 별점으로 남기는 일반 평가와는 다르다.
+ * submitClientRating(partner_panel.js)이 쌓는 window.AppState.clientRatings를
+ * 전화번호 기준으로 집계해 다른 파트너에게 참고 정보로 보여준다. */
+function getClientAverageRating(clientPhone) {
+    const ratings = (window.AppState.clientRatings || []).filter(r => r.clientPhone === clientPhone);
+    if (ratings.length === 0) return null;
+    const avg = ratings.reduce((acc, r) => acc + r.rating, 0) / ratings.length;
+    return { avg: Math.round(avg * 10) / 10, count: ratings.length };
+}
+
 /* 아직 구현되지 않은 부가 링크(이용약관 등) 클릭 시 보여줄 안내 — 죽은 링크로 보이지 않게. */
 function showComingSoon(label) {
     showToast(`${label}은(는) 준비 중인 페이지예요.`, 'info');
@@ -469,6 +481,7 @@ window.isWarrantyExpired = isWarrantyExpired;
 window.getOrInitPaymentMilestones = getOrInitPaymentMilestones;
 window.isMilestoneOverdue = isMilestoneOverdue;
 window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
+window.getClientAverageRating = getClientAverageRating;
 window.grantClientBenefit = grantClientBenefit;
 window.showToast = showToast;
 window.closeToast = closeToast;
