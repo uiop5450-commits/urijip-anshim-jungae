@@ -1322,11 +1322,16 @@ function submitClientRating() {
     const isEditing = !!existing;
     if (existing) {
         existing.rating = rating; existing.comment = comment; existing.editedDate = getLocalDateString();
+        existing.appeal = null;
     } else {
-        window.AppState.clientRatings.push({ orderCode: order.code, clientPhone: order.clientPhone, clientName: order.clientName, partnerName, rating, comment, date: getLocalDateString() });
+        window.AppState.clientRatings.push({ orderCode: order.code, clientPhone: order.clientPhone, clientName: order.clientName, partnerName, rating, comment, date: getLocalDateString(), appeal: null });
     }
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'CLIENT_RATING', `[${partnerName}]가 오더(${order.code}) 고객(${order.clientName})을 평가${isEditing ? ' 수정' : ''}했습니다. (★${rating})`, 'INFO');
+    // 평가 대상인 고객 본인은 지금까지 평가가 남았다는 사실조차 알 방법이 없었다 —
+    // 다른 모든 제재성 조치(신고, 계정 정지, 옐로카드)는 당사자에게 알리는데
+    // 이것만 조용히 쌓이고 있었던 비대칭을 해소한다.
+    if (typeof pushClientNotification === 'function' && order.clientPhone) pushClientNotification(order.clientPhone, `계약 파트너사가 고객님에 대한 평가를 남겼어요. 마이페이지에서 확인해보세요.`);
     showToast(isEditing ? '고객 평가를 수정했습니다.' : '고객 평가가 등록되었습니다.', 'success');
 
     closeClientRatingModal();
@@ -2596,6 +2601,14 @@ function getAllPendingAppeals() {
             }
         });
     });
+    (window.AppState.clientRatings || []).forEach(r => {
+        if (r.appeal && r.appeal.status === 'pending') {
+            items.push({
+                typeLabel: '고객 평가 이의신청', subject: `${r.clientName} · ${r.orderCode} (평가자: ${r.partnerName})`, reason: r.appeal.reason, date: r.appeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectClientRatingAppeal('${r.orderCode}', reason))`) + approveBtn('승인(평가 삭제)', `adminApproveClientRatingAppeal('${r.orderCode}')`)
+            });
+        }
+    });
 
     return items.sort((a, b) => new Date(b.date) - new Date(a.date));
 }
@@ -3470,6 +3483,34 @@ function adminRejectClientReportAppeal(reportId, reason) {
     if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_REPORT_APPEAL_REJECT', `[이의신청 반려] '${report.clientName}' 고객의 신고(${report.orderCode}) 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
     if (typeof pushClientNotification === 'function') pushClientNotification(report.clientPhone, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
     showToast(`[${report.clientName}] 고객의 이의신청을 반려했습니다.`, 'info');
+    renderAdminClientManager();
+}
+
+/* 파트너의 고객 평가(submitClientRating)는 다른 모든 제재/평가 기능(옐로카드,
+ * 계정 정지, 신고)과 달리 유일하게 이의신청 경로가 없었다 — clientReports 이의신청과
+ * 동일한 제출→심사 패턴을 적용한다. 승인 시 부당한 평가이므로 기록 자체를 삭제하고
+ * (신고 이의신청 승인이 신고를 취하하는 것과 동일), 반려 시 평가는 그대로 유지된다. */
+function adminApproveClientRatingAppeal(orderCode) {
+    const rating = (window.AppState.clientRatings || []).find(r => r.orderCode === orderCode);
+    if (!rating || !rating.appeal || rating.appeal.status !== 'pending') return;
+    window.AppState.clientRatings = window.AppState.clientRatings.filter(r => r.orderCode !== orderCode);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_RATING_APPEAL_APPROVE', `[이의신청 승인] '${rating.clientName}' 고객에 대한 [${rating.partnerName}]의 평가(${orderCode})를 이의신청 승인으로 삭제 처리했습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(rating.clientPhone, `제출하신 이의신청이 승인되어 해당 평가가 삭제되었습니다.`);
+    showToast(`[${rating.clientName}] 고객의 이의신청을 승인하여 평가를 삭제했습니다.`, 'success');
+    renderAdminClientManager();
+}
+
+function adminRejectClientRatingAppeal(orderCode, reason) {
+    const rating = (window.AppState.clientRatings || []).find(r => r.orderCode === orderCode);
+    if (!rating || !rating.appeal || rating.appeal.status !== 'pending') return;
+    rating.appeal.status = 'rejected';
+    rating.appeal.adminResponse = reason;
+    rating.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_RATING_APPEAL_REJECT', `[이의신청 반려] '${rating.clientName}' 고객의 평가(${orderCode}) 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(rating.clientPhone, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast(`[${rating.clientName}] 고객의 이의신청을 반려했습니다.`, 'info');
     renderAdminClientManager();
 }
 
@@ -5783,6 +5824,8 @@ window.getAllPendingAppeals = getAllPendingAppeals;
 window.renderAdminAppealInbox = renderAdminAppealInbox;
 window.adminApproveMilestoneDispute = adminApproveMilestoneDispute;
 window.adminRejectMilestoneDispute = adminRejectMilestoneDispute;
+window.adminApproveClientRatingAppeal = adminApproveClientRatingAppeal;
+window.adminRejectClientRatingAppeal = adminRejectClientRatingAppeal;
 window.openClientRatingModal = openClientRatingModal;
 window.closeClientRatingModal = closeClientRatingModal;
 window.setClientRatingStar = setClientRatingStar;

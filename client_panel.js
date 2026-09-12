@@ -1979,6 +1979,7 @@ function renderClientAccountSettings() {
     renderClientReportedStatus();
     renderClientReviewDeletionStatus();
     renderClientBenefitsStatus();
+    renderClientRatingStatus();
 }
 
 /* 홈 화면 이벤트 배너가 광고하는 견적신청/후기작성/계약 혜택(grantClientBenefit,
@@ -2142,6 +2143,70 @@ function renderClientReportedStatus() {
         }
         return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5">
             <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">계약 파트너사가 오더(${r.orderCode})와 관련해 신고를 접수했습니다. (${r.date})</p>
+            ${statusHtml}
+        </div>`;
+    }).join('');
+}
+
+/* 파트너의 고객 평가(submitClientRating, partner_panel.js)는 다른 파트너·관리자에게는
+ * 노출되지만 정작 평가 대상인 고객 본인은 남았는지조차 알 방법이 없었고, 다른 모든
+ * 제재/신고 기능(계정 정지, 파트너 신고)과 달리 소명할 방법도 없었다 — 동일한
+ * 제출→심사 패턴을 적용한다. */
+let clientRatingAppealTargetOrderCode = null;
+
+function openClientRatingAppealModal(orderCode) {
+    const auth = window.AppState.clientAuth;
+    const rating = (window.AppState.clientRatings || []).find(r => r.orderCode === orderCode && r.clientPhone === auth.phone);
+    if (!rating) return;
+    if (rating.appeal && rating.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    clientRatingAppealTargetOrderCode = orderCode;
+    safeUpdateValue('client-rating-appeal-reason-input', '');
+    openModal('client-rating-appeal-modal', 'client-rating-appeal-modal-card');
+}
+
+function closeClientRatingAppealModal() {
+    clientRatingAppealTargetOrderCode = null;
+    closeModal('client-rating-appeal-modal', 'client-rating-appeal-modal-card');
+}
+
+function submitClientRatingAppeal() {
+    const auth = window.AppState.clientAuth;
+    const rating = (window.AppState.clientRatings || []).find(r => r.orderCode === clientRatingAppealTargetOrderCode && r.clientPhone === auth.phone);
+    if (!rating) { closeClientRatingAppealModal(); return; }
+    const reason = document.getElementById('client-rating-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    rating.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'CLIENT_RATING_APPEAL', `[${rating.clientName}] 고객님이 [${rating.partnerName}]의 평가(${rating.orderCode})에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeClientRatingAppealModal();
+    renderClientRatingStatus();
+    if (typeof renderAdminClientManager === 'function') renderAdminClientManager();
+}
+
+function renderClientRatingStatus() {
+    const container = document.getElementById('client-rating-status');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    const myRatings = (window.AppState.clientRatings || []).filter(r => r.clientPhone === auth.phone);
+
+    if (myRatings.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">등록된 파트너 평가가 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = myRatings.map(r => {
+        let statusHtml;
+        if (r.appeal && r.appeal.status === 'pending') {
+            statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">이의신청 심사 대기중</p>`;
+        } else if (r.appeal && r.appeal.status === 'rejected') {
+            statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">이의신청 반려됨${r.appeal.adminResponse ? ` — ${escapeHtml(r.appeal.adminResponse)}` : ''}</p>`;
+        } else {
+            statusHtml = `<button type="button" onclick="openClientRatingAppealModal('${r.orderCode}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">이의신청하기</button>`;
+        }
+        return `<div class="p-2.5 bg-ink-50 rounded-xl space-y-0.5">
+            <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">[${escapeHtml(r.partnerName)}]가 오더(${r.orderCode})에 대해 평가를 남겼습니다. <span class="text-gold-500 font-black">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span> (${r.date})</p>
             ${statusHtml}
         </div>`;
     }).join('');
@@ -3789,6 +3854,10 @@ window.openClientReportAppealModal = openClientReportAppealModal;
 window.closeClientReportAppealModal = closeClientReportAppealModal;
 window.submitClientReportAppeal = submitClientReportAppeal;
 window.renderClientReportedStatus = renderClientReportedStatus;
+window.openClientRatingAppealModal = openClientRatingAppealModal;
+window.closeClientRatingAppealModal = closeClientRatingAppealModal;
+window.submitClientRatingAppeal = submitClientRatingAppeal;
+window.renderClientRatingStatus = renderClientRatingStatus;
 window.openReviewDeletionAppealModal = openReviewDeletionAppealModal;
 window.closeReviewDeletionAppealModal = closeReviewDeletionAppealModal;
 window.submitReviewDeletionAppeal = submitReviewDeletionAppeal;
