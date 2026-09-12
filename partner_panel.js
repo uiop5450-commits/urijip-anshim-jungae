@@ -3414,7 +3414,8 @@ function buildPartnerRepairClaimsHtml(order) {
     const statusMeta = {
         submitted: { label: '접수됨', cls: 'badge-amber' },
         in_progress: { label: '처리중', cls: 'badge-brand' },
-        completed: { label: '처리완료', cls: 'badge-emerald' }
+        completed: { label: '처리완료', cls: 'badge-emerald' },
+        rejected: { label: '반려됨', cls: 'badge-neutral' }
     };
     return `<div class="surface p-5 space-y-3">
         <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="wrench" class="w-4 h-4 text-brand-500"></i> 하자보수 신청 내역 (${claims.length})</h5>
@@ -3425,9 +3426,10 @@ function buildPartnerRepairClaimsHtml(order) {
                 <p class="text-[11px] text-ink-600 font-semibold leading-relaxed">${escapeHtml(c.description)}</p>
                 <p class="text-[9px] text-ink-400 font-semibold">신청일: ${c.createdDate}</p>
                 ${c.partnerResponse ? `<p class="text-[10px] text-brand-700 font-semibold leading-relaxed pl-3 border-l-2 border-brand-200">${escapeHtml(c.partnerResponse)}</p>` : ''}
-                ${c.status !== 'completed' ? `<div class="flex gap-1.5 mt-1">
+                ${(c.status !== 'completed' && c.status !== 'rejected') ? `<div class="flex gap-1.5 mt-1">
                     ${c.status === 'submitted' ? `<button type="button" onclick="openRepairClaimResponseModal('${order.code}', '${c.id}', 'in_progress')" class="btn btn-secondary btn-sm flex-1">처리 시작</button>` : ''}
                     <button type="button" onclick="openRepairClaimResponseModal('${order.code}', '${c.id}', 'completed')" class="btn btn-dark btn-sm flex-1">처리 완료</button>
+                    <button type="button" onclick="openRepairClaimResponseModal('${order.code}', '${c.id}', 'rejected')" class="btn btn-secondary btn-sm text-roseCustom flex-1">반려</button>
                 </div>` : ''}
             </div>`;
         }).join('')}</div>
@@ -3441,9 +3443,10 @@ function openRepairClaimResponseModal(orderCode, claimId, newStatus) {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     if (!order || order.acceptedPartner !== partnerName) return;
     _repairClaimResponseTarget = { orderCode, claimId, newStatus };
-    const isCompleting = newStatus === 'completed';
-    safeUpdateText('repair-claim-response-modal-title', isCompleting ? '하자보수 처리 완료 안내' : '하자보수 처리 시작 안내');
-    safeUpdateText('repair-claim-response-submit-btn', isCompleting ? '처리 완료로 등록' : '처리 시작으로 등록');
+    const titleMap = { completed: '하자보수 처리 완료 안내', rejected: '하자보수 신청 반려 안내', in_progress: '하자보수 처리 시작 안내' };
+    const btnMap = { completed: '처리 완료로 등록', rejected: '반려로 등록', in_progress: '처리 시작으로 등록' };
+    safeUpdateText('repair-claim-response-modal-title', titleMap[newStatus] || titleMap.in_progress);
+    safeUpdateText('repair-claim-response-submit-btn', btnMap[newStatus] || btnMap.in_progress);
     safeUpdateValue('repair-claim-response-input', '');
     openModal('repair-claim-response-modal', 'repair-claim-response-modal-card');
 }
@@ -3466,10 +3469,11 @@ function submitRepairClaimResponse() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     claim.status = newStatus;
     claim.partnerResponse = response;
-    if (newStatus === 'completed') claim.resolvedDate = getLocalDateString();
+    if (newStatus === 'completed' || newStatus === 'rejected') claim.resolvedDate = getLocalDateString();
 
-    if (typeof pushLog === 'function') pushLog('PARTNER', 'REPAIR_CLAIM_UPDATE', `[${partnerName}]가 하자보수 신청("${claim.title}")을 ${newStatus === 'completed' ? '처리 완료' : '처리 시작'} 처리했습니다.`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수 신청("${claim.title}")이 ${newStatus === 'completed' ? '처리 완료' : '처리 시작'}되었어요.`);
+    const statusLabel = newStatus === 'completed' ? '처리 완료' : newStatus === 'rejected' ? '반려' : '처리 시작';
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'REPAIR_CLAIM_UPDATE', `[${partnerName}]가 하자보수 신청("${claim.title}")을 ${statusLabel} 처리했습니다.`, newStatus === 'rejected' ? 'WARNING' : 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수 신청("${claim.title}")이 ${statusLabel}되었어요.`);
     showToast('하자보수 처리 현황이 업데이트되었습니다.', 'success');
 
     closeRepairClaimResponseModal();

@@ -690,12 +690,34 @@ function submitRepairClaim() {
     if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
 }
 
+/* 계약 취소·일정 변경·금액 변경 요청은 모두 진행 전이면 신청자가 직접 철회할 수
+ * 있는데(retractContractCancellationRequest, retractScheduleChangeRequest,
+ * retractPriceChangeRequest), 하자보수 신청만 유일하게 철회 방법이 없었다 —
+ * 오탈자로 잘못 신청했거나 스스로 해결했는데도 파트너가 처리를 시작하기 전까지
+ * 취소할 방법이 없는 공백이었다. */
+function retractRepairClaim(orderCode, claimId) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim) return;
+    if (claim.status !== 'submitted') { showToast('파트너사가 이미 처리를 시작한 신청은 철회할 수 없어요.', 'warning'); return; }
+
+    order.repairClaims = order.repairClaims.filter(c => c.id !== claimId);
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_CLAIM_RETRACT', `[${order.clientName}] 고객님이 계약(${order.code})의 하자보수 신청("${claim.title}")을 철회했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 하자보수 신청("${claim.title}")을 철회했어요.`);
+    showToast('하자보수 신청을 철회했습니다.', 'info');
+
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
 function buildRepairClaimsHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
     const statusMeta = {
         submitted: { label: '접수됨', cls: 'badge-amber' },
         in_progress: { label: '처리중', cls: 'badge-brand' },
-        completed: { label: '처리완료', cls: 'badge-emerald' }
+        completed: { label: '처리완료', cls: 'badge-emerald' },
+        rejected: { label: '반려됨', cls: 'badge-neutral' }
     };
     const claims = order.repairClaims || [];
     const listHtml = claims.length === 0 ? '' : `<div class="space-y-2 mt-2">${claims.map(c => {
@@ -706,6 +728,7 @@ function buildRepairClaimsHtml(order) {
             <p class="text-[9px] text-ink-400 font-semibold">신청일: ${c.createdDate}</p>
             ${c.partnerResponse ? `<p class="text-[10px] text-brand-600 font-bold leading-relaxed mt-1">파트너 안내: ${escapeHtml(c.partnerResponse)}</p>` : ''}
             ${c.resolvedDate ? `<p class="text-[9px] text-ink-400 font-semibold">처리 완료일: ${c.resolvedDate}</p>` : ''}
+            ${c.status === 'submitted' ? `<button type="button" onclick="retractRepairClaim('${order.code}', '${c.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">신청 철회</button>` : ''}
         </div>`;
     }).join('')}</div>`;
     return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
@@ -3301,6 +3324,7 @@ window.openRepairClaimModal = openRepairClaimModal;
 window.closeRepairClaimModal = closeRepairClaimModal;
 window.submitRepairClaim = submitRepairClaim;
 window.buildRepairClaimsHtml = buildRepairClaimsHtml;
+window.retractRepairClaim = retractRepairClaim;
 window.openScheduleChangeModal = openScheduleChangeModal;
 window.closeScheduleChangeModal = closeScheduleChangeModal;
 window.submitScheduleChangeRequest = submitScheduleChangeRequest;
