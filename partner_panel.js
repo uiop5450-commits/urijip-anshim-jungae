@@ -2032,7 +2032,7 @@ function buildPartnerSiteVisitHtml(order) {
     if (visit && visit.status === 'proposed') {
         statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">고객 확인 대기중: ${visit.proposedDate}${visit.note ? ` (${escapeHtml(visit.note)})` : ''}</p>`;
     } else if (visit && visit.status === 'confirmed') {
-        statusHtml = `<div class="mt-1 space-y-1.5"><p class="text-[10px] font-black text-emeraldCustom">확정됨: ${visit.confirmedDate}</p><button type="button" onclick="completeSiteVisit('${order.code}')" class="btn btn-dark btn-sm">방문 완료 처리</button></div>`;
+        statusHtml = `<div class="mt-1 space-y-1.5"><p class="text-[10px] font-black text-emeraldCustom">확정됨: ${visit.confirmedDate}</p><div class="flex items-center gap-2"><button type="button" onclick="completeSiteVisit('${order.code}')" class="btn btn-dark btn-sm">방문 완료 처리</button><button type="button" onclick="downloadVisitCalendarFile('${escapeHtml(order.clientName)} 고객 실측 방문 (${order.code})', '${escapeHtml(order.clientAddress)}', '${visit.confirmedDate}')" class="text-[9px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0"><i data-lucide="calendar-plus" class="w-3 h-3 inline"></i> 캘린더에 추가</button></div></div>`;
     } else if (visit && visit.status === 'completed') {
         const disputeNote = !visit.disputed ? '' : (visit.disputeResolution === 'rejected'
             ? `<p class="text-[9px] font-bold text-ink-400 mt-0.5">고객 이의제기 반려됨(완료 유지)${visit.disputeAdminResponse ? ` — ${escapeHtml(visit.disputeAdminResponse)}` : ''}</p>`
@@ -4609,7 +4609,7 @@ function buildPartnerRepairClaimsHtml(order) {
                 ${c.partnerResponse ? `<p class="text-[10px] text-brand-700 font-semibold leading-relaxed pl-3 border-l-2 border-brand-200">${escapeHtml(c.partnerResponse)}</p>` : ''}
                 ${(c.status !== 'completed' && c.status !== 'rejected') ? `<div class="p-2 bg-white rounded-lg border border-ink-100 space-y-1">
                     ${c.visitStatus === 'proposed' ? `<p class="text-[10px] font-black text-amberCustom">방문 일정 제안함: ${c.visitDate} (고객 확인 대기중)</p>`
-                        : c.visitStatus === 'confirmed' ? `<p class="text-[10px] font-black text-emeraldCustom">방문 일정 확정됨: ${c.visitDate}</p>`
+                        : c.visitStatus === 'confirmed' ? `<p class="text-[10px] font-black text-emeraldCustom">방문 일정 확정됨: ${c.visitDate}</p><button type="button" onclick="downloadVisitCalendarFile('하자보수 방문: ${escapeHtml(c.title)} (${order.code})', '${escapeHtml(c.description)}', '${c.visitDate}')" class="text-[9px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-0.5"><i data-lucide="calendar-plus" class="w-3 h-3 inline"></i> 캘린더에 추가</button>`
                         : `<div class="flex items-center gap-1.5">
                             ${c.visitStatus === 'declined' ? `<span class="text-[9px] text-ink-400 font-semibold shrink-0">거절됨${c.visitDeclineReason ? ` — ${escapeHtml(c.visitDeclineReason)}` : ''}. 새로 제안:</span>` : `<span class="text-[9px] text-ink-400 font-semibold shrink-0">방문 일정 제안:</span>`}
                             <input type="date" id="repair-visit-date-input-${c.id}" class="input text-[10px] py-1 px-1.5 flex-1">

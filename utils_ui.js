@@ -375,6 +375,41 @@ function buildOrderMessageThreadHtml(order, viewerRole) {
     </div>`;
 }
 
+/* 실측/하자보수 방문 일정이 확정돼도 개인 캘린더에 옮겨 담을 방법이 없어서,
+ * 다른 일정과 겹치는지 확인하려면 앱을 계속 열어봐야 했다 — 표준 .ics 파일로
+ * 내려받아 구글/애플/아웃룩 등 아무 캘린더 앱에나 바로 추가할 수 있게 한다. */
+function downloadVisitCalendarFile(title, description, dateStr) {
+    if (!dateStr) { showToast('확정된 방문 일정이 없어요.', 'warning'); return; }
+    const dateCompact = dateStr.replace(/-/g, '');
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const uid = `${dateCompact}-${Math.random().toString(36).slice(2)}@urijip-anshim`;
+    const escapeIcs = (s) => (s || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+    const ics = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//우리집 안심중개//KO',
+        'BEGIN:VEVENT',
+        `UID:${uid}`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${dateCompact}`,
+        `SUMMARY:${escapeIcs(title)}`,
+        `DESCRIPTION:${escapeIcs(description)}`,
+        'END:VEVENT',
+        'END:VCALENDAR'
+    ].join('\r\n');
+
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/[^\w가-힣]/g, '_')}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('캘린더 파일을 다운로드했습니다.', 'success');
+}
+
 function getClientAverageRating(clientPhone) {
     const ratings = (window.AppState.clientRatings || []).filter(r => r.clientPhone === clientPhone);
     if (ratings.length === 0) return null;
@@ -583,6 +618,7 @@ window.sendOrderMessage = sendOrderMessage;
 window.buildOrderMessageThreadHtml = buildOrderMessageThreadHtml;
 window.getUnreadOrderMessageCount = getUnreadOrderMessageCount;
 window.markOrderMessagesRead = markOrderMessagesRead;
+window.downloadVisitCalendarFile = downloadVisitCalendarFile;
 window.getClientAverageRating = getClientAverageRating;
 window.grantPartnerBenefit = grantPartnerBenefit;
 window.grantClientBenefit = grantClientBenefit;
