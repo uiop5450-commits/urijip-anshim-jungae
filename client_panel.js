@@ -2718,6 +2718,7 @@ function openBidCompareModal(orderCode) {
     if (container) {
         const rowsDef = [
             { label: '견적 금액', render: b => `<span class="font-black text-ink-950">₩ ${b.price.toLocaleString()}만원</span>` },
+            { label: '비용 세부내역', render: b => (b.costBreakdown || []).length === 0 ? `<span class="text-ink-400">미제공</span>` : `<div class="space-y-0.5">${b.costBreakdown.map(item => `<div>${escapeHtml(item.label)} ₩${item.amount.toLocaleString()}만원</div>`).join('')}</div>`, alignTop: true },
             { label: '평점', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return `<span class="font-bold text-gold-600">★ ${p ? p.rating.toFixed(1) : '5.0'}</span>`; } },
             { label: '안심 인증', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return p && p.isCertified ? `<span class="badge badge-brand">인증</span>` : '-'; } },
             { label: '제안 내용', render: b => `<span class="text-ink-600">${escapeHtml(b.desc)}</span>`, alignTop: true }
@@ -2852,6 +2853,7 @@ function renderMyPageEstimateDetails(order) {
                         <span class="font-black text-ink-950 text-sm">₩ ${bid.price.toLocaleString()} 만원</span>
                     </div>
                     <p class="text-xs text-ink-600 font-semibold leading-relaxed">${escapeHtml(bid.desc)}</p>
+                    ${(bid.costBreakdown || []).length > 0 ? `<div class="flex flex-wrap gap-1.5">${bid.costBreakdown.map(item => `<span class="badge badge-neutral">${escapeHtml(item.label)} ₩${item.amount.toLocaleString()}만원</span>`).join('')}</div>` : ''}
                     ${(bid.questions || []).length > 0 ? `<div class="space-y-1.5 pt-1">${bid.questions.map(q => `
                         <div class="p-2.5 bg-white rounded-xl border border-ink-100 space-y-1">
                             <p class="text-[11px] text-ink-700 font-semibold leading-relaxed"><i data-lucide="help-circle" class="w-3 h-3 inline text-ink-400"></i> ${escapeHtml(q.text)}</p>

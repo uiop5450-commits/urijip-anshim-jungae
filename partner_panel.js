@@ -1471,6 +1471,7 @@ function selectOrderForAudit(code) {
                     <h5 class="text-xs font-black text-ink-950">제출한 입찰 내용 수정</h5>
                     <div><label class="field-label">입찰 제안 금액 (만원)</label><input type="number" id="partner-bid-price-input" value="${myBid ? myBid.price : ''}" min="1" class="input"></div>
                     <div><label class="field-label">제안 메시지</label><textarea id="partner-bid-desc-input" class="textarea h-20">${escapeHtml(myBid ? myBid.desc : '')}</textarea></div>
+                    ${buildBidCostBreakdownInputsHtml(myBid)}
                     <button type="button" onclick="editPartnerBid('${order.code}')" class="btn btn-secondary btn-lg btn-block">입찰 내용 수정 완료</button>
                 </div>`;
                 })() : ''}
@@ -1479,10 +1480,39 @@ function selectOrderForAudit(code) {
                 <div class="surface-flat p-4 space-y-3 text-left">
                     <div><label class="field-label">입찰 제안 금액 (만원)</label><input type="number" id="partner-bid-price-input" value="${Math.floor(order.budget * 0.95)}" min="1" class="input"></div>
                     <div><label class="field-label">제안 메시지</label><textarea id="partner-bid-desc-input" class="textarea h-20" placeholder="고객에게 보여줄 제안 메시지를 입력하세요.">${currentPartnerName}에서 제안하는 하이엔드 시공 안심 제안입니다.</textarea></div>
+                    ${buildBidCostBreakdownInputsHtml(null)}
                     <button type="button" onclick="submitPartnerBid()" class="btn btn-dark btn-lg btn-block"><i data-lucide="zap" class="w-4 h-4"></i> 선착순 입찰 즉시 참여하기</button>
                 </div>`}
         </div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 입찰서가 견적금액 하나로만 이뤄져 있어서, 고객이 비교 테이블(openBidCompareModal,
+ * client_panel.js)로 여러 입찰서를 봐도 "왜 이 가격인지" 근거를 전혀 알 수 없었다 —
+ * 자재비/인건비/철거비/기타로 나눠 선택 입력받는다(전부 선택 사항이라, 입력 안 해도
+ * 기존과 동일하게 총액만으로 입찰 가능). */
+const BID_COST_BREAKDOWN_CATEGORIES = [
+    { key: 'materials', label: '자재비' },
+    { key: 'labor', label: '인건비' },
+    { key: 'demolition', label: '철거비' },
+    { key: 'other', label: '기타' }
+];
+
+function buildBidCostBreakdownInputsHtml(existingBid) {
+    const existing = {};
+    (existingBid && existingBid.costBreakdown || []).forEach(item => { existing[item.key] = item.amount; });
+    return `<div class="space-y-1.5">
+        <label class="field-label mb-0">비용 세부내역 (만원, 선택)</label>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            ${BID_COST_BREAKDOWN_CATEGORIES.map(c => `<input type="number" id="partner-bid-cost-${c.key}-input" placeholder="${c.label}" min="0" value="${existing[c.key] || ''}" class="input text-xs">`).join('')}
+        </div>
+    </div>`;
+}
+
+function readBidCostBreakdownInputs() {
+    return BID_COST_BREAKDOWN_CATEGORIES
+        .map(c => ({ key: c.key, label: c.label, amount: parseInt(document.getElementById(`partner-bid-cost-${c.key}-input`)?.value, 10) || 0 }))
+        .filter(item => item.amount > 0);
 }
 
 function submitPartnerBid() {
@@ -1497,8 +1527,9 @@ function submitPartnerBid() {
     if (!price || price <= 0) { showToast('입찰 제안 금액을 올바르게 입력해 주세요.', 'warning'); return; }
     const descInput = document.getElementById('partner-bid-desc-input');
     const desc = (descInput && descInput.value.trim()) || `${partnerName}에서 제안하는 하이엔드 시공 안심 제안입니다.`;
+    const costBreakdown = readBidCostBreakdownInputs();
 
-    order.bids.push({ partner: partnerName, price, desc, verified: true, progress: 'bidding' });
+    order.bids.push({ partner: partnerName, price, desc, verified: true, progress: 'bidding', costBreakdown });
 
     selectOrderForAudit(code);
     renderPartnerOrderList();
@@ -1527,6 +1558,7 @@ function editPartnerBid(orderCode) {
     const oldPrice = bid.price;
     bid.price = price;
     bid.desc = desc;
+    bid.costBreakdown = readBidCostBreakdownInputs();
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'BID_EDIT', `[${partnerName}]가 오더 ${orderCode}의 입찰 금액을 ₩${oldPrice.toLocaleString()}만원 → ₩${price.toLocaleString()}만원으로 수정했습니다.`, 'INFO');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 입찰 제안 내용을 수정했어요. (의뢰 코드: ${orderCode})`);
