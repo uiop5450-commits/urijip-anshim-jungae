@@ -1737,6 +1737,41 @@ function renderPartnerContractProgressStepperHtml(steps) {
     }).join('')}</div>`;
 }
 
+/* 계약 체결 후 고객이 확인할 수 있는 건 서명·서류·수수료 결제 상태뿐이라, 실제
+ * 시공이 지금 어느 단계인지는 전혀 알 방법이 없었다 — 일정/금액 변경 요청과
+ * 하자보수는 있지만 "지금 뭐가 진행되고 있는지"에 대한 답이 없는 공백이었다.
+ * 양측 서명이 완료된 계약에 한해 파트너가 철거→설비/골조→마감→준공 단계를
+ * 순서대로 진행 표시하고, 고객은 읽기 전용으로 확인한다. */
+function buildPartnerProgressStagesHtml(order) {
+    if (!order.clientSigned || !order.partnerSigned) return '';
+    const stages = getOrInitProgressStages(order);
+    const nextStage = stages.find(s => !s.done);
+    return `<div class="surface p-5 space-y-3">
+        <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="hard-hat" class="w-4 h-4 text-brand-500"></i> 시공 진행 단계</h5>
+        ${renderPartnerContractProgressStepperHtml(stages)}
+        ${nextStage
+            ? `<button type="button" onclick="advanceOrderProgressStage('${order.code}')" class="btn btn-dark btn-sm btn-block">"${escapeHtml(nextStage.label)}" 단계 완료로 표시</button>`
+            : `<p class="text-[11px] text-emeraldCustom font-bold text-center">모든 시공 단계가 완료되었습니다.</p>`}
+    </div>`;
+}
+
+function advanceOrderProgressStage(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
+    const stages = getOrInitProgressStages(order);
+    const stage = stages.find(s => !s.done);
+    if (!stage) return;
+    stage.done = true;
+    stage.date = getLocalDateString();
+    const allDone = stages.every(s => s.done);
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PROGRESS_STAGE_ADVANCE', `[${partnerName}]가 오더(${order.code}) 시공 단계를 "${stage.label}" 완료로 표시했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, allDone ? `시공이 모두 완료되었습니다! (마지막 단계: ${stage.label})` : `시공 진행 단계가 업데이트됐어요: "${stage.label}" 완료`);
+    showToast(`"${stage.label}" 단계를 완료로 표시했습니다.`, 'success');
+    openPartnerOrderDetailModal(order.code);
+}
+
 function openPartnerOrderDetailModal(orderCode) {
     const order = (window.AppState.orders || []).find(o => o.code === orderCode);
     if (!order) return;
@@ -1844,6 +1879,7 @@ function openPartnerOrderDetailModal(orderCode) {
                 </div>
                 ${order.clientSigned && order.partnerSigned ? `<div class="p-2.5 text-center"><span class="badge badge-brand"><i data-lucide="shield-check" class="w-3 h-3"></i> 양측 서명 완료 — 계약 합의서 최종 확정</span></div>` : ''}
             </div>
+            ${buildPartnerProgressStagesHtml(order)}
             <div class="surface p-5 space-y-3">
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="credit-card" class="w-4 h-4 text-ink-600"></i> 플랫폼 중개 수수료 결제</h5>
                 ${commissionBodyHtml}
@@ -5132,6 +5168,8 @@ window.removePamphletDraftImage = removePamphletDraftImage;
 window.handlePamphletDetailImageUpload = handlePamphletDetailImageUpload;
 window.removePamphletDetailDraftImage = removePamphletDetailDraftImage;
 window.openPartnerOrderDetailModal = openPartnerOrderDetailModal;
+window.buildPartnerProgressStagesHtml = buildPartnerProgressStagesHtml;
+window.advanceOrderProgressStage = advanceOrderProgressStage;
 window.withdrawMyPartnerBid = withdrawMyPartnerBid;
 window.replyToBidQuestion = replyToBidQuestion;
 window.buildPreBidQnaHtml = buildPreBidQnaHtml;

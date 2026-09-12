@@ -198,6 +198,20 @@ function pushPartnerNotification(partnerName, message, extra) {
     if (typeof updatePartnerNotificationBadge === 'function') updatePartnerNotificationBadge();
 }
 
+/* 계약 체결 후 고객이 확인할 수 있는 건 서명·서류·수수료 결제 상태뿐이라, 실제
+ * 시공이 지금 어느 단계인지는 전혀 알 방법이 없었다 — 일정/금액 변경 요청과
+ * 하자보수는 있지만 "지금 뭐가 진행되고 있는지"에 대한 답이 없는 공백이었다.
+ * 계약 진행 스테퍼(renderPartnerContractProgressStepperHtml, partner_panel.js)와
+ * 동일한 시각적 패턴을 시공 단계에도 재사용한다. */
+const CONSTRUCTION_PROGRESS_STAGE_LABELS = ['철거', '설비/골조', '마감', '준공'];
+
+function getOrInitProgressStages(order) {
+    if (!order.progressStages) {
+        order.progressStages = CONSTRUCTION_PROGRESS_STAGE_LABELS.map(label => ({ label, done: false, date: null }));
+    }
+    return order.progressStages;
+}
+
 /* 아직 구현되지 않은 부가 링크(이용약관 등) 클릭 시 보여줄 안내 — 죽은 링크로 보이지 않게. */
 function showComingSoon(label) {
     showToast(`${label}은(는) 준비 중인 페이지예요.`, 'info');
@@ -366,5 +380,6 @@ window.showComingSoon = showComingSoon;
 window.openFooterInfoModal = openFooterInfoModal;
 window.closeFooterInfoModal = closeFooterInfoModal;
 window.getLocalDateString = getLocalDateString;
+window.getOrInitProgressStages = getOrInitProgressStages;
 window.showToast = showToast;
 window.closeToast = closeToast;

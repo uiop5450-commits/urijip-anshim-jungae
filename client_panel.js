@@ -766,6 +766,18 @@ function escalateRepairClaimToAdmin(orderCode, claimId, note) {
     selectMyPageEstimate(order.code);
 }
 
+/* 계약 체결 후 고객이 확인할 수 있는 건 서명·서류·수수료 결제 상태뿐이라, 실제
+ * 시공이 지금 어느 단계인지는 전혀 알 방법이 없었다 — 파트너가 진행 표시하는
+ * 단계(advanceOrderProgressStage, partner_panel.js)를 읽기 전용 스테퍼로 보여준다. */
+function buildProgressStagesHtml(order) {
+    if (!order.clientSigned || !order.partnerSigned) return '';
+    const stages = getOrInitProgressStages(order);
+    return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
+        <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="hard-hat" class="w-3.5 h-3.5 text-brand-500"></i> 시공 진행 단계</span>
+        ${renderPartnerContractProgressStepperHtml(stages)}
+    </div>`;
+}
+
 function buildRepairClaimsHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
     const statusMeta = {
@@ -2292,6 +2304,7 @@ function renderMyPageEstimateDetails(order) {
             <span class="badge ${order.partnerSigned ? 'badge-emerald' : 'badge-amber'}">${order.partnerSigned ? '완료' : '대기중'}</span>
         </div>
         ${order.clientSigned && order.partnerSigned ? `<div class="p-2.5 text-center"><span class="badge badge-brand"><i data-lucide="shield-check" class="w-3 h-3"></i> 양측 서명 완료 — 계약 합의서 최종 확정</span></div>` : ''}
+        ${buildProgressStagesHtml(order)}
         ${buildRepairClaimsHtml(order)}
         <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>
         ${isPartnerReportedByMeForOrder(order.code)
@@ -3437,6 +3450,7 @@ window.openRepairClaimModal = openRepairClaimModal;
 window.closeRepairClaimModal = closeRepairClaimModal;
 window.submitRepairClaim = submitRepairClaim;
 window.buildRepairClaimsHtml = buildRepairClaimsHtml;
+window.buildProgressStagesHtml = buildProgressStagesHtml;
 window.retractRepairClaim = retractRepairClaim;
 window.escalateRepairClaimToAdmin = escalateRepairClaimToAdmin;
 window.openScheduleChangeModal = openScheduleChangeModal;
