@@ -1772,6 +1772,50 @@ function advanceOrderProgressStage(orderCode) {
     openPartnerOrderDetailModal(order.code);
 }
 
+/* commissionPaid는 플랫폼 중개 수수료 완납 여부만 표시할 뿐, 정작 고객이 파트너에게
+ * 지불하는 공사대금 자체는 finalPrice 총액 하나로만 다뤄졌다 — 실제 인테리어
+ * 계약은 계약금/중도금/잔금으로 나눠 단계별로 청구·지급되는데 그 흐름을 추적할
+ * 방법이 전혀 없었다. 시공 진행 단계와 자연스럽게 짝을 이루는 지급 마일스톤을 둔다. */
+function buildPartnerPaymentMilestonesHtml(order) {
+    if (!order.clientSigned || !order.partnerSigned) return '';
+    const milestones = getOrInitPaymentMilestones(order);
+    const price = order.finalPrice || 0;
+    return `<div class="surface p-5 space-y-3">
+        <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="wallet" class="w-4 h-4 text-brand-500"></i> 단계별 공사대금 청구</h5>
+        <div class="space-y-2">${milestones.map(m => {
+            const amount = Math.floor(price * m.percent / 100);
+            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구중</span>` : `<span class="badge badge-neutral">청구 전</span>`;
+            return `<div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between gap-2">
+                <div class="text-left min-w-0">
+                    <p class="text-xs font-black text-ink-900">${m.label} (${m.percent}%)</p>
+                    <p class="text-[10px] text-ink-500 font-semibold">₩ ${amount.toLocaleString()}만원${m.paidDate ? ` · 납부일 ${m.paidDate}` : (m.requestedDate ? ` · 청구일 ${m.requestedDate}` : '')}</p>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    ${statusBadge}
+                    ${m.status === 'pending' ? `<button type="button" onclick="requestPaymentMilestone('${order.code}', '${m.key}')" class="btn btn-secondary btn-sm">청구하기</button>` : ''}
+                </div>
+            </div>`;
+        }).join('')}</div>
+    </div>`;
+}
+
+function requestPaymentMilestone(orderCode, key) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
+    const milestones = getOrInitPaymentMilestones(order);
+    const m = milestones.find(x => x.key === key);
+    if (!m || m.status !== 'pending') return;
+    m.status = 'requested';
+    m.requestedDate = getLocalDateString();
+    const amount = Math.floor((order.finalPrice || 0) * m.percent / 100);
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PAYMENT_MILESTONE_REQUEST', `[${partnerName}]가 오더(${order.code}) ${m.label} 청구를 요청했습니다. (₩${amount.toLocaleString()}만원)`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${m.label} 납부를 요청드려요: ₩${amount.toLocaleString()}만원`);
+    showToast(`${m.label} 청구를 요청했습니다.`, 'success');
+    openPartnerOrderDetailModal(order.code);
+}
+
 function openPartnerOrderDetailModal(orderCode) {
     const order = (window.AppState.orders || []).find(o => o.code === orderCode);
     if (!order) return;
@@ -1880,6 +1924,7 @@ function openPartnerOrderDetailModal(orderCode) {
                 ${order.clientSigned && order.partnerSigned ? `<div class="p-2.5 text-center"><span class="badge badge-brand"><i data-lucide="shield-check" class="w-3 h-3"></i> 양측 서명 완료 — 계약 합의서 최종 확정</span></div>` : ''}
             </div>
             ${buildPartnerProgressStagesHtml(order)}
+            ${buildPartnerPaymentMilestonesHtml(order)}
             <div class="surface p-5 space-y-3">
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="credit-card" class="w-4 h-4 text-ink-600"></i> 플랫폼 중개 수수료 결제</h5>
                 ${commissionBodyHtml}
@@ -5242,6 +5287,8 @@ window.removePamphletDetailDraftImage = removePamphletDetailDraftImage;
 window.openPartnerOrderDetailModal = openPartnerOrderDetailModal;
 window.buildPartnerProgressStagesHtml = buildPartnerProgressStagesHtml;
 window.advanceOrderProgressStage = advanceOrderProgressStage;
+window.buildPartnerPaymentMilestonesHtml = buildPartnerPaymentMilestonesHtml;
+window.requestPaymentMilestone = requestPaymentMilestone;
 window.withdrawMyPartnerBid = withdrawMyPartnerBid;
 window.replyToBidQuestion = replyToBidQuestion;
 window.buildPreBidQnaHtml = buildPreBidQnaHtml;

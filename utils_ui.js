@@ -212,6 +212,24 @@ function getOrInitProgressStages(order) {
     return order.progressStages;
 }
 
+/* commissionPaid는 플랫폼 중개 수수료 완납 여부만 표시할 뿐, 정작 고객이 파트너에게
+ * 지불하는 공사대금 자체는 finalPrice 총액 하나로만 다뤄졌다 — 실제 인테리어 계약은
+ * 항상 계약금/중도금/잔금으로 나눠 단계별로 청구·지급되는데 그 흐름을 추적할
+ * 방법이 전혀 없었다. 방금 추가한 시공 진행 단계(progressStages)와 자연스럽게
+ * 짝을 이루는 지급 마일스톤을 둔다. */
+const PAYMENT_MILESTONE_DEFS = [
+    { key: 'downpayment', label: '계약금', percent: 30 },
+    { key: 'interim', label: '중도금', percent: 40 },
+    { key: 'final', label: '잔금', percent: 30 }
+];
+
+function getOrInitPaymentMilestones(order) {
+    if (!order.paymentMilestones) {
+        order.paymentMilestones = PAYMENT_MILESTONE_DEFS.map(def => ({ ...def, status: 'pending', requestedDate: null, paidDate: null }));
+    }
+    return order.paymentMilestones;
+}
+
 /* 아직 구현되지 않은 부가 링크(이용약관 등) 클릭 시 보여줄 안내 — 죽은 링크로 보이지 않게. */
 function showComingSoon(label) {
     showToast(`${label}은(는) 준비 중인 페이지예요.`, 'info');
@@ -381,5 +399,6 @@ window.openFooterInfoModal = openFooterInfoModal;
 window.closeFooterInfoModal = closeFooterInfoModal;
 window.getLocalDateString = getLocalDateString;
 window.getOrInitProgressStages = getOrInitProgressStages;
+window.getOrInitPaymentMilestones = getOrInitPaymentMilestones;
 window.showToast = showToast;
 window.closeToast = closeToast;

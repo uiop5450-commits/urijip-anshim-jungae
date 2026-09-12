@@ -778,6 +778,46 @@ function buildProgressStagesHtml(order) {
     </div>`;
 }
 
+/* commissionPaid는 플랫폼 중개 수수료 완납 여부만 표시할 뿐, 정작 고객이 파트너에게
+ * 지불하는 공사대금 자체는 finalPrice 총액 하나로만 다뤄졌다 — 계약금/중도금/잔금
+ * 단계별 청구(requestPaymentMilestone, partner_panel.js)에 고객이 납부 완료로
+ * 응답할 수 있게 한다. */
+function buildPaymentMilestonesHtml(order) {
+    if (!order.clientSigned || !order.partnerSigned) return '';
+    const milestones = getOrInitPaymentMilestones(order);
+    const price = order.finalPrice || 0;
+    return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
+        <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="wallet" class="w-3.5 h-3.5 text-brand-500"></i> 단계별 공사대금</span>
+        <div class="space-y-1.5">${milestones.map(m => {
+            const amount = Math.floor(price * m.percent / 100);
+            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구됨</span>` : `<span class="badge badge-neutral">청구 전</span>`;
+            return `<div class="p-2.5 bg-ink-50 rounded-lg flex items-center justify-between gap-2">
+                <div class="min-w-0"><p class="text-[11px] font-black text-ink-900">${m.label} (${m.percent}%) · ₩${amount.toLocaleString()}만원</p></div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    ${statusBadge}
+                    ${m.status === 'requested' ? `<button type="button" onclick="confirmPaymentMilestone('${order.code}', '${m.key}')" class="btn btn-dark btn-sm">납부 완료</button>` : ''}
+                </div>
+            </div>`;
+        }).join('')}</div>
+    </div>`;
+}
+
+function confirmPaymentMilestone(orderCode, key) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order) return;
+    const milestones = getOrInitPaymentMilestones(order);
+    const m = milestones.find(x => x.key === key);
+    if (!m || m.status !== 'requested') return;
+    m.status = 'paid';
+    m.paidDate = getLocalDateString();
+    const amount = Math.floor((order.finalPrice || 0) * m.percent / 100);
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PAYMENT_MILESTONE_CONFIRM', `[${order.clientName}] 고객님이 계약(${order.code}) ${m.label} 납부를 완료 처리했습니다. (₩${amount.toLocaleString()}만원)`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 ${m.label} 납부를 완료했어요: ₩${amount.toLocaleString()}만원`);
+    showToast(`${m.label} 납부를 완료 처리했습니다.`, 'success');
+    selectMyPageEstimate(order.code);
+}
+
 function buildRepairClaimsHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
     const statusMeta = {
@@ -2369,6 +2409,7 @@ function renderMyPageEstimateDetails(order) {
         </div>
         ${order.clientSigned && order.partnerSigned ? `<div class="p-2.5 text-center"><span class="badge badge-brand"><i data-lucide="shield-check" class="w-3 h-3"></i> 양측 서명 완료 — 계약 합의서 최종 확정</span></div>` : ''}
         ${buildProgressStagesHtml(order)}
+        ${buildPaymentMilestonesHtml(order)}
         ${buildRepairClaimsHtml(order)}
         <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>
         ${isPartnerReportedByMeForOrder(order.code)
@@ -3515,6 +3556,8 @@ window.closeRepairClaimModal = closeRepairClaimModal;
 window.submitRepairClaim = submitRepairClaim;
 window.buildRepairClaimsHtml = buildRepairClaimsHtml;
 window.buildProgressStagesHtml = buildProgressStagesHtml;
+window.buildPaymentMilestonesHtml = buildPaymentMilestonesHtml;
+window.confirmPaymentMilestone = confirmPaymentMilestone;
 window.retractRepairClaim = retractRepairClaim;
 window.escalateRepairClaimToAdmin = escalateRepairClaimToAdmin;
 window.openScheduleChangeModal = openScheduleChangeModal;
