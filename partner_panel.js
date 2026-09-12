@@ -373,6 +373,15 @@ function setPartnerSearchRegion(region) {
     renderPartnerSearchGrid();
 }
 
+/* 지역 필터는 있었지만 "아파트 전문", "상가·사무실 전문"처럼 시공 유형으로
+ * 파트너를 골라볼 방법이 없었다 — 파트너마다 별도 전문분야 필드를 추가하는 대신,
+ * 이미 등록된 시공사례(portfolio)의 category 분포를 그대로 재사용해 필터링한다. */
+let partnerSearchCategoryFilter = 'all';
+function setPartnerSearchCategory(category) {
+    partnerSearchCategoryFilter = category;
+    renderPartnerSearchGrid();
+}
+
 function renderPartnerSearchGrid() {
     const container = document.getElementById('partner-search-grid');
     if (!container) return;
@@ -394,8 +403,24 @@ function renderPartnerSearchGrid() {
         ).join('');
     }
 
+    // 전문분야 필터 칩 — 파트너별 발행된 시공사례의 category를 모아, 최소 1건이라도 있는 파트너만 해당 칩으로 노출된다.
+    const categoryChipsEl = document.getElementById('partner-search-category-chips');
+    const partnerCategorySets = new Map(allPartners.map(p => [p.name, new Set((p.portfolios || []).filter(port => !port.isDraft && port.category).map(port => port.category))]));
+    if (categoryChipsEl) {
+        const categoriesPresent = [...new Set([...partnerCategorySets.values()].flatMap(s => [...s]))];
+        if (categoriesPresent.length > 1) {
+            const chips = [['all', '전체 분야'], ...categoriesPresent.map(c => [c, PORTFOLIO_CATEGORY_LABELS[c] || c])];
+            categoryChipsEl.innerHTML = chips.map(([key, label]) =>
+                `<button type="button" onclick="setPartnerSearchCategory('${key}')" class="region-chip ${partnerSearchCategoryFilter === key ? 'active' : ''}"><i data-lucide="hammer" class="w-3 h-3"></i>${label}</button>`
+            ).join('');
+        } else {
+            categoryChipsEl.innerHTML = '';
+        }
+    }
+
     const filtered = allPartners
         .filter(p => partnerSearchRegionFilter === 'all' || p.region === partnerSearchRegionFilter)
+        .filter(p => partnerSearchCategoryFilter === 'all' || partnerCategorySets.get(p.name)?.has(partnerSearchCategoryFilter))
         .filter(p => !query || p.name.toLowerCase().includes(query) || (p.region && p.region.toLowerCase().includes(query)) || (p.promoSlogan && p.promoSlogan.toLowerCase().includes(query)))
         .sort((a, b) => sortMode === 'reviews'
             ? (b.reviews ? b.reviews.length : 0) - (a.reviews ? a.reviews.length : 0)
@@ -7107,6 +7132,7 @@ window.nextHeroSlide = nextHeroSlide;
 window.prevHeroSlide = prevHeroSlide;
 window.renderPartnerSearchGrid = renderPartnerSearchGrid;
 window.setPartnerSearchRegion = setPartnerSearchRegion;
+window.setPartnerSearchCategory = setPartnerSearchCategory;
 window.switchAdminMode = switchAdminMode;
 window.validateManagerLogin = validateManagerLogin;
 window.managerLogout = managerLogout;
