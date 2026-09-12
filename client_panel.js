@@ -3718,15 +3718,20 @@ let openCommentEditKeys = new Set();
 let openReplyEditKeys = new Set();
 
 function toggleReplyBox(postId, commentIndex) {
-    if (!requireClientLoginForCommunity()) return;
+    const isPartnerViewer = window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn);
+    if (!isPartnerViewer && !requireClientLoginForCommunity()) return;
     const key = `${postId}-${commentIndex}`;
     if (openReplyBoxKeys.has(key)) openReplyBoxKeys.delete(key);
     else openReplyBoxKeys.add(key);
     openCommunityDetail(postId);
 }
 
+/* 댓글 CRUD 대칭(ed8080b)을 대댓글에도 마저 적용한다 — 파트너가 자신의 전문가
+ * 답변 아래 달린 후속 질문에 직접 답하거나(대댓글 작성), 자기 대댓글을
+ * 수정/삭제할 방법이 전혀 없었다. */
 function submitCommunityReply(postId, commentIndex) {
-    if (!requireClientLoginForCommunity()) return;
+    const isPartnerReply = window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn);
+    if (!isPartnerReply && !requireClientLoginForCommunity()) return;
     const input = document.getElementById(`community-reply-input-${commentIndex}`);
     const text = input ? input.value.trim() : '';
     if (!text) { showToast('답글 내용을 입력해 주세요.', 'warning'); return; }
@@ -3736,9 +3741,15 @@ function submitCommunityReply(postId, commentIndex) {
     const comment = post.comments[commentIndex];
     if (!comment.replies) comment.replies = [];
 
-    const auth = window.AppState.clientAuth;
-    comment.replies.push({ authorName: auth.name, authorId: auth.id, text, date: getLocalDateString() });
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPLY', `'${auth.name}' 고객님이 대댓글을 남겼습니다.`, 'INFO');
+    if (isPartnerReply) {
+        const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+        comment.replies.push({ authorName: partnerName, authorId: `partner:${partnerName}`, authorType: 'partner', text, date: getLocalDateString() });
+        if (typeof pushLog === 'function') pushLog('PARTNER', 'COMMUNITY_REPLY', `[${partnerName}]가 대댓글을 남겼습니다.`, 'INFO');
+    } else {
+        const auth = window.AppState.clientAuth;
+        comment.replies.push({ authorName: auth.name, authorId: auth.id, text, date: getLocalDateString() });
+        if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPLY', `'${auth.name}' 고객님이 대댓글을 남겼습니다.`, 'INFO');
+    }
 
     openReplyBoxKeys.delete(`${postId}-${commentIndex}`);
     openCommunityDetail(postId);
@@ -3796,11 +3807,13 @@ function toggleCommunityAcceptedAnswer(postId, commentIndex) {
 }
 
 function deleteCommunityReply(postId, commentIndex, replyIndex) {
-    const auth = window.AppState.clientAuth;
+    const myId = window.AppState.clientAuth && window.AppState.clientAuth.loggedIn ? window.AppState.clientAuth.id : null;
+    const myPartnerCommentId = window.AppState.partnerLoggedIn ? `partner:${window.AppState.partnerName || '오륙도 디자인 실내건축'}` : null;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     const comment = post && post.comments && post.comments[commentIndex];
     if (!comment || !comment.replies || !comment.replies[replyIndex]) return;
-    if (comment.replies[replyIndex].authorId !== auth.id) return;
+    const authorId = comment.replies[replyIndex].authorId;
+    if (authorId !== myId && authorId !== myPartnerCommentId) return;
     comment.replies.splice(replyIndex, 1);
     showToast('답글을 삭제했습니다.', 'info');
     openCommunityDetail(postId);
@@ -3839,11 +3852,12 @@ function toggleReplyEdit(postId, commentIndex, replyIndex) {
 }
 
 function saveCommunityReplyEdit(postId, commentIndex, replyIndex) {
-    const auth = window.AppState.clientAuth;
+    const myId = window.AppState.clientAuth && window.AppState.clientAuth.loggedIn ? window.AppState.clientAuth.id : null;
+    const myPartnerCommentId = window.AppState.partnerLoggedIn ? `partner:${window.AppState.partnerName || '오륙도 디자인 실내건축'}` : null;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     const comment = post && post.comments && post.comments[commentIndex];
     const reply = comment && comment.replies && comment.replies[replyIndex];
-    if (!reply || reply.authorId !== auth.id) return;
+    if (!reply || (reply.authorId !== myId && reply.authorId !== myPartnerCommentId)) return;
 
     const input = document.getElementById(`community-reply-edit-input-${commentIndex}-${replyIndex}`);
     const text = input ? input.value.trim() : '';
@@ -4171,17 +4185,19 @@ function reportCommunityComment(postId, commentIndex, reason) {
 }
 
 function reportCommunityReply(postId, commentIndex, replyIndex, reason) {
-    if (!requireClientLoginForCommunity()) return;
-    const auth = window.AppState.clientAuth;
+    const isPartnerReporter = window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn);
+    if (!isPartnerReporter && !requireClientLoginForCommunity()) return;
+    const reporterId = isPartnerReporter ? `partner:${window.AppState.partnerName || '오륙도 디자인 실내건축'}` : window.AppState.clientAuth.id;
+    const reporterName = isPartnerReporter ? (window.AppState.partnerName || '오륙도 디자인 실내건축') : window.AppState.clientAuth.name;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     const comment = post && post.comments && post.comments[commentIndex];
     const reply = comment && comment.replies && comment.replies[replyIndex];
     if (!reply) return;
     if (!reply.reportedBy) reply.reportedBy = [];
-    if (reply.reportedBy.includes(auth.id)) { showToast('이미 신고한 답글입니다.', 'info'); return; }
-    reply.reportedBy.push(auth.id);
-    if (reason) { if (!reply.reportReasons) reply.reportReasons = []; reply.reportReasons.push({ id: auth.id, reason }); }
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_REPLY_REPORT', `'${auth.name}' 고객님이 답글(작성자: ${reply.authorName})을 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
+    if (reply.reportedBy.includes(reporterId)) { showToast('이미 신고한 답글입니다.', 'info'); return; }
+    reply.reportedBy.push(reporterId);
+    if (reason) { if (!reply.reportReasons) reply.reportReasons = []; reply.reportReasons.push({ id: reporterId, reason }); }
+    if (typeof pushLog === 'function') pushLog(isPartnerReporter ? 'PARTNER' : 'CLIENT', 'COMMUNITY_REPLY_REPORT', `'${reporterName}'가 답글(작성자: ${reply.authorName})을 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
     showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
     openCommunityDetail(postId);
 }
@@ -4229,12 +4245,12 @@ function openCommunityDetail(postId) {
                     return `
                     <div class="space-y-0.5">
                         <div class="flex items-center justify-between">
-                            <span class="text-[11px] font-black text-ink-800">${escapeHtml(r.authorName)}</span>
+                            <span class="text-[11px] font-black text-ink-800 flex items-center gap-1">${escapeHtml(r.authorName)}${r.authorType === 'partner' ? `<span class="badge badge-brand"><i data-lucide="badge-check" class="w-2.5 h-2.5"></i> 전문가</span>` : ''}</span>
                             <div class="flex items-center gap-2">
                                 <span class="text-[10px] text-ink-400 font-bold">${r.date}${r.edited ? ' (수정됨)' : ''}</span>
-                                ${myId && r.authorId === myId ? `
+                                ${viewerCommentId && r.authorId === viewerCommentId ? `
                                 <button type="button" onclick="toggleReplyEdit('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">${isReplyEditing ? '취소' : '수정'}</button>
-                                <button type="button" onclick="deleteCommunityReply('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (myId && r.authorId !== myId ? `
+                                <button type="button" onclick="deleteCommunityReply('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (viewerCommentId && r.authorId !== viewerCommentId ? `
                                 <button type="button" onclick="${isCommunityCommentReportedByMe(r) ? `showToast('이미 신고한 답글입니다.', 'info')` : `openReportReasonPrompt((reason) => reportCommunityReply('${post.id}', ${idx}, ${rIdx}, reason))`}" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${isCommunityCommentReportedByMe(r) ? '신고됨' : '신고'}</button>` : '')}
                             </div>
                         </div>
