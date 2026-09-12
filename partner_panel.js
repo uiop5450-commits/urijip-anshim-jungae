@@ -2785,8 +2785,8 @@ function getAllPendingAppeals() {
     (window.AppState.communityDeletionLog || []).forEach(e => {
         if (e.appeal && e.appeal.status === 'pending') {
             items.push({
-                typeLabel: '커뮤니티 게시글 삭제 이의신청', subject: `${e.authorName} · ${e.postSnapshot.title}`, reason: e.appeal.reason, date: e.appeal.date,
-                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectCommunityDeletionAppeal('${e.id}', reason))`) + approveBtn('승인(게시글 복원)', `adminApproveCommunityDeletionAppeal('${e.id}')`)
+                typeLabel: `커뮤니티 ${e.typeLabelKo} 삭제 이의신청`, subject: `${e.authorName} · ${e.contentPreview}`, reason: e.appeal.reason, date: e.appeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectCommunityDeletionAppeal('${e.id}', reason))`) + approveBtn(`승인(${e.typeLabelKo} 복원)`, `adminApproveCommunityDeletionAppeal('${e.id}')`)
             });
         }
     });

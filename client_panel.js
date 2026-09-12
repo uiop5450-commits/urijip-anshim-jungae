@@ -2385,7 +2385,7 @@ function submitCommunityDeletionAppeal() {
     entry.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
 
     const auth = window.AppState.clientAuth;
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_DELETION_APPEAL', `[${auth.name}] 고객님이 삭제된 게시글 "${entry.postSnapshot.title}"에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_DELETION_APPEAL', `[${auth.name}] 고객님이 삭제된 ${entry.typeLabelKo} "${entry.contentPreview}"에 대해 이의신청을 제출했습니다.`, 'WARNING');
     showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
 
     closeCommunityDeletionAppealModal();
@@ -2399,7 +2399,7 @@ function renderClientCommunityDeletionStatus() {
     const myEntries = (window.AppState.communityDeletionLog || []).filter(e => e.authorId === auth.id);
 
     if (myEntries.length === 0) {
-        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">삭제된 게시글이 없습니다.</p>`;
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">삭제된 게시글/댓글이 없습니다.</p>`;
         return;
     }
     container.innerHTML = myEntries.map(e => {
@@ -2412,7 +2412,7 @@ function renderClientCommunityDeletionStatus() {
             statusHtml = `<button type="button" onclick="openCommunityDeletionAppealModal('${e.id}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">이의신청하기</button>`;
         }
         return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5">
-            <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">작성하신 게시글이 삭제되었습니다: "${escapeHtml(e.postSnapshot.title)}" (${e.date})</p>
+            <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">작성하신 ${e.typeLabelKo}이 삭제되었습니다: "${escapeHtml(e.contentPreview)}" (${e.date})</p>
             ${statusHtml}
         </div>`;
     }).join('');
@@ -3853,32 +3853,47 @@ function adminDeleteCommunityPost(postId) {
     const reportedBy = post.reportedBy;
     window.AppState.communityPosts.splice(idx, 1);
 
-    if (!window.AppState.communityDeletionLog) window.AppState.communityDeletionLog = [];
-    const logEntry = { id: `cdl-${Date.now()}-${Math.floor(Math.random() * 1000)}`, authorId: post.authorId, authorName: post.authorName, postSnapshot: post, date: getLocalDateString(), appeal: null };
-    window.AppState.communityDeletionLog.unshift(logEntry);
+    logCommunityDeletionAppealable('post', '게시글', post.title, post.authorId, post.authorName, { postSnapshot: post });
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})을 매니저 센터에서 삭제 조치함.`, 'WARNING');
     if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 게시글이 검토 후 삭제 처리되었습니다.`);
-    const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === post.authorId);
-    if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') pushClientNotification(authorAccount.phone, `작성하신 게시글 "${post.title}"이 매니저 센터 검토 후 삭제되었습니다. 부당하다고 생각되시면 마이페이지에서 소명하실 수 있어요.`);
     showToast('게시글을 삭제했습니다.', 'info');
     renderAdminCommunityModeration();
 }
 
 /* 후기 삭제 이의신청 승인(adminApproveReviewDeletionAppeal, partner_panel.js)과
- * 동일하게, 스냅샷을 그대로 communityPosts에 되돌려 복원한다. */
+ * 동일하게, 스냅샷을 그대로 되돌려 복원한다 — type에 따라 복원 대상 컨테이너만
+ * 다르다(게시글→communityPosts, 댓글→해당 게시글의 comments, 답글→해당 댓글의
+ * replies). 원래 배열 위치는 의미가 없으므로 맨 위/끝에 다시 올린다. */
 function adminApproveCommunityDeletionAppeal(logId) {
     const entry = (window.AppState.communityDeletionLog || []).find(e => e.id === logId);
     if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
 
-    if (!window.AppState.communityPosts) window.AppState.communityPosts = [];
-    window.AppState.communityPosts.unshift(entry.postSnapshot);
+    if (entry.type === 'reply') {
+        /* 답글의 부모 댓글이 그 사이 함께 삭제됐다면(commentRef가 postRef.comments에서
+         * 이미 떨어져 나간 상태) 답글을 되돌릴 자리가 없다 — 내용을 잃지 않도록
+         * 게시글의 일반 댓글로 대신 복원한다. */
+        const parentStillAttached = (entry.postRef.comments || []).includes(entry.commentRef);
+        if (parentStillAttached) {
+            if (!entry.commentRef.replies) entry.commentRef.replies = [];
+            entry.commentRef.replies.push(entry.replySnapshot);
+        } else {
+            if (!entry.postRef.comments) entry.postRef.comments = [];
+            entry.postRef.comments.push(entry.replySnapshot);
+        }
+    } else if (entry.type === 'comment') {
+        if (!entry.postRef.comments) entry.postRef.comments = [];
+        entry.postRef.comments.push(entry.commentSnapshot);
+    } else {
+        if (!window.AppState.communityPosts) window.AppState.communityPosts = [];
+        window.AppState.communityPosts.unshift(entry.postSnapshot);
+    }
     window.AppState.communityDeletionLog = window.AppState.communityDeletionLog.filter(e => e.id !== logId);
 
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_DELETION_APPEAL_APPROVE', `[이의신청 승인] 게시글 "${entry.postSnapshot.title}"을 재검토하여 복원했습니다.`, 'SUCCESS');
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_DELETION_APPEAL_APPROVE', `[이의신청 승인] ${entry.typeLabelKo} "${entry.contentPreview}"을 재검토하여 복원했습니다.`, 'SUCCESS');
     const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === entry.authorId);
-    if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') pushClientNotification(authorAccount.phone, `제출하신 이의신청이 승인되어 삭제됐던 게시글이 복원되었습니다.`);
-    showToast('게시글을 복원했습니다.', 'success');
+    if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') pushClientNotification(authorAccount.phone, `제출하신 이의신청이 승인되어 삭제됐던 ${entry.typeLabelKo}이 복원되었습니다.`);
+    showToast(`${entry.typeLabelKo}을 복원했습니다.`, 'success');
     if (typeof renderAdminCommunityModeration === 'function') renderAdminCommunityModeration();
     if (typeof renderAdminAppealInbox === 'function') renderAdminAppealInbox();
 }
@@ -3890,18 +3905,32 @@ function adminRejectCommunityDeletionAppeal(logId, reason) {
     entry.appeal.adminResponse = reason;
     entry.appeal.resolvedDate = getLocalDateString();
 
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_DELETION_APPEAL_REJECT', `[이의신청 반려] 게시글 "${entry.postSnapshot.title}" 삭제 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_DELETION_APPEAL_REJECT', `[이의신청 반려] ${entry.typeLabelKo} "${entry.contentPreview}" 삭제 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
     const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === entry.authorId);
     if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') pushClientNotification(authorAccount.phone, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
     showToast('이의신청을 반려했습니다.', 'info');
     if (typeof renderAdminAppealInbox === 'function') renderAdminAppealInbox();
 }
 
+/* 게시글 삭제 이의신청과 동일한 비대칭이 댓글·답글에도 그대로 있다 — 작성자가
+ * 파트너(authorId가 'partner:'로 시작)인 경우는 client_panel의 이의신청 체계
+ * 대상이 아니므로 로그를 남기지 않는다(향후 파트너용 소명 기능은 별도 과제). */
+function logCommunityDeletionAppealable(type, typeLabelKo, contentPreview, authorId, authorName, extra) {
+    if (!authorId || String(authorId).startsWith('partner:')) return;
+    if (!window.AppState.communityDeletionLog) window.AppState.communityDeletionLog = [];
+    const logEntry = Object.assign({ id: `cdl-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type, typeLabelKo, contentPreview, authorId, authorName, date: getLocalDateString(), appeal: null }, extra);
+    window.AppState.communityDeletionLog.unshift(logEntry);
+    const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === authorId);
+    if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') pushClientNotification(authorAccount.phone, `작성하신 ${typeLabelKo}이 매니저 센터 검토 후 삭제되었습니다. 부당하다고 생각되시면 마이페이지에서 소명하실 수 있어요.`);
+}
+
 function adminDeleteCommunityComment(postId, commentIndex) {
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     if (!post || !post.comments || !post.comments[commentIndex]) return;
-    const reportedBy = post.comments[commentIndex].reportedBy;
+    const comment = post.comments[commentIndex];
+    const reportedBy = comment.reportedBy;
     post.comments.splice(commentIndex, 1);
+    logCommunityDeletionAppealable('comment', '댓글', comment.text, comment.authorId, comment.authorName, { postRef: post, commentSnapshot: comment });
     if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})의 댓글을 매니저 센터에서 삭제 조치함.`, 'WARNING');
     if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 댓글이 검토 후 삭제 처리되었습니다.`);
     showToast('댓글을 삭제했습니다.', 'info');
@@ -3912,8 +3941,10 @@ function adminDeleteCommunityReply(postId, commentIndex, replyIndex) {
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     const comment = post && post.comments && post.comments[commentIndex];
     if (!comment || !comment.replies || !comment.replies[replyIndex]) return;
-    const reportedBy = comment.replies[replyIndex].reportedBy;
+    const reply = comment.replies[replyIndex];
+    const reportedBy = reply.reportedBy;
     comment.replies.splice(replyIndex, 1);
+    logCommunityDeletionAppealable('reply', '답글', reply.text, reply.authorId, reply.authorName, { postRef: post, commentRef: comment, replySnapshot: reply });
     if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})의 답글을 매니저 센터에서 삭제 조치함.`, 'WARNING');
     if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 답글이 검토 후 삭제 처리되었습니다.`);
     showToast('답글을 삭제했습니다.', 'info');
