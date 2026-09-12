@@ -2472,6 +2472,57 @@ function getSortedBidsForDisplay(bids) {
     return bids;
 }
 
+/* 정렬(sort)로는 "훑어보는" 문제만 풀리고, 2~3곳을 나란히 놓고 견적금액·평점·인증
+ * 여부·제안 내용을 한눈에 대조하는 진짜 "비교"는 여전히 카드를 오가며 눈으로 해야
+ * 했다 — 체크박스로 고른 입찰서를 표로 모아 보여준다. */
+let bidCompareSelection = [];
+
+function toggleBidCompareSelection(orderCode, partnerName) {
+    const idx = bidCompareSelection.indexOf(partnerName);
+    if (idx >= 0) {
+        bidCompareSelection.splice(idx, 1);
+    } else {
+        if (bidCompareSelection.length >= 3) { showToast('최대 3곳까지 비교할 수 있어요.', 'warning'); return; }
+        bidCompareSelection.push(partnerName);
+    }
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (order) renderMyPageEstimateDetails(order);
+}
+
+function openBidCompareModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order) return;
+    const selectedBids = (order.bids || []).filter(b => bidCompareSelection.includes(b.partner));
+    if (selectedBids.length < 2) { showToast('비교할 입찰서를 2곳 이상 선택해주세요.', 'warning'); return; }
+
+    const container = document.getElementById('bid-compare-modal-body');
+    if (container) {
+        const rowsDef = [
+            { label: '견적 금액', render: b => `<span class="font-black text-ink-950">₩ ${b.price.toLocaleString()}만원</span>` },
+            { label: '평점', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return `<span class="font-bold text-gold-600">★ ${p ? p.rating.toFixed(1) : '5.0'}</span>`; } },
+            { label: '안심 인증', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return p && p.isCertified ? `<span class="badge badge-brand">인증</span>` : '-'; } },
+            { label: '제안 내용', render: b => `<span class="text-ink-600">${escapeHtml(b.desc)}</span>`, alignTop: true }
+        ];
+        container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs text-left border-collapse">
+            <thead><tr class="border-b border-ink-200">
+                <th class="py-2 pr-3 font-black text-ink-400 whitespace-nowrap">항목</th>
+                ${selectedBids.map(b => `<th class="py-2 px-3 font-black text-ink-950 whitespace-nowrap">${escapeHtml(b.partner)}</th>`).join('')}
+            </tr></thead>
+            <tbody>
+                ${rowsDef.map(row => `<tr class="border-b border-ink-100">
+                    <td class="py-2 pr-3 font-bold text-ink-500 whitespace-nowrap ${row.alignTop ? 'align-top' : ''}">${row.label}</td>
+                    ${selectedBids.map(b => `<td class="py-2 px-3 ${row.alignTop ? 'align-top' : ''}">${row.render(b)}</td>`).join('')}
+                </tr>`).join('')}
+            </tbody>
+        </table></div>`;
+    }
+    openModal('bid-compare-modal', 'bid-compare-modal-card');
+}
+
+function closeBidCompareModal() {
+    closeModal('bid-compare-modal', 'bid-compare-modal-card');
+}
+
 function selectMyPageEstimate(orderCode) {
     window.AppState.selectedMyPageOrderCode = orderCode;
     const order = window.AppState.orders.find(o => o.code === orderCode);
@@ -2566,10 +2617,12 @@ function renderMyPageEstimateDetails(order) {
             // 무의미해지므로, 제명된 파트너의 입찰은 계약 체결을 막고 매칭취소만 유도한다.
             const isBannedBid = partnerInfo && partnerInfo.status === 'banned';
 
+            const showCompareCheckbox = order.status === 'bidding' && !isBannedBid;
             bidsHtml += `
                 <div class="p-4 rounded-2xl border ${isContracted ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : (isBannedBid ? 'border-rose-200 bg-rose-50/40' : 'border-ink-100 bg-ink-50/70')} text-left space-y-3">
                     <div class="flex justify-between items-center text-xs">
                         <div class="flex items-center gap-2">
+                            ${showCompareCheckbox ? `<input type="checkbox" onchange="toggleBidCompareSelection('${order.code}', '${bid.partner}')" ${bidCompareSelection.includes(bid.partner) ? 'checked' : ''} class="w-3.5 h-3.5 shrink-0" aria-label="비교 대상으로 선택">` : ''}
                             <span class="font-black text-ink-950 cursor-pointer hover:underline" onclick="openPartnerPortfolioModal('${bid.partner}')">${escapeHtml(bid.partner)}</span>
                             <span class="text-gold-500 font-extrabold text-xs">★ ${ratingVal}</span>
                             ${isBannedBid ? `<span class="badge badge-rose">영구 제명</span>` : ''}
@@ -2721,7 +2774,8 @@ function renderMyPageEstimateDetails(order) {
                             <option value="default" ${clientBidSortMode === 'default' ? 'selected' : ''}>도착순</option>
                             <option value="price_asc" ${clientBidSortMode === 'price_asc' ? 'selected' : ''}>가격 낮은순</option>
                             <option value="rating_desc" ${clientBidSortMode === 'rating_desc' ? 'selected' : ''}>평점 높은순</option>
-                        </select>` : ''}
+                        </select>
+                        <button type="button" onclick="openBidCompareModal('${order.code}')" ${bidCompareSelection.length < 2 ? 'disabled' : ''} class="btn btn-secondary btn-sm shrink-0"><i data-lucide="columns-3" class="w-3.5 h-3.5"></i> 비교하기${bidCompareSelection.length > 0 ? ` (${bidCompareSelection.length})` : ''}</button>` : ''}
                         ${(order.status !== 'contracted' && !order.is1on1) ? `<button type="button" onclick="triggerRebidding('${order.code}')" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 새 파트너 재매칭 받기</button>` : ''}
                     </div>
                 </div>
@@ -3943,6 +3997,9 @@ window.cancelSupportTicket = cancelSupportTicket;
 window.submitSupportFollowUp = submitSupportFollowUp;
 window.selectMyPageEstimate = selectMyPageEstimate;
 window.setClientBidSortMode = setClientBidSortMode;
+window.toggleBidCompareSelection = toggleBidCompareSelection;
+window.openBidCompareModal = openBidCompareModal;
+window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
 window.convertOrderToOpenMatching = convertOrderToOpenMatching;
