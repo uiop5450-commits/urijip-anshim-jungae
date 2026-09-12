@@ -2141,6 +2141,7 @@ function openPartnerOrderDetailModal(orderCode) {
                 <button type="button" onclick="requestReviewFromClient('${order.code}')" class="btn btn-secondary btn-sm" ${order.lastReviewReminderDate === getLocalDateString() ? 'disabled' : ''}>${order.lastReviewReminderDate === getLocalDateString() ? '오늘 요청 완료' : '후기 작성 요청 보내기'}</button>
             </div>` : ''}
             ${buildPartnerRepairClaimsHtml(order)}
+            ${typeof buildOrderMessageThreadHtml === 'function' ? buildOrderMessageThreadHtml(order, 'partner') : ''}
             <div class="surface p-5 space-y-2">
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="flag" class="w-4 h-4 text-roseCustom"></i> 고객 신고</h5>
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">노쇼, 상습 갑질 등 불량 고객은 매니저 센터에 신고할 수 있어요.</p>
@@ -4337,6 +4338,17 @@ function buildPartnerRepairClaimsHtml(order) {
     </div>`;
 }
 
+/* buildOrderMessageThreadHtml(utils_ui.js)의 파트너 쪽 전송 핸들러 — 고객 쪽
+ * sendClientOrderMessage(client_panel.js)와 대칭. */
+function sendPartnerOrderMessage(orderCode) {
+    const input = document.getElementById(`order-message-input-${orderCode}`);
+    const text = input ? input.value : '';
+    if (!text.trim()) { showToast('메시지를 입력해주세요.', 'warning'); return; }
+    if (typeof sendOrderMessage === 'function') sendOrderMessage(orderCode, 'partner', text);
+    if (input) input.value = '';
+    openPartnerOrderDetailModal(orderCode);
+}
+
 let _repairClaimResponseTarget = null;
 
 function openRepairClaimResponseModal(orderCode, claimId, newStatus) {
@@ -5926,6 +5938,7 @@ window.adminApproveClientRatingAppeal = adminApproveClientRatingAppeal;
 window.adminRejectClientRatingAppeal = adminRejectClientRatingAppeal;
 window.adminApprovePortfolioDeletionAppeal = adminApprovePortfolioDeletionAppeal;
 window.adminRejectPortfolioDeletionAppeal = adminRejectPortfolioDeletionAppeal;
+window.sendPartnerOrderMessage = sendPartnerOrderMessage;
 window.openClientRatingModal = openClientRatingModal;
 window.closeClientRatingModal = closeClientRatingModal;
 window.setClientRatingStar = setClientRatingStar;

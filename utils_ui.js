@@ -300,6 +300,59 @@ function grantClientBenefit(clientPhone, type, label, amount, orderCode) {
  * 도구일 뿐, 협조도·소통 등을 별점으로 남기는 일반 평가와는 다르다.
  * submitClientRating(partner_panel.js)이 쌓는 window.AppState.clientRatings를
  * 전화번호 기준으로 집계해 다른 파트너에게 참고 정보로 보여준다. */
+/* 계약 체결 후 실측/일정변경/금액변경/마일스톤 청구는 전부 각자 전용 모달로
+ * 조율할 수 있는데, "자재 언제 배송되나요?" 같은 일상적인 소통을 나눌 방법이
+ * 전혀 없었다 — 관리자-당사자 간 1:1 쪽지(directMessageThreads, partner_panel.js)는
+ * 있지만 고객↔파트너가 직접 대화하는 경로는 없었다. 사진/읽음표시 없는 최소
+ * 범위(메시지 목록+전송)의 스레드를 계약 상세 화면 양쪽에 공통으로 둔다. */
+function getOrInitOrderMessages(order) {
+    if (!order.messages) order.messages = [];
+    return order.messages;
+}
+
+function sendOrderMessage(orderCode, fromRole, text) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order) return;
+    const trimmed = (text || '').trim();
+    if (!trimmed) return;
+    const messages = getOrInitOrderMessages(order);
+    messages.push({ from: fromRole, text: trimmed, date: getLocalDateString() });
+
+    const preview = trimmed.length > 40 ? `${trimmed.slice(0, 40)}...` : trimmed;
+    if (fromRole === 'client') {
+        if (typeof pushLog === 'function') pushLog('CLIENT', 'ORDER_MESSAGE', `[${order.clientName}] 고객님이 계약(${order.code})에 메시지를 보냈습니다.`, 'INFO');
+        if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 메시지를 보냈어요: "${preview}"`);
+    } else {
+        if (typeof pushLog === 'function') pushLog('PARTNER', 'ORDER_MESSAGE', `[${order.acceptedPartner}]가 계약(${order.code})에 메시지를 보냈습니다.`, 'INFO');
+        if (typeof pushClientNotification === 'function' && order.clientPhone) pushClientNotification(order.clientPhone, `${order.acceptedPartner}가 메시지를 보냈어요: "${preview}"`);
+    }
+    return messages;
+}
+
+function buildOrderMessageThreadHtml(order, viewerRole) {
+    const messages = getOrInitOrderMessages(order);
+    const listHtml = messages.length === 0
+        ? `<p class="text-[11px] text-ink-400 font-semibold text-center py-3">아직 메시지가 없습니다.</p>`
+        : messages.map(m => {
+            const isMine = m.from === viewerRole;
+            return `<div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
+                <div class="max-w-[80%] ${isMine ? 'bg-brand-500 text-white' : 'bg-ink-100 text-ink-800'} rounded-2xl px-3 py-2">
+                    <p class="text-[11px] font-semibold leading-relaxed whitespace-pre-wrap">${escapeHtml(m.text)}</p>
+                    <p class="text-[9px] ${isMine ? 'text-white/70' : 'text-ink-400'} font-bold mt-0.5">${m.date}</p>
+                </div>
+            </div>`;
+        }).join('');
+    const sendFn = viewerRole === 'client' ? 'sendClientOrderMessage' : 'sendPartnerOrderMessage';
+    return `<div class="surface p-5 space-y-3">
+        <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="message-circle" class="w-4 h-4 text-brand-500"></i> 메시지</h5>
+        <div class="space-y-2 max-h-64 overflow-y-auto custom-scroll pr-1">${listHtml}</div>
+        <div class="flex gap-1.5">
+            <input type="text" id="order-message-input-${order.code}" placeholder="메시지를 입력하세요" class="input flex-1 text-xs" onkeydown="if(event.key==='Enter'){${sendFn}('${order.code}');}">
+            <button type="button" onclick="${sendFn}('${order.code}')" class="btn btn-dark btn-sm shrink-0">전송</button>
+        </div>
+    </div>`;
+}
+
 function getClientAverageRating(clientPhone) {
     const ratings = (window.AppState.clientRatings || []).filter(r => r.clientPhone === clientPhone);
     if (ratings.length === 0) return null;
@@ -502,6 +555,9 @@ window.isWarrantyExpired = isWarrantyExpired;
 window.getOrInitPaymentMilestones = getOrInitPaymentMilestones;
 window.isMilestoneOverdue = isMilestoneOverdue;
 window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
+window.getOrInitOrderMessages = getOrInitOrderMessages;
+window.sendOrderMessage = sendOrderMessage;
+window.buildOrderMessageThreadHtml = buildOrderMessageThreadHtml;
 window.getClientAverageRating = getClientAverageRating;
 window.grantPartnerBenefit = grantPartnerBenefit;
 window.grantClientBenefit = grantClientBenefit;

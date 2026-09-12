@@ -976,6 +976,20 @@ function buildRepairClaimsHtml(order) {
     </div>`;
 }
 
+/* 계약 체결 후 실측 일정·착공일 변경·금액 변경·마일스톤 청구는 모두 각자 전용
+ * 모달로 조율할 수 있는데, 정작 "자재 언제 배송되나요?" 같은 일상적인 소통을
+ * 나눌 방법이 전혀 없었다 — 매니저-당사자 간 1:1 쪽지(directMessageThreads)는
+ * 있지만 고객-파트너가 서로 직접 대화하는 경로는 없었던 공백. 사진/읽음표시 없는
+ * 최소 범위의 메시지 스레드를 계약 상세 화면에 둔다. */
+function sendClientOrderMessage(orderCode) {
+    const input = document.getElementById(`order-message-input-${orderCode}`);
+    const text = input ? input.value : '';
+    if (!text.trim()) { showToast('메시지를 입력해주세요.', 'warning'); return; }
+    if (typeof sendOrderMessage === 'function') sendOrderMessage(orderCode, 'client', text);
+    if (input) input.value = '';
+    selectMyPageEstimate(orderCode);
+}
+
 /* 계약 전(입찰 진행 중)에는 openEditOrderBudgetModal로 착공일을 자유롭게 고칠 수 있지만,
  * 계약 체결 후에는 이미 파트너 일정이 확정되어 있어 고객이 일방적으로 날짜를 바꾸면
  * 시공 일정이 충돌할 수 있다 — 상대방(계약 파트너사) 동의를 받아야 하는 별도
@@ -2730,6 +2744,7 @@ function renderMyPageEstimateDetails(order) {
         ${buildProgressStagesHtml(order)}
         ${buildPaymentMilestonesHtml(order)}
         ${buildRepairClaimsHtml(order)}
+        ${typeof buildOrderMessageThreadHtml === 'function' ? buildOrderMessageThreadHtml(order, 'client') : ''}
         <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>
         ${isPartnerReportedByMeForOrder(order.code)
             ? `<div class="flex items-center justify-center gap-2 mt-2"><span class="badge badge-neutral">계약 파트너사 신고 접수됨</span><button type="button" onclick="retractPartnerReport('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">철회</button></div>`
@@ -3999,6 +4014,7 @@ window.selectMyPageEstimate = selectMyPageEstimate;
 window.setClientBidSortMode = setClientBidSortMode;
 window.toggleBidCompareSelection = toggleBidCompareSelection;
 window.openBidCompareModal = openBidCompareModal;
+window.sendClientOrderMessage = sendClientOrderMessage;
 window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
