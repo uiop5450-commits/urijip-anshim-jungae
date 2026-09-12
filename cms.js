@@ -796,6 +796,68 @@ function submitInvalidatedBidAppeal() {
     if (typeof searchOrderLookup === 'function') searchOrderLookup();
 }
 
+/* 후기 삭제 이의신청(openReviewDeletionAppealModal, client_panel.js)과 동일한 패턴을
+ * 시공사례 삭제(adminDeletePortfolio, partner_panel.js가 남기는
+ * window.AppState.portfolioDeletionLog)에도 적용한다 — 지금까지는 삭제 통보만 받고
+ * 소명할 방법이 없었다. */
+let portfolioDeletionAppealTarget = null;
+
+function openPortfolioDeletionAppealModal(logId) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const entry = (window.AppState.portfolioDeletionLog || []).find(e => e.id === logId && e.partnerName === partnerName);
+    if (!entry) return;
+    if (entry.appeal && entry.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    portfolioDeletionAppealTarget = logId;
+    safeUpdateValue('portfolio-deletion-appeal-reason-input', '');
+    openModal('portfolio-deletion-appeal-modal', 'portfolio-deletion-appeal-modal-card');
+}
+
+function closePortfolioDeletionAppealModal() {
+    portfolioDeletionAppealTarget = null;
+    closeModal('portfolio-deletion-appeal-modal', 'portfolio-deletion-appeal-modal-card');
+}
+
+function submitPortfolioDeletionAppeal() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const entry = (window.AppState.portfolioDeletionLog || []).find(e => e.id === portfolioDeletionAppealTarget && e.partnerName === partnerName);
+    if (!entry) { closePortfolioDeletionAppealModal(); return; }
+    const reason = document.getElementById('portfolio-deletion-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    entry.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PORTFOLIO_DELETION_APPEAL', `[${partnerName}]가 삭제된 시공사례에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closePortfolioDeletionAppealModal();
+    renderPartnerPortfolioDeletionStatus(partnerName);
+}
+
+function renderPartnerPortfolioDeletionStatus(partnerName) {
+    const container = document.getElementById('partner-portfolio-deletion-status');
+    if (!container) return;
+    const entries = (window.AppState.portfolioDeletionLog || []).filter(e => e.partnerName === partnerName);
+
+    if (entries.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">삭제된 시공사례가 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = entries.map(e => {
+        let statusHtml;
+        if (e.appeal && e.appeal.status === 'pending') {
+            statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">이의신청 심사 대기중</p>`;
+        } else if (e.appeal && e.appeal.status === 'rejected') {
+            statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">이의신청 반려됨${e.appeal.adminResponse ? ` — ${escapeHtml(e.appeal.adminResponse)}` : ''}</p>`;
+        } else {
+            statusHtml = `<button type="button" onclick="openPortfolioDeletionAppealModal('${e.id}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">이의신청하기</button>`;
+        }
+        return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5">
+            <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">시공사례 "${escapeHtml(e.portfolioSnapshot.title || '(제목 없음)')}"가 삭제되었습니다. (${e.date})</p>
+            ${statusHtml}
+        </div>`;
+    }).join('');
+}
+
 function renderPartnerInvalidatedBidsStatus(partnerName) {
     const container = document.getElementById('partner-invalidated-bids-status');
     if (!container) return;
@@ -913,6 +975,7 @@ function renderPartnerProfileManager() {
     renderPartnerStrikeAppealStatus(partner);
     renderPartnerReportedStatus(partnerName);
     renderPartnerInvalidatedBidsStatus(partnerName);
+    renderPartnerPortfolioDeletionStatus(partnerName);
     renderPartnerCertStatus(partner);
     renderPartnerBenefitsStatus(partner);
     safeUpdateText('partner-account-bizcert-filename', partner.bizCertDoc ? partner.bizCertDoc.name : '첨부된 사업자등록증이 없습니다.');
@@ -2083,6 +2146,10 @@ window.openInvalidatedBidAppealModal = openInvalidatedBidAppealModal;
 window.closeInvalidatedBidAppealModal = closeInvalidatedBidAppealModal;
 window.submitInvalidatedBidAppeal = submitInvalidatedBidAppeal;
 window.renderPartnerInvalidatedBidsStatus = renderPartnerInvalidatedBidsStatus;
+window.openPortfolioDeletionAppealModal = openPortfolioDeletionAppealModal;
+window.closePortfolioDeletionAppealModal = closePortfolioDeletionAppealModal;
+window.submitPortfolioDeletionAppeal = submitPortfolioDeletionAppeal;
+window.renderPartnerPortfolioDeletionStatus = renderPartnerPortfolioDeletionStatus;
 window.renderPartnerCertStatus = renderPartnerCertStatus;
 window.renderPartnerBenefitsStatus = renderPartnerBenefitsStatus;
 window.claimPartnerBenefit = claimPartnerBenefit;

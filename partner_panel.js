@@ -2644,6 +2644,14 @@ function getAllPendingAppeals() {
             });
         }
     });
+    (window.AppState.portfolioDeletionLog || []).forEach(e => {
+        if (e.appeal && e.appeal.status === 'pending') {
+            items.push({
+                typeLabel: '시공사례 삭제 이의신청', subject: `${e.partnerName} · ${e.portfolioSnapshot.title || '(제목 없음)'}`, reason: e.appeal.reason, date: e.appeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectPortfolioDeletionAppeal('${e.id}', reason))`) + approveBtn('승인(시공사례 복원)', `adminApprovePortfolioDeletionAppeal('${e.id}')`)
+            });
+        }
+    });
 
     return items.sort((a, b) => new Date(b.date) - new Date(a.date));
 }
@@ -4079,6 +4087,36 @@ function adminRejectReviewDeletionAppeal(logId, reason) {
     openPartnerMetricsModal(entry.partnerName);
 }
 
+/* 후기 삭제 이의신청(adminApproveReviewDeletionAppeal)과 동일한 패턴 — 승인 시
+ * 스냅샷을 그대로 portfolios 맨 위에 복원한다(신청 당시 배열 위치는 의미가 없다). */
+function adminApprovePortfolioDeletionAppeal(logId) {
+    const entry = (window.AppState.portfolioDeletionLog || []).find(e => e.id === logId);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+    const partner = window.AppState.partners.find(p => p.name === entry.partnerName);
+    if (!partner) return;
+
+    if (!partner.portfolios) partner.portfolios = [];
+    partner.portfolios.unshift(entry.portfolioSnapshot);
+    window.AppState.portfolioDeletionLog = window.AppState.portfolioDeletionLog.filter(e => e.id !== logId);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PORTFOLIO_DELETION_APPEAL_APPROVE', `[이의신청 승인] '${entry.partnerName}' 파트너의 삭제된 시공사례를 재검토하여 복원했습니다.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(entry.partnerName, `제출하신 이의신청이 승인되어 삭제됐던 시공사례가 복원되었습니다.`);
+    showToast('시공사례를 복원했습니다.', 'success');
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+}
+
+function adminRejectPortfolioDeletionAppeal(logId, reason) {
+    const entry = (window.AppState.portfolioDeletionLog || []).find(e => e.id === logId);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+    entry.appeal.status = 'rejected';
+    entry.appeal.adminResponse = reason;
+    entry.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PORTFOLIO_DELETION_APPEAL_REJECT', `[이의신청 반려] '${entry.partnerName}' 파트너의 삭제된 시공사례 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(entry.partnerName, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast('이의신청을 반려했습니다.', 'info');
+}
+
 /* 신고를 검토한 뒤 실제 위반이 아니라고 판단하면 콘텐츠를 지우지 않고 신고만
  * 종료할 방법이 지금까지 없었다 — 계약 취소 심사(approve/reject)와 동일한 승인/반려
  * 대칭 구조를 신고 처리에도 적용한다. 신고 표시만 초기화하고 신고자에게 알린다. */
@@ -4220,10 +4258,24 @@ function adminRejectPartnerReportAppeal(reportId, reason) {
 function adminDeletePortfolio(partnerName, idx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.portfolios || !partner.portfolios[idx]) return;
-    const reportedBy = partner.portfolios[idx].reportedBy;
+    const port = partner.portfolios[idx];
+    const reportedBy = port.reportedBy;
+
     partner.portfolios.splice(idx, 1);
+
+    // 후기 삭제(adminDeleteReview)는 스냅샷을 남겨 작성자 본인에게 알리고 소명(이의신청)할
+    // 방법을 주는데, 시공사례 삭제는 신고자에게만 알리고 정작 작성한 파트너는 삭제
+    // 사실 자체를 통보만 받을 뿐 소명할 방법이 없었다 — 동일한 패턴을 적용한다.
+    if (!window.AppState.portfolioDeletionLog) window.AppState.portfolioDeletionLog = [];
+    const logEntry = {
+        id: `pdl-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        partnerName, portfolioSnapshot: port, date: getLocalDateString(), appeal: null
+    };
+    window.AppState.portfolioDeletionLog.unshift(logEntry);
+
     if (typeof pushLog === 'function') pushLog('MANAGER', 'PORTFOLIO_MODERATE', `[시공사례 삭제] '${partnerName}' 파트너의 시공사례를 매니저 센터에서 삭제 조치함.`, 'WARNING');
     if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 [${partnerName}]의 시공사례가 검토 후 삭제 처리되었습니다.`);
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `등록하신 시공사례("${port.title || '-'}")가 매니저 센터 검토 후 삭제되었습니다. 부당하다고 생각되시면 내 정보에서 소명하실 수 있어요.`);
     showToast('시공사례를 삭제했습니다.', 'info');
     openPartnerMetricsModal(partnerName);
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
@@ -5872,6 +5924,8 @@ window.adminApproveMilestoneDispute = adminApproveMilestoneDispute;
 window.adminRejectMilestoneDispute = adminRejectMilestoneDispute;
 window.adminApproveClientRatingAppeal = adminApproveClientRatingAppeal;
 window.adminRejectClientRatingAppeal = adminRejectClientRatingAppeal;
+window.adminApprovePortfolioDeletionAppeal = adminApprovePortfolioDeletionAppeal;
+window.adminRejectPortfolioDeletionAppeal = adminRejectPortfolioDeletionAppeal;
 window.openClientRatingModal = openClientRatingModal;
 window.closeClientRatingModal = closeClientRatingModal;
 window.setClientRatingStar = setClientRatingStar;
