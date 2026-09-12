@@ -1720,11 +1720,15 @@ function renderClientMyPage() {
         }
 
         const displayAddressTitle = order.is1on1 ? `1:1 지정 상담 (${order.targetPartner})` : `${order.clientAddress.split(' ').slice(0, 3).join(' ')} (${order.pyung}평형)`;
+        const unreadCount = typeof getUnreadOrderMessageCount === 'function' ? getUnreadOrderMessageCount(order, 'client') : 0;
 
         div.innerHTML = `
             <div class="flex justify-between items-center text-[10px] font-bold">
                 <span class="${isSelected ? 'text-ink-950 font-black' : 'text-ink-500'} font-mono">${order.code}</span>
-                ${statusBadge}
+                <div class="flex items-center gap-1.5">
+                    ${unreadCount > 0 ? `<span class="badge badge-rose"><i data-lucide="message-circle" class="w-2.5 h-2.5"></i> ${unreadCount}</span>` : ''}
+                    ${statusBadge}
+                </div>
             </div>
             <h5 class="text-xs font-black ${isSelected ? 'text-ink-950' : 'text-ink-800'}">${displayAddressTitle}</h5>
             <div class="flex justify-between items-center text-[9px] font-extrabold text-ink-500">

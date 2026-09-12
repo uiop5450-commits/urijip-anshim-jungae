@@ -1803,7 +1803,8 @@ function renderPartnerContractsView() {
             : `<span class="badge badge-amber">입찰 심사중</span>`;
         // 이 목록에 뜨는 오더는 전부 우리가 이미 입찰에 참여한 건이므로(이미 안심 잠금해제 대상),
         // selectOrderForAudit()의 "입찰 참여 시 개인정보 잠금해제" 규칙과 동일하게 고객명을 가리지 않는다.
-        return `<tr class="cursor-pointer hover:bg-ink-50 transition-colors" onclick="openPartnerOrderDetailModal('${o.code}')"><td class="font-mono">${o.code}</td><td class="font-black text-ink-950">${o.clientName}</td><td>${o.pyung}평</td><td onclick="event.stopPropagation(); setPartnerContractsStatusFilter('${statusKey}')" class="cursor-pointer" title="이 상태만 필터링">${statusBadge}</td><td class="font-black text-ink-950">₩ ${(myBid ? myBid.price : 0).toLocaleString()}만</td><td><span class="btn btn-outline btn-sm">상세보기</span></td></tr>`;
+        const unreadCount = typeof getUnreadOrderMessageCount === 'function' ? getUnreadOrderMessageCount(o, 'partner') : 0;
+        return `<tr class="cursor-pointer hover:bg-ink-50 transition-colors" onclick="openPartnerOrderDetailModal('${o.code}')"><td class="font-mono">${o.code}${unreadCount > 0 ? ` <span class="badge badge-rose"><i data-lucide="message-circle" class="w-2.5 h-2.5"></i> ${unreadCount}</span>` : ''}</td><td class="font-black text-ink-950">${o.clientName}</td><td>${o.pyung}평</td><td onclick="event.stopPropagation(); setPartnerContractsStatusFilter('${statusKey}')" class="cursor-pointer" title="이 상태만 필터링">${statusBadge}</td><td class="font-black text-ink-950">₩ ${(myBid ? myBid.price : 0).toLocaleString()}만</td><td><span class="btn btn-outline btn-sm">상세보기</span></td></tr>`;
     }).join('') : `<tr><td colspan="6" class="text-center text-ink-400 font-bold py-8">해당 상태의 오더가 없습니다.</td></tr>`;
 
     container.innerHTML = `

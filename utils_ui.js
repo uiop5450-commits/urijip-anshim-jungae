@@ -323,7 +323,7 @@ function sendOrderMessage(orderCode, fromRole, text) {
     const trimmed = (text || '').trim();
     if (!trimmed) return;
     const messages = getOrInitOrderMessages(order);
-    messages.push({ from: fromRole, text: trimmed, date: getLocalDateString() });
+    messages.push({ from: fromRole, text: trimmed, date: getLocalDateString(), read: false });
 
     const preview = trimmed.length > 40 ? `${trimmed.slice(0, 40)}...` : trimmed;
     if (fromRole === 'client') {
@@ -336,7 +336,22 @@ function sendOrderMessage(orderCode, fromRole, text) {
     return messages;
 }
 
+/* 메시지 스레드는 처음엔 사진/읽음표시 없는 최소 범위로 시작했지만, 계약 건이
+ * 여러 개 쌓이면 어느 계약에 안 읽은 메시지가 있는지 전혀 알 수 없어 목록을
+ * 하나하나 열어봐야 했다 — 상대방이 보낸 메시지를 내가 실제로 열람했을 때만
+ * (스레드가 렌더링될 때) 읽음 처리하고, 계약 목록에 안 읽은 개수 배지를 둔다. */
+function getUnreadOrderMessageCount(order, viewerRole) {
+    return (order.messages || []).filter(m => m.from !== viewerRole && !m.read).length;
+}
+
+function markOrderMessagesRead(orderCode, viewerRole) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || !order.messages) return;
+    order.messages.forEach(m => { if (m.from !== viewerRole) m.read = true; });
+}
+
 function buildOrderMessageThreadHtml(order, viewerRole) {
+    if (typeof markOrderMessagesRead === 'function') markOrderMessagesRead(order.code, viewerRole);
     const messages = getOrInitOrderMessages(order);
     const listHtml = messages.length === 0
         ? `<p class="text-[11px] text-ink-400 font-semibold text-center py-3">아직 메시지가 없습니다.</p>`
@@ -566,6 +581,8 @@ window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
 window.getOrInitOrderMessages = getOrInitOrderMessages;
 window.sendOrderMessage = sendOrderMessage;
 window.buildOrderMessageThreadHtml = buildOrderMessageThreadHtml;
+window.getUnreadOrderMessageCount = getUnreadOrderMessageCount;
+window.markOrderMessagesRead = markOrderMessagesRead;
 window.getClientAverageRating = getClientAverageRating;
 window.grantPartnerBenefit = grantPartnerBenefit;
 window.grantClientBenefit = grantClientBenefit;
