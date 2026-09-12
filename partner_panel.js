@@ -2866,6 +2866,14 @@ function getAllPendingAppeals() {
             });
         }
     });
+    (window.AppState.reviewReplyDeletionLog || []).forEach(e => {
+        if (e.appeal && e.appeal.status === 'pending') {
+            items.push({
+                typeLabel: '후기 답글 삭제 이의신청', subject: `${e.partnerName}`, reason: e.appeal.reason, date: e.appeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectReviewReplyDeletionAppeal('${e.id}', reason))`) + approveBtn('승인(답글 복원)', `adminApproveReviewReplyDeletionAppeal('${e.id}')`)
+            });
+        }
+    });
     (window.AppState.communityDeletionLog || []).forEach(e => {
         if (e.appeal && e.appeal.status === 'pending') {
             items.push({
@@ -4589,6 +4597,20 @@ function buildAdminReviewModerationHtml(partner) {
             </div>
             <p class="text-xs text-ink-600 font-medium leading-relaxed">${escapeHtml(r.text)}</p>
             ${buildReportReasonsHtml(r.reportReasons)}
+            ${r.reply && r.reply.text ? (() => {
+                const replyReportCount = (r.reply.reportedBy || []).length;
+                return `<div class="mt-1.5 p-2.5 rounded-lg space-y-1" style="background:var(--brand-50)">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-[10px] font-black text-brand-700 flex items-center gap-1.5"><i data-lucide="reply" class="w-3 h-3"></i> 사장님 답글${replyReportCount > 0 ? ` <span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고 ${replyReportCount}건</span>` : ''}</span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${replyReportCount > 0 ? `<button type="button" onclick="dismissReviewReplyReport('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">신고 반려</button>` : ''}
+                            <button type="button" onclick="adminDeleteReviewReply('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">답글 삭제</button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(r.reply.text)}</p>
+                    ${buildReportReasonsHtml(r.reply.reportReasons)}
+                </div>`;
+            })() : ''}
         </div>`).join('');
 }
 
@@ -4686,6 +4708,129 @@ function dismissReviewReport(partnerName, reviewIdx) {
     if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 [${partnerName}]의 후기를 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
     showToast('신고를 반려했습니다. 후기는 그대로 유지됩니다.', 'info');
     openPartnerMetricsModal(partnerName);
+}
+
+/* 신고된 후기 본문은 adminDeleteReview로 처리할 수 있는데, 그러면 답글까지 함께
+ * 지워지고 고객의 원 후기까지 통째로 사라진다 — 답글(rev.reply)만 문제인 경우
+ * 답글만 골라 지울 방법이 없던 공백. 후기 삭제 이의신청(reviewDeletionLog)과
+ * 동일한 구조로 답글 전용 삭제/신고반려/이의신청 체계를 별도로 둔다. */
+function dismissReviewReplyReport(partnerName, reviewIdx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const rev = partner && partner.reviews && partner.reviews[reviewIdx];
+    if (!rev || !rev.reply || !rev.reply.reportedBy || rev.reply.reportedBy.length === 0) return;
+    const reportedBy = rev.reply.reportedBy;
+    rev.reply.reportedBy = [];
+    rev.reply.reportReasons = [];
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_REPLY_REPORT_DISMISS', `[후기 답글 신고 반려] '${partnerName}' 파트너의 후기 답글 신고를 검토 후 반려(콘텐츠 유지)했습니다.`, 'INFO');
+    if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 [${partnerName}]의 후기 답글을 검토했지만 위반 사항이 확인되지 않아 반려되었습니다.`);
+    showToast('신고를 반려했습니다. 답글은 그대로 유지됩니다.', 'info');
+    openPartnerMetricsModal(partnerName);
+}
+
+function adminDeleteReviewReply(partnerName, reviewIdx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const rev = partner && partner.reviews && partner.reviews[reviewIdx];
+    if (!rev || !rev.reply) return;
+    const reportedBy = rev.reply.reportedBy;
+    const replySnapshot = rev.reply;
+    delete rev.reply;
+
+    if (!window.AppState.reviewReplyDeletionLog) window.AppState.reviewReplyDeletionLog = [];
+    const logEntry = { id: `rrdl-${Date.now()}-${Math.floor(Math.random() * 1000)}`, partnerName, reviewRef: rev, replySnapshot, date: getLocalDateString(), appeal: null };
+    window.AppState.reviewReplyDeletionLog.unshift(logEntry);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_REPLY_MODERATE', `[후기 답글 삭제] '${partnerName}' 파트너의 후기 답글을 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    if (typeof notifyReportResolved === 'function' && reportedBy && reportedBy.length > 0) notifyReportResolved(reportedBy, `신고하신 [${partnerName}]의 후기 답글이 검토 후 삭제 처리되었습니다.`);
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `작성하신 후기 답글이 매니저 센터 검토 후 삭제되었습니다. 부당하다고 생각되시면 마이페이지에서 소명하실 수 있어요.`);
+    showToast('후기 답글을 삭제했습니다.', 'info');
+    openPartnerMetricsModal(partnerName);
+}
+
+let reviewReplyDeletionAppealTargetId = null;
+
+function openReviewReplyDeletionAppealModal(logId) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const entry = (window.AppState.reviewReplyDeletionLog || []).find(e => e.id === logId && e.partnerName === partnerName);
+    if (!entry) return;
+    if (entry.appeal && entry.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    reviewReplyDeletionAppealTargetId = logId;
+    safeUpdateValue('review-reply-deletion-appeal-reason-input', '');
+    openModal('review-reply-deletion-appeal-modal', 'review-reply-deletion-appeal-modal-card');
+}
+
+function closeReviewReplyDeletionAppealModal() {
+    reviewReplyDeletionAppealTargetId = null;
+    closeModal('review-reply-deletion-appeal-modal', 'review-reply-deletion-appeal-modal-card');
+}
+
+function submitReviewReplyDeletionAppeal() {
+    const entry = (window.AppState.reviewReplyDeletionLog || []).find(e => e.id === reviewReplyDeletionAppealTargetId);
+    if (!entry) { closeReviewReplyDeletionAppealModal(); return; }
+    const reason = document.getElementById('review-reply-deletion-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    entry.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'REVIEW_REPLY_DELETION_APPEAL', `[${entry.partnerName}]가 삭제된 후기 답글에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeReviewReplyDeletionAppealModal();
+    renderPartnerReviewReplyDeletionStatus();
+}
+
+function renderPartnerReviewReplyDeletionStatus() {
+    const container = document.getElementById('partner-review-reply-deletion-status');
+    if (!container) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const myEntries = (window.AppState.reviewReplyDeletionLog || []).filter(e => e.partnerName === partnerName);
+
+    if (myEntries.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+    container.innerHTML = `<div class="space-y-2 pt-2">
+        <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest border-b border-ink-100 pb-2">삭제된 내 후기 답글</h4>
+        ${myEntries.map(e => {
+            let statusHtml;
+            if (e.appeal && e.appeal.status === 'pending') {
+                statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">이의신청 심사 대기중</p>`;
+            } else if (e.appeal && e.appeal.status === 'rejected') {
+                statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">이의신청 반려됨${e.appeal.adminResponse ? ` — ${escapeHtml(e.appeal.adminResponse)}` : ''}</p>`;
+            } else {
+                statusHtml = `<button type="button" onclick="openReviewReplyDeletionAppealModal('${e.id}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">이의신청하기</button>`;
+            }
+            return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5 text-left">
+                <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">삭제된 답글: "${escapeHtml(e.replySnapshot.text)}" (${e.date})</p>
+                ${statusHtml}
+            </div>`;
+        }).join('')}
+    </div>`;
+}
+
+function adminApproveReviewReplyDeletionAppeal(logId) {
+    const entry = (window.AppState.reviewReplyDeletionLog || []).find(e => e.id === logId);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+    entry.reviewRef.reply = entry.replySnapshot;
+    window.AppState.reviewReplyDeletionLog = window.AppState.reviewReplyDeletionLog.filter(e => e.id !== logId);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_REPLY_DELETION_APPEAL_APPROVE', `[이의신청 승인] '${entry.partnerName}' 파트너의 삭제된 후기 답글을 재검토하여 복원했습니다.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(entry.partnerName, `제출하신 이의신청이 승인되어 삭제됐던 후기 답글이 복원되었습니다.`);
+    showToast('후기 답글을 복원했습니다.', 'success');
+    openPartnerMetricsModal(entry.partnerName);
+    renderPartnerReviewReplyDeletionStatus();
+}
+
+function adminRejectReviewReplyDeletionAppeal(logId, reason) {
+    const entry = (window.AppState.reviewReplyDeletionLog || []).find(e => e.id === logId);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+    entry.appeal.status = 'rejected';
+    entry.appeal.adminResponse = reason;
+    entry.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_REPLY_DELETION_APPEAL_REJECT', `[이의신청 반려] '${entry.partnerName}' 파트너의 후기 답글 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(entry.partnerName, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast('이의신청을 반려했습니다.', 'info');
+    renderPartnerReviewReplyDeletionStatus();
 }
 
 /* 커뮤니티 글/후기 신고는 관리자가 검토할 수 있는데, 파트너가 올리는 시공사례
@@ -6790,6 +6935,14 @@ window.adminRejectPartnerDoc = adminRejectPartnerDoc;
 window.retractPartnerCancellationRequest = retractPartnerCancellationRequest;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
+window.dismissReviewReplyReport = dismissReviewReplyReport;
+window.adminDeleteReviewReply = adminDeleteReviewReply;
+window.openReviewReplyDeletionAppealModal = openReviewReplyDeletionAppealModal;
+window.closeReviewReplyDeletionAppealModal = closeReviewReplyDeletionAppealModal;
+window.submitReviewReplyDeletionAppeal = submitReviewReplyDeletionAppeal;
+window.renderPartnerReviewReplyDeletionStatus = renderPartnerReviewReplyDeletionStatus;
+window.adminApproveReviewReplyDeletionAppeal = adminApproveReviewReplyDeletionAppeal;
+window.adminRejectReviewReplyDeletionAppeal = adminRejectReviewReplyDeletionAppeal;
 window.dismissPortfolioReport = dismissPortfolioReport;
 window.adminDeletePortfolioQuestion = adminDeletePortfolioQuestion;
 window.downloadEstimateDoc = downloadEstimateDoc;

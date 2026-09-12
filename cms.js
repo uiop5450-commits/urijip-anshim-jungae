@@ -1164,6 +1164,7 @@ function renderPartnerMyReviews(partner) {
                 </div>
             `}
         </div>`).join('');
+    if (typeof renderPartnerReviewReplyDeletionStatus === 'function') renderPartnerReviewReplyDeletionStatus();
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -1583,6 +1584,14 @@ function openReviewDetailModal(partnerName, reviewIdx) {
         safeUpdateText('review-detail-reply-author', partnerName);
         const replyTextEl = document.getElementById('review-detail-reply-text');
         if (replyTextEl) replyTextEl.innerText = rev.reply.text;
+        const replyReportBtn = document.getElementById('review-detail-reply-report-btn');
+        if (replyReportBtn) {
+            const replyReported = isReviewReplyReportedByMe(rev);
+            replyReportBtn.onclick = () => { openReportReasonPrompt((reason) => reportReviewReply(partnerName, reviewIdx, reason)); };
+            replyReportBtn.disabled = replyReported;
+            replyReportBtn.classList.toggle('hidden', false);
+        }
+        safeUpdateText('review-detail-reply-report-label', isReviewReplyReportedByMe(rev) ? '답글 신고 완료' : '답글 신고');
     } else {
         replyWrapper?.classList.add('hidden');
     }
@@ -1655,6 +1664,30 @@ function reportReview(partnerName, reviewIdx, reason) {
     if (typeof window.openClientPartnerProfile === 'function' && !document.getElementById('client-partner-profile-modal')?.classList.contains('hidden')) {
         window.openClientPartnerProfile(partnerName);
     }
+}
+
+/* 후기 본문은 신고할 수 있는데(reportReview) 파트너의 답글(submitReviewReply)엔
+ * 신고 수단이 전혀 없었다 — 커뮤니티 댓글/대댓글과 동일한 신고 대상 비대칭이다.
+ * 답글 전용 신고 목록(rev.reply.reportedBy)을 별도로 둔다. */
+function isReviewReplyReportedByMe(rev) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn || !rev.reply) return false;
+    return !!(rev.reply.reportedBy && rev.reply.reportedBy.includes(auth.id));
+}
+
+function reportReviewReply(partnerName, reviewIdx, reason) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) { showToast('로그인 후 이용할 수 있어요.', 'warning'); return; }
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const rev = partner && partner.reviews && partner.reviews[reviewIdx];
+    if (!rev || !rev.reply) return;
+    if (!rev.reply.reportedBy) rev.reply.reportedBy = [];
+    if (rev.reply.reportedBy.includes(auth.id)) { showToast('이미 신고한 답글입니다.', 'info'); return; }
+    rev.reply.reportedBy.push(auth.id);
+    if (reason) { if (!rev.reply.reportReasons) rev.reply.reportReasons = []; rev.reply.reportReasons.push({ id: auth.id, reason }); }
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW_REPLY_REPORT', `'${auth.name}' 고객님이 [${partnerName}] 파트너의 후기 답글을 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
+    showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
+    openReviewDetailModal(partnerName, reviewIdx);
 }
 
 /* 커뮤니티 글은 개별 저장(scrap)이 가능한데(toggleSaveCommunityPost), 시공사례는
@@ -2137,6 +2170,8 @@ window.toggleReviewHelpful = toggleReviewHelpful;
 window.isReviewHelpfulByMe = isReviewHelpfulByMe;
 window.reportReview = reportReview;
 window.isReviewReportedByMe = isReviewReportedByMe;
+window.reportReviewReply = reportReviewReply;
+window.isReviewReplyReportedByMe = isReviewReplyReportedByMe;
 window.reportPortfolio = reportPortfolio;
 window.isPortfolioReportedByMe = isPortfolioReportedByMe;
 window.isPortfolioSaved = isPortfolioSaved;

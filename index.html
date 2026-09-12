@@ -895,6 +895,7 @@
                             <p class="text-[11px] text-ink-500 font-medium mt-1">고객님의 후기에 답글을 남겨 감사 인사나 소명을 전할 수 있어요. 답글은 후기와 함께 고객에게 공개됩니다.</p>
                         </div>
                         <div id="partner-myinfo-reviews-list" class="space-y-3"></div>
+                        <div id="partner-review-reply-deletion-status"></div>
                     </div>
 
                     <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
@@ -1553,7 +1554,10 @@
                     <div id="review-detail-photos-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5"></div>
                 </div>
                 <div id="review-detail-reply-wrapper" class="hidden space-y-1.5 p-4 rounded-xl border border-brand-100" style="background:var(--brand-50)">
-                    <h5 class="text-[11px] font-black text-brand-700 flex items-center gap-1.5"><i data-lucide="reply" class="w-3.5 h-3.5"></i> <span id="review-detail-reply-author"></span>의 답글</h5>
+                    <div class="flex items-center justify-between">
+                        <h5 class="text-[11px] font-black text-brand-700 flex items-center gap-1.5"><i data-lucide="reply" class="w-3.5 h-3.5"></i> <span id="review-detail-reply-author"></span>의 답글</h5>
+                        <button type="button" id="review-detail-reply-report-btn" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0"><span id="review-detail-reply-report-label">답글 신고</span></button>
+                    </div>
                     <p id="review-detail-reply-text" class="text-xs text-ink-700 font-semibold leading-relaxed whitespace-pre-line"></p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -2006,6 +2010,20 @@
                 <p class="text-[11px] text-ink-500 font-medium leading-relaxed">현재 계정이 이용 정지되어 로그인할 수 없어요. 정지가 부당하다고 생각되면 아래에 소명 내용을 남겨주세요. 매니저 센터가 심사 후 정지 해제 여부를 안내해드려요.</p>
                 <div><label class="field-label">이의신청 내용</label><textarea id="partner-suspension-appeal-reason-input" rows="4" placeholder="정지가 부당하다고 생각되는 이유를 자세히 적어주세요." class="textarea"></textarea></div>
                 <button type="button" onclick="submitPartnerSuspensionAppeal()" class="btn btn-primary btn-block">이의신청 제출</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="review-reply-deletion-appeal-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="review-reply-deletion-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">이의신청</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">후기 답글 삭제에 이의를 제기합니다</h3></div>
+                <button type="button" onclick="closeReviewReplyDeletionAppealModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">제출하시면 매니저 센터가 심사 후 답글 복원 또는 반려 여부를 안내해드려요.</p>
+                <div><label class="field-label">이의신청 내용</label><textarea id="review-reply-deletion-appeal-reason-input" rows="4" placeholder="삭제가 부당하다고 생각되는 이유를 자세히 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitReviewReplyDeletionAppeal()" class="btn btn-primary btn-block">이의신청 제출</button>
             </div>
         </div>
     </div>
