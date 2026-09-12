@@ -855,14 +855,17 @@ function buildPaymentMilestonesHtml(order) {
         <div class="space-y-1.5">${milestones.map(m => {
             const amount = Math.floor(price * m.percent / 100);
             const overdue = typeof isMilestoneOverdue === 'function' && isMilestoneOverdue(m);
-            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : overdue ? `<span class="badge badge-rose">연체</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구됨</span>` : `<span class="badge badge-neutral">청구 전</span>`;
+            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : m.status === 'disputed' ? `<span class="badge badge-rose">이의제기중</span>` : overdue ? `<span class="badge badge-rose">연체</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구됨</span>` : `<span class="badge badge-neutral">청구 전</span>`;
             return `<div class="p-2.5 bg-ink-50 rounded-lg flex items-center justify-between gap-2">
                 <div class="min-w-0">
                     <p class="text-[11px] font-black text-ink-900">${m.label} (${m.percent}%) · ₩${amount.toLocaleString()}만원</p>
                     ${m.status === 'requested' && m.dueDate ? `<p class="text-[10px] ${overdue ? 'text-roseCustom font-bold' : 'text-ink-400 font-semibold'}">납부기한 ${m.dueDate}${overdue ? ' (기한 초과)' : ''}</p>` : ''}
+                    ${m.status === 'disputed' ? `<p class="text-[10px] text-roseCustom font-bold">이의제기: ${escapeHtml(m.disputeReason || '')}</p>` : ''}
+                    ${m.disputeResolution === 'rejected' ? `<p class="text-[10px] text-ink-400 font-semibold">이의제기 반려됨 — ${escapeHtml(m.disputeAdminResponse || '')}</p>` : ''}
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     ${statusBadge}
+                    ${m.status === 'requested' ? `<button type="button" onclick="openMilestoneDisputeModal('${order.code}', '${m.key}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">이의제기</button>` : ''}
                     ${m.status === 'requested' ? `<button type="button" onclick="confirmPaymentMilestone('${order.code}', '${m.key}')" class="btn btn-dark btn-sm">납부 완료</button>` : ''}
                 </div>
             </div>`;
@@ -884,6 +887,49 @@ function confirmPaymentMilestone(orderCode, key) {
     if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 ${m.label} 납부를 완료했어요: ₩${amount.toLocaleString()}만원`);
     showToast(`${m.label} 납부를 완료 처리했습니다.`, 'success');
     selectMyPageEstimate(order.code);
+}
+
+/* 청구(requested)된 마일스톤에 고객이 취할 수 있는 행동이 "납부 완료" 하나뿐이라,
+ * 착공도 안 됐는데 중도금을 청구하는 등 부당한 청구를 받아도 이의를 제기할 방법이
+ * 없었다 — 하자보수 신청의 관리자 재검토 요청(escalateRepairClaimToAdmin)과 동일한
+ * 제출→관리자 심사 패턴을 마일스톤 청구에도 적용한다. */
+let milestoneDisputeTarget = null;
+
+function openMilestoneDisputeModal(orderCode, key) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const m = order && getOrInitPaymentMilestones(order).find(x => x.key === key);
+    if (!m || m.status !== 'requested') return;
+    milestoneDisputeTarget = { orderCode, key };
+    safeUpdateValue('milestone-dispute-reason-input', '');
+    openModal('milestone-dispute-modal', 'milestone-dispute-modal-card');
+}
+
+function closeMilestoneDisputeModal() {
+    milestoneDisputeTarget = null;
+    closeModal('milestone-dispute-modal', 'milestone-dispute-modal-card');
+}
+
+function submitMilestoneDispute() {
+    if (!milestoneDisputeTarget) { closeMilestoneDisputeModal(); return; }
+    const order = window.AppState.orders.find(o => o.code === milestoneDisputeTarget.orderCode);
+    const m = order && getOrInitPaymentMilestones(order).find(x => x.key === milestoneDisputeTarget.key);
+    if (!m || m.status !== 'requested') { closeMilestoneDisputeModal(); return; }
+    const reason = document.getElementById('milestone-dispute-reason-input')?.value.trim();
+    if (!reason) { showToast('이의제기 사유를 입력해주세요.', 'warning'); return; }
+
+    m.status = 'disputed';
+    m.disputeReason = reason;
+    m.disputeDate = getLocalDateString();
+    m.disputeResolution = null;
+    m.disputeAdminResponse = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PAYMENT_MILESTONE_DISPUTE', `[${order.clientName}] 고객님이 계약(${order.code}) ${m.label} 청구에 이의를 제기했습니다: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 ${m.label} 청구에 이의를 제기했어요. 매니저 센터가 검토 중입니다.`);
+    showToast('이의제기가 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeMilestoneDisputeModal();
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
 }
 
 function buildRepairClaimsHtml(order) {
@@ -3716,6 +3762,9 @@ window.buildRepairClaimsHtml = buildRepairClaimsHtml;
 window.buildProgressStagesHtml = buildProgressStagesHtml;
 window.buildPaymentMilestonesHtml = buildPaymentMilestonesHtml;
 window.confirmPaymentMilestone = confirmPaymentMilestone;
+window.openMilestoneDisputeModal = openMilestoneDisputeModal;
+window.closeMilestoneDisputeModal = closeMilestoneDisputeModal;
+window.submitMilestoneDispute = submitMilestoneDispute;
 window.confirmSiteVisit = confirmSiteVisit;
 window.declineSiteVisit = declineSiteVisit;
 window.buildClientSiteVisitHtml = buildClientSiteVisitHtml;

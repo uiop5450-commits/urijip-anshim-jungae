@@ -1863,11 +1863,12 @@ function buildPartnerPaymentMilestonesHtml(order) {
         <div class="space-y-2">${milestones.map(m => {
             const amount = Math.floor(price * m.percent / 100);
             const overdue = typeof isMilestoneOverdue === 'function' && isMilestoneOverdue(m);
-            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : overdue ? `<span class="badge badge-rose">연체</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구중</span>` : `<span class="badge badge-neutral">청구 전</span>`;
+            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : m.status === 'disputed' ? `<span class="badge badge-rose">이의제기중</span>` : overdue ? `<span class="badge badge-rose">연체</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구중</span>` : `<span class="badge badge-neutral">청구 전</span>`;
             return `<div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between gap-2">
                 <div class="text-left min-w-0">
                     <p class="text-xs font-black text-ink-900">${m.label} (${m.percent}%)</p>
                     <p class="text-[10px] ${overdue ? 'text-roseCustom font-bold' : 'text-ink-500 font-semibold'}">₩ ${amount.toLocaleString()}만원${m.paidDate ? ` · 납부일 ${m.paidDate}` : (m.dueDate ? ` · 납부기한 ${m.dueDate}${overdue ? ' (기한 초과)' : ''}` : '')}</p>
+                    ${m.status === 'disputed' ? `<p class="text-[10px] text-roseCustom font-bold">고객 이의제기: ${escapeHtml(m.disputeReason || '')}</p>` : ''}
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     ${statusBadge}
@@ -2511,6 +2512,16 @@ function getAllPendingAppeals() {
             });
         }
     });
+    (window.AppState.orders || []).forEach(o => {
+        (o.paymentMilestones || []).forEach(m => {
+            if (m.status === 'disputed') {
+                items.push({
+                    typeLabel: '공사대금 청구 이의제기', subject: `${o.code} · ${m.label}`, reason: m.disputeReason, date: m.disputeDate,
+                    actionsHtml: rejectBtn('반려(청구 유지)', `openReportReasonPrompt((reason) => adminRejectMilestoneDispute('${o.code}', '${m.key}', reason))`) + approveBtn('승인(청구 취소)', `adminApproveMilestoneDispute('${o.code}', '${m.key}')`)
+                });
+            }
+        });
+    });
 
     return items.sort((a, b) => new Date(b.date) - new Date(a.date));
 }
@@ -2709,6 +2720,43 @@ function adminDismissRepairClaimEscalation(orderCode, claimId) {
     if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_CLAIM_ESCALATION_DISMISS', `[하자보수 재검토 반려] 오더 ${order.code}의 하자보수 신청("${claim.title}") 재검토 요청을 검토했으나 기존 반려 결정을 유지합니다.`, 'INFO');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수 신청("${claim.title}")에 대한 매니저 재검토 결과, 기존 반려 결정이 유지됩니다.`);
     showToast('재검토 요청을 확인했습니다. 기존 반려 결정을 유지합니다.', 'info');
+    searchOrderLookup();
+}
+
+/* 하자보수 재검토 요청(escalateRepairClaimToAdmin)과 동일하게, 고객이 이의제기한
+ * 마일스톤 청구(submitMilestoneDispute)도 관리자가 승인(청구 취소, 파트너가
+ * 필요 시 재청구)/반려(기존 청구 유지, 고객이 다시 납부해야 함) 중 하나로 처리한다. */
+function adminApproveMilestoneDispute(orderCode, key) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const m = order && getOrInitPaymentMilestones(order).find(x => x.key === key);
+    if (!m || m.status !== 'disputed') return;
+    m.status = 'pending';
+    m.requestedDate = null;
+    m.dueDate = null;
+    m.overdueNotified = false;
+    m.disputeResolution = 'approved';
+    m.disputeResolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PAYMENT_MILESTONE_DISPUTE_APPROVE', `[이의제기 승인] 오더 ${order.code}의 ${m.label} 청구 이의제기를 승인하여 청구를 취소했습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 ${m.label} 청구 이의제기가 승인되어 청구가 취소되었습니다.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `${m.label} 청구 이의제기가 승인되어 청구가 취소되었습니다. 필요 시 다시 청구해 주세요.`);
+    showToast(`[${order.code}] ${m.label} 청구 이의제기를 승인하여 청구를 취소했습니다.`, 'success');
+    searchOrderLookup();
+}
+
+function adminRejectMilestoneDispute(orderCode, key, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const m = order && getOrInitPaymentMilestones(order).find(x => x.key === key);
+    if (!m || m.status !== 'disputed') return;
+    m.status = 'requested';
+    m.disputeResolution = 'rejected';
+    m.disputeAdminResponse = reason;
+    m.disputeResolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PAYMENT_MILESTONE_DISPUTE_REJECT', `[이의제기 반려] 오더 ${order.code}의 ${m.label} 청구 이의제기를 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 ${m.label} 청구 이의제기가 반려되었습니다. 사유: ${reason}`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `${m.label} 청구 이의제기가 반려되어 청구가 유지됩니다.`);
+    showToast(`[${order.code}] ${m.label} 청구 이의제기를 반려했습니다.`, 'info');
     searchOrderLookup();
 }
 
@@ -5657,6 +5705,8 @@ window.recalculateKPIs = recalculateKPIs;
 window.renderAdminDashboard = renderAdminDashboard;
 window.getAllPendingAppeals = getAllPendingAppeals;
 window.renderAdminAppealInbox = renderAdminAppealInbox;
+window.adminApproveMilestoneDispute = adminApproveMilestoneDispute;
+window.adminRejectMilestoneDispute = adminRejectMilestoneDispute;
 window.syncAuditLogs = syncAuditLogs;
 window.setAdminLogCategoryFilter = setAdminLogCategoryFilter;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
