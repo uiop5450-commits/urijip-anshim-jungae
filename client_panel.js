@@ -707,6 +707,7 @@ function openRepairClaimModal(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order || order.status !== 'contracted') return;
     if (!order.clientSigned || !order.partnerSigned) { showToast('양측 서명이 완료된 계약만 하자보수를 신청할 수 있어요.', 'warning'); return; }
+    if (typeof isWarrantyExpired === 'function' && isWarrantyExpired(order)) { showToast('무상 보증기간(준공일로부터 3년)이 만료되어 하자보수를 신청할 수 없어요.', 'warning'); return; }
     repairClaimTargetCode = orderCode;
     safeUpdateValue('repair-claim-title', '');
     safeUpdateValue('repair-claim-desc', '');
@@ -904,10 +905,20 @@ function buildRepairClaimsHtml(order) {
                 : `<button type="button" onclick="openReportReasonPrompt((note) => escalateRepairClaimToAdmin('${order.code}', '${c.id}', note))" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">매니저에게 재검토 요청</button>`) : ''}
         </div>`;
     }).join('')}</div>`;
+    const warrantyEnd = typeof getWarrantyEndDate === 'function' ? getWarrantyEndDate(order) : null;
+    const warrantyExpired = typeof isWarrantyExpired === 'function' && isWarrantyExpired(order);
+    let warrantyBadgeHtml = '';
+    if (warrantyEnd) {
+        if (warrantyExpired) warrantyBadgeHtml = `<span class="badge badge-neutral">보증 만료 (${warrantyEnd.toISOString().slice(0, 10)})</span>`;
+        else {
+            const daysLeft = Math.max(0, Math.ceil((warrantyEnd - new Date()) / (1000 * 60 * 60 * 24)));
+            warrantyBadgeHtml = `<span class="badge badge-emerald">보증 만료까지 D-${daysLeft}</span>`;
+        }
+    }
     return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
         <div class="flex items-center justify-between">
-            <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="wrench" class="w-3.5 h-3.5 text-brand-500"></i> 하자보수 신청 (3년 무상 보증)</span>
-            <button type="button" onclick="openRepairClaimModal('${order.code}')" class="btn btn-secondary btn-sm">신청하기</button>
+            <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="wrench" class="w-3.5 h-3.5 text-brand-500"></i> 하자보수 신청 (3년 무상 보증) ${warrantyBadgeHtml}</span>
+            <button type="button" onclick="openRepairClaimModal('${order.code}')" ${warrantyExpired ? 'disabled title="보증기간이 만료되었습니다"' : ''} class="btn btn-secondary btn-sm">신청하기</button>
         </div>
         ${listHtml}
     </div>`;

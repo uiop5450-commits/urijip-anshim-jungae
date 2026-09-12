@@ -212,6 +212,25 @@ function getOrInitProgressStages(order) {
     return order.progressStages;
 }
 
+/* 계약서에 "하자이행 보증기간: 준공일로부터 3년 무상 보증"이라고 명시하면서도
+ * (partner_panel.js 계약서 생성부) 정작 하자보수 신청(submitRepairClaim)에는
+ * 기간 체크가 전혀 없어 준공 후 10년이 지나도 무한정 신청할 수 있었다 — 마지막
+ * 시공 단계("준공")가 완료 처리된 날짜를 보증 시작일로 삼아 만료 여부를 계산한다.
+ * 아직 준공 전(진행 중)이면 보증 기간이 시작되지 않은 것이므로 null을 반환한다. */
+function getWarrantyEndDate(order) {
+    const stages = getOrInitProgressStages(order);
+    const finalStage = stages[stages.length - 1];
+    if (!finalStage || !finalStage.done || !finalStage.date) return null;
+    const end = new Date(finalStage.date);
+    end.setFullYear(end.getFullYear() + 3);
+    return end;
+}
+
+function isWarrantyExpired(order) {
+    const end = getWarrantyEndDate(order);
+    return !!(end && new Date() > end);
+}
+
 /* commissionPaid는 플랫폼 중개 수수료 완납 여부만 표시할 뿐, 정작 고객이 파트너에게
  * 지불하는 공사대금 자체는 finalPrice 총액 하나로만 다뤄졌다 — 실제 인테리어 계약은
  * 항상 계약금/중도금/잔금으로 나눠 단계별로 청구·지급되는데 그 흐름을 추적할
@@ -421,6 +440,8 @@ window.openFooterInfoModal = openFooterInfoModal;
 window.closeFooterInfoModal = closeFooterInfoModal;
 window.getLocalDateString = getLocalDateString;
 window.getOrInitProgressStages = getOrInitProgressStages;
+window.getWarrantyEndDate = getWarrantyEndDate;
+window.isWarrantyExpired = isWarrantyExpired;
 window.getOrInitPaymentMilestones = getOrInitPaymentMilestones;
 window.grantClientBenefit = grantClientBenefit;
 window.showToast = showToast;
