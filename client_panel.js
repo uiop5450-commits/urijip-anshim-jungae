@@ -1717,6 +1717,26 @@ function switchClientMyPageSubtab(tab) {
     renderClientMyPage();
 }
 
+/* 파트너 쪽엔 누적 계약 실적 기반 등급 배지(computePartnerTier, partner_panel.js)가
+ * 있는데 고객 쪽엔 대칭되는 개념이 전혀 없었다 — 재의뢰가 잦은 단골 고객이라도
+ * 신규 고객과 똑같이 보였다. 새 결제/포인트 체계를 만들지 않고, 순수 누적 계약
+ * 건수로만 산정해 마이페이지 헤더와 파트너가 보는 화면에 노출한다. */
+const CLIENT_TIER_DEFS = [
+    { key: 'vip', label: 'VIP 고객', minContracts: 5, cls: 'badge-gold' },
+    { key: 'preferred', label: '우수 고객', minContracts: 2, cls: 'badge-brand' }
+];
+
+function computeClientTier(clientPhone) {
+    if (!clientPhone) return null;
+    const contractedCount = (window.AppState.orders || []).filter(o => o.status === 'contracted' && o.clientPhone === clientPhone).length;
+    return CLIENT_TIER_DEFS.find(t => contractedCount >= t.minContracts) || null;
+}
+
+function buildClientTierBadgeHtml(clientPhone) {
+    const tier = computeClientTier(clientPhone);
+    return tier ? `<span class="badge ${tier.cls}">${tier.label}</span>` : '';
+}
+
 function renderClientMyPage() {
     const listContainer = document.getElementById('client-mypage-estimates-container');
     const detailEmpty = document.getElementById('client-mypage-detail-empty');
@@ -1725,6 +1745,9 @@ function renderClientMyPage() {
 
     const auth = window.AppState.clientAuth;
     if (!auth.loggedIn) return;
+
+    const tierBadgeEl = document.getElementById('client-mypage-tier-badge');
+    if (tierBadgeEl) tierBadgeEl.innerHTML = buildClientTierBadgeHtml(auth.phone);
 
     const myPostsCount = (window.AppState.communityPosts || []).filter(p => p.authorId === auth.id).length;
     const myNotifications = (window.AppState.clientNotifications || []).filter(n => n.clientPhone === auth.phone);
@@ -4370,6 +4393,8 @@ window.togglePartnerBlock = togglePartnerBlock;
 window.renderBlockedPartnersList = renderBlockedPartnersList;
 window.disputeProgressStage = disputeProgressStage;
 window.disputeSiteVisitCompletion = disputeSiteVisitCompletion;
+window.computeClientTier = computeClientTier;
+window.buildClientTierBadgeHtml = buildClientTierBadgeHtml;
 window.declineRepairVisitDate = declineRepairVisitDate;
 window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;

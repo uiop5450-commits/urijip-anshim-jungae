@@ -1317,9 +1317,10 @@ function buildPartnerFavoriteClientsHtml(partner) {
         const myOrders = (window.AppState.orders || []).filter(o => o.clientPhone === c.phone);
         const contractedCount = myOrders.filter(o => o.status === 'contracted').length;
         const avgRating = typeof getClientAverageRating === 'function' ? getClientAverageRating(c.phone) : null;
+        const tierBadge = typeof buildClientTierBadgeHtml === 'function' ? buildClientTierBadgeHtml(c.phone) : '';
         return `
         <div class="flex items-center justify-between p-3 bg-ink-50 rounded-xl">
-            <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">${escapeHtml(c.name)}</p><p class="text-[10px] text-ink-500 font-bold">${escapeHtml(c.phone)} · 계약 ${contractedCount}건${avgRating ? ` · <span class="text-gold-500">★ ${avgRating.avg}</span> (${avgRating.count}건 평가)` : ''}</p></div>
+            <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">${escapeHtml(c.name)} ${tierBadge}</p><p class="text-[10px] text-ink-500 font-bold">${escapeHtml(c.phone)} · 계약 ${contractedCount}건${avgRating ? ` · <span class="text-gold-500">★ ${avgRating.avg}</span> (${avgRating.count}건 평가)` : ''}</p></div>
             <button type="button" onclick="toggleFavoriteClient('${escapeHtml(c.phone)}', '${escapeHtml(c.name)}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">해제</button>
         </div>`;
     }).join('');
@@ -2342,7 +2343,7 @@ function openPartnerOrderDetailModal(orderCode) {
             <div class="flex justify-between items-start border-b border-ink-100 pb-4">
                 <div class="space-y-1.5">
                     <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot bg-ink-500"></span> 우리집 안심 중개보증</span><span class="text-xs font-mono font-bold text-ink-500 tracking-wider">${order.code}</span>${statusBadge}</div>
-                    <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight flex items-center gap-1.5">${escapeHtml(order.clientName)} 고객님 (${order.clientPhone})
+                    <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight flex items-center gap-1.5">${escapeHtml(order.clientName)} 고객님 (${order.clientPhone}) ${typeof buildClientTierBadgeHtml === 'function' ? buildClientTierBadgeHtml(order.clientPhone) : ''}
                         <button type="button" onclick="toggleFavoriteClient('${escapeHtml(order.clientPhone)}', '${escapeHtml(order.clientName)}', '${order.code}')" class="btn btn-ghost btn-sm px-1.5" aria-label="단골 고객으로 저장"><i data-lucide="star" class="w-4 h-4 ${isClientFavorited(order.clientPhone) ? 'text-gold-500' : 'text-ink-300'}" ${isClientFavorited(order.clientPhone) ? 'fill="currentColor"' : ''}></i></button>
                         <button type="button" onclick="togglePartnerBlockClient('${escapeHtml(order.clientPhone)}', '${escapeHtml(order.clientName)}', '${order.code}')" class="btn btn-ghost btn-sm px-1.5" aria-label="고객 차단"><i data-lucide="user-x" class="w-4 h-4 ${isClientBlockedByPartner(order.clientPhone) ? 'text-roseCustom' : 'text-ink-300'}"></i></button>
                     </h3>
@@ -3705,6 +3706,7 @@ function renderAdminClientManager() {
         const favoriteCount = (acc.favoritePartners || []).length;
         const myReports = (window.AppState.clientReports || []).filter(r => r.clientPhone === acc.phone);
         const avgRating = typeof getClientAverageRating === 'function' ? getClientAverageRating(acc.phone) : null;
+        const tierBadge = typeof buildClientTierBadgeHtml === 'function' ? buildClientTierBadgeHtml(acc.phone) : '';
 
         return `
         <div class="surface-flat p-4 space-y-2.5 text-left">
@@ -3712,6 +3714,7 @@ function renderAdminClientManager() {
                 <div class="space-y-0.5 min-w-0">
                     <div class="flex items-center gap-1.5">
                         <p class="text-sm font-black text-ink-950">${escapeHtml(acc.name)} <span class="text-ink-400 font-bold text-xs">(${escapeHtml(acc.id)})</span></p>
+                        ${tierBadge}
                         ${acc.status === 'withdrawn' ? '<span class="badge badge-neutral">탈퇴함</span>' : acc.isSuspended ? '<span class="badge badge-rose">이용 정지</span>' : ''}
                         ${myReports.length > 0 ? `<span class="badge badge-amber">파트너 신고 ${myReports.length}건</span>` : ''}
                         ${avgRating ? `<span class="badge badge-neutral"><span class="text-gold-500">★</span> ${avgRating.avg} (파트너 평가 ${avgRating.count}건)</span>` : ''}
