@@ -454,6 +454,7 @@ function renderPartnerSearchGrid() {
  * 매니저(관리자) 콘솔 — 역할별 접근 권한(관리자모드 / 파트너 매니저 권한)
  * ---------------------------------------------------------------- */
 const ALL_ADMIN_TABS = [
+    ['dashboard', 'layout-dashboard', '통합 대시보드'],
     ['allocation', 'wallet', '수동 오더 배정관'], ['monitor', 'building-2', '파트너 모니터링'],
     ['applications', 'clipboard-check', '파트너 가입 심사'],
     ['blacklist', 'shield-alert', '삼진아웃 블랙리스트 DB'], ['logs', 'list', '플랫폼 관제 로그'],
@@ -467,7 +468,7 @@ const ALL_ADMIN_TABS = [
 // 시스템 로그, 마케팅 노출 관리, 직원 권한 부여처럼 상위 권한이 필요한 영역은
 // 제외하고 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
 const ROLE_TAB_ACCESS = {
-    super_admin: ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients', 'cancellations'],
+    super_admin: ['dashboard', 'allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients', 'cancellations'],
     partner_manager: ['monitor', 'applications', 'blacklist']
 };
 
@@ -499,13 +500,14 @@ function switchAdminMode(mode) {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    ['allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients', 'cancellations'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
+    ['dashboard', 'allocation', 'monitor', 'applications', 'blacklist', 'logs', 'display', 'staff', 'community', 'support', 'broadcast', 'clients', 'cancellations'].forEach(m => document.getElementById(`admin-mode-${m}-view`)?.classList.add('hidden'));
     document.getElementById(`admin-mode-${mode}-view`)?.classList.remove('hidden');
 
     const kpiGrid = document.getElementById('admin-kpi-grid');
     if (kpiGrid) kpiGrid.classList.toggle('hidden', window.AppState.managerRole === 'partner_manager');
 
-    if (mode === 'allocation') renderAdminOrderAllocation();
+    if (mode === 'dashboard') renderAdminDashboard();
+    else if (mode === 'allocation') renderAdminOrderAllocation();
     else if (mode === 'monitor') renderAdminPartnerMonitor();
     else if (mode === 'applications') renderAdminPartnerApplications();
     else if (mode === 'blacklist') renderBlacklistDb();
@@ -2341,6 +2343,81 @@ function recalculateKPIs() {
     safeUpdateText('admin-kpi-escrow', `₩ ${escrow.toLocaleString()} 만원`);
     safeUpdateText('admin-kpi-revenue', `₩ ${revenue.toLocaleString()} 만원`);
     renderAdminOrderAllocation();
+}
+
+/* GMV/에스크로/수수료는 상단 KPI 바에 항상 떠 있지만, 그 외의 플랫폼 전체 현황
+ * (파트너 상태 분포, 계약 전환율, 계약 체결 상위 파트너 등)은 관리자가 한눈에
+ * 볼 방법이 전혀 없었다 — 있는 지표는 전부 openPartnerMetricsModal처럼 파트너
+ * 한 곳 단위였다. 플랫폼 전체를 집계하는 대시보드 탭을 새로 둔다. */
+function renderAdminDashboard() {
+    const container = document.getElementById('admin-dashboard-content');
+    if (!container) return;
+
+    const orders = window.AppState.orders || [];
+    const partners = window.AppState.partners || [];
+    const clients = (window.AppState.clientAccounts || []).filter(a => !a.managerRole);
+
+    const contractedOrders = orders.filter(o => o.status === 'contracted');
+    const cancelledOrders = orders.filter(o => o.status === 'cancelled');
+    const biddingOrders = orders.filter(o => o.status === 'bidding');
+    const withdrawnCount = orders.filter(o => o.status === 'withdrawn').length;
+    const totalNonWithdrawn = orders.length - withdrawnCount;
+    const contractRate = totalNonWithdrawn > 0 ? Math.round((contractedOrders.length / totalNonWithdrawn) * 1000) / 10 : 0;
+    const avgOrderValue = contractedOrders.length > 0 ? Math.floor(contractedOrders.reduce((acc, o) => acc + (o.finalPrice || 0), 0) / contractedOrders.length) : 0;
+
+    const activePartners = partners.filter(p => p.status === 'active').length;
+    const pendingPartners = partners.filter(p => p.status === 'pending' || p.status === 'info_requested').length;
+    const bannedPartners = partners.filter(p => p.status === 'banned').length;
+    const certifiedPartners = partners.filter(p => p.isCertified).length;
+
+    const topPartners = partners
+        .filter(p => p.status !== 'banned')
+        .map(p => ({ name: p.name, rating: p.rating || 5.0, contractCount: orders.filter(o => o.status === 'contracted' && o.acceptedPartner === p.name).length }))
+        .filter(p => p.contractCount > 0)
+        .sort((a, b) => b.contractCount - a.contractCount || b.rating - a.rating)
+        .slice(0, 5);
+
+    const kpis = window.AppState.kpis || { gmv: 0, escrow: 0, revenue: 0 };
+
+    container.innerHTML = `
+        <div class="space-y-2.5">
+            <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider">거래 지표</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="article-spec-chip"><span>누적 GMV</span><span class="val">₩ ${kpis.gmv.toLocaleString()}만원</span></div>
+                <div class="article-spec-chip"><span>수수료 매출</span><span class="val">₩ ${kpis.revenue.toLocaleString()}만원</span></div>
+                <div class="article-spec-chip"><span>에스크로 보관</span><span class="val">₩ ${kpis.escrow.toLocaleString()}만원</span></div>
+                <div class="article-spec-chip"><span>평균 계약금액</span><span class="val">₩ ${avgOrderValue.toLocaleString()}만원</span></div>
+            </div>
+        </div>
+        <div class="space-y-2.5 pt-4">
+            <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider">의뢰 현황</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="article-spec-chip"><span>전체 의뢰</span><span class="val">${orders.length}건</span></div>
+                <div class="article-spec-chip"><span>계약 체결</span><span class="val">${contractedOrders.length}건</span></div>
+                <div class="article-spec-chip"><span>계약 전환율</span><span class="val">${contractRate}%</span></div>
+                <div class="article-spec-chip"><span>입찰 진행중</span><span class="val">${biddingOrders.length}건</span></div>
+            </div>
+        </div>
+        <div class="space-y-2.5 pt-4">
+            <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider">파트너·고객 현황</h4>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="article-spec-chip"><span>활동 파트너</span><span class="val">${activePartners}곳</span></div>
+                <div class="article-spec-chip"><span>가입 심사 대기</span><span class="val">${pendingPartners}곳</span></div>
+                <div class="article-spec-chip"><span>영구 제명</span><span class="val">${bannedPartners}곳</span></div>
+                <div class="article-spec-chip"><span>안심 인증</span><span class="val">${certifiedPartners}곳</span></div>
+                <div class="article-spec-chip"><span>가입 고객</span><span class="val">${clients.length}명</span></div>
+                <div class="article-spec-chip"><span>취소된 계약</span><span class="val">${cancelledOrders.length}건</span></div>
+            </div>
+        </div>
+        <div class="space-y-2.5 pt-4">
+            <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider">계약 체결 상위 파트너</h4>
+            <div class="space-y-1.5">${topPartners.length === 0 ? '<p class="text-[11px] text-ink-400 font-semibold">아직 체결된 계약이 없습니다.</p>' : topPartners.map((p, idx) => `
+                <div class="flex items-center justify-between p-2.5 bg-ink-50 rounded-xl">
+                    <span class="text-xs font-bold text-ink-800">${idx + 1}. ${escapeHtml(p.name)}</span>
+                    <span class="text-[11px] text-ink-500 font-semibold">계약 ${p.contractCount}건 · ★ ${p.rating.toFixed(1)}</span>
+                </div>`).join('')}</div>
+        </div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 /* 지금까지는 관리자가 오더 하나를 찾으려면 그 오더의 성격(고액/파트너 참여 여부)에
@@ -5367,6 +5444,7 @@ window.renderPartnerOrderList = renderPartnerOrderList;
 window.renderPartnerContractsView = renderPartnerContractsView;
 window.setPartnerContractsStatusFilter = setPartnerContractsStatusFilter;
 window.recalculateKPIs = recalculateKPIs;
+window.renderAdminDashboard = renderAdminDashboard;
 window.syncAuditLogs = syncAuditLogs;
 window.setAdminLogCategoryFilter = setAdminLogCategoryFilter;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
