@@ -1901,6 +1901,10 @@ function handleBlogLikeClick() {
         port.likes = (port.likes || 0) + 1;
         _blogLikedKeys[key] = true;
         showToast('좋아요가 반영되었습니다!', 'success');
+        // 커뮤니티 글 좋아요(toggleCommunityLike)는 작성자에게 알림이 가는데
+        // 시공사례 좋아요는 조용히 쌓이기만 해서 파트너가 반응을 알 방법이 없었다 —
+        // 동일하게 좋아요가 "새로" 눌렸을 때만(취소 시엔 제외) 알린다.
+        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `고객님이 시공사례 "${port.title || '-'}"에 좋아요를 눌렀어요.`);
     }
     renderBlogLikeButton(port.likes || 0);
 }
@@ -2020,12 +2024,6 @@ function closeLightbox() {
     if (modal) { modal.onwheel = null; modal.classList.add('hidden'); }
 }
 
-function toggleLikePortfolio(partnerName, idx) {
-    const partner = window.AppState.partners.find(p => p.name === partnerName);
-    if (partner && partner.portfolios[idx]) partner.portfolios[idx].likes = (partner.portfolios[idx].likes || 0) + 1;
-    showToast("좋아요가 반영되었습니다!", "success");
-}
-
 window.openLightbox = openLightbox;
 window.closeLightbox = closeLightbox;
 window.toggleLightboxZoom = toggleLightboxZoom;
@@ -2096,7 +2094,6 @@ window.closePartnerAccountCloseModal = closePartnerAccountCloseModal;
 window.confirmPartnerAccountClosure = confirmPartnerAccountClosure;
 window.submitReviewReply = submitReviewReply;
 window.removeReviewReply = removeReviewReply;
-window.toggleLikePortfolio = toggleLikePortfolio;
 window.buildPortfolioCardMediaHtml = buildPortfolioCardMediaHtml;
 window.triggerPortfolioImageInsert = triggerPortfolioImageInsert;
 window.handlePortfolioBodyImageInsert = handlePortfolioBodyImageInsert;
