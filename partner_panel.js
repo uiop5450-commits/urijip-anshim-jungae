@@ -624,6 +624,7 @@ function togglePartnerConsoleVisibility() {
                 tabBar.innerHTML = `
                     <button type="button" id="btn-partner-view-orders" onclick="switchPartnerMode('orders')" class="gnb-tab active">수급 오더 관리</button>
                     <button type="button" id="btn-partner-view-contracts" onclick="switchPartnerMode('contracts')" class="gnb-tab">안심 계약·입찰 내역</button>
+                    <button type="button" id="btn-partner-view-schedule" onclick="switchPartnerMode('schedule')" class="gnb-tab">방문 일정</button>
                     <button type="button" id="btn-partner-view-performance" onclick="switchPartnerMode('performance')" class="gnb-tab">내 실적</button>
                     <button type="button" id="btn-partner-view-portfolio" onclick="switchPartnerMode('portfolio')" class="gnb-tab">포트폴리오 관리</button>
                     <button type="button" id="btn-partner-view-myinfo" onclick="switchPartnerMode('myinfo')" class="gnb-tab">내정보 관리</button>
@@ -2018,6 +2019,69 @@ function advanceOrderProgressStage(orderCode) {
  * 실측(현장 방문 측정) 일정 조율 단계가 전혀 없었다 — 시공 범위·자재를 확정하기
  * 위한 필수 단계인데도 이 플랫폼에는 아예 존재하지 않았다. 결제 마일스톤과 동일한
  * 요청→확인/거절 핸드셰이크 패턴을 적용한다. */
+/* 실측/하자보수 방문 일정은 각 오더 상세에 따로따로 흩어져 있어서, 계약 건이
+ * 여러 개인 파트너는 "오늘/이번 주에 어디를 가야 하는지" 한눈에 볼 방법이
+ * 전혀 없었고, 같은 날 방문 두 건이 겹쳐도 알아챌 방법이 없었다 — 모든 오더의
+ * 확정/제안된 방문을 날짜순으로 모아 보여주고, 같은 날짜에 겹치면 경고한다. */
+function getPartnerScheduledVisits(partnerName) {
+    const entries = [];
+    (window.AppState.orders || []).filter(o => o.acceptedPartner === partnerName).forEach(o => {
+        const visit = o.siteVisit;
+        if (visit && (visit.status === 'proposed' || visit.status === 'confirmed')) {
+            const date = visit.status === 'confirmed' ? visit.confirmedDate : visit.proposedDate;
+            if (date) entries.push({ date, status: visit.status, orderCode: o.code, label: `${o.clientName} 고객님 · 실측 방문` });
+        }
+        (o.repairClaims || []).forEach(c => {
+            if ((c.visitStatus === 'proposed' || c.visitStatus === 'confirmed') && c.visitDate) {
+                entries.push({ date: c.visitDate, status: c.visitStatus, orderCode: o.code, label: `${o.clientName} 고객님 · 하자보수(${c.title}) 방문` });
+            }
+        });
+    });
+    entries.sort((a, b) => a.date.localeCompare(b.date));
+    return entries;
+}
+
+function renderPartnerScheduleView() {
+    const container = document.getElementById('partner-mode-schedule-view');
+    if (!container) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const entries = getPartnerScheduledVisits(partnerName);
+
+    if (entries.length === 0) {
+        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap" style="background:var(--brand-50);color:var(--brand-600)"><i data-lucide="calendar" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">예정된 방문 일정이 없습니다.</p></div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    const byDate = {};
+    entries.forEach(e => { if (!byDate[e.date]) byDate[e.date] = []; byDate[e.date].push(e); });
+
+    container.innerHTML = `
+        <div class="surface surface-lg p-6 sm:p-8 space-y-5 text-left">
+            <h3 class="text-base font-black text-ink-950 tracking-tight flex items-center gap-2"><i data-lucide="calendar-days" class="w-4 h-4 text-brand-500"></i> 방문 일정 (${entries.length}건)</h3>
+            <div class="space-y-3">
+                ${Object.keys(byDate).sort().map(date => {
+                    const dayEntries = byDate[date];
+                    const hasConflict = dayEntries.length > 1;
+                    return `<div class="p-4 rounded-2xl border ${hasConflict ? 'border-rose-200 bg-rose-50/40' : 'border-ink-100 bg-ink-50/70'} space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-black text-ink-950">${date}</span>
+                            ${hasConflict ? `<span class="badge badge-rose"><i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> 같은 날 방문 ${dayEntries.length}건</span>` : ''}
+                        </div>
+                        <div class="space-y-1.5">
+                            ${dayEntries.map(e => `
+                            <div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-ink-100 cursor-pointer hover:border-ink-300" onclick="openPartnerOrderDetailModal('${e.orderCode}')">
+                                <span class="text-[11px] font-bold text-ink-700">${escapeHtml(e.label)} <span class="text-ink-400 font-mono">${e.orderCode}</span></span>
+                                <span class="badge ${e.status === 'confirmed' ? 'badge-emerald' : 'badge-amber'}">${e.status === 'confirmed' ? '확정' : '제안중'}</span>
+                            </div>`).join('')}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 let siteVisitTargetCode = null;
 
 function openSiteVisitModal(orderCode) {
@@ -7277,6 +7341,7 @@ window.advanceOrderProgressStage = advanceOrderProgressStage;
 window.buildPartnerPaymentMilestonesHtml = buildPartnerPaymentMilestonesHtml;
 window.requestPaymentMilestone = requestPaymentMilestone;
 window.disputeMilestonePaymentReceipt = disputeMilestonePaymentReceipt;
+window.renderPartnerScheduleView = renderPartnerScheduleView;
 window.openSiteVisitModal = openSiteVisitModal;
 window.closeSiteVisitModal = closeSiteVisitModal;
 window.submitSiteVisitProposal = submitSiteVisitProposal;

@@ -47,8 +47,8 @@ function closeModal(modalId, cardId, delay = 180) {
 
 function switchPartnerMode(mode) {
     window.AppState.partnerConsoleMode = mode;
-    const tabs = { orders: 'btn-partner-view-orders', contracts: 'btn-partner-view-contracts', performance: 'btn-partner-view-performance', portfolio: 'btn-partner-view-portfolio', myinfo: 'btn-partner-view-myinfo', notifications: 'btn-partner-view-notifications', support: 'btn-partner-view-support' };
-    const views = { orders: 'partner-mode-orders-view', contracts: 'partner-mode-contracts-view', performance: 'partner-mode-performance-view', portfolio: 'partner-mode-portfolio-view', myinfo: 'partner-mode-myinfo-view', notifications: 'partner-mode-notifications-view', support: 'partner-mode-support-view' };
+    const tabs = { orders: 'btn-partner-view-orders', contracts: 'btn-partner-view-contracts', schedule: 'btn-partner-view-schedule', performance: 'btn-partner-view-performance', portfolio: 'btn-partner-view-portfolio', myinfo: 'btn-partner-view-myinfo', notifications: 'btn-partner-view-notifications', support: 'btn-partner-view-support' };
+    const views = { orders: 'partner-mode-orders-view', contracts: 'partner-mode-contracts-view', schedule: 'partner-mode-schedule-view', performance: 'partner-mode-performance-view', portfolio: 'partner-mode-portfolio-view', myinfo: 'partner-mode-myinfo-view', notifications: 'partner-mode-notifications-view', support: 'partner-mode-support-view' };
 
     Object.values(tabs).forEach(id => document.getElementById(id)?.classList.remove('active'));
     Object.values(views).forEach(id => document.getElementById(id)?.classList.add('hidden'));
@@ -58,6 +58,7 @@ function switchPartnerMode(mode) {
 
     if (mode === 'orders' && typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
     else if (mode === 'contracts' && typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+    else if (mode === 'schedule' && typeof renderPartnerScheduleView === 'function') renderPartnerScheduleView();
     else if (mode === 'performance' && typeof renderPartnerPerformanceView === 'function') renderPartnerPerformanceView();
     else if (mode === 'myinfo') renderPartnerProfileManager();
     else if (mode === 'portfolio') renderPartnerConsolePortfolios();
