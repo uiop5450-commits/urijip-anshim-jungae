@@ -230,6 +230,28 @@ function getOrInitPaymentMilestones(order) {
     return order.paymentMilestones;
 }
 
+/* 홈 화면 이벤트 배너(pamphlets, config_state.js)가 "첫 견적 신청 5만원 상품권",
+ * "후기 작성 10만원 상품권", "계약 시 3년 하자이행보증 쿠폰"을 100% 증정한다고
+ * 광고하지만, 실제로 이 혜택을 적립·확인할 방법이 어디에도 없었다 — 순수 마케팅
+ * 문구뿐인 광고-미구현 공백. 견적 신청/계약 양측 서명/후기 작성(사진 3장+50자
+ * 이상) 시점에 계정에 적립하고, 마이페이지에서 확인·수령 신청할 수 있게 한다. */
+function grantClientBenefit(clientPhone, type, label, amount, orderCode) {
+    if (!clientPhone) return;
+    const account = (window.AppState.clientAccounts || []).find(a => a.phone === clientPhone);
+    if (!account) return;
+    if (!account.benefits) account.benefits = [];
+    const dupKey = orderCode ? `${type}:${orderCode}` : type;
+    if (account.benefits.some(b => (b.orderCode ? `${b.type}:${b.orderCode}` : b.type) === dupKey)) return;
+
+    account.benefits.unshift({
+        id: `bnf-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        type, label, amount, orderCode: orderCode || null,
+        status: 'eligible', earnedDate: getLocalDateString(), claimedDate: null
+    });
+    if (typeof pushClientNotification === 'function') pushClientNotification(clientPhone, `혜택이 적립되었습니다: ${label} (${amount}) — 마이페이지에서 확인하세요.`);
+    if (typeof renderClientBenefitsStatus === 'function') renderClientBenefitsStatus();
+}
+
 /* 아직 구현되지 않은 부가 링크(이용약관 등) 클릭 시 보여줄 안내 — 죽은 링크로 보이지 않게. */
 function showComingSoon(label) {
     showToast(`${label}은(는) 준비 중인 페이지예요.`, 'info');
@@ -400,5 +422,6 @@ window.closeFooterInfoModal = closeFooterInfoModal;
 window.getLocalDateString = getLocalDateString;
 window.getOrInitProgressStages = getOrInitProgressStages;
 window.getOrInitPaymentMilestones = getOrInitPaymentMilestones;
+window.grantClientBenefit = grantClientBenefit;
 window.showToast = showToast;
 window.closeToast = closeToast;

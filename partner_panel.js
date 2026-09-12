@@ -4354,6 +4354,10 @@ function submitPartnerSignatureCanvas(orderCode) {
     order.partnerSignedDate = getLocalDateString();
     order.partnerSignatureImage = canvas.toDataURL('image/png');
 
+    if (order.clientSigned && order.partnerSigned && typeof grantClientBenefit === 'function') {
+        grantClientBenefit(order.clientPhone, 'warranty_coupon', '3년 하자이행보증 무상 쿠폰', '하자보수 무상 보증', order.code);
+    }
+
     if (typeof pushLog === 'function') pushLog('PARTNER', 'CONTRACT_SIGN', `[${partnerName}]가 계약(${order.code}) 합의서에 전자서명을 완료했습니다.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}에서 계약(${order.code}) 합의서에 서명을 완료했어요.${order.clientSigned ? ' 양측 서명이 모두 완료되었습니다.' : ''}`);
     showToast('서명이 완료되었습니다.', 'success');

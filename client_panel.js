@@ -343,6 +343,10 @@ function completeMatchingSim() {
     window.AppState.lastCreatedOrderCode = code;
     clearQuoteDraftFromStorage();
 
+    if (auth.loggedIn && typeof grantClientBenefit === 'function') {
+        grantClientBenefit(auth.phone, 'quote_voucher', '첫 견적 신청 축하 상품권', '5만원');
+    }
+
     if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
     if (typeof recalculateKPIs === 'function') recalculateKPIs();
 
@@ -1843,6 +1847,47 @@ function renderClientAccountSettings() {
     renderClientNotificationPrefToggle();
     renderClientReportedStatus();
     renderClientReviewDeletionStatus();
+    renderClientBenefitsStatus();
+}
+
+/* 홈 화면 이벤트 배너가 광고하는 견적신청/후기작성/계약 혜택(grantClientBenefit,
+ * utils_ui.js)을 고객이 마이페이지에서 직접 확인하고 수령 신청할 수 있게 한다. */
+function renderClientBenefitsStatus() {
+    const container = document.getElementById('client-benefits-status');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    const benefits = (account && account.benefits) || [];
+
+    if (benefits.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">아직 적립된 혜택이 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = benefits.map(b => `
+        <div class="p-2.5 bg-amber-50 rounded-xl flex items-center justify-between gap-2">
+            <div class="min-w-0">
+                <p class="text-[11px] font-black text-ink-900">${escapeHtml(b.label)}</p>
+                <p class="text-[10px] text-ink-500 font-semibold">${escapeHtml(b.amount)} · 적립일 ${b.earnedDate}${b.claimedDate ? ` · 수령일 ${b.claimedDate}` : ''}</p>
+            </div>
+            ${b.status === 'claimed'
+                ? `<span class="badge badge-emerald shrink-0">수령완료</span>`
+                : `<button type="button" onclick="claimClientBenefit('${b.id}')" class="btn btn-dark btn-sm shrink-0">수령 신청</button>`}
+        </div>`).join('');
+}
+
+function claimClientBenefit(benefitId) {
+    const auth = window.AppState.clientAuth;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    const benefit = account && account.benefits && account.benefits.find(b => b.id === benefitId);
+    if (!benefit || benefit.status === 'claimed') return;
+
+    benefit.status = 'claimed';
+    benefit.claimedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'BENEFIT_CLAIM', `[${auth.name}] 고객님이 혜택 "${benefit.label}" 수령을 신청했습니다.`, 'INFO');
+    showToast(`"${benefit.label}" 수령 신청이 접수되었습니다.`, 'success');
+    renderClientBenefitsStatus();
 }
 
 /* 후기가 삭제되면 신고자에게는 알림이 가지만(notifyReportResolved, partner_panel.js)
@@ -2673,8 +2718,13 @@ function submitClientReview() {
         partner.rating = Math.round((total / partner.reviews.length) * 10) / 10;
     }
 
+    const qualifiesForVoucher = !isEditing && text.length >= 50 && window.AppState.reviewPhotoDrafts.length >= 3;
     order.reviewWritten = true;
     window.AppState.reviewPhotoDrafts = [];
+
+    if (qualifiesForVoucher && typeof grantClientBenefit === 'function') {
+        grantClientBenefit(order.clientPhone, 'review_voucher', '완공 포토 후기 상품권', '10만원', orderCode);
+    }
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW', `${maskName(order.clientName)} 고객님이 [${order.acceptedPartner}]에 대한 안심 후기를 ${isEditing ? '수정' : '등록'}함.`, 'SUCCESS');
     if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 후기를 ${isEditing ? '수정했어요' : '남겼어요'}! (★ ${window.AppState.activeReviewRating || 5}.0)`);
@@ -2778,6 +2828,10 @@ function submitSignatureCanvas(orderCode) {
     order.clientSigned = true;
     order.signedDate = getLocalDateString();
     order.signatureImage = canvas.toDataURL('image/png');
+
+    if (order.clientSigned && order.partnerSigned && typeof grantClientBenefit === 'function') {
+        grantClientBenefit(order.clientPhone, 'warranty_coupon', '3년 하자이행보증 무상 쿠폰', '하자보수 무상 보증', order.code);
+    }
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'CONTRACT_SIGN', `${maskName(order.clientName)} 고객님이 계약(${order.code}) 합의서에 전자서명을 완료했습니다.`, 'SUCCESS');
     if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 계약(${order.code}) 합의서에 서명을 완료했어요.`);
@@ -3580,6 +3634,8 @@ window.openReviewDeletionAppealModal = openReviewDeletionAppealModal;
 window.closeReviewDeletionAppealModal = closeReviewDeletionAppealModal;
 window.submitReviewDeletionAppeal = submitReviewDeletionAppeal;
 window.renderClientReviewDeletionStatus = renderClientReviewDeletionStatus;
+window.renderClientBenefitsStatus = renderClientBenefitsStatus;
+window.claimClientBenefit = claimClientBenefit;
 
 window.sendClientAuthCode = sendClientAuthCode;
 window.switchClientAuthTab = switchClientAuthTab;
