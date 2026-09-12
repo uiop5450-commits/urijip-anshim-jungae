@@ -2273,6 +2273,7 @@ function renderClientMyPageNotifications(myNotifications) {
                 </div>
                 <p class="text-[10px] text-ink-400 font-bold mt-0.5">${dateLabel}${n.read ? '' : ' · <span class="text-brand-600">탭하여 읽음 처리</span>'}</p>
                 ${n.dmThreadId ? `<div class="flex gap-1.5 mt-1.5"><input type="text" id="dm-reply-input-${n.id}" placeholder="매니저에게 답장하기" class="input flex-1 text-xs"><button type="button" onclick="replyToManagerDirectMessage('${n.id}')" class="btn btn-dark btn-sm shrink-0">답장</button></div>` : ''}
+                ${n.invitingPartner ? `<button type="button" onclick="requestDirectQuoteFromPortfolio('${escapeHtml(n.invitingPartner)}')" class="btn btn-dark btn-sm mt-1.5">견적 요청 보내기</button>` : ''}
             </div>
         </div>`;
     }).join('') + `</div>`;
