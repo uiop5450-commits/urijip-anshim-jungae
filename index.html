@@ -662,6 +662,10 @@
                         <div id="client-reported-status" class="space-y-2"></div>
                     </div>
                     <div class="space-y-3 pt-2">
+                        <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="star-off" class="w-4 h-4 text-roseCustom"></i> 삭제된 내 후기</h4>
+                        <div id="client-review-deletion-status" class="space-y-2"></div>
+                    </div>
+                    <div class="space-y-3 pt-2">
                         <h4 class="text-xs font-black text-roseCustom uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="alert-triangle" class="w-4 h-4"></i> 회원 탈퇴</h4>
                         <p class="text-[11px] text-ink-500 font-medium leading-relaxed">탈퇴하면 즉시 로그아웃되며 더 이상 로그인할 수 없어요. 진행 중인 의뢰가 있다면 탈퇴 전에 확인해 주세요.</p>
                         <button type="button" onclick="openAccountDeleteModal()" class="btn btn-secondary btn-sm text-roseCustom">회원 탈퇴하기</button>
@@ -1724,6 +1728,20 @@
                 <div><label class="field-label">새 계약 금액 (만원)</label><input type="number" id="partner-price-change-amount-input" min="1" class="input"></div>
                 <div><label class="field-label">변경 사유</label><textarea id="partner-price-change-reason-input" rows="3" placeholder="추가 공사, 자재 변경 등 금액 변경이 필요한 사유를 적어주세요." class="textarea"></textarea></div>
                 <button type="button" onclick="submitPartnerPriceChangeRequest()" class="btn btn-primary btn-block">변경 요청 보내기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="review-deletion-appeal-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="review-deletion-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">이의신청</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">후기 삭제에 이의를 제기합니다</h3></div>
+                <button type="button" onclick="closeReviewDeletionAppealModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">제출하시면 매니저 센터가 심사 후 후기 복원 또는 반려 여부를 안내해드려요.</p>
+                <div><label class="field-label">이의신청 내용</label><textarea id="review-deletion-appeal-reason-input" rows="4" placeholder="삭제가 부당하다고 생각되는 이유를 자세히 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitReviewDeletionAppeal()" class="btn btn-primary btn-block">이의신청 제출</button>
             </div>
         </div>
     </div>

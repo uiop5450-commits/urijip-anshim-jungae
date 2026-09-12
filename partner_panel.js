@@ -3512,6 +3512,56 @@ function buildAdminReviewModerationHtml(partner) {
         </div>`).join('');
 }
 
+function buildReviewDeletionAppealsHtml(partnerName) {
+    const entries = (window.AppState.reviewDeletionLog || []).filter(e => e.partnerName === partnerName && e.appeal && e.appeal.status === 'pending');
+    if (entries.length === 0) return '';
+    return `<div class="space-y-2.5 pt-2">
+        <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="undo-2" class="w-4 h-4 text-roseCustom"></i> 후기 삭제 이의신청 (${entries.length}건)</h4>
+        <div class="space-y-2">${entries.map(e => `
+        <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-200 space-y-1.5 text-left">
+            <p class="text-xs text-ink-700 font-medium leading-relaxed">삭제된 후기: "${escapeHtml(e.reviewSnapshot.text)}" (★${e.reviewSnapshot.rating}.0, ${e.reviewSnapshot.date})</p>
+            <p class="text-[11px] font-black text-brand-700">이의신청: ${escapeHtml(e.appeal.reason)}</p>
+            <div class="flex items-center gap-1.5 justify-end">
+                <button type="button" onclick="openReportReasonPrompt((reason) => adminRejectReviewDeletionAppeal('${e.id}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">반려</button>
+                <button type="button" onclick="adminApproveReviewDeletionAppeal('${e.id}')" class="text-[10px] font-bold text-ink-500 hover:text-emeraldCustom bg-transparent border-0 cursor-pointer p-0">승인(후기 복원)</button>
+            </div>
+        </div>`).join('')}</div>
+    </div>`;
+}
+
+/* 후기 삭제 이의신청이 승인되면 스냅샷을 그대로 partner.reviews에 되돌려 복원한다 —
+ * 신청 당시 배열 위치는 의미가 없으므로 맨 위에 다시 올린다. */
+function adminApproveReviewDeletionAppeal(logId) {
+    const entry = (window.AppState.reviewDeletionLog || []).find(e => e.id === logId);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+    const partner = window.AppState.partners.find(p => p.name === entry.partnerName);
+    if (!partner) return;
+
+    if (!partner.reviews) partner.reviews = [];
+    partner.reviews.unshift(entry.reviewSnapshot);
+    partner.rating = Math.round((partner.reviews.reduce((acc, r) => acc + r.rating, 0) / partner.reviews.length) * 10) / 10;
+    window.AppState.reviewDeletionLog = window.AppState.reviewDeletionLog.filter(e => e.id !== logId);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_DELETION_APPEAL_APPROVE', `[이의신청 승인] '${entry.partnerName}' 파트너의 삭제된 후기를 재검토하여 복원했습니다.`, 'SUCCESS');
+    if (entry.clientPhone && typeof pushClientNotification === 'function') pushClientNotification(entry.clientPhone, `제출하신 이의신청이 승인되어 삭제됐던 후기가 복원되었습니다.`);
+    showToast('후기를 복원했습니다.', 'success');
+    openPartnerMetricsModal(entry.partnerName);
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+}
+
+function adminRejectReviewDeletionAppeal(logId, reason) {
+    const entry = (window.AppState.reviewDeletionLog || []).find(e => e.id === logId);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+    entry.appeal.status = 'rejected';
+    entry.appeal.adminResponse = reason;
+    entry.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_DELETION_APPEAL_REJECT', `[이의신청 반려] '${entry.partnerName}' 파트너의 삭제된 후기 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (entry.clientPhone && typeof pushClientNotification === 'function') pushClientNotification(entry.clientPhone, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast('이의신청을 반려했습니다.', 'info');
+    openPartnerMetricsModal(entry.partnerName);
+}
+
 /* 신고를 검토한 뒤 실제 위반이 아니라고 판단하면 콘텐츠를 지우지 않고 신고만
  * 종료할 방법이 지금까지 없었다 — 계약 취소 심사(approve/reject)와 동일한 승인/반려
  * 대칭 구조를 신고 처리에도 적용한다. 신고 표시만 초기화하고 신고자에게 알린다. */
@@ -3964,16 +4014,34 @@ function buildPartnerPriceChangeHtml(order) {
     </div>`;
 }
 
+/* 후기가 삭제되면 신고자에게는 알림이 가지만(notifyReportResolved), 정작 그 후기를
+ * 작성한 고객 본인은 자기 글이 지워진 사실조차 알 방법이 없었고 소명할 방법도
+ * 없었다 — 계약 강제 취소 이의신청과 동일한 비대칭이다. 삭제 시 스냅샷을 별도
+ * 로그에 남겨 작성자가 이의신청을 제출하면 관리자가 승인(복원) 또는 반려할 수
+ * 있게 한다. */
 function adminDeleteReview(partnerName, reviewIdx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
-    const reportedBy = partner.reviews[reviewIdx].reportedBy;
+    const review = partner.reviews[reviewIdx];
+    const reportedBy = review.reportedBy;
+    const order = review.orderCode ? (window.AppState.orders || []).find(o => o.code === review.orderCode) : null;
+
     partner.reviews.splice(reviewIdx, 1);
     partner.rating = partner.reviews.length > 0
         ? Math.round((partner.reviews.reduce((acc, r) => acc + r.rating, 0) / partner.reviews.length) * 10) / 10
         : 5.0;
+
+    if (!window.AppState.reviewDeletionLog) window.AppState.reviewDeletionLog = [];
+    const logEntry = {
+        id: `rdl-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        partnerName, orderCode: review.orderCode, clientPhone: order ? order.clientPhone : null,
+        reviewSnapshot: review, date: getLocalDateString(), appeal: null
+    };
+    window.AppState.reviewDeletionLog.unshift(logEntry);
+
     if (typeof pushLog === 'function') pushLog('MANAGER', 'REVIEW_MODERATE', `[후기 삭제] '${partnerName}' 파트너의 후기를 매니저 센터에서 삭제 조치함.`, 'WARNING');
     if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 [${partnerName}]의 후기가 검토 후 삭제 처리되었습니다.`);
+    if (logEntry.clientPhone && typeof pushClientNotification === 'function') pushClientNotification(logEntry.clientPhone, `작성하신 [${partnerName}] 후기가 매니저 센터 검토 후 삭제되었습니다. 부당하다고 생각되시면 마이페이지에서 소명하실 수 있어요.`);
     showToast('후기를 삭제했습니다.', 'info');
     openPartnerMetricsModal(partnerName);
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
@@ -4079,6 +4147,7 @@ function openPartnerMetricsModal(partnerName) {
                     <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="star" class="w-4 h-4 text-ink-600"></i> 등록된 안심 후기 관리 (${(partner.reviews || []).length}건)</h4>
                     <div class="space-y-2">${buildAdminReviewModerationHtml(partner)}</div>
                 </div>
+                ${buildReviewDeletionAppealsHtml(partner.name)}
                 <div class="space-y-2.5 pt-2">
                     <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="image" class="w-4 h-4 text-ink-600"></i> 등록된 시공사례 관리 (${(partner.portfolios || []).filter(p => !p.isDraft).length}건)</h4>
                     <div class="space-y-2">${buildAdminPortfolioModerationHtml(partner)}</div>
@@ -5076,6 +5145,9 @@ window.renderPartnerPerformanceView = renderPartnerPerformanceView;
 window.exportPartnerPerformanceCsv = exportPartnerPerformanceCsv;
 window.closePartnerMetricsModal = closePartnerMetricsModal;
 window.adminDeleteReview = adminDeleteReview;
+window.buildReviewDeletionAppealsHtml = buildReviewDeletionAppealsHtml;
+window.adminApproveReviewDeletionAppeal = adminApproveReviewDeletionAppeal;
+window.adminRejectReviewDeletionAppeal = adminRejectReviewDeletionAppeal;
 window.adminDeletePortfolio = adminDeletePortfolio;
 window.setAdminClientStatusFilter = setAdminClientStatusFilter;
 window.exportOrderLookupResultsToCsv = exportOrderLookupResultsToCsv;

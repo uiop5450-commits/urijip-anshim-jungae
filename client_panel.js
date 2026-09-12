@@ -1802,6 +1802,70 @@ function renderClientAccountSettings() {
     renderBlockedUsersList();
     renderClientNotificationPrefToggle();
     renderClientReportedStatus();
+    renderClientReviewDeletionStatus();
+}
+
+/* 후기가 삭제되면 신고자에게는 알림이 가지만(notifyReportResolved, partner_panel.js)
+ * 정작 작성자 본인은 삭제 사실조차 알 방법이 없었고 소명할 방법도 없었다 —
+ * 계약 강제 취소 이의신청과 동일한 비대칭이다. 삭제 시 남긴 스냅샷 로그
+ * (window.AppState.reviewDeletionLog)에서 본인 소유 건만 골라 보여준다. */
+let reviewDeletionAppealTarget = null;
+
+function openReviewDeletionAppealModal(logId) {
+    const auth = window.AppState.clientAuth;
+    const entry = (window.AppState.reviewDeletionLog || []).find(e => e.id === logId && e.clientPhone === auth.phone);
+    if (!entry) return;
+    if (entry.appeal && entry.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    reviewDeletionAppealTarget = logId;
+    safeUpdateValue('review-deletion-appeal-reason-input', '');
+    openModal('review-deletion-appeal-modal', 'review-deletion-appeal-modal-card');
+}
+
+function closeReviewDeletionAppealModal() {
+    reviewDeletionAppealTarget = null;
+    closeModal('review-deletion-appeal-modal', 'review-deletion-appeal-modal-card');
+}
+
+function submitReviewDeletionAppeal() {
+    const entry = (window.AppState.reviewDeletionLog || []).find(e => e.id === reviewDeletionAppealTarget);
+    if (!entry) { closeReviewDeletionAppealModal(); return; }
+    const reason = document.getElementById('review-deletion-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    entry.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    const auth = window.AppState.clientAuth;
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REVIEW_DELETION_APPEAL', `[${auth.name}] 고객님이 삭제된 [${entry.partnerName}] 후기에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeReviewDeletionAppealModal();
+    renderClientReviewDeletionStatus();
+}
+
+function renderClientReviewDeletionStatus() {
+    const container = document.getElementById('client-review-deletion-status');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    const myEntries = (window.AppState.reviewDeletionLog || []).filter(e => e.clientPhone === auth.phone);
+
+    if (myEntries.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">삭제된 후기가 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = myEntries.map(e => {
+        let statusHtml;
+        if (e.appeal && e.appeal.status === 'pending') {
+            statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">이의신청 심사 대기중</p>`;
+        } else if (e.appeal && e.appeal.status === 'rejected') {
+            statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">이의신청 반려됨${e.appeal.adminResponse ? ` — ${escapeHtml(e.appeal.adminResponse)}` : ''}</p>`;
+        } else {
+            statusHtml = `<button type="button" onclick="openReviewDeletionAppealModal('${e.id}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">이의신청하기</button>`;
+        }
+        return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5">
+            <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">[${escapeHtml(e.partnerName)}]에 남긴 후기가 삭제되었습니다: "${escapeHtml(e.reviewSnapshot.text)}" (${e.date})</p>
+            ${statusHtml}
+        </div>`;
+    }).join('');
 }
 
 /* 파트너는 노쇼·상습 갑질 고객을 신고할 수 있지만(submitClientReport, partner_panel.js)
@@ -3469,6 +3533,10 @@ window.openClientReportAppealModal = openClientReportAppealModal;
 window.closeClientReportAppealModal = closeClientReportAppealModal;
 window.submitClientReportAppeal = submitClientReportAppeal;
 window.renderClientReportedStatus = renderClientReportedStatus;
+window.openReviewDeletionAppealModal = openReviewDeletionAppealModal;
+window.closeReviewDeletionAppealModal = closeReviewDeletionAppealModal;
+window.submitReviewDeletionAppeal = submitReviewDeletionAppeal;
+window.renderClientReviewDeletionStatus = renderClientReviewDeletionStatus;
 
 window.sendClientAuthCode = sendClientAuthCode;
 window.switchClientAuthTab = switchClientAuthTab;
