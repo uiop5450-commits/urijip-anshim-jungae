@@ -344,7 +344,21 @@ function completeMatchingSim() {
     clearQuoteDraftFromStorage();
 
     if (auth.loggedIn && typeof grantClientBenefit === 'function') {
+        const account = window.AppState.clientAccounts.find(a => a.id === auth.id);
+        const isFirstQuote = account && !(account.benefits || []).some(b => b.type === 'quote_voucher');
+
         grantClientBenefit(auth.phone, 'quote_voucher', '첫 견적 신청 축하 상품권', '5만원');
+
+        // 추천 가입(referredBy) 보상은 "추천받은 친구가 실제로 서비스를 이용했을 때"만
+        // 지급해야 어뷰징(가입만 하고 활동 없는 유령 계정)을 막을 수 있다 — 첫 견적
+        // 신청 시점을 그 기준으로 삼는다.
+        if (isFirstQuote && account && account.referredBy) {
+            const referrer = window.AppState.clientAccounts.find(a => a.id === account.referredBy);
+            if (referrer) {
+                grantClientBenefit(referrer.phone, 'referral_reward', `친구 초대 감사 상품권 (${maskName(account.name)}님 추천)`, '3만원', code);
+                grantClientBenefit(auth.phone, 'referral_reward', '추천 가입 축하 상품권', '3만원', code);
+            }
+        }
     }
 
     if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
@@ -1289,12 +1303,20 @@ function submitClientSignup() {
     if (window.AppState.clientAccounts.some(acc => acc.id === idVal)) { showToast("이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.", "warning"); return; }
     if (window.AppState.clientAccounts.some(acc => acc.phone === phoneVal)) { showToast("이미 가입된 휴대폰 번호입니다. 아이디를 잊으셨다면 고객센터에 문의해 주세요.", "warning"); return; }
 
-    window.AppState.clientAccounts.push({ id: idVal, pw: pwVal, name: nameVal, phone: phoneVal });
+    // 추천인 아이디는 선택 입력이라, 존재하지 않거나 자기 자신을 적어도 가입 자체를
+    // 막지는 않는다 — 조용히 무시하고 정상 가입만 진행한다.
+    const referralIdVal = document.getElementById('form-signup-referral')?.value.trim();
+    const referrer = referralIdVal ? window.AppState.clientAccounts.find(acc => acc.id === referralIdVal) : null;
+    if (referralIdVal && !referrer) { showToast("추천인 아이디를 찾을 수 없어 추천 없이 가입을 진행합니다.", "info"); }
+
+    const newAccount = { id: idVal, pw: pwVal, name: nameVal, phone: phoneVal };
+    if (referrer) newAccount.referredBy = referrer.id;
+    window.AppState.clientAccounts.push(newAccount);
     auth.loggedIn = true; auth.id = idVal; auth.name = nameVal; auth.phone = phoneVal;
     window.AppState.formData.clientName = nameVal;
     window.AppState.formData.clientPhone = phoneVal;
 
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'SIGNUP_SUCCESS', `'${nameVal}'(${idVal}) 고객님 회원가입 및 로그인 완료.`, 'SUCCESS');
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'SIGNUP_SUCCESS', `'${nameVal}'(${idVal}) 고객님 회원가입 및 로그인 완료.${referrer ? ` (추천인: ${referrer.id})` : ''}`, 'SUCCESS');
     showToast(`회원가입이 완료되었습니다!\n반갑습니다, ${nameVal} 고객님.`, 'success');
 
     toggleClientAuthUI(); syncFormStateUI();
