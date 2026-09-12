@@ -3591,7 +3591,9 @@ function toggleCommunityAcceptedAnswer(postId, commentIndex) {
     post.comments.forEach(c => { c.accepted = false; });
     if (!wasAccepted) {
         comment.accepted = true;
-        if (comment.authorId && comment.authorId !== auth.id) {
+        if (comment.authorType === 'partner') {
+            if (typeof pushPartnerNotification === 'function') pushPartnerNotification(comment.authorName, `작성하신 전문가 답변이 "${post.title}" 글의 채택 답변으로 선정되었어요!`);
+        } else if (comment.authorId && comment.authorId !== auth.id) {
             const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === comment.authorId);
             if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') {
                 pushClientNotification(authorAccount.phone, `작성하신 댓글이 "${post.title}" 글의 채택 답변으로 선정되었어요!`);
@@ -3982,7 +3984,7 @@ function openCommunityDetail(postId) {
             return `
             <div class="p-3.5 ${c.accepted ? 'bg-emerald-50 border border-emerald-200' : 'bg-ink-50'} rounded-xl space-y-1">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-black text-ink-800 flex items-center gap-1.5">${escapeHtml(c.authorName)}${c.accepted ? `<span class="badge badge-emerald"><i data-lucide="check" class="w-2.5 h-2.5"></i> 채택된 답변</span>` : ''}</span>
+                    <span class="text-xs font-black text-ink-800 flex items-center gap-1.5">${escapeHtml(c.authorName)}${c.authorType === 'partner' ? `<span class="badge badge-brand"><i data-lucide="badge-check" class="w-2.5 h-2.5"></i> 전문가 답변</span>` : ''}${c.accepted ? `<span class="badge badge-emerald"><i data-lucide="check" class="w-2.5 h-2.5"></i> 채택된 답변</span>` : ''}</span>
                     <span class="text-[10px] text-ink-400 font-bold">${c.date}${c.edited ? ' (수정됨)' : ''}</span>
                 </div>
                 ${isCommentEditing
@@ -4198,18 +4200,34 @@ function toggleCommunityLike(postId) {
     openCommunityDetail(postId);
 }
 
+/* Q&A 게시판은 채택 답변 기능까지 있는데 정작 실제 전문가인 파트너는 댓글을 남길
+ * 방법이 전혀 없었다 — 커뮤니티 패널 자체는 역할 구분 없이 누구나 들어올 수 있는
+ * 전역 패널(CLIENT_AUTH_REQUIRED_PANELS에 community-panel이 없음)인데, 댓글
+ * 작성만 클라이언트 로그인으로 막혀 있던 비대칭. Q&A 글에 한해 로그인한 파트너의
+ * "전문가 답변"을 허용한다(수정/삭제/신고 대상은 되지 않는 최소 범위 — 고객
+ * 댓글과 동일한 CRUD는 다음 단계로 남긴다). */
 function submitCommunityComment(postId) {
-    if (!requireClientLoginForCommunity()) return;
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    if (!post) return;
+    const isPartnerAnswer = post.category === 'qna' && window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn);
+    if (!isPartnerAnswer && !requireClientLoginForCommunity()) return;
+
     const input = document.getElementById('community-comment-input');
     const text = input ? input.value.trim() : '';
     if (!text) { showToast('댓글 내용을 입력해 주세요.', 'warning'); return; }
-    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
-    if (!post) return;
     if (!post.comments) post.comments = [];
-    const auth = window.AppState.clientAuth;
-    post.comments.push({ authorName: auth.name, authorId: auth.id, text, date: getLocalDateString() });
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_COMMENT', `'${auth.name}' 고객님이 댓글을 남겼습니다.`, 'INFO');
-    notifyCommunityPostAuthor(post, `내가 쓴 글 "${post.title}"에 댓글이 달렸어요.`);
+
+    if (isPartnerAnswer) {
+        const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+        post.comments.push({ authorName: partnerName, authorId: `partner:${partnerName}`, authorType: 'partner', text, date: getLocalDateString() });
+        if (typeof pushLog === 'function') pushLog('PARTNER', 'COMMUNITY_ANSWER', `[${partnerName}]가 Q&A 글("${post.title}")에 전문가 답변을 남겼습니다.`, 'INFO');
+        notifyCommunityPostAuthor(post, `내가 쓴 글 "${post.title}"에 전문가 답변이 달렸어요.`);
+    } else {
+        const auth = window.AppState.clientAuth;
+        post.comments.push({ authorName: auth.name, authorId: auth.id, text, date: getLocalDateString() });
+        if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_COMMENT', `'${auth.name}' 고객님이 댓글을 남겼습니다.`, 'INFO');
+        notifyCommunityPostAuthor(post, `내가 쓴 글 "${post.title}"에 댓글이 달렸어요.`);
+    }
     openCommunityDetail(postId);
 }
 
