@@ -1850,9 +1850,17 @@ function buildPartnerProgressStagesHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
     const stages = getOrInitProgressStages(order);
     const nextStage = stages.find(s => !s.done);
+    const disputedStages = stages.filter(s => s.disputed);
+    const disputeListHtml = disputedStages.length === 0 ? '' : `<div class="space-y-1">${disputedStages.map(s => {
+        const statusText = s.disputeResolution === 'rejected' ? `이의제기 반려됨(완료 유지)${s.disputeAdminResponse ? ` — ${escapeHtml(s.disputeAdminResponse)}` : ''}`
+            : s.disputeResolution === 'approved' ? '이의제기 승인됨(재작업 필요)'
+                : '고객 이의제기 심사중';
+        return `<p class="text-[10px] text-roseCustom font-bold">"${escapeHtml(s.label)}" 단계: ${statusText}</p>`;
+    }).join('')}</div>`;
     return `<div class="surface p-5 space-y-3">
         <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="hard-hat" class="w-4 h-4 text-brand-500"></i> 시공 진행 단계</h5>
         ${renderPartnerContractProgressStepperHtml(stages)}
+        ${disputeListHtml}
         ${nextStage
             ? `<button type="button" onclick="advanceOrderProgressStage('${order.code}')" class="btn btn-dark btn-sm btn-block">"${escapeHtml(nextStage.label)}" 단계 완료로 표시</button>`
             : `<p class="text-[11px] text-emeraldCustom font-bold text-center">모든 시공 단계가 완료되었습니다.</p>`}
@@ -2727,6 +2735,14 @@ function getAllPendingAppeals() {
                 });
             }
         });
+        (o.progressStages || []).forEach((s, idx) => {
+            if (s.disputed && !s.disputeResolution) {
+                items.push({
+                    typeLabel: '시공 진행 단계 이의제기', subject: `${o.code} · ${s.label}`, reason: s.disputeReason, date: s.date || getLocalDateString(),
+                    actionsHtml: rejectBtn('반려(완료 유지)', `openReportReasonPrompt((reason) => adminRejectProgressStageDispute('${o.code}', ${idx}, reason))`) + approveBtn('승인(재작업)', `adminApproveProgressStageDispute('${o.code}', ${idx})`)
+                });
+            }
+        });
     });
 
     return items.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -2955,6 +2971,42 @@ function adminRejectRepairClaimCompletionDispute(orderCode, claimId, reason) {
     claim.completionDisputeResolvedDate = getLocalDateString();
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_CLAIM_COMPLETION_DISPUTE_REJECT', `[이의제기 반려] 오더 ${order.code}의 하자보수 신청("${claim.title}") 완료 처리 이의제기를 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 반려되었습니다. 사유: ${reason}`);
+    showToast('이의제기를 반려했습니다.', 'info');
+    searchOrderLookup();
+}
+
+/* 고객의 시공 진행 단계 이의제기(disputeProgressStage, client_panel.js)를 관리자가
+ * 승인(재작업 필요 — 단계를 다시 미완료로 되돌림)/반려(완료 표시 유지) 중 하나로
+ * 처리한다. 승인 시엔 disputed 플래그도 초기화해 파트너가 재작업 후 다시
+ * 완료 표시하면 깨끗한 상태에서 시작하게 한다. */
+function adminApproveProgressStageDispute(orderCode, stageIndex) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const stages = order && getOrInitProgressStages(order);
+    const stage = stages && stages[stageIndex];
+    if (!stage || !stage.disputed || stage.disputeResolution) return;
+    stage.done = false;
+    stage.date = null;
+    stage.disputed = false;
+    stage.disputeResolution = null;
+    stage.disputeReason = null;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PROGRESS_STAGE_DISPUTE_APPROVE', `[이의제기 승인] 오더 ${order.code}의 시공 단계("${stage.label}") 완료 표시 이의제기를 승인하여 미완료로 되돌렸습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 승인되어 "${stage.label}" 단계가 다시 진행중 상태로 전환되었습니다.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `"${stage.label}" 단계 완료 표시에 고객이 이의제기했고, 매니저 센터가 승인하여 재작업이 필요합니다.`);
+    showToast('이의제기를 승인하여 미완료 상태로 되돌렸습니다.', 'success');
+    searchOrderLookup();
+}
+
+function adminRejectProgressStageDispute(orderCode, stageIndex, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const stages = order && getOrInitProgressStages(order);
+    const stage = stages && stages[stageIndex];
+    if (!stage || !stage.disputed || stage.disputeResolution) return;
+    stage.disputeResolution = 'rejected';
+    stage.disputeAdminResponse = reason;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PROGRESS_STAGE_DISPUTE_REJECT', `[이의제기 반려] 오더 ${order.code}의 시공 단계("${stage.label}") 완료 표시 이의제기를 반려했습니다. 사유: ${reason}`, 'WARNING');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 반려되었습니다. 사유: ${reason}`);
     showToast('이의제기를 반려했습니다.', 'info');
     searchOrderLookup();
@@ -6079,6 +6131,8 @@ window.adminApprovePortfolioDeletionAppeal = adminApprovePortfolioDeletionAppeal
 window.adminRejectPortfolioDeletionAppeal = adminRejectPortfolioDeletionAppeal;
 window.adminApproveRepairClaimCompletionDispute = adminApproveRepairClaimCompletionDispute;
 window.adminRejectRepairClaimCompletionDispute = adminRejectRepairClaimCompletionDispute;
+window.adminApproveProgressStageDispute = adminApproveProgressStageDispute;
+window.adminRejectProgressStageDispute = adminRejectProgressStageDispute;
 window.sendPartnerOrderMessage = sendPartnerOrderMessage;
 window.proposeRepairVisitDate = proposeRepairVisitDate;
 window.openChangeOrderModal = openChangeOrderModal;

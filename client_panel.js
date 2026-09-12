@@ -812,10 +812,47 @@ function disputeCompletedRepairClaim(orderCode, claimId, note) {
 function buildProgressStagesHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
     const stages = getOrInitProgressStages(order);
+    const doneStages = stages.filter(s => s.done);
+    const doneListHtml = doneStages.length === 0 ? '' : `<div class="space-y-1 pt-1">${doneStages.map(s => {
+        const idx = stages.indexOf(s);
+        let statusHtml;
+        if (s.disputed) {
+            statusHtml = s.disputeResolution === 'rejected'
+                ? `<span class="text-[9px] font-bold text-ink-400">이의제기 반려됨${s.disputeAdminResponse ? ` — ${escapeHtml(s.disputeAdminResponse)}` : ''}</span>`
+                : `<span class="text-[9px] font-black text-amberCustom">이의제기 심사중</span>`;
+        } else {
+            statusHtml = `<button type="button" onclick="openReportReasonPrompt((reason) => disputeProgressStage('${order.code}', ${idx}, reason))" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">이의제기</button>`;
+        }
+        return `<div class="flex items-center justify-between"><span class="text-[10px] text-ink-500 font-semibold">${escapeHtml(s.label)} 완료 (${s.date})</span>${statusHtml}</div>`;
+    }).join('')}</div>`;
     return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
         <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="hard-hat" class="w-3.5 h-3.5 text-brand-500"></i> 시공 진행 단계</span>
         ${renderPartnerContractProgressStepperHtml(stages)}
+        ${doneListHtml}
     </div>`;
+}
+
+/* 마일스톤 청구(openMilestoneDisputeModal)와 하자보수 완료 처리(disputeCompletedRepairClaim)는
+ * 둘 다 고객이 이의제기할 수 있는데, 정작 고객이 가장 신경쓰는 "시공 진행 단계
+ * 완료 표시"는 파트너가 완전히 단독으로 결정하고 고객은 읽기 전용으로만 볼 수
+ * 있었다 — "철거 완료라고 했는데 실제로 안 됐어요" 같은 상황에 대응할 방법이
+ * 없던 비대칭을 해소한다. */
+function disputeProgressStage(orderCode, stageIndex, reason) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const stages = order && getOrInitProgressStages(order);
+    const stage = stages && stages[stageIndex];
+    if (!stage || !stage.done || stage.disputed) return;
+
+    stage.disputed = true;
+    stage.disputeReason = reason;
+    stage.disputeResolution = null;
+    stage.disputeAdminResponse = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PROGRESS_STAGE_DISPUTE', `[${order.clientName}] 고객님이 계약(${order.code}) 시공 단계("${stage.label}") 완료 표시에 이의를 제기했습니다: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 "${stage.label}" 단계 완료 표시에 이의를 제기했어요. 매니저 센터가 검토 중입니다.`);
+    showToast('매니저 센터에 이의제기를 접수했습니다.', 'success');
+
+    selectMyPageEstimate(order.code);
 }
 
 /* 계약 체결 후 착공 전까지, 실제 인테리어 시공에서는 항상 있는 실측 일정 조율
@@ -4282,6 +4319,7 @@ window.reopenCancelledOrder = reopenCancelledOrder;
 window.isPartnerBlockedByClient = isPartnerBlockedByClient;
 window.togglePartnerBlock = togglePartnerBlock;
 window.renderBlockedPartnersList = renderBlockedPartnersList;
+window.disputeProgressStage = disputeProgressStage;
 window.declineRepairVisitDate = declineRepairVisitDate;
 window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
