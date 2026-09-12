@@ -2187,6 +2187,19 @@ function searchOrderLookup() {
             </div>`).join('')}</div>`;
     };
 
+    /* adminInvalidateBid는 excludedPartners에 등록해 재입찰을 막기만 할 뿐, 오판이나
+     * 오해로 무효화한 경우 되돌릴 방법이 없었다 — 파트너 입장에서는 사실상 영구
+     * 퇴장이었다. 관리자 직권으로 무효화한 건만 별도로 기록해두고(클라이언트/파트너가
+     * 스스로 매칭취소·입찰철회한 건은 대상에서 제외) 복원할 수 있게 한다. */
+    const buildInvalidatedBidsRowHtml = (o) => {
+        if (o.status !== 'bidding' || !o.adminInvalidatedBids || o.adminInvalidatedBids.length === 0) return '';
+        return `<div class="w-full space-y-1.5 pt-1">${o.adminInvalidatedBids.map(ib => `
+            <div class="flex items-center justify-between gap-2 px-3 py-2 bg-rose-50/60 rounded-lg border border-rose-200">
+                <span class="text-[11px] font-bold text-ink-700 truncate">직권 무효화됨: ${escapeHtml(ib.partnerName)} (${ib.date}) — ${escapeHtml(ib.reason)}</span>
+                <button type="button" onclick="adminRestoreInvalidatedBid('${o.code}', '${escapeHtml(ib.partnerName)}')" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 shrink-0">복원</button>
+            </div>`).join('')}</div>`;
+    };
+
     /* 하자보수·일정변경·금액변경 3종 요청이 전부 client_panel.js/partner_panel.js의
      * 당사자 간 절차로만 처리되어, 한쪽이 계속 반려하거나 응답이 없으면 관리자가
      * 개입할 방법이 전혀 없었다 — 오더 조회는 이미 계약 강제취소·입찰 무효화 등
@@ -2234,6 +2247,7 @@ function searchOrderLookup() {
             </div>
             ${(o.contractDoc || o.estimateDoc) ? `<div class="w-full space-y-1.5 pt-1">${buildDocReviewRowHtml(o, 'contract', '계약서')}${buildDocReviewRowHtml(o, 'estimate', '견적서')}</div>` : ''}
             ${buildBidInvalidateRowHtml(o)}
+            ${buildInvalidatedBidsRowHtml(o)}
             ${buildDisputeRowHtml(o)}
         </div>`).join('');
 }
@@ -2297,6 +2311,9 @@ function adminInvalidateBid(orderCode, partnerName, reason) {
     order.bids = order.bids.filter(b => b.partner !== partnerName);
     if (!order.excludedPartners) order.excludedPartners = [];
     if (!order.excludedPartners.includes(partnerName)) order.excludedPartners.push(partnerName);
+    if (!order.adminInvalidatedBids) order.adminInvalidatedBids = [];
+    order.adminInvalidatedBids = order.adminInvalidatedBids.filter(ib => ib.partnerName !== partnerName);
+    order.adminInvalidatedBids.push({ partnerName, reason, date: getLocalDateString() });
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'BID_INVALIDATE', `[입찰 직권 무효화] 오더 ${order.code}의 [${partnerName}] 입찰을 매니저가 무효화했습니다. 사유: ${reason}`, 'WARNING');
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `오더(${orderCode}) 입찰이 매니저 센터 직권으로 무효화되었습니다. 사유: ${reason}`);
@@ -2304,6 +2321,20 @@ function adminInvalidateBid(orderCode, partnerName, reason) {
         pushClientNotification(order.clientPhone, `오더(${orderCode})에 남은 입찰 제안이 없어요. 마이페이지에서 재매칭을 받아보세요.`);
     }
     showToast(`[${partnerName}] 입찰을 무효화했습니다.`, 'success');
+    searchOrderLookup();
+}
+
+function adminRestoreInvalidatedBid(orderCode, partnerName) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || order.status !== 'bidding') return;
+    if (!order.adminInvalidatedBids || !order.adminInvalidatedBids.some(ib => ib.partnerName === partnerName)) return;
+
+    order.adminInvalidatedBids = order.adminInvalidatedBids.filter(ib => ib.partnerName !== partnerName);
+    if (order.excludedPartners) order.excludedPartners = order.excludedPartners.filter(p => p !== partnerName);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'BID_RESTORE', `[입찰 자격 복원] 오더 ${order.code}에서 [${partnerName}]의 직권 무효화 조치를 취소하고 재입찰 자격을 복원했습니다.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `오더(${orderCode})의 입찰 무효화 조치가 취소되어 재입찰 자격이 복원되었습니다.`);
+    showToast(`[${partnerName}]의 입찰 자격을 복원했습니다.`, 'success');
     searchOrderLookup();
 }
 
@@ -4822,6 +4853,7 @@ window.clearPartnerSignatureCanvas = clearPartnerSignatureCanvas;
 window.submitPartnerSignatureCanvas = submitPartnerSignatureCanvas;
 window.adminForceCancelContract = adminForceCancelContract;
 window.adminInvalidateBid = adminInvalidateBid;
+window.adminRestoreInvalidatedBid = adminRestoreInvalidatedBid;
 window.adminForceCompleteRepairClaim = adminForceCompleteRepairClaim;
 window.adminResolveScheduleChangeRequest = adminResolveScheduleChangeRequest;
 window.adminResolvePriceChangeRequest = adminResolvePriceChangeRequest;
