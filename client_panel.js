@@ -3388,6 +3388,36 @@ function deleteCommunityComment(postId, commentIndex) {
     openCommunityDetail(postId);
 }
 
+/* Q&A 게시판(post.category === 'qna')에 댓글 작성/수정/삭제/신고는 다 있는데,
+ * 질문 작성자가 어떤 답변이 도움이 됐는지 표시할 방법이 없었다 — 게시글 작성자만,
+ * qna 카테고리 글에서만, 한 번에 하나의 댓글만 채택할 수 있게 한다(다시 누르면
+ * 채택 취소). */
+function toggleCommunityAcceptedAnswer(postId, commentIndex) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return;
+    const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
+    const comment = post && post.comments && post.comments[commentIndex];
+    if (!post || !comment || post.category !== 'qna' || post.authorId !== auth.id) return;
+
+    const wasAccepted = !!comment.accepted;
+    post.comments.forEach(c => { c.accepted = false; });
+    if (!wasAccepted) {
+        comment.accepted = true;
+        if (comment.authorId && comment.authorId !== auth.id) {
+            const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === comment.authorId);
+            if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') {
+                pushClientNotification(authorAccount.phone, `작성하신 댓글이 "${post.title}" 글의 채택 답변으로 선정되었어요!`);
+            }
+        }
+        showToast('답변을 채택했습니다.', 'success');
+    } else {
+        showToast('채택을 취소했습니다.', 'info');
+    }
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'QNA_ACCEPT_ANSWER', `[${auth.name}] 고객님이 Q&A 글("${post.title}")의 답변을 ${wasAccepted ? '채택 취소' : '채택'}했습니다.`, 'INFO');
+    openCommunityDetail(postId);
+}
+
 function deleteCommunityReply(postId, commentIndex, replyIndex) {
     const auth = window.AppState.clientAuth;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
@@ -3759,10 +3789,12 @@ function openCommunityDetail(postId) {
                    </div>`
                 : '';
             const isCommentEditing = openCommentEditKeys.has(`${post.id}-${idx}`);
+            const isQnaPost = post.category === 'qna';
+            const isPostAuthor = myId && post.authorId === myId;
             return `
-            <div class="p-3.5 bg-ink-50 rounded-xl space-y-1">
+            <div class="p-3.5 ${c.accepted ? 'bg-emerald-50 border border-emerald-200' : 'bg-ink-50'} rounded-xl space-y-1">
                 <div class="flex items-center justify-between">
-                    <span class="text-xs font-black text-ink-800">${escapeHtml(c.authorName)}</span>
+                    <span class="text-xs font-black text-ink-800 flex items-center gap-1.5">${escapeHtml(c.authorName)}${c.accepted ? `<span class="badge badge-emerald"><i data-lucide="check" class="w-2.5 h-2.5"></i> 채택된 답변</span>` : ''}</span>
                     <span class="text-[10px] text-ink-400 font-bold">${c.date}${c.edited ? ' (수정됨)' : ''}</span>
                 </div>
                 ${isCommentEditing
@@ -3773,6 +3805,8 @@ function openCommunityDetail(postId) {
                     : `<p class="text-xs text-ink-700 font-medium leading-relaxed">${escapeHtml(c.text)}</p>`}
                 <div class="flex items-center gap-3">
                     <button type="button" onclick="toggleReplyBox('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0">답글 달기</button>
+                    ${isQnaPost && isPostAuthor ? `
+                    <button type="button" onclick="toggleCommunityAcceptedAnswer('${post.id}', ${idx})" class="text-[10px] font-bold ${c.accepted ? 'text-emeraldCustom' : 'text-ink-400 hover:text-emeraldCustom'} bg-transparent border-0 cursor-pointer p-0">${c.accepted ? '채택 취소' : '채택하기'}</button>` : ''}
                     ${myId && c.authorId === myId ? `
                     <button type="button" onclick="toggleCommentEdit('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">${isCommentEditing ? '취소' : '수정'}</button>
                     <button type="button" onclick="deleteCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (myId && c.authorId !== myId ? `
@@ -4122,6 +4156,7 @@ window.sendClientOrderMessage = sendClientOrderMessage;
 window.confirmRepairVisitDate = confirmRepairVisitDate;
 window.respondChangeOrder = respondChangeOrder;
 window.disputeCompletedRepairClaim = disputeCompletedRepairClaim;
+window.toggleCommunityAcceptedAnswer = toggleCommunityAcceptedAnswer;
 window.declineRepairVisitDate = declineRepairVisitDate;
 window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
