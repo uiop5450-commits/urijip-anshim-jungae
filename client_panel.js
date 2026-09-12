@@ -944,13 +944,15 @@ function buildPaymentMilestonesHtml(order) {
         <div class="space-y-1.5">${milestones.map(m => {
             const amount = typeof getMilestoneAmount === 'function' ? getMilestoneAmount(m, price) : Math.floor(price * m.percent / 100);
             const overdue = typeof isMilestoneOverdue === 'function' && isMilestoneOverdue(m);
-            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : m.status === 'disputed' ? `<span class="badge badge-rose">이의제기중</span>` : overdue ? `<span class="badge badge-rose">연체</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구됨</span>` : `<span class="badge badge-neutral">청구 전</span>`;
+            const statusBadge = m.status === 'payment_disputed' ? `<span class="badge badge-rose">미입금 이의제기중</span>` : m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : m.status === 'disputed' ? `<span class="badge badge-rose">이의제기중</span>` : overdue ? `<span class="badge badge-rose">연체</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구됨</span>` : `<span class="badge badge-neutral">청구 전</span>`;
             return `<div class="p-2.5 bg-ink-50 rounded-lg flex items-center justify-between gap-2">
                 <div class="min-w-0">
                     <p class="text-[11px] font-black text-ink-900">${m.label} ${typeof m.fixedAmount === 'number' ? '' : `(${m.percent}%) `}· ₩${amount.toLocaleString()}만원</p>
                     ${m.status === 'requested' && m.dueDate ? `<p class="text-[10px] ${overdue ? 'text-roseCustom font-bold' : 'text-ink-400 font-semibold'}">납부기한 ${m.dueDate}${overdue ? ' (기한 초과)' : ''}</p>` : ''}
                     ${m.status === 'disputed' ? `<p class="text-[10px] text-roseCustom font-bold">이의제기: ${escapeHtml(m.disputeReason || '')}</p>` : ''}
                     ${m.disputeResolution === 'rejected' ? `<p class="text-[10px] text-ink-400 font-semibold">이의제기 반려됨 — ${escapeHtml(m.disputeAdminResponse || '')}</p>` : ''}
+                    ${m.status === 'payment_disputed' ? `<p class="text-[10px] text-roseCustom font-bold">파트너의 미입금 이의제기: ${escapeHtml(m.paymentDisputeReason || '')}</p>` : ''}
+                    ${m.paymentDisputeResolution === 'rejected' ? `<p class="text-[10px] text-ink-400 font-semibold">미입금 이의제기 반려됨(납부완료 유지) — ${escapeHtml(m.paymentDisputeAdminResponse || '')}</p>` : ''}
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     ${statusBadge}
