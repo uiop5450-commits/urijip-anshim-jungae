@@ -753,6 +753,76 @@ function renderPartnerReportedStatus(partnerName) {
     }).join('');
 }
 
+/* 관리자가 입찰을 직권 무효화하면(adminInvalidateBid) 파트너는 알림 한 번으로
+ * 끝이라, 부당하다고 여겨도 관리자가 스스로 복원해줄 때까지(adminRestoreInvalidatedBid)
+ * 기다리는 것 말고는 방법이 없었다 — 옐로카드 이의신청(strikeAppeal)과 동일한
+ * 제출→심사 패턴을 무효화된 입찰에도 적용한다. */
+let invalidatedBidAppealTarget = null;
+
+function openInvalidatedBidAppealModal(orderCode) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const entry = order && order.adminInvalidatedBids && order.adminInvalidatedBids.find(ib => ib.partnerName === partnerName);
+    if (!entry) return;
+    if (entry.appeal && entry.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    invalidatedBidAppealTarget = orderCode;
+    safeUpdateValue('invalidated-bid-appeal-reason-input', '');
+    openModal('invalidated-bid-appeal-modal', 'invalidated-bid-appeal-modal-card');
+}
+
+function closeInvalidatedBidAppealModal() {
+    invalidatedBidAppealTarget = null;
+    closeModal('invalidated-bid-appeal-modal', 'invalidated-bid-appeal-modal-card');
+}
+
+function submitInvalidatedBidAppeal() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const order = (window.AppState.orders || []).find(o => o.code === invalidatedBidAppealTarget);
+    const entry = order && order.adminInvalidatedBids && order.adminInvalidatedBids.find(ib => ib.partnerName === partnerName);
+    if (!entry) { closeInvalidatedBidAppealModal(); return; }
+    const reason = document.getElementById('invalidated-bid-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    entry.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'INVALIDATED_BID_APPEAL', `[${partnerName}]가 오더 ${order.code} 입찰 무효화 조치에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeInvalidatedBidAppealModal();
+    renderPartnerInvalidatedBidsStatus(partnerName);
+    if (typeof searchOrderLookup === 'function') searchOrderLookup();
+}
+
+function renderPartnerInvalidatedBidsStatus(partnerName) {
+    const container = document.getElementById('partner-invalidated-bids-status');
+    if (!container) return;
+    const entries = [];
+    (window.AppState.orders || []).forEach(o => {
+        (o.adminInvalidatedBids || []).forEach(ib => {
+            if (ib.partnerName === partnerName) entries.push({ orderCode: o.code, ...ib });
+        });
+    });
+
+    if (entries.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">직권 무효화된 입찰이 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = entries.map(e => {
+        let statusHtml;
+        if (e.appeal && e.appeal.status === 'pending') {
+            statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">이의신청 심사 대기중</p>`;
+        } else if (e.appeal && e.appeal.status === 'rejected') {
+            statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">이의신청 반려됨${e.appeal.adminResponse ? ` — ${escapeHtml(e.appeal.adminResponse)}` : ''}</p>`;
+        } else {
+            statusHtml = `<button type="button" onclick="openInvalidatedBidAppealModal('${e.orderCode}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">이의신청하기</button>`;
+        }
+        return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5">
+            <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">오더(${e.orderCode}) 입찰이 매니저 직권으로 무효화되었습니다. 사유: ${escapeHtml(e.reason)} (${e.date})</p>
+            ${statusHtml}
+        </div>`;
+    }).join('');
+}
+
 function renderPartnerProfileManager() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -769,6 +839,7 @@ function renderPartnerProfileManager() {
     renderPartnerNotificationPrefToggle(partner);
     renderPartnerStrikeAppealStatus(partner);
     renderPartnerReportedStatus(partnerName);
+    renderPartnerInvalidatedBidsStatus(partnerName);
     safeUpdateText('partner-account-bizcert-filename', partner.bizCertDoc ? partner.bizCertDoc.name : '첨부된 사업자등록증이 없습니다.');
 
     const img = document.getElementById('partner-hero-slide-img');
@@ -1909,6 +1980,10 @@ window.openPartnerReportAppealModal = openPartnerReportAppealModal;
 window.closePartnerReportAppealModal = closePartnerReportAppealModal;
 window.submitPartnerReportAppeal = submitPartnerReportAppeal;
 window.renderPartnerReportedStatus = renderPartnerReportedStatus;
+window.openInvalidatedBidAppealModal = openInvalidatedBidAppealModal;
+window.closeInvalidatedBidAppealModal = closeInvalidatedBidAppealModal;
+window.submitInvalidatedBidAppeal = submitInvalidatedBidAppeal;
+window.renderPartnerInvalidatedBidsStatus = renderPartnerInvalidatedBidsStatus;
 window.togglePartnerNotificationPref = togglePartnerNotificationPref;
 window.updatePartnerPassword = updatePartnerPassword;
 window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;

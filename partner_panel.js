@@ -2215,11 +2215,16 @@ function searchOrderLookup() {
      * 스스로 매칭취소·입찰철회한 건은 대상에서 제외) 복원할 수 있게 한다. */
     const buildInvalidatedBidsRowHtml = (o) => {
         if (o.status !== 'bidding' || !o.adminInvalidatedBids || o.adminInvalidatedBids.length === 0) return '';
-        return `<div class="w-full space-y-1.5 pt-1">${o.adminInvalidatedBids.map(ib => `
-            <div class="flex items-center justify-between gap-2 px-3 py-2 bg-rose-50/60 rounded-lg border border-rose-200">
-                <span class="text-[11px] font-bold text-ink-700 truncate">직권 무효화됨: ${escapeHtml(ib.partnerName)} (${ib.date}) — ${escapeHtml(ib.reason)}</span>
-                <button type="button" onclick="adminRestoreInvalidatedBid('${o.code}', '${escapeHtml(ib.partnerName)}')" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 shrink-0">복원</button>
-            </div>`).join('')}</div>`;
+        return `<div class="w-full space-y-1.5 pt-1">${o.adminInvalidatedBids.map(ib => {
+            const hasPendingAppeal = ib.appeal && ib.appeal.status === 'pending';
+            return `<div class="flex items-center justify-between gap-2 px-3 py-2 bg-rose-50/60 rounded-lg border border-rose-200">
+                <span class="text-[11px] font-bold text-ink-700 truncate">직권 무효화됨: ${escapeHtml(ib.partnerName)} (${ib.date}) — ${escapeHtml(ib.reason)}${hasPendingAppeal ? ` · 이의신청: ${escapeHtml(ib.appeal.reason)}` : (ib.appeal && ib.appeal.status === 'rejected' ? ' · 이의신청 반려됨' : '')}</span>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    ${hasPendingAppeal ? `<button type="button" onclick="openReportReasonPrompt((reason) => adminRejectInvalidatedBidAppeal('${o.code}', '${escapeHtml(ib.partnerName)}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">이의신청 반려</button>` : ''}
+                    <button type="button" onclick="adminRestoreInvalidatedBid('${o.code}', '${escapeHtml(ib.partnerName)}')" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">복원</button>
+                </div>
+            </div>`;
+        }).join('')}</div>`;
     };
 
     /* 하자보수·일정변경·금액변경 3종 요청이 전부 client_panel.js/partner_panel.js의
@@ -2382,6 +2387,23 @@ function adminRestoreInvalidatedBid(orderCode, partnerName) {
     if (typeof pushLog === 'function') pushLog('MANAGER', 'BID_RESTORE', `[입찰 자격 복원] 오더 ${order.code}에서 [${partnerName}]의 직권 무효화 조치를 취소하고 재입찰 자격을 복원했습니다.`, 'SUCCESS');
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `오더(${orderCode})의 입찰 무효화 조치가 취소되어 재입찰 자격이 복원되었습니다.`);
     showToast(`[${partnerName}]의 입찰 자격을 복원했습니다.`, 'success');
+    searchOrderLookup();
+}
+
+/* 파트너가 입찰 무효화에 이의신청을 제출할 수 있게 됐으니(openInvalidatedBidAppealModal,
+ * cms.js), 관리자 쪽에도 반려 경로가 필요하다 — 승인은 adminRestoreInvalidatedBid로
+ * 이미 처리되므로(복원 자체가 승인이다), 반려만 별도로 둔다. */
+function adminRejectInvalidatedBidAppeal(orderCode, partnerName, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const entry = order && order.adminInvalidatedBids && order.adminInvalidatedBids.find(ib => ib.partnerName === partnerName);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+    entry.appeal.status = 'rejected';
+    entry.appeal.adminResponse = reason;
+    entry.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'INVALIDATED_BID_APPEAL_REJECT', `[이의신청 반려] 오더 ${order.code}의 [${partnerName}] 입찰 무효화 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `입찰 무효화 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast(`[${partnerName}]의 이의신청을 반려했습니다.`, 'info');
     searchOrderLookup();
 }
 
@@ -4943,6 +4965,7 @@ window.submitPartnerSignatureCanvas = submitPartnerSignatureCanvas;
 window.adminForceCancelContract = adminForceCancelContract;
 window.adminInvalidateBid = adminInvalidateBid;
 window.adminRestoreInvalidatedBid = adminRestoreInvalidatedBid;
+window.adminRejectInvalidatedBidAppeal = adminRejectInvalidatedBidAppeal;
 window.adminForceCompleteRepairClaim = adminForceCompleteRepairClaim;
 window.adminDismissRepairClaimEscalation = adminDismissRepairClaimEscalation;
 window.adminResolveScheduleChangeRequest = adminResolveScheduleChangeRequest;
