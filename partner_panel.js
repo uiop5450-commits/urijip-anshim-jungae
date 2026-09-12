@@ -2898,6 +2898,16 @@ function getAllPendingAppeals() {
             }
         });
     });
+    (window.AppState.orders || []).forEach(o => {
+        (o.messages || []).forEach((m, idx) => {
+            if (m.report && m.report.status === 'pending') {
+                items.push({
+                    typeLabel: '메시지 신고', subject: `${o.code} · ${m.report.reportedBy === 'client' ? '파트너' : '고객'} 메시지`, reason: m.report.reason, date: m.report.date, orderCode: o.code,
+                    actionsHtml: rejectBtn('반려(메시지 유지)', `adminDismissOrderMessageReport('${o.code}', ${idx})`) + approveBtn('삭제', `adminDeleteReportedOrderMessage('${o.code}', ${idx})`)
+                });
+            }
+        });
+    });
     (window.AppState.clientRatings || []).forEach(r => {
         if (r.appeal && r.appeal.status === 'pending') {
             items.push({
@@ -3010,6 +3020,34 @@ function toggleAdminOrderMessageThread(orderCode) {
     else adminOrderLookupExpandedThreads.add(orderCode);
     if (document.getElementById('admin-order-lookup-result')) searchOrderLookup();
     if (document.getElementById('admin-appeal-inbox-list')) renderAdminAppealInbox();
+}
+
+/* 커뮤니티 신고(dismissReviewReport 등)와 동일한 반려/삭제 대칭 구조를 계약
+ * 메시지 신고(reportOrderMessage, utils_ui.js)에도 적용한다 — 신고를 검토한 뒤
+ * 실제 문제가 없다고 판단하면 메시지를 유지한 채 신고만 종료(반려)하고,
+ * 실제로 부적절하면 그 메시지 한 건만 삭제한다(대화 전체를 지우지 않음). */
+function adminDismissOrderMessageReport(orderCode, msgIndex) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const msg = order && order.messages && order.messages[msgIndex];
+    if (!msg || !msg.report || msg.report.status !== 'pending') return;
+    msg.report.status = 'dismissed';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'ORDER_MESSAGE_REPORT_DISMISS', `[메시지 신고 반려] 오더 ${orderCode}의 메시지 신고를 검토 후 반려(메시지 유지)했습니다.`, 'INFO');
+    showToast('신고를 반려했습니다. 메시지는 그대로 유지됩니다.', 'info');
+    searchOrderLookup();
+    if (typeof renderAdminAppealInbox === 'function') renderAdminAppealInbox();
+}
+
+function adminDeleteReportedOrderMessage(orderCode, msgIndex) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const msg = order && order.messages && order.messages[msgIndex];
+    if (!msg || !msg.report || msg.report.status !== 'pending') return;
+    order.messages.splice(msgIndex, 1);
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'ORDER_MESSAGE_MODERATE', `[메시지 삭제] 오더 ${orderCode}의 신고된 메시지를 매니저 센터에서 삭제 조치함.`, 'WARNING');
+    if (msg.from === 'client' && typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `보내신 메시지 중 일부가 매니저 센터 검토 후 삭제되었습니다.`);
+    if (msg.from === 'partner' && typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `보내신 메시지 중 일부가 매니저 센터 검토 후 삭제되었습니다.`);
+    showToast('메시지를 삭제했습니다.', 'info');
+    searchOrderLookup();
+    if (typeof renderAdminAppealInbox === 'function') renderAdminAppealInbox();
 }
 
 function searchOrderLookup() {
@@ -6874,6 +6912,8 @@ window.setAdminLogCategoryFilter = setAdminLogCategoryFilter;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
 window.searchOrderLookup = searchOrderLookup;
 window.toggleAdminOrderMessageThread = toggleAdminOrderMessageThread;
+window.adminDismissOrderMessageReport = adminDismissOrderMessageReport;
+window.adminDeleteReportedOrderMessage = adminDeleteReportedOrderMessage;
 window.renderAdminSupportTickets = renderAdminSupportTickets;
 window.setAdminSupportStatusFilter = setAdminSupportStatusFilter;
 window.setAdminPartnerMonitorStatusFilter = setAdminPartnerMonitorStatusFilter;

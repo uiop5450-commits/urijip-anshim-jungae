@@ -350,17 +350,38 @@ function markOrderMessagesRead(orderCode, viewerRole) {
     order.messages.forEach(m => { if (m.from !== viewerRole) m.read = true; });
 }
 
+/* 커뮤니티 글/댓글/답글은 전부 신고할 수 있게 됐는데(reportCommunityPost 등),
+ * 정작 분쟁의 맥락이 가장 많이 담기는 채널인 계약 메시지(order.messages)는
+ * 상대방이 막말을 하거나 협박성 발언을 남겨도 신고할 방법이 전혀 없었다 —
+ * 통합 이의신청함(getAllPendingAppeals)까지 이어지는 신고 경로를 둔다. */
+function reportOrderMessage(orderCode, msgIndex, viewerRole, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const msg = order && order.messages && order.messages[msgIndex];
+    if (!msg || msg.from === viewerRole) return;
+    if (msg.report && msg.report.status === 'pending') { showToast('이미 신고한 메시지입니다.', 'info'); return; }
+    msg.report = { reason, reportedBy: viewerRole, status: 'pending', date: getLocalDateString() };
+
+    if (typeof pushLog === 'function') pushLog(viewerRole === 'client' ? 'CLIENT' : 'PARTNER', 'ORDER_MESSAGE_REPORT', `계약(${orderCode}) 메시지가 신고되었습니다. (신고자: ${viewerRole === 'client' ? '고객' : '파트너'})`, 'WARNING');
+    showToast('신고가 접수되었습니다. 매니저 센터가 검토할게요.', 'success');
+    if (viewerRole === 'client' && typeof buildOrderMessageThreadHtml === 'function' && typeof selectMyPageEstimate === 'function') selectMyPageEstimate(orderCode);
+    if (viewerRole === 'partner' && typeof openPartnerOrderDetailModal === 'function') openPartnerOrderDetailModal(orderCode);
+}
+
 function buildOrderMessageThreadHtml(order, viewerRole) {
     if (typeof markOrderMessagesRead === 'function') markOrderMessagesRead(order.code, viewerRole);
     const messages = getOrInitOrderMessages(order);
     const listHtml = messages.length === 0
         ? `<p class="text-[11px] text-ink-400 font-semibold text-center py-3">아직 메시지가 없습니다.</p>`
-        : messages.map(m => {
+        : messages.map((m, idx) => {
             const isMine = m.from === viewerRole;
+            const isReported = m.report && m.report.status === 'pending';
             return `<div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
-                <div class="max-w-[80%] ${isMine ? 'bg-brand-500 text-white' : 'bg-ink-100 text-ink-800'} rounded-2xl px-3 py-2">
-                    <p class="text-[11px] font-semibold leading-relaxed whitespace-pre-wrap">${escapeHtml(m.text)}</p>
-                    <p class="text-[9px] ${isMine ? 'text-white/70' : 'text-ink-400'} font-bold mt-0.5">${m.date}</p>
+                <div class="max-w-[80%] space-y-0.5">
+                    <div class="${isMine ? 'bg-brand-500 text-white' : 'bg-ink-100 text-ink-800'} rounded-2xl px-3 py-2">
+                        <p class="text-[11px] font-semibold leading-relaxed whitespace-pre-wrap">${escapeHtml(m.text)}</p>
+                        <p class="text-[9px] ${isMine ? 'text-white/70' : 'text-ink-400'} font-bold mt-0.5">${m.date}</p>
+                    </div>
+                    ${!isMine ? `<button type="button" ${isReported ? 'disabled' : `onclick="openReportReasonPrompt((reason) => reportOrderMessage('${order.code}', ${idx}, '${viewerRole}', reason))"`} class="text-[9px] font-bold ${isReported ? 'text-ink-300' : 'text-ink-400 hover:text-roseCustom'} bg-transparent border-0 cursor-pointer p-0">${isReported ? '신고됨' : '신고'}</button>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -384,13 +405,21 @@ function buildAdminOrderMessageThreadHtml(order) {
     const messages = order.messages || [];
     const listHtml = messages.length === 0
         ? `<p class="text-[11px] text-ink-400 font-semibold text-center py-3">아직 메시지가 없습니다.</p>`
-        : messages.map(m => {
+        : messages.map((m, idx) => {
             const isClient = m.from === 'client';
+            const isReported = m.report && m.report.status === 'pending';
             return `<div class="flex ${isClient ? 'justify-start' : 'justify-end'}">
-                <div class="max-w-[80%] ${isClient ? 'bg-ink-100 text-ink-800' : 'bg-brand-500 text-white'} rounded-2xl px-3 py-2">
-                    <p class="text-[9px] ${isClient ? 'text-ink-400' : 'text-white/70'} font-black uppercase tracking-wider">${isClient ? '고객' : '파트너'}</p>
-                    <p class="text-[11px] font-semibold leading-relaxed whitespace-pre-wrap">${escapeHtml(m.text)}</p>
-                    <p class="text-[9px] ${isClient ? 'text-ink-400' : 'text-white/70'} font-bold mt-0.5">${m.date}</p>
+                <div class="max-w-[80%] space-y-0.5">
+                    <div class="${isClient ? 'bg-ink-100 text-ink-800' : 'bg-brand-500 text-white'} rounded-2xl px-3 py-2 ${isReported ? 'ring-2 ring-roseCustom' : ''}">
+                        <p class="text-[9px] ${isClient ? 'text-ink-400' : 'text-white/70'} font-black uppercase tracking-wider flex items-center gap-1">${isClient ? '고객' : '파트너'}${isReported ? `<span class="badge badge-rose"><i data-lucide="flag" class="w-2.5 h-2.5"></i> 신고됨</span>` : ''}</p>
+                        <p class="text-[11px] font-semibold leading-relaxed whitespace-pre-wrap">${escapeHtml(m.text)}</p>
+                        <p class="text-[9px] ${isClient ? 'text-ink-400' : 'text-white/70'} font-bold mt-0.5">${m.date}</p>
+                        ${isReported ? `<p class="text-[9px] ${isClient ? 'text-ink-500' : 'text-white'} font-bold mt-0.5">신고 사유: ${escapeHtml(m.report.reason || '')}</p>` : ''}
+                    </div>
+                    ${isReported ? `<div class="flex ${isClient ? 'justify-start' : 'justify-end'} gap-1.5">
+                        <button type="button" onclick="adminDismissOrderMessageReport('${order.code}', ${idx})" class="text-[9px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">신고 반려</button>
+                        <button type="button" onclick="adminDeleteReportedOrderMessage('${order.code}', ${idx})" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">메시지 삭제</button>
+                    </div>` : ''}
                 </div>
             </div>`;
         }).join('');
@@ -637,6 +666,7 @@ window.isMilestoneOverdue = isMilestoneOverdue;
 window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
 window.getOrInitOrderMessages = getOrInitOrderMessages;
 window.sendOrderMessage = sendOrderMessage;
+window.reportOrderMessage = reportOrderMessage;
 window.buildOrderMessageThreadHtml = buildOrderMessageThreadHtml;
 window.buildAdminOrderMessageThreadHtml = buildAdminOrderMessageThreadHtml;
 window.getUnreadOrderMessageCount = getUnreadOrderMessageCount;
