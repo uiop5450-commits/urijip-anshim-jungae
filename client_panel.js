@@ -990,6 +990,27 @@ function submitPartnerReport() {
     if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
 }
 
+/* 계약 취소·일정/금액 변경 요청은 물론 하자보수 신청까지 전부 신청자 본인이 철회할
+ * 수 있는데, 파트너 신고만 유일하게 "잘못 신고했다"거나 "오해가 풀렸다"는 이유로도
+ * 철회할 방법이 없었다 — 관리자가 검토하기 전까지는 신고 접수 취소도 신고자의
+ * 권리로 열어준다. */
+function retractPartnerReport(orderCode) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return;
+    const report = (window.AppState.partnerReports || []).find(r => r.orderCode === orderCode && r.reportedByClient === auth.id);
+    if (!report) return;
+
+    window.AppState.partnerReports = window.AppState.partnerReports.filter(r => r.id !== report.id);
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PARTNER_REPORT_RETRACT', `[${auth.name}] 고객님이 오더 ${orderCode}의 파트너 신고를 철회했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && report.partnerName) pushPartnerNotification(report.partnerName, `고객님이 신고를 철회했어요.`);
+    showToast('신고를 철회했습니다.', 'info');
+
+    renderClientMyPage();
+    selectMyPageEstimate(orderCode);
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
 function clientFinalizeContract(orderCode, partnerName, finalPrice) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return;
@@ -2186,7 +2207,7 @@ function renderMyPageEstimateDetails(order) {
         ${buildRepairClaimsHtml(order)}
         <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>
         ${isPartnerReportedByMeForOrder(order.code)
-            ? `<div class="mt-2 text-center"><span class="badge badge-neutral">계약 파트너사 신고 접수됨</span></div>`
+            ? `<div class="flex items-center justify-center gap-2 mt-2"><span class="badge badge-neutral">계약 파트너사 신고 접수됨</span><button type="button" onclick="retractPartnerReport('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">철회</button></div>`
             : `<button type="button" onclick="openReportPartnerModal('${order.code}')" class="btn btn-ghost btn-sm btn-block mt-2 text-roseCustom"><i data-lucide="flag" class="w-3.5 h-3.5"></i> 계약 파트너사 신고하기</button>`}` : '';
 
     detailBoard.innerHTML = `
@@ -3314,6 +3335,7 @@ window.saveOrderBudgetEdit = saveOrderBudgetEdit;
 window.downloadTransactionReceipt = downloadTransactionReceipt;
 window.openContractCancelRequestModal = openContractCancelRequestModal;
 window.isPartnerReportedByMeForOrder = isPartnerReportedByMeForOrder;
+window.retractPartnerReport = retractPartnerReport;
 window.openReportPartnerModal = openReportPartnerModal;
 window.closeReportPartnerModal = closeReportPartnerModal;
 window.submitPartnerReport = submitPartnerReport;

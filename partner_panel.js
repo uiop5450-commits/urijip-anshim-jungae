@@ -811,6 +811,24 @@ function submitClientReport() {
     if (typeof openPartnerOrderDetailModal === 'function') openPartnerOrderDetailModal(order.code);
 }
 
+/* 고객 쪽엔 파트너 신고 철회(retractPartnerReport, client_panel.js)가 생겼으니,
+ * 대칭으로 파트너도 자신이 접수한 고객 신고를 관리자 검토 전까지 철회할 수 있어야
+ * 한다. */
+function retractClientReport(orderCode) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const report = (window.AppState.clientReports || []).find(r => r.orderCode === orderCode && r.reportedByPartner === partnerName);
+    if (!report) return;
+
+    window.AppState.clientReports = window.AppState.clientReports.filter(r => r.id !== report.id);
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'CLIENT_REPORT_RETRACT', `[${partnerName}]가 오더 ${orderCode}의 고객 신고를 철회했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function' && report.clientPhone) pushClientNotification(report.clientPhone, `계약 파트너사가 신고를 철회했어요.`);
+    showToast('신고를 철회했습니다.', 'info');
+
+    if (typeof renderAdminClientManager === 'function') renderAdminClientManager();
+    if (typeof openPartnerOrderDetailModal === 'function') openPartnerOrderDetailModal(orderCode);
+}
+
 /* 파트너 콘솔 > 고객센터 — 지금까지 1:1 문의 티켓 시스템은 고객 전용이었고 파트너는
  * 정산/매칭/계정 관련 문의를 접수할 방법이 전혀 없었다. 기존 supportTickets 배열과
  * renderAdminSupportTickets(관리자 답변 화면)을 그대로 재사용하되, role 필드로
@@ -1789,7 +1807,7 @@ function openPartnerOrderDetailModal(orderCode) {
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="flag" class="w-4 h-4 text-roseCustom"></i> 고객 신고</h5>
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">노쇼, 상습 갑질 등 불량 고객은 매니저 센터에 신고할 수 있어요.</p>
                 ${isOrderReportedByMe(order.code)
-                    ? `<span class="badge badge-neutral">신고 접수 완료</span>`
+                    ? `<div class="flex items-center gap-2"><span class="badge badge-neutral">신고 접수 완료</span><button type="button" onclick="retractClientReport('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">철회</button></div>`
                     : `<button type="button" onclick="openReportClientModal('${order.code}')" class="btn btn-secondary btn-sm text-roseCustom">고객 신고하기</button>`}
             </div>`;
     } else {
@@ -4754,6 +4772,7 @@ window.isFavoriteOrder = isFavoriteOrder;
 window.toggleFavoriteOrder = toggleFavoriteOrder;
 window.togglePartnerFavoriteOrdersFilter = togglePartnerFavoriteOrdersFilter;
 window.isOrderReportedByMe = isOrderReportedByMe;
+window.retractClientReport = retractClientReport;
 window.openReportClientModal = openReportClientModal;
 window.closeReportClientModal = closeReportClientModal;
 window.submitClientReport = submitClientReport;
