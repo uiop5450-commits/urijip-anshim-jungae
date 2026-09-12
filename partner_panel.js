@@ -1263,6 +1263,51 @@ function toggleFavoriteClient(clientPhone, clientName, orderCode) {
     if (typeof renderPartnerPerformanceView === 'function' && window.AppState.partnerConsoleMode === 'performance') renderPartnerPerformanceView();
 }
 
+/* 고객은 특정 파트너를 영구 차단해 이후 매칭/1:1 지정에서 제외할 수 있는데
+ * (togglePartnerBlock, client_panel.js) 파트너 쪽엔 대칭 기능이 없었다 — 노쇼·
+ * 상습 갑질 고객은 신고(openReportClientModal)해서 매니저 센터가 판단하게 할 수는
+ * 있지만, 신고 사유가 안 될 만큼 애매하게 안 맞는 고객이라도 "이 고객 오더는
+ * 다시는 뜨지 않았으면" 하는 파트너 개인의 선호를 저장할 방법이 없었다. */
+function isClientBlockedByPartner(clientPhone) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    return !!(partner && partner.blockedClients && partner.blockedClients.some(c => c.phone === clientPhone));
+}
+
+function togglePartnerBlockClient(clientPhone, clientName, orderCode) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    if (!partner.blockedClients) partner.blockedClients = [];
+    const idx = partner.blockedClients.findIndex(c => c.phone === clientPhone);
+    if (idx >= 0) { partner.blockedClients.splice(idx, 1); showToast(`[${clientName}]님을 차단 해제했습니다.`, 'info'); }
+    else {
+        partner.blockedClients.push({ phone: clientPhone, name: clientName });
+        // 관심 고객(단골)과 차단은 동시에 의미가 없으므로, 차단하면 단골 목록에서도 뺀다.
+        if (partner.favoriteClients) {
+            const favIdx = partner.favoriteClients.findIndex(c => c.phone === clientPhone);
+            if (favIdx >= 0) partner.favoriteClients.splice(favIdx, 1);
+        }
+        if (typeof pushLog === 'function') pushLog('PARTNER', 'CLIENT_BLOCK', `[${partnerName}]가 고객(${clientName})을 차단했습니다.`, 'INFO');
+        showToast(`[${clientName}]님을 차단했습니다. 이 고객의 오더는 더 이상 즉시입찰 목록에 뜨지 않아요.`, 'success');
+    }
+    if (orderCode) openPartnerOrderDetailModal(orderCode);
+    if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
+    if (typeof renderPartnerPerformanceView === 'function' && window.AppState.partnerConsoleMode === 'performance') renderPartnerPerformanceView();
+}
+
+function buildPartnerBlockedClientsHtml(partner) {
+    const blocked = partner.blockedClients || [];
+    if (blocked.length === 0) {
+        return `<div class="p-4 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 font-bold">차단한 고객이 없습니다.</div>`;
+    }
+    return blocked.map(c => `
+        <div class="flex items-center justify-between p-3 bg-ink-50 rounded-xl">
+            <span class="text-xs font-bold text-ink-800">${escapeHtml(c.name)}</span>
+            <button type="button" onclick="togglePartnerBlockClient('${escapeHtml(c.phone)}', '${escapeHtml(c.name)}')" class="text-[11px] font-bold text-brand-600 hover:underline bg-transparent border-0 cursor-pointer p-0">차단 해제</button>
+        </div>`).join('');
+}
+
 function buildPartnerFavoriteClientsHtml(partner) {
     const favorites = partner.favoriteClients || [];
     if (favorites.length === 0) {
@@ -1364,7 +1409,7 @@ function renderPartnerOrderList() {
 
     const currentPartner = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const allOrders = window.AppState.orders;
-    let filteredOrders = allOrders.filter(o => o.status === 'bidding' && o.budget < 7000 && !o.is1on1 && o.bids.length < o.partnerCountLimit && !o.bids.some(b => b.partner === currentPartner) && (!o.excludedPartners || !o.excludedPartners.includes(currentPartner)));
+    let filteredOrders = allOrders.filter(o => o.status === 'bidding' && o.budget < 7000 && !o.is1on1 && o.bids.length < o.partnerCountLimit && !o.bids.some(b => b.partner === currentPartner) && (!o.excludedPartners || !o.excludedPartners.includes(currentPartner)) && !isClientBlockedByPartner(o.clientPhone));
     if (partnerFavoriteOrdersOnly) filteredOrders = filteredOrders.filter(o => isFavoriteOrder(o.code));
 
     if (liveOrderBadge) liveOrderBadge.innerText = `${filteredOrders.length}개 선착순 즉시입찰 참여 가능 오더`;
@@ -2299,6 +2344,7 @@ function openPartnerOrderDetailModal(orderCode) {
                     <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot bg-ink-500"></span> 우리집 안심 중개보증</span><span class="text-xs font-mono font-bold text-ink-500 tracking-wider">${order.code}</span>${statusBadge}</div>
                     <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight flex items-center gap-1.5">${escapeHtml(order.clientName)} 고객님 (${order.clientPhone})
                         <button type="button" onclick="toggleFavoriteClient('${escapeHtml(order.clientPhone)}', '${escapeHtml(order.clientName)}', '${order.code}')" class="btn btn-ghost btn-sm px-1.5" aria-label="단골 고객으로 저장"><i data-lucide="star" class="w-4 h-4 ${isClientFavorited(order.clientPhone) ? 'text-gold-500' : 'text-ink-300'}" ${isClientFavorited(order.clientPhone) ? 'fill="currentColor"' : ''}></i></button>
+                        <button type="button" onclick="togglePartnerBlockClient('${escapeHtml(order.clientPhone)}', '${escapeHtml(order.clientName)}', '${order.code}')" class="btn btn-ghost btn-sm px-1.5" aria-label="고객 차단"><i data-lucide="user-x" class="w-4 h-4 ${isClientBlockedByPartner(order.clientPhone) ? 'text-roseCustom' : 'text-ink-300'}"></i></button>
                     </h3>
                     <p class="text-xs text-ink-600 font-bold leading-relaxed max-w-md">${escapeHtml(order.clientAddress)}</p>
                 </div>
@@ -5057,6 +5103,10 @@ function renderPartnerPerformanceView() {
                 <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="star" class="w-4 h-4 text-gold-500"></i> 저장한 단골 고객 (${(partner.favoriteClients || []).length}명)</h4>
                 <div class="space-y-2">${buildPartnerFavoriteClientsHtml(partner)}</div>
             </div>
+            <div class="space-y-2.5 pt-2">
+                <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="user-x" class="w-4 h-4 text-roseCustom"></i> 차단한 고객 (${(partner.blockedClients || []).length}명)</h4>
+                <div class="space-y-2">${buildPartnerBlockedClientsHtml(partner)}</div>
+            </div>
         </div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -6210,6 +6260,8 @@ window.adminApproveProgressStageDispute = adminApproveProgressStageDispute;
 window.adminRejectProgressStageDispute = adminRejectProgressStageDispute;
 window.adminApproveSiteVisitCompletionDispute = adminApproveSiteVisitCompletionDispute;
 window.adminRejectSiteVisitCompletionDispute = adminRejectSiteVisitCompletionDispute;
+window.isClientBlockedByPartner = isClientBlockedByPartner;
+window.togglePartnerBlockClient = togglePartnerBlockClient;
 window.sendPartnerOrderMessage = sendPartnerOrderMessage;
 window.proposeRepairVisitDate = proposeRepairVisitDate;
 window.openChangeOrderModal = openChangeOrderModal;
