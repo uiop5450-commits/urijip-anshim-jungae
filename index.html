@@ -1728,6 +1728,34 @@
         </div>
     </div>
 
+    <div id="force-cancel-appeal-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="force-cancel-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">이의신청</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">계약 강제 취소에 이의를 제기합니다</h3></div>
+                <button type="button" onclick="closeForceCancelAppealModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">제출하시면 매니저 센터가 심사 후 계약 복원 또는 반려 여부를 안내해드려요.</p>
+                <div><label class="field-label">이의신청 내용</label><textarea id="force-cancel-appeal-reason-input" rows="4" placeholder="강제 취소가 부당하다고 생각되는 이유를 자세히 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitForceCancelAppeal()" class="btn btn-primary btn-block">이의신청 제출</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="partner-force-cancel-appeal-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="partner-force-cancel-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">이의신청</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">계약 강제 취소에 이의를 제기합니다</h3></div>
+                <button type="button" onclick="closePartnerForceCancelAppealModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">제출하시면 매니저 센터가 심사 후 계약 복원 또는 반려 여부를 안내해드려요.</p>
+                <div><label class="field-label">이의신청 내용</label><textarea id="partner-force-cancel-appeal-reason-input" rows="4" placeholder="강제 취소가 부당하다고 생각되는 이유를 자세히 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitPartnerForceCancelAppeal()" class="btn btn-primary btn-block">이의신청 제출</button>
+            </div>
+        </div>
+    </div>
+
     <div id="invalidated-bid-appeal-modal" class="hidden modal-overlay" style="z-index:220">
         <div id="invalidated-bid-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">

@@ -1605,6 +1605,43 @@ function retractPartnerCancellationRequest(orderCode) {
     if (typeof renderAdminContractCancellations === 'function') renderAdminContractCancellations();
 }
 
+/* 고객 쪽에 관리자 강제 취소 이의신청(openForceCancelAppealModal, client_panel.js)이
+ * 생겼으니 파트너 쪽에도 대칭으로 필요하다. 두 파일 모두 window에 노출되므로
+ * 이름이 겹치지 않도록 별도 함수명을 쓴다. */
+let partnerForceCancelAppealTargetCode = null;
+
+function openPartnerForceCancelAppealModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'cancelled' || !order.cancelRequest || order.cancelRequest.requestedBy !== 'admin' || order.acceptedPartner !== partnerName) return;
+    if (order.cancelRequest.appeal && order.cancelRequest.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    partnerForceCancelAppealTargetCode = orderCode;
+    safeUpdateValue('partner-force-cancel-appeal-reason-input', '');
+    openModal('partner-force-cancel-appeal-modal', 'partner-force-cancel-appeal-modal-card');
+}
+
+function closePartnerForceCancelAppealModal() {
+    partnerForceCancelAppealTargetCode = null;
+    closeModal('partner-force-cancel-appeal-modal', 'partner-force-cancel-appeal-modal-card');
+}
+
+function submitPartnerForceCancelAppeal() {
+    const order = window.AppState.orders.find(o => o.code === partnerForceCancelAppealTargetCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || !order.cancelRequest) { closePartnerForceCancelAppealModal(); return; }
+    const reason = document.getElementById('partner-force-cancel-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    order.cancelRequest.appeal = { reason, filedBy: 'partner', status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'FORCE_CANCEL_APPEAL', `[${partnerName}]가 계약(${order.code}) 강제 취소 조치에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `계약 파트너사가 계약(${order.code}) 강제 취소에 대한 이의신청을 제출했어요.`);
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closePartnerForceCancelAppealModal();
+    openPartnerOrderDetailModal(order.code);
+}
+
 /* 안심 계약·입찰 내역 상태 필터. 상태 뱃지를 클릭하면 해당 상태만 걸러서 볼 수 있다. */
 let partnerContractsStatusFilter = 'all';
 
@@ -1839,6 +1876,13 @@ function openPartnerOrderDetailModal(orderCode) {
                 <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="lock" class="w-4 h-4 text-ink-500"></i> 계약서·견적서 업로드 및 수수료 결제는 계약 확정 후 가능합니다</h5>
                 <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${order.status === 'contracted' ? '이 오더는 다른 파트너사와 계약이 체결되었습니다.' : order.status === 'withdrawn' ? '고객이 이 의뢰를 철회하여 더 이상 진행되지 않습니다.' : order.status === 'cancel_requested' ? (isPartnerOwnCancelRequest ? '귀사가 요청한 계약 취소를 매니저 센터에서 심사 중입니다. 심사가 끝날 때까지 계약 관련 절차가 일시 중단됩니다.' : '고객이 계약 취소를 요청하여 매니저 센터에서 심사 중입니다. 심사가 끝날 때까지 계약 관련 절차가 일시 중단됩니다.') : order.status === 'cancelled' ? '이 계약은 취소 승인되어 더 이상 유효하지 않습니다.' : '고객이 최종 파트너사를 확정하면 이 오더의 계약서·견적서 업로드와 수수료 결제 기능이 열립니다.'}</p>
                 ${isPartnerOwnCancelRequest ? `<button type="button" onclick="retractPartnerCancellationRequest('${order.code}')" class="btn btn-secondary btn-sm mt-1">취소 요청 철회하기</button>` : ''}
+                ${(order.status === 'cancelled' && order.cancelRequest && order.cancelRequest.requestedBy === 'admin' && order.acceptedPartner === partnerName) ? (
+                    order.cancelRequest.appeal && order.cancelRequest.appeal.status === 'pending'
+                        ? `<p class="text-[10px] font-black text-amberCustom mt-1">이의신청 심사 대기중</p>`
+                        : order.cancelRequest.appeal && order.cancelRequest.appeal.status === 'rejected'
+                            ? `<p class="text-[10px] font-bold text-ink-400 mt-1">이의신청 반려됨${order.cancelRequest.appeal.adminResponse ? ` — ${escapeHtml(order.cancelRequest.appeal.adminResponse)}` : ''}</p>`
+                            : `<button type="button" onclick="openPartnerForceCancelAppealModal('${order.code}')" class="btn btn-secondary btn-sm mt-1">강제 취소에 이의신청하기</button>`
+                ) : ''}
             </div>
             ${myBid && myBid.questions && myBid.questions.length > 0 ? `
             <div class="p-4 surface-flat text-left space-y-2.5">
@@ -2271,6 +2315,15 @@ function searchOrderLookup() {
                 </div>
             </div>`);
         }
+        if (o.status === 'cancelled' && o.cancelRequest && o.cancelRequest.requestedBy === 'admin' && o.cancelRequest.appeal && o.cancelRequest.appeal.status === 'pending') {
+            rows.push(`<div class="flex items-center justify-between gap-2 px-3 py-2 bg-rose-50/60 rounded-lg border border-rose-200">
+                <span class="text-[11px] font-bold text-ink-700 truncate">강제 취소 이의신청 (${o.cancelRequest.appeal.filedBy === 'client' ? '고객' : '파트너'} 제출): ${escapeHtml(o.cancelRequest.appeal.reason)}</span>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="openReportReasonPrompt((reason) => adminRejectForceCancelAppeal('${o.code}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">반려</button>
+                    <button type="button" onclick="adminApproveForceCancelAppeal('${o.code}')" class="text-[10px] font-bold text-ink-500 hover:text-emeraldCustom bg-transparent border-0 cursor-pointer p-0">승인(계약 복원)</button>
+                </div>
+            </div>`);
+        }
         return rows.length === 0 ? '' : `<div class="w-full space-y-1.5 pt-1">${rows.join('')}</div>`;
     };
 
@@ -2435,6 +2488,40 @@ function adminForceCancelContract(orderCode, reason) {
     searchOrderLookup();
     if (typeof renderAdminRefundPendingList === 'function') renderAdminRefundPendingList();
     if (typeof recalculateKPIs === 'function') recalculateKPIs();
+}
+
+/* 강제 취소에 고객·파트너가 이의신청을 제출할 수 있게 됐으니(openForceCancelAppealModal/
+ * openPartnerForceCancelAppealModal), 관리자 쪽 심사 경로가 필요하다. 승인하면 계약을
+ * 그대로 복원하고(환불 대기였다면 취소), 반려하면 취소 결정을 유지한다. */
+function adminApproveForceCancelAppeal(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || !order.cancelRequest || !order.cancelRequest.appeal || order.cancelRequest.appeal.status !== 'pending') return;
+
+    order.status = 'contracted';
+    if (order.refundStatus === 'pending') { order.refundStatus = null; order.refundAmount = null; }
+    order.cancelRequest = null;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'FORCE_CANCEL_APPEAL_APPROVE', `[이의신청 승인] 오더 ${order.code}의 강제 취소 조치를 재검토하여 계약을 복원했습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `계약(${order.code}) 강제 취소 이의신청이 승인되어 계약이 복원되었습니다.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `계약(${order.code}) 강제 취소 이의신청이 승인되어 계약이 복원되었습니다.`);
+    showToast(`오더 ${order.code}의 계약을 복원했습니다.`, 'success');
+    searchOrderLookup();
+    if (typeof renderAdminRefundPendingList === 'function') renderAdminRefundPendingList();
+    if (typeof recalculateKPIs === 'function') recalculateKPIs();
+}
+
+function adminRejectForceCancelAppeal(orderCode, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || !order.cancelRequest || !order.cancelRequest.appeal || order.cancelRequest.appeal.status !== 'pending') return;
+    order.cancelRequest.appeal.status = 'rejected';
+    order.cancelRequest.appeal.adminResponse = reason;
+    order.cancelRequest.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'FORCE_CANCEL_APPEAL_REJECT', `[이의신청 반려] 오더 ${order.code}의 강제 취소 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `계약(${order.code}) 강제 취소 이의신청이 반려되었습니다. 사유: ${reason}`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `계약(${order.code}) 강제 취소 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast('이의신청을 반려했습니다.', 'info');
+    searchOrderLookup();
 }
 
 /* 파트너가 업로드한 계약서·견적서는 지금까지 관리자가 열람만 할 수 있었고, 서류가
@@ -4963,6 +5050,11 @@ window.initPartnerSignatureCanvas = initPartnerSignatureCanvas;
 window.clearPartnerSignatureCanvas = clearPartnerSignatureCanvas;
 window.submitPartnerSignatureCanvas = submitPartnerSignatureCanvas;
 window.adminForceCancelContract = adminForceCancelContract;
+window.openPartnerForceCancelAppealModal = openPartnerForceCancelAppealModal;
+window.closePartnerForceCancelAppealModal = closePartnerForceCancelAppealModal;
+window.submitPartnerForceCancelAppeal = submitPartnerForceCancelAppeal;
+window.adminApproveForceCancelAppeal = adminApproveForceCancelAppeal;
+window.adminRejectForceCancelAppeal = adminRejectForceCancelAppeal;
 window.adminInvalidateBid = adminInvalidateBid;
 window.adminRestoreInvalidatedBid = adminRestoreInvalidatedBid;
 window.adminRejectInvalidatedBidAppeal = adminRejectInvalidatedBidAppeal;

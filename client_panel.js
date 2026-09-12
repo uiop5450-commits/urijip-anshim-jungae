@@ -641,6 +641,43 @@ function retractContractCancellationRequest(orderCode) {
     if (typeof renderAdminContractCancellations === 'function') renderAdminContractCancellations();
 }
 
+/* 관리자가 계약을 직권으로 강제 취소하면(adminForceCancelContract, partner_panel.js)
+ * 고객·파트너 둘 다 알림만 받을 뿐 그 조치가 부당하다고 여겨도 대응할 방법이
+ * 없었다 — 계정 정지 이의신청(suspensionAppeal), 옐로카드 이의신청(strikeAppeal)과
+ * 동일한 비대칭이다. 양측 중 먼저 제출한 이의신청 하나를 order.cancelRequest.appeal에
+ * 담아 관리자가 심사하게 한다. */
+let forceCancelAppealTargetCode = null;
+
+function openForceCancelAppealModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'cancelled' || !order.cancelRequest || order.cancelRequest.requestedBy !== 'admin') return;
+    if (order.cancelRequest.appeal && order.cancelRequest.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    forceCancelAppealTargetCode = orderCode;
+    safeUpdateValue('force-cancel-appeal-reason-input', '');
+    openModal('force-cancel-appeal-modal', 'force-cancel-appeal-modal-card');
+}
+
+function closeForceCancelAppealModal() {
+    forceCancelAppealTargetCode = null;
+    closeModal('force-cancel-appeal-modal', 'force-cancel-appeal-modal-card');
+}
+
+function submitForceCancelAppeal() {
+    const order = window.AppState.orders.find(o => o.code === forceCancelAppealTargetCode);
+    if (!order || !order.cancelRequest) { closeForceCancelAppealModal(); return; }
+    const reason = document.getElementById('force-cancel-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    order.cancelRequest.appeal = { reason, filedBy: 'client', status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'FORCE_CANCEL_APPEAL', `[${order.clientName}] 고객님이 계약(${order.code}) 강제 취소 조치에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 계약(${order.code}) 강제 취소에 대한 이의신청을 제출했어요.`);
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeForceCancelAppealModal();
+    selectMyPageEstimate(order.code);
+}
+
 /* "3년 무상 하자보증"이 홈 화면·프로모션 문구에 반복 노출되지만(index.html,
  * cms.js:1110, config_state.js:296) 실제로 하자보수를 신청할 방법이 어디에도
  * 없었다 — 양측 서명이 완료된 계약(공사 완료를 나타내는 대체 지표)에 한해
@@ -2125,6 +2162,13 @@ function renderMyPageEstimateDetails(order) {
                     <p class="text-xs text-ink-500 font-semibold">최종 계약금액: ₩ ${(order.finalPrice || 0).toLocaleString()} 만원</p>
                 </div>
                 ${(isRequested && order.cancelRequest && order.cancelRequest.requestedBy === 'client') ? `<button type="button" onclick="retractContractCancellationRequest('${order.code}')" class="btn btn-secondary btn-block">취소 요청 철회하기</button>` : ''}
+                ${(!isRequested && order.cancelRequest && order.cancelRequest.requestedBy === 'admin') ? (
+                    order.cancelRequest.appeal && order.cancelRequest.appeal.status === 'pending'
+                        ? `<div class="p-3 bg-amber-50 rounded-xl text-center"><span class="text-[11px] font-black text-amberCustom">이의신청 심사 대기중</span></div>`
+                        : order.cancelRequest.appeal && order.cancelRequest.appeal.status === 'rejected'
+                            ? `<div class="p-3 bg-ink-50 rounded-xl text-center"><span class="text-[11px] font-bold text-ink-400">이의신청 반려됨${order.cancelRequest.appeal.adminResponse ? ` — ${escapeHtml(order.cancelRequest.appeal.adminResponse)}` : ''}</span></div>`
+                            : `<button type="button" onclick="openForceCancelAppealModal('${order.code}')" class="btn btn-secondary btn-block">강제 취소에 이의신청하기</button>`
+                ) : ''}
             </div>`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
@@ -3386,6 +3430,9 @@ window.submitPartnerReport = submitPartnerReport;
 window.closeContractCancelRequestModal = closeContractCancelRequestModal;
 window.submitContractCancellationRequest = submitContractCancellationRequest;
 window.retractContractCancellationRequest = retractContractCancellationRequest;
+window.openForceCancelAppealModal = openForceCancelAppealModal;
+window.closeForceCancelAppealModal = closeForceCancelAppealModal;
+window.submitForceCancelAppeal = submitForceCancelAppeal;
 window.openRepairClaimModal = openRepairClaimModal;
 window.closeRepairClaimModal = closeRepairClaimModal;
 window.submitRepairClaim = submitRepairClaim;
