@@ -433,7 +433,7 @@ function renderPartnerSearchGrid() {
                 </div>
                 <div class="p-5 space-y-2">
                     <div class="flex justify-between items-center gap-2">
-                        <h4 class="text-sm font-black text-ink-950 truncate flex items-center gap-1.5"><span>${safePName}</span>${certifiedBadge}</h4>
+                        <h4 class="text-sm font-black text-ink-950 truncate flex items-center gap-1.5"><span>${safePName}</span>${certifiedBadge}${buildPartnerTierBadgeHtml(p.name)}</h4>
                         <div class="flex items-center gap-1 text-xs font-extrabold text-ink-800 shrink-0"><span class="text-gold-500">★</span><span>${p.rating.toFixed(1)}</span></div>
                     </div>
                     <p class="text-[10.5px] text-ink-400 font-bold flex items-center gap-1.5">${metaParts.join('<span class="text-ink-200">·</span>')}</p>
@@ -4943,6 +4943,30 @@ function adminDeleteReview(partnerName, reviewIdx) {
 /* 관리자용 상세 성과 모달과 파트너 본인용 "내 실적" 탭이 똑같은 참여/계약/GMV
  * 계산 로직을 쓴다 — 한 곳에 모아두면 나중에 계산 방식이 바뀌어도 두 화면이
  * 어긋날 일이 없다. */
+/* "안심 인증"(togglePartnerCertification)은 매니저가 심사해서 부여/회수하는
+ * 이진 배지이고, "이번 주 인기"는 최근 7일 좋아요·조회수 기반의 일시적 배지다 —
+ * 정작 누적 계약 건수·평점으로 쌓인 장기 신뢰도를 한눈에 보여줄 배지가 전혀
+ * 없어서, 고객이 3건짜리 신규 업체와 300건짜리 노포를 별점 하나로만 구분해야
+ * 했다. 관리자 개입 없이 데이터로만 자동 산정되는 등급을 둔다. */
+const PARTNER_TIER_DEFS = [
+    { key: 'platinum', label: '플래티넘 파트너', minContracts: 20, minRating: 4.5, cls: 'badge-brand' },
+    { key: 'gold', label: '골드 파트너', minContracts: 10, minRating: 4.0, cls: 'badge-gold' },
+    { key: 'silver', label: '실버 파트너', minContracts: 3, minRating: 0, cls: 'badge-neutral' }
+];
+
+function computePartnerTier(partnerName) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return null;
+    const contractedCount = (window.AppState.orders || []).filter(o => o.status === 'contracted' && o.acceptedPartner === partnerName).length;
+    const rating = partner.rating || 5.0;
+    return PARTNER_TIER_DEFS.find(t => contractedCount >= t.minContracts && rating >= t.minRating) || null;
+}
+
+function buildPartnerTierBadgeHtml(partnerName) {
+    const tier = computePartnerTier(partnerName);
+    return tier ? `<span class="badge ${tier.cls}">${tier.label}</span>` : '';
+}
+
 function computePartnerMetrics(partnerName) {
     const allOrders = window.AppState.orders || [];
     const participatedOrders = allOrders.filter(o => o.bids && o.bids.some(b => b.partner === partnerName));
@@ -5082,7 +5106,7 @@ function renderPartnerPerformanceView() {
     container.innerHTML = `
         <div class="surface surface-lg p-6 sm:p-8 space-y-5 text-left">
             <div class="border-b border-ink-100 pb-4 flex flex-wrap justify-between items-center gap-2">
-                <div><span class="badge badge-brand">경영 지표</span>
+                <div><span class="badge badge-brand">경영 지표</span>${buildPartnerTierBadgeHtml(partnerName)}
                 <h4 class="text-sm sm:text-base font-black text-ink-950 tracking-tight mt-1 flex items-center gap-1.5"><i data-lucide="bar-chart-2" class="w-4 h-4 text-brand-500"></i> 내 실적 요약</h4></div>
                 <button type="button" onclick="exportPartnerPerformanceCsv()" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="download" class="w-3.5 h-3.5"></i> CSV로 내보내기</button>
             </div>
@@ -6262,6 +6286,8 @@ window.adminApproveSiteVisitCompletionDispute = adminApproveSiteVisitCompletionD
 window.adminRejectSiteVisitCompletionDispute = adminRejectSiteVisitCompletionDispute;
 window.isClientBlockedByPartner = isClientBlockedByPartner;
 window.togglePartnerBlockClient = togglePartnerBlockClient;
+window.computePartnerTier = computePartnerTier;
+window.buildPartnerTierBadgeHtml = buildPartnerTierBadgeHtml;
 window.sendPartnerOrderMessage = sendPartnerOrderMessage;
 window.proposeRepairVisitDate = proposeRepairVisitDate;
 window.openChangeOrderModal = openChangeOrderModal;

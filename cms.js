@@ -1453,6 +1453,8 @@ function openClientPartnerProfile(partnerName) {
     safeUpdateText('profile-partner-slogan-hero', partner.promoSlogan || `${partner.name} - 부산 우수 안심 파트너`);
     safeUpdateText('profile-partner-promo-hero', partner.promoText || '하자보증 무상 3년 지원 대상 기업');
     safeUpdateText('profile-rating-avg', partner.rating ? partner.rating.toFixed(1) : "5.0");
+    const tierBadgeEl = document.getElementById('profile-partner-tier-badge');
+    if (tierBadgeEl) tierBadgeEl.innerHTML = typeof buildPartnerTierBadgeHtml === 'function' ? buildPartnerTierBadgeHtml(partner.name) : '';
 
     const favoriteBtn = document.getElementById('client-partner-profile-favorite-btn');
     if (favoriteBtn && typeof syncFavoriteButtonIcon === 'function') syncFavoriteButtonIcon(favoriteBtn, partner.name);
