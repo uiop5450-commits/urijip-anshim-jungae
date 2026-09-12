@@ -1772,6 +1772,67 @@ function advanceOrderProgressStage(orderCode) {
     openPartnerOrderDetailModal(order.code);
 }
 
+/* 계약 체결 후 착공(progressStages) 전까지, 실제 인테리어 시공에서는 항상 있는
+ * 실측(현장 방문 측정) 일정 조율 단계가 전혀 없었다 — 시공 범위·자재를 확정하기
+ * 위한 필수 단계인데도 이 플랫폼에는 아예 존재하지 않았다. 결제 마일스톤과 동일한
+ * 요청→확인/거절 핸드셰이크 패턴을 적용한다. */
+let siteVisitTargetCode = null;
+
+function openSiteVisitModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
+    if (order.siteVisit && (order.siteVisit.status === 'proposed' || order.siteVisit.status === 'confirmed')) { showToast('이미 제안했거나 확정된 실측 일정이 있어요.', 'warning'); return; }
+    siteVisitTargetCode = orderCode;
+    safeUpdateValue('site-visit-date-input', '');
+    safeUpdateValue('site-visit-note-input', '');
+    openModal('site-visit-modal', 'site-visit-modal-card');
+}
+
+function closeSiteVisitModal() {
+    siteVisitTargetCode = null;
+    closeModal('site-visit-modal', 'site-visit-modal-card');
+}
+
+function submitSiteVisitProposal() {
+    const order = window.AppState.orders.find(o => o.code === siteVisitTargetCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order) { closeSiteVisitModal(); return; }
+    const date = document.getElementById('site-visit-date-input')?.value;
+    const note = document.getElementById('site-visit-note-input')?.value.trim();
+    if (!date) { showToast('실측 방문 희망일을 선택해주세요.', 'warning'); return; }
+
+    order.siteVisit = { status: 'proposed', proposedDate: date, note, confirmedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'SITE_VISIT_PROPOSE', `[${partnerName}]가 오더(${order.code}) 실측 방문 일정을 제안했습니다: ${date}`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}가 실측 방문 일정을 제안했어요: ${date}${note ? ` (${note})` : ''}`);
+    showToast('실측 방문 일정을 제안했습니다. 고객 확인을 기다려주세요.', 'success');
+
+    closeSiteVisitModal();
+    openPartnerOrderDetailModal(order.code);
+}
+
+function buildPartnerSiteVisitHtml(order) {
+    if (order.status !== 'contracted') return '';
+    const visit = order.siteVisit;
+    let statusHtml = '';
+    if (visit && visit.status === 'proposed') {
+        statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">고객 확인 대기중: ${visit.proposedDate}${visit.note ? ` (${escapeHtml(visit.note)})` : ''}</p>`;
+    } else if (visit && visit.status === 'confirmed') {
+        statusHtml = `<p class="text-[10px] font-black text-emeraldCustom mt-1">확정됨: ${visit.confirmedDate}</p>`;
+    } else if (visit && visit.status === 'declined') {
+        statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">고객이 거절했어요${visit.declineReason ? ` — ${escapeHtml(visit.declineReason)}` : ''}. 새 일정을 다시 제안해주세요.</p>`;
+    }
+    const showBtn = !visit || visit.status === 'none' || visit.status === 'declined';
+    return `<div class="surface p-5 space-y-2">
+        <div class="flex items-center justify-between">
+            <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="ruler" class="w-4 h-4 text-brand-500"></i> 실측 방문 일정</h5>
+            ${showBtn ? `<button type="button" onclick="openSiteVisitModal('${order.code}')" class="btn btn-secondary btn-sm">일정 제안하기</button>` : ''}
+        </div>
+        ${statusHtml || `<p class="text-[10px] text-ink-400 font-semibold">아직 제안한 실측 일정이 없습니다.</p>`}
+    </div>`;
+}
+
 /* commissionPaid는 플랫폼 중개 수수료 완납 여부만 표시할 뿐, 정작 고객이 파트너에게
  * 지불하는 공사대금 자체는 finalPrice 총액 하나로만 다뤄졌다 — 실제 인테리어
  * 계약은 계약금/중도금/잔금으로 나눠 단계별로 청구·지급되는데 그 흐름을 추적할
@@ -1923,6 +1984,7 @@ function openPartnerOrderDetailModal(orderCode) {
                 </div>
                 ${order.clientSigned && order.partnerSigned ? `<div class="p-2.5 text-center"><span class="badge badge-brand"><i data-lucide="shield-check" class="w-3 h-3"></i> 양측 서명 완료 — 계약 합의서 최종 확정</span></div>` : ''}
             </div>
+            ${buildPartnerSiteVisitHtml(order)}
             ${buildPartnerProgressStagesHtml(order)}
             ${buildPartnerPaymentMilestonesHtml(order)}
             <div class="surface p-5 space-y-3">
@@ -5293,6 +5355,10 @@ window.buildPartnerProgressStagesHtml = buildPartnerProgressStagesHtml;
 window.advanceOrderProgressStage = advanceOrderProgressStage;
 window.buildPartnerPaymentMilestonesHtml = buildPartnerPaymentMilestonesHtml;
 window.requestPaymentMilestone = requestPaymentMilestone;
+window.openSiteVisitModal = openSiteVisitModal;
+window.closeSiteVisitModal = closeSiteVisitModal;
+window.submitSiteVisitProposal = submitSiteVisitProposal;
+window.buildPartnerSiteVisitHtml = buildPartnerSiteVisitHtml;
 window.withdrawMyPartnerBid = withdrawMyPartnerBid;
 window.replyToBidQuestion = replyToBidQuestion;
 window.buildPreBidQnaHtml = buildPreBidQnaHtml;

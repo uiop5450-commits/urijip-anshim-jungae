@@ -782,6 +782,51 @@ function buildProgressStagesHtml(order) {
     </div>`;
 }
 
+/* 계약 체결 후 착공 전까지, 실제 인테리어 시공에서는 항상 있는 실측 일정 조율
+ * 단계가 전혀 없었다 — 파트너가 제안한 실측 방문 일정(openSiteVisitModal,
+ * partner_panel.js)에 고객이 확정 또는 거절로 응답할 수 있게 한다. */
+function confirmSiteVisit(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || !order.siteVisit || order.siteVisit.status !== 'proposed') return;
+    order.siteVisit.status = 'confirmed';
+    order.siteVisit.confirmedDate = order.siteVisit.proposedDate;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'SITE_VISIT_CONFIRM', `[${order.clientName}] 고객님이 계약(${order.code}) 실측 방문 일정을 확정했습니다: ${order.siteVisit.confirmedDate}`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 실측 방문 일정을 확정했어요: ${order.siteVisit.confirmedDate}`);
+    showToast('실측 방문 일정을 확정했습니다.', 'success');
+    selectMyPageEstimate(order.code);
+}
+
+function declineSiteVisit(orderCode, reason) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || !order.siteVisit || order.siteVisit.status !== 'proposed') return;
+    order.siteVisit.status = 'declined';
+    order.siteVisit.declineReason = reason;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'SITE_VISIT_DECLINE', `[${order.clientName}] 고객님이 계약(${order.code}) 실측 방문 일정을 거절했습니다. 사유: ${reason}`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 제안하신 실측 방문 일정을 거절했어요. 사유: ${reason}`);
+    showToast('실측 방문 일정을 거절했습니다.', 'info');
+    selectMyPageEstimate(order.code);
+}
+
+function buildClientSiteVisitHtml(order) {
+    if (order.status !== 'contracted') return '';
+    const visit = order.siteVisit;
+    let bodyHtml = `<p class="text-[10px] text-ink-400 font-semibold">계약 파트너사가 실측 방문 일정을 제안하면 여기서 확인할 수 있어요.</p>`;
+    if (visit && visit.status === 'proposed') {
+        bodyHtml = `<p class="text-[10px] text-ink-600 font-semibold leading-relaxed">파트너사가 실측 방문 일정을 제안했어요: <span class="font-black text-ink-950">${visit.proposedDate}</span>${visit.note ? ` (${escapeHtml(visit.note)})` : ''}</p>
+            <div class="flex gap-1.5 mt-1.5"><button type="button" onclick="confirmSiteVisit('${order.code}')" class="btn btn-dark btn-sm flex-1">일정 확정</button><button type="button" onclick="openReportReasonPrompt((reason) => declineSiteVisit('${order.code}', reason))" class="btn btn-secondary btn-sm flex-1">거절</button></div>`;
+    } else if (visit && visit.status === 'confirmed') {
+        bodyHtml = `<p class="text-[10px] font-black text-emeraldCustom">실측 방문 일정 확정됨: ${visit.confirmedDate}</p>`;
+    } else if (visit && visit.status === 'declined') {
+        bodyHtml = `<p class="text-[10px] text-ink-400 font-semibold">제안된 일정을 거절했어요. 파트너사의 새 제안을 기다려주세요.</p>`;
+    }
+    return `<div class="p-3.5 surface-flat space-y-1.5 text-left mt-3">
+        <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="ruler" class="w-3.5 h-3.5 text-brand-500"></i> 실측 방문 일정</span>
+        ${bodyHtml}
+    </div>`;
+}
+
 /* commissionPaid는 플랫폼 중개 수수료 완납 여부만 표시할 뿐, 정작 고객이 파트너에게
  * 지불하는 공사대금 자체는 finalPrice 총액 하나로만 다뤄졌다 — 계약금/중도금/잔금
  * 단계별 청구(requestPaymentMilestone, partner_panel.js)에 고객이 납부 완료로
@@ -2453,6 +2498,7 @@ function renderMyPageEstimateDetails(order) {
             <span class="badge ${order.partnerSigned ? 'badge-emerald' : 'badge-amber'}">${order.partnerSigned ? '완료' : '대기중'}</span>
         </div>
         ${order.clientSigned && order.partnerSigned ? `<div class="p-2.5 text-center"><span class="badge badge-brand"><i data-lucide="shield-check" class="w-3 h-3"></i> 양측 서명 완료 — 계약 합의서 최종 확정</span></div>` : ''}
+        ${buildClientSiteVisitHtml(order)}
         ${buildProgressStagesHtml(order)}
         ${buildPaymentMilestonesHtml(order)}
         ${buildRepairClaimsHtml(order)}
@@ -3612,6 +3658,9 @@ window.buildRepairClaimsHtml = buildRepairClaimsHtml;
 window.buildProgressStagesHtml = buildProgressStagesHtml;
 window.buildPaymentMilestonesHtml = buildPaymentMilestonesHtml;
 window.confirmPaymentMilestone = confirmPaymentMilestone;
+window.confirmSiteVisit = confirmSiteVisit;
+window.declineSiteVisit = declineSiteVisit;
+window.buildClientSiteVisitHtml = buildClientSiteVisitHtml;
 window.retractRepairClaim = retractRepairClaim;
 window.escalateRepairClaimToAdmin = escalateRepairClaimToAdmin;
 window.openScheduleChangeModal = openScheduleChangeModal;

@@ -1736,6 +1736,21 @@
         </div>
     </div>
 
+    <div id="site-visit-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="site-visit-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-brand">실측 방문 일정</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">고객에게 실측 방문 일정을 제안합니다</h3></div>
+                <button type="button" onclick="closeSiteVisitModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">시공 범위와 자재를 정확히 확정하기 위한 현장 실측 방문 일정을 제안해주세요.</p>
+                <div><label class="field-label">희망 방문일</label><input type="date" id="site-visit-date-input" class="input"></div>
+                <div><label class="field-label">안내 사항 (선택)</label><textarea id="site-visit-note-input" rows="3" placeholder="예: 오전 10시경 방문 예정입니다." class="textarea"></textarea></div>
+                <button type="button" onclick="submitSiteVisitProposal()" class="btn btn-primary btn-block">일정 제안 보내기</button>
+            </div>
+        </div>
+    </div>
+
     <div id="review-deletion-appeal-modal" class="hidden modal-overlay" style="z-index:220">
         <div id="review-deletion-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">
