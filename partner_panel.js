@@ -1062,9 +1062,11 @@ function validatePartnerLogin() {
         // 고객 계정 정지(toggleClientSuspension)는 옐로카드 누적 없이도 매니저가 즉시
         // 잠글 수 있는데, 파트너 쪽은 삼진아웃(영구 제명) 아니면 손 쓸 방법이 없었다
         // — 조사 중인 파트너를 잠시 막아둘 가역적 수단이 없던 비대칭을 해소한다.
+        // 고객의 계정 정지에는 로그인 화면에서 바로 소명할 수 있는 이의신청
+        // (openSuspensionAppealModal)이 있는데 파트너 정지는 그마저도 없었으므로
+        // 동일하게 이의신청 모달을 띄운다.
         if (partner.isSuspended) {
-            showToast("귀사는 매니저 센터에 의해 일시 이용 정지 처리되었습니다.", "warning");
-            showInlineLoginError(errorMsg, "이용 정지된 계정입니다. 자세한 사유는 매니저 센터로 문의해 주세요.", 'pause-circle');
+            openPartnerSuspensionAppealModal(partner.id);
             return;
         }
         window.AppState.partnerLoggedIn = true;
@@ -3658,6 +3660,14 @@ function renderAdminPartnerMonitor() {
                     <div class="article-spec-chip items-center"><span>참여 오더</span><span class="val">${activeBidsCount}건</span></div>
                     <div class="article-spec-chip items-center"><span>계약 체결</span><span class="val">${completedContractsCount}건</span></div>
                 </div>
+                ${p.isSuspended && p.suspensionAppeal ? (p.suspensionAppeal.status === 'pending' ? `
+                <div class="p-3 bg-brand-50 rounded-xl flex items-center justify-between gap-2">
+                    <p class="text-[11px] font-black text-brand-700">계정 정지 이의신청: ${escapeHtml(p.suspensionAppeal.reason)}</p>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" onclick="openReportReasonPrompt((reason) => adminRejectPartnerSuspensionAppeal('${p.id}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">반려</button>
+                        <button type="button" onclick="adminApprovePartnerSuspensionAppeal('${p.id}')" class="text-[10px] font-bold text-ink-500 hover:text-emeraldCustom bg-transparent border-0 cursor-pointer p-0">승인(정지 해제)</button>
+                    </div>
+                </div>` : `<div class="p-3 bg-ink-50 rounded-xl"><p class="text-[10px] font-bold text-ink-400">계정 정지 이의신청 반려됨 — ${escapeHtml(p.suspensionAppeal.adminResponse || '')}</p></div>`) : ''}
             </div>
             <div class="pt-3 border-t border-ink-100 flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center flex-wrap gap-1.5">
@@ -4610,6 +4620,67 @@ function togglePartnerSuspension(partnerName) {
             : '이용 정지가 해제되었습니다. 다시 서비스를 이용하실 수 있어요.');
     }
     showToast(`[${partner.name}] 파트너 계정이 ${partner.isSuspended ? '이용 정지되었습니다' : '정지 해제되었습니다'}.`, partner.isSuspended ? 'warning' : 'success');
+    renderAdminPartnerMonitor();
+}
+
+/* 고객 계정 정지는 로그인 화면에서 바로 이의신청할 수 있는데(openSuspensionAppealModal,
+ * client_panel.js) 방금 추가한 파트너 정지(togglePartnerSuspension)는 소명할 방법이
+ * 전혀 없었다 — 로그인 자체가 막혀 파트너 콘솔(옐로카드 이의신청이 있는 곳)에도
+ * 접근할 수 없으므로, 고객과 동일하게 로그인 화면에서 바로 제출하는 모달을 둔다. */
+let partnerSuspensionAppealTargetId = null;
+
+function openPartnerSuspensionAppealModal(partnerId) {
+    const partner = window.AppState.partners.find(p => p.id === partnerId);
+    if (!partner) return;
+    if (partner.suspensionAppeal && partner.suspensionAppeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요. 매니저 센터 심사 결과를 기다려주세요.', 'warning'); return; }
+    partnerSuspensionAppealTargetId = partnerId;
+    safeUpdateValue('partner-suspension-appeal-reason-input', '');
+    openModal('partner-suspension-appeal-modal', 'partner-suspension-appeal-modal-card');
+}
+
+function closePartnerSuspensionAppealModal() {
+    partnerSuspensionAppealTargetId = null;
+    closeModal('partner-suspension-appeal-modal', 'partner-suspension-appeal-modal-card');
+}
+
+function submitPartnerSuspensionAppeal() {
+    const partner = window.AppState.partners.find(p => p.id === partnerSuspensionAppealTargetId);
+    if (!partner) { closePartnerSuspensionAppealModal(); return; }
+    const reason = document.getElementById('partner-suspension-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    partner.suspensionAppeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PARTNER_SUSPENSION_APPEAL', `[${partner.name}]가 계정 정지에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closePartnerSuspensionAppealModal();
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
+function adminApprovePartnerSuspensionAppeal(partnerId) {
+    const partner = (window.AppState.partners || []).find(p => p.id === partnerId);
+    if (!partner || !partner.suspensionAppeal || partner.suspensionAppeal.status !== 'pending') return;
+    partner.isSuspended = false;
+    partner.suspensionAppeal.status = 'approved';
+    partner.suspensionAppeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_SUSPENSION_APPEAL_APPROVE', `[이의신청 승인] '${partner.name}' 파트너의 계정 정지 이의신청을 승인하여 정지를 해제했습니다.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `제출하신 이의신청이 승인되어 계정 정지가 해제되었습니다. 다시 로그인하실 수 있어요.`);
+    showToast(`[${partner.name}] 파트너의 이의신청을 승인하여 정지를 해제했습니다.`, 'success');
+    renderAdminPartnerMonitor();
+}
+
+function adminRejectPartnerSuspensionAppeal(partnerId, reason) {
+    const partner = (window.AppState.partners || []).find(p => p.id === partnerId);
+    if (!partner || !partner.suspensionAppeal || partner.suspensionAppeal.status !== 'pending') return;
+    partner.suspensionAppeal.status = 'rejected';
+    partner.suspensionAppeal.adminResponse = reason;
+    partner.suspensionAppeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_SUSPENSION_APPEAL_REJECT', `[이의신청 반려] '${partner.name}' 파트너의 계정 정지 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast(`[${partner.name}] 파트너의 이의신청을 반려했습니다.`, 'info');
     renderAdminPartnerMonitor();
 }
 
@@ -5566,6 +5637,11 @@ window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
 window.resetPartnerStrikes = resetPartnerStrikes;
 window.togglePartnerSuspension = togglePartnerSuspension;
+window.openPartnerSuspensionAppealModal = openPartnerSuspensionAppealModal;
+window.closePartnerSuspensionAppealModal = closePartnerSuspensionAppealModal;
+window.submitPartnerSuspensionAppeal = submitPartnerSuspensionAppeal;
+window.adminApprovePartnerSuspensionAppeal = adminApprovePartnerSuspensionAppeal;
+window.adminRejectPartnerSuspensionAppeal = adminRejectPartnerSuspensionAppeal;
 window.togglePartnerCertification = togglePartnerCertification;
 window.openPartnerCertGrantModal = openPartnerCertGrantModal;
 window.closePartnerCertGrantModal = closePartnerCertGrantModal;
