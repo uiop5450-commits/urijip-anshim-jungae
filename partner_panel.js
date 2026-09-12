@@ -2482,6 +2482,25 @@ function renderPartnerDocUploadCardHtml(order, docType, label) {
                 </div>
             </div>`;
     }
+    const rejection = order.docRejections && order.docRejections[docType];
+    if (rejection) {
+        const appeal = rejection.appeal;
+        let appealHtml;
+        if (appeal && appeal.status === 'pending') {
+            appealHtml = `<p class="text-[10px] font-black text-amberCustom">이의신청 심사 대기중</p>`;
+        } else if (appeal && appeal.status === 'rejected') {
+            appealHtml = `<p class="text-[10px] font-bold text-ink-400 leading-relaxed">이의신청 반려됨${appeal.adminResponse ? ` — ${escapeHtml(appeal.adminResponse)}` : ''}</p>`;
+        } else {
+            appealHtml = `<button type="button" onclick="openReportReasonPrompt((reason) => appealPartnerDocRejection('${order.code}', '${docType}', reason))" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">이의신청하기</button>`;
+        }
+        return `
+        <div class="p-3.5 surface-flat space-y-2 text-left">
+            <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-950">${label}</span><span class="badge badge-rose">반려됨</span></div>
+            <p class="text-[10px] text-roseCustom font-bold leading-relaxed">반려 사유: ${escapeHtml(rejection.reason)}</p>
+            ${appealHtml}
+            <button type="button" onclick="triggerPartnerDocUpload('${docType}')" class="btn btn-dark btn-sm btn-block">${label} 다시 업로드하기</button>
+        </div>`;
+    }
     return `
         <div class="p-3.5 surface-flat space-y-2 text-left">
             <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-950">${label}</span><span class="badge badge-amber">미업로드</span></div>
@@ -2915,6 +2934,18 @@ function getAllPendingAppeals() {
                 actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectPortfolioQuestionDeletionAppeal('${e.id}', reason))`) + approveBtn('승인(문의 복원)', `adminApprovePortfolioQuestionDeletionAppeal('${e.id}')`)
             });
         }
+    });
+    (window.AppState.orders || []).forEach(o => {
+        ['contract', 'estimate'].forEach(docType => {
+            const rejection = o.docRejections && o.docRejections[docType];
+            if (rejection && rejection.appeal && rejection.appeal.status === 'pending') {
+                const label = docType === 'contract' ? '계약서' : '견적서';
+                items.push({
+                    typeLabel: `${label} 반려 이의신청`, subject: `${o.code} · ${o.acceptedPartner}`, reason: rejection.appeal.reason, date: rejection.appeal.date, orderCode: o.code,
+                    actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectDocRejectionAppeal('${o.code}', '${docType}', reason))`) + approveBtn(`승인(${label} 복원)`, `adminApproveDocRejectionAppeal('${o.code}', '${docType}')`)
+                });
+            }
+        });
     });
     (window.AppState.clientRatings || []).forEach(r => {
         if (r.appeal && r.appeal.status === 'pending') {
@@ -3651,6 +3682,9 @@ function adminRejectForceCancelAppeal(orderCode, reason) {
  * 잘못됐거나 위조가 의심돼도 반려하고 재제출을 요청할 방법이 없었다 — 파트너
  * 입점 심사의 "정보 보완 요청"(500994a)과 동일한 반려→재제출 패턴을 적용한다.
  * 파일 자체를 지워 업로드 카드가 다시 "대기중"으로 보이게 한다. */
+/* 파트너 신청서 반려는 재정보요청/이의신청 경로가 있고, 후기·시공사례·게시글
+ * 삭제도 전부 스냅샷+이의신청 경로가 있는데, 계약서/견적서 반려만 파일을 그냥
+ * 지워버리고 끝이라 관리자 판단이 틀렸어도 파트너가 되돌릴 방법이 전혀 없었다. */
 function adminRejectPartnerDoc(orderCode, docType, reason) {
     const order = (window.AppState.orders || []).find(o => o.code === orderCode);
     if (!order) return;
@@ -3659,10 +3693,54 @@ function adminRejectPartnerDoc(orderCode, docType, reason) {
     if (!hadDoc) return;
 
     if (docType === 'contract') order.contractDoc = null; else order.estimateDoc = null;
+    if (!order.docRejections) order.docRejections = {};
+    order.docRejections[docType] = { reason, date: getLocalDateString(), docSnapshot: hadDoc, appeal: null };
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'DOC_REJECT', `[서류 반려] 오더 ${order.code}의 ${label}를 매니저가 반려하고 재제출을 요청했습니다. 사유: ${reason}`, 'WARNING');
-    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `오더(${order.code})에 제출하신 ${label}가 반려되었습니다. 사유: ${reason} 새 파일로 다시 업로드해 주세요.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `오더(${order.code})에 제출하신 ${label}가 반려되었습니다. 사유: ${reason} 새 파일로 다시 업로드하거나, 부당하다고 생각되시면 이의신청하실 수 있어요.`);
     showToast(`${label}를 반려하고 재제출을 요청했습니다.`, 'success');
+    searchOrderLookup();
+}
+
+function appealPartnerDocRejection(orderCode, docType, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const rejection = order && order.docRejections && order.docRejections[docType];
+    if (!rejection) return;
+    if (rejection.appeal && rejection.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    const label = docType === 'contract' ? '계약서' : '견적서';
+    rejection.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'DOC_REJECT_APPEAL', `[${order.acceptedPartner}]가 오더(${order.code}) ${label} 반려에 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+    openPartnerOrderDetailModal(order.code);
+}
+
+function adminApproveDocRejectionAppeal(orderCode, docType) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const rejection = order && order.docRejections && order.docRejections[docType];
+    if (!rejection || !rejection.appeal || rejection.appeal.status !== 'pending') return;
+    const label = docType === 'contract' ? '계약서' : '견적서';
+    if (docType === 'contract') order.contractDoc = rejection.docSnapshot; else order.estimateDoc = rejection.docSnapshot;
+    delete order.docRejections[docType];
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'DOC_REJECT_APPEAL_APPROVE', `[이의신청 승인] 오더 ${order.code}의 ${label} 반려 이의신청을 승인하여 서류를 복원했습니다.`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `제출하신 ${label} 반려 이의신청이 승인되어 서류가 복원되었습니다.`);
+    showToast(`${label}를 복원했습니다.`, 'success');
+    searchOrderLookup();
+}
+
+function adminRejectDocRejectionAppeal(orderCode, docType, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const rejection = order && order.docRejections && order.docRejections[docType];
+    if (!rejection || !rejection.appeal || rejection.appeal.status !== 'pending') return;
+    const label = docType === 'contract' ? '계약서' : '견적서';
+    rejection.appeal.status = 'rejected';
+    rejection.appeal.adminResponse = reason;
+    rejection.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'DOC_REJECT_APPEAL_REJECT', `[이의신청 반려] 오더 ${order.code}의 ${label} 반려 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `제출하신 ${label} 반려 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast('이의신청을 반려했습니다.', 'info');
     searchOrderLookup();
 }
 
@@ -7061,6 +7139,9 @@ window.retractPartnerPriceChangeRequest = retractPartnerPriceChangeRequest;
 window.respondToClientPriceChangeRequest = respondToClientPriceChangeRequest;
 window.buildPartnerPriceChangeHtml = buildPartnerPriceChangeHtml;
 window.adminRejectPartnerDoc = adminRejectPartnerDoc;
+window.appealPartnerDocRejection = appealPartnerDocRejection;
+window.adminApproveDocRejectionAppeal = adminApproveDocRejectionAppeal;
+window.adminRejectDocRejectionAppeal = adminRejectDocRejectionAppeal;
 window.retractPartnerCancellationRequest = retractPartnerCancellationRequest;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
