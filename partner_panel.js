@@ -1168,19 +1168,27 @@ function submitPartnerSignup() {
     if (window.AppState.partners.some(p => p.bizFile === bizNum)) { showToast('이미 등록된 사업자등록번호입니다.', 'warning'); return; }
     if (!_partnerSignupBizCertDraft) { showToast('사업자등록증 파일을 첨부해 주세요.', 'warning'); return; }
 
+    // 고객 회원가입의 추천인 입력(form-signup-referral)과 동일하게, 추천인 아이디는
+    // 선택 입력이며 존재하지 않거나 자기 자신을 적어도 입점 신청 자체는 막지 않는다.
+    const referralIdVal = document.getElementById('partner-signup-referral')?.value.trim();
+    const referrerPartner = referralIdVal ? window.AppState.partners.find(p => p.id === referralIdVal) : null;
+    if (referralIdVal && !referrerPartner) { showToast('추천인 아이디를 찾을 수 없어 추천 없이 입점 신청을 진행합니다.', 'info'); }
+
     const now = new Date().toLocaleString('ko-KR');
-    window.AppState.partners.push({
+    const newPartner = {
         name: company, id: idVal, pw: pwVal, bizFile: bizNum, phone,
         rating: 5.0, strikeCount: 0, status: 'pending', suspensionEndDate: null, isCertified: false,
         appliedAt: now, bizCertDoc: _partnerSignupBizCertDraft,
         portfolios: [], reviews: []
-    });
+    };
+    if (referrerPartner) newPartner.referredBy = referrerPartner.id;
+    window.AppState.partners.push(newPartner);
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'SIGNUP_REQUEST', `'${company}'(${idVal}) 입점 신청 접수 — 매니저 승인 대기.`, 'INFO');
     showToast(`입점 신청이 접수되었습니다!\n매니저 센터 검토 후 승인되면 로그인하실 수 있어요.`, 'success');
 
     _partnerSignupBizCertDraft = null;
-    ['partner-signup-company', 'partner-signup-phone', 'partner-signup-biznum', 'partner-signup-id', 'partner-signup-pw', 'partner-signup-pw2'].forEach(id => safeUpdateValue(id, ''));
+    ['partner-signup-company', 'partner-signup-phone', 'partner-signup-biznum', 'partner-signup-id', 'partner-signup-pw', 'partner-signup-pw2', 'partner-signup-referral'].forEach(id => safeUpdateValue(id, ''));
     safeUpdateText('partner-signup-bizcert-filename', '선택된 파일 없음');
     switchPartnerAuthTab('login');
 }
@@ -5214,6 +5222,17 @@ function approvePartnerApplicationCore(partner) {
     partner.onboardingDismissed = false;
     if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_APPROVE', `[입점 승인] '${partner.name}'(${partner.id}) 파트너 계정을 승인했습니다.`, 'SUCCESS');
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, '입점 신청이 승인되었습니다! 이제 로그인 후 오더를 받아보실 수 있어요.');
+
+    // 고객 친구 추천 보상(referral_reward)과 동일하게, 추천으로 가입한 신규 파트너가
+    // 실제로 승인(입점 확정)됐을 때만 지급한다 — 승인 전에 지급하면 심사 반려로
+    // 무효화된 추천에도 보상이 나가는 문제가 생긴다.
+    if (partner.referredBy && typeof grantPartnerBenefit === 'function') {
+        const referrer = (window.AppState.partners || []).find(p => p.id === partner.referredBy);
+        if (referrer) {
+            grantPartnerBenefit(referrer.name, 'referral_reward', `파트너 추천 감사 혜택 (${partner.name} 추천)`, '커미션 5만원 할인', partner.id);
+            grantPartnerBenefit(partner.name, 'referral_reward', '추천 입점 축하 혜택', '커미션 5만원 할인', partner.id);
+        }
+    }
 }
 
 function approvePartnerApplication(partnerId) {

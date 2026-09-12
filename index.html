@@ -739,6 +739,9 @@
                             <p class="field-hint">이미지 또는 PDF 파일, 15MB 이하로 업로드해 주세요.</p>
                         </div>
 
+                        <div><label class="field-label">추천인 파트너 아이디 (선택)</label>
+                            <input type="text" id="partner-signup-referral" placeholder="추천해주신 파트너사의 아이디를 입력하면 승인 시 양쪽 모두 혜택을 받아요" class="input"></div>
+
                         <button type="button" onclick="submitPartnerSignup()" class="btn btn-dark btn-block">입점 신청서 제출하기</button>
                     </div>
                 </div>
@@ -824,6 +827,14 @@
                             <p class="text-[11px] text-ink-500 font-medium">우리집 안심 인증 만료 임박 또는 만료 시 갱신을 요청할 수 있어요.</p>
                         </div>
                         <div id="partner-cert-status"></div>
+                    </div>
+
+                    <div class="surface surface-lg p-6 sm:p-8 space-y-4 text-left">
+                        <div class="border-b border-ink-100 pb-4">
+                            <h4 class="text-sm font-black text-ink-950 tracking-tight flex items-center gap-1.5"><i data-lucide="gift" class="w-4 h-4 text-gold-500"></i> 내 혜택함</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">파트너 추천 등으로 적립된 혜택을 확인하고 수령 신청할 수 있어요.</p>
+                        </div>
+                        <div id="partner-benefits-status" class="space-y-2"></div>
                     </div>
 
                     <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">

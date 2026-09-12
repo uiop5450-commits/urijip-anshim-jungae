@@ -856,6 +856,46 @@ function renderPartnerCertStatus(partner) {
         ${partner.certRenewalRequested ? `<p class="text-[10px] font-bold text-brand-600 mt-1">갱신 요청 접수됨 — 매니저 센터 검토 중입니다.</p>` : (showRenewBtn ? `<button type="button" onclick="requestPartnerCertRenewal()" class="btn btn-secondary btn-sm mt-1">인증 갱신 요청</button>` : '')}`;
 }
 
+/* 고객 친구 추천 보상함(renderClientBenefitsStatus, client_panel.js)과 동일한 패턴 —
+ * 신규 파트너 추천 성공 시 grantPartnerBenefit(utils_ui.js)이 쌓는 partner.benefits[]를
+ * 보여주고 수령 신청을 받는다. */
+function renderPartnerBenefitsStatus(partner) {
+    const container = document.getElementById('partner-benefits-status');
+    if (!container) return;
+    if (!partner) partner = window.AppState.partners.find(p => p.name === (window.AppState.partnerName || '오륙도 디자인 실내건축'));
+    if (!partner) return;
+    const benefits = partner.benefits || [];
+
+    if (benefits.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">아직 적립된 혜택이 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = benefits.map(b => `
+        <div class="p-2.5 bg-amber-50 rounded-xl flex items-center justify-between gap-2">
+            <div class="min-w-0">
+                <p class="text-[11px] font-black text-ink-900">${escapeHtml(b.label)}</p>
+                <p class="text-[10px] text-ink-500 font-semibold">${escapeHtml(b.amount)} · 적립일 ${b.earnedDate}${b.claimedDate ? ` · 수령일 ${b.claimedDate}` : ''}</p>
+            </div>
+            ${b.status === 'claimed'
+                ? `<span class="badge badge-emerald shrink-0">수령완료</span>`
+                : `<button type="button" onclick="claimPartnerBenefit('${b.id}')" class="btn btn-dark btn-sm shrink-0">수령 신청</button>`}
+        </div>`).join('');
+}
+
+function claimPartnerBenefit(benefitId) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const benefit = partner && partner.benefits && partner.benefits.find(b => b.id === benefitId);
+    if (!benefit || benefit.status === 'claimed') return;
+
+    benefit.status = 'claimed';
+    benefit.claimedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PARTNER_BENEFIT_CLAIM', `[${partnerName}]가 혜택 "${benefit.label}" 수령을 신청했습니다.`, 'INFO');
+    showToast(`"${benefit.label}" 수령 신청이 접수되었습니다.`, 'success');
+    renderPartnerBenefitsStatus(partner);
+}
+
 function renderPartnerProfileManager() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -874,6 +914,7 @@ function renderPartnerProfileManager() {
     renderPartnerReportedStatus(partnerName);
     renderPartnerInvalidatedBidsStatus(partnerName);
     renderPartnerCertStatus(partner);
+    renderPartnerBenefitsStatus(partner);
     safeUpdateText('partner-account-bizcert-filename', partner.bizCertDoc ? partner.bizCertDoc.name : '첨부된 사업자등록증이 없습니다.');
 
     const img = document.getElementById('partner-hero-slide-img');
@@ -2045,6 +2086,8 @@ window.closeInvalidatedBidAppealModal = closeInvalidatedBidAppealModal;
 window.submitInvalidatedBidAppeal = submitInvalidatedBidAppeal;
 window.renderPartnerInvalidatedBidsStatus = renderPartnerInvalidatedBidsStatus;
 window.renderPartnerCertStatus = renderPartnerCertStatus;
+window.renderPartnerBenefitsStatus = renderPartnerBenefitsStatus;
+window.claimPartnerBenefit = claimPartnerBenefit;
 window.togglePartnerNotificationPref = togglePartnerNotificationPref;
 window.updatePartnerPassword = updatePartnerPassword;
 window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;

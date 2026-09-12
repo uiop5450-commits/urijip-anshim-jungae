@@ -307,6 +307,27 @@ function getClientAverageRating(clientPhone) {
     return { avg: Math.round(avg * 10) / 10, count: ratings.length };
 }
 
+/* 고객 친구 추천 프로그램(grantClientBenefit의 referral_reward)은 있는데 파트너
+ * 쪽엔 추천인 제도 자체가 없었다 — 신규 입점 파트너가 기존 파트너의 추천으로
+ * 가입하면 양쪽 모두에게 혜택을 적립한다. grantClientBenefit과 동일한
+ * dedup 패턴(type[:refKey])을 partner.benefits[]에 그대로 적용한다. */
+function grantPartnerBenefit(partnerName, type, label, amount, refKey) {
+    if (!partnerName) return;
+    const partner = (window.AppState.partners || []).find(p => p.name === partnerName);
+    if (!partner) return;
+    if (!partner.benefits) partner.benefits = [];
+    const dupKey = refKey ? `${type}:${refKey}` : type;
+    if (partner.benefits.some(b => (b.refKey ? `${b.type}:${b.refKey}` : b.type) === dupKey)) return;
+
+    partner.benefits.unshift({
+        id: `pbnf-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        type, label, amount, refKey: refKey || null,
+        status: 'eligible', earnedDate: getLocalDateString(), claimedDate: null
+    });
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `혜택이 적립되었습니다: ${label} (${amount}) — 내 정보에서 확인하세요.`);
+    if (typeof renderPartnerBenefitsStatus === 'function') renderPartnerBenefitsStatus();
+}
+
 /* 아직 구현되지 않은 부가 링크(이용약관 등) 클릭 시 보여줄 안내 — 죽은 링크로 보이지 않게. */
 function showComingSoon(label) {
     showToast(`${label}은(는) 준비 중인 페이지예요.`, 'info');
@@ -482,6 +503,7 @@ window.getOrInitPaymentMilestones = getOrInitPaymentMilestones;
 window.isMilestoneOverdue = isMilestoneOverdue;
 window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
 window.getClientAverageRating = getClientAverageRating;
+window.grantPartnerBenefit = grantPartnerBenefit;
 window.grantClientBenefit = grantClientBenefit;
 window.showToast = showToast;
 window.closeToast = closeToast;
