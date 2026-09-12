@@ -316,7 +316,7 @@ function completeMatchingSim() {
         // 심사 대기(pending)·반려(rejected)·삼진아웃 제명(banned) 파트너는 '안심' 매칭
         // 대상에서 제외한다 — 이 필터가 없으면 이제 막 접수된 첫 견적 신청에서부터
         // 아직 검증되지 않았거나 이미 제명된 파트너가 무작위로 뽑힐 수 있었다.
-        const availablePartners = window.AppState.partners.filter(p => p.status === 'active' && !p.isPaused);
+        const availablePartners = window.AppState.partners.filter(p => p.status === 'active' && !p.isPaused && !isPartnerBlockedByClient(p.name));
         const count = Math.min(newOrder.partnerCountLimit, availablePartners.length);
         const shuffled = [...availablePartners].sort(() => 0.5 - Math.random());
         const selected = shuffled.slice(0, count);
@@ -1916,6 +1916,70 @@ function syncFavoriteButtonIcon(btn, partnerName) {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+/* 커뮤니티엔 사용자 차단(toggleBlockCommunityUser, account.blockedUsers)이 있는데
+ * 파트너 쪽엔 대칭 기능이 없었다 — excludedPartners는 오더 단위 임시 제외일 뿐,
+ * "이 파트너는 다시는 매칭받고 싶지 않다"는 지속적인 고객 선호를 저장할 방법이
+ * 없었다(블랙리스트에 오르지 않은 파트너라도 특정 고객과는 안 맞을 수 있다).
+ * 차단하면 이후 모든 자동/재매칭 후보군과 관심 파트너 목록에서 제외된다. */
+function isPartnerBlockedByClient(partnerName) {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return false;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    return !!(account && account.blockedPartners && account.blockedPartners.includes(partnerName));
+}
+
+function togglePartnerBlock(partnerName) {
+    if (!requireClientLoginForCommunity()) return;
+    const auth = window.AppState.clientAuth;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+    if (!account.blockedPartners) account.blockedPartners = [];
+    const idx = account.blockedPartners.indexOf(partnerName);
+    if (idx >= 0) { account.blockedPartners.splice(idx, 1); showToast(`[${partnerName}] 차단을 해제했습니다.`, 'info'); }
+    else {
+        account.blockedPartners.push(partnerName);
+        // 관심 파트너와 차단은 동시에 의미가 없으므로, 차단하면 관심 목록에서도 뺀다.
+        if (account.favoritePartners) {
+            const favIdx = account.favoritePartners.indexOf(partnerName);
+            if (favIdx >= 0) account.favoritePartners.splice(favIdx, 1);
+        }
+        if (typeof pushLog === 'function') pushLog('CLIENT', 'PARTNER_BLOCK', `'${auth.name}' 고객님이 '${partnerName}' 파트너를 차단했습니다.`, 'INFO');
+        showToast(`[${partnerName}]를 차단했습니다. 앞으로 이 파트너와는 매칭되지 않아요.`, 'success');
+    }
+
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+    if (typeof renderClientFavoritePartners === 'function') renderClientFavoritePartners();
+    if (typeof renderBlockedPartnersList === 'function') renderBlockedPartnersList();
+    const profileBtn = document.getElementById('client-partner-profile-favorite-btn');
+    if (profileBtn) syncFavoriteButtonIcon(profileBtn, partnerName);
+    const blockBtn = document.getElementById('client-partner-profile-block-btn');
+    if (blockBtn) {
+        const blocked = isPartnerBlockedByClient(partnerName);
+        const blockIcon = blockBtn.querySelector('[data-lucide]');
+        if (blockIcon) { blockIcon.classList.toggle('text-roseCustom', blocked); blockIcon.classList.toggle('text-ink-300', !blocked); }
+        blockBtn.title = blocked ? '차단 해제' : '파트너 차단';
+    }
+}
+
+function renderBlockedPartnersList() {
+    const container = document.getElementById('blocked-partners-list');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    const blockedNames = (account && account.blockedPartners) || [];
+
+    if (blockedNames.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-bold text-center py-3">차단한 파트너가 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = blockedNames.map(name => `
+        <div class="flex items-center justify-between p-3 bg-ink-50 rounded-xl">
+            <span class="text-xs font-bold text-ink-800">${escapeHtml(name)}</span>
+            <button type="button" onclick="togglePartnerBlock('${escapeHtml(name)}')" class="text-[11px] font-bold text-brand-600 hover:underline bg-transparent border-0 cursor-pointer p-0">차단 해제</button>
+        </div>`).join('');
+}
+
 function renderClientFavoritePartners() {
     const container = document.getElementById('client-mypage-favorites-container');
     if (!container) return;
@@ -2094,6 +2158,7 @@ function renderClientAccountSettings() {
     safeUpdateValue('account-edit-new-pw', '');
     safeUpdateValue('account-edit-new-pw2', '');
     renderBlockedUsersList();
+    renderBlockedPartnersList();
     renderClientNotificationPrefToggle();
     renderClientReportedStatus();
     renderClientReviewDeletionStatus();
@@ -2921,7 +2986,7 @@ function triggerRebidding(orderCode) {
     if (slotsNeeded <= 0) { showToast('이미 배정 인원이 모두 채워져 있어요.', 'info'); return; }
 
     const excluded = new Set([...(order.excludedPartners || []), ...(order.bids || []).map(b => b.partner)]);
-    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name));
+    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name) && !isPartnerBlockedByClient(p.name));
     if (candidates.length === 0) { showToast('현재 매칭 가능한 새로운 파트너사가 없어요.', 'warning'); return; }
 
     const shuffled = [...candidates].sort(() => 0.5 - Math.random());
@@ -2978,7 +3043,7 @@ function reopenCancelledOrder(orderCode) {
 
     const slotsNeeded = order.partnerCountLimit || 3;
     const excluded = new Set(order.excludedPartners || []);
-    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name));
+    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name) && !isPartnerBlockedByClient(p.name));
     const shuffled = [...candidates].sort(() => 0.5 - Math.random());
     const selected = shuffled.slice(0, slotsNeeded);
     selected.forEach(partner => {
@@ -3020,7 +3085,7 @@ function convertOrderToOpenMatching(orderCode) {
 
     const slotsNeeded = order.partnerCountLimit || 3;
     const excluded = new Set(order.excludedPartners || []);
-    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name));
+    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name) && !isPartnerBlockedByClient(p.name));
     const shuffled = [...candidates].sort(() => 0.5 - Math.random());
     const selected = shuffled.slice(0, slotsNeeded);
     if (!order.bids) order.bids = [];
@@ -4214,6 +4279,9 @@ window.respondChangeOrder = respondChangeOrder;
 window.disputeCompletedRepairClaim = disputeCompletedRepairClaim;
 window.toggleCommunityAcceptedAnswer = toggleCommunityAcceptedAnswer;
 window.reopenCancelledOrder = reopenCancelledOrder;
+window.isPartnerBlockedByClient = isPartnerBlockedByClient;
+window.togglePartnerBlock = togglePartnerBlock;
+window.renderBlockedPartnersList = renderBlockedPartnersList;
 window.declineRepairVisitDate = declineRepairVisitDate;
 window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;

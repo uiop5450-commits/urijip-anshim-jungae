@@ -1368,6 +1368,10 @@ function requestDirectQuoteFromPortfolio(partnerName, portIdx = 0) {
         closeClientPartnerProfile(); closePortfolioBlogDetail();
         return;
     }
+    if (typeof isPartnerBlockedByClient === 'function' && isPartnerBlockedByClient(partnerName)) {
+        showToast(`[${partnerName}]는 차단한 파트너라 1:1 지정 상담을 신청할 수 없어요. 차단을 해제하려면 마이페이지 계정 정보를 확인해주세요.`, 'warning');
+        return;
+    }
 
     // 1:1 지정 상담은 최초 견적서(baseOrder)의 주소/평형/예산 정보를 그대로 물려받되,
     // 자동매칭 견적서와 뒤섞이지 않도록 is1on1 플래그를 가진 별도의 오더로 분리 생성한다
@@ -1447,6 +1451,15 @@ function openClientPartnerProfile(partnerName) {
 
     const favoriteBtn = document.getElementById('client-partner-profile-favorite-btn');
     if (favoriteBtn && typeof syncFavoriteButtonIcon === 'function') syncFavoriteButtonIcon(favoriteBtn, partner.name);
+
+    const blockBtn = document.getElementById('client-partner-profile-block-btn');
+    if (blockBtn && typeof isPartnerBlockedByClient === 'function') {
+        const blocked = isPartnerBlockedByClient(partner.name);
+        const blockIcon = blockBtn.querySelector('[data-lucide]');
+        if (blockIcon) blockIcon.classList.toggle('text-roseCustom', blocked);
+        if (blockIcon) blockIcon.classList.toggle('text-ink-300', !blocked);
+        blockBtn.title = blocked ? '차단 해제' : '파트너 차단';
+    }
 
     const hero1on1Btn = document.getElementById('profile-hero-1on1-btn');
     if (hero1on1Btn) hero1on1Btn.onclick = () => requestDirectQuoteFromPortfolio(partner.name, 0);

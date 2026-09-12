@@ -664,6 +664,10 @@
                         <div id="blocked-users-list" class="space-y-2"></div>
                     </div>
                     <div class="space-y-3 pt-2">
+                        <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="user-x" class="w-4 h-4 text-brand-500"></i> 차단한 파트너 관리</h4>
+                        <div id="blocked-partners-list" class="space-y-2"></div>
+                    </div>
+                    <div class="space-y-3 pt-2">
                         <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="shield-alert" class="w-4 h-4 text-roseCustom"></i> 파트너 신고 내역</h4>
                         <div id="client-reported-status" class="space-y-2"></div>
                     </div>
@@ -1377,6 +1381,7 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <button type="button" id="client-partner-profile-favorite-btn" onclick="toggleFavoritePartner(document.getElementById('profile-partner-name-hero').innerText)" class="btn btn-ghost btn-sm" aria-label="관심 파트너로 저장"><i data-lucide="heart" class="w-4 h-4 text-ink-300"></i></button>
+                    <button type="button" id="client-partner-profile-block-btn" onclick="togglePartnerBlock(document.getElementById('profile-partner-name-hero').innerText)" class="btn btn-ghost btn-sm" aria-label="파트너 차단"><i data-lucide="user-x" class="w-4 h-4 text-ink-300"></i></button>
                     <button type="button" onclick="closeClientPartnerProfile()" class="btn btn-ghost btn-sm"><i data-lucide="arrow-left" class="w-4 h-4"></i> 뒤로가기</button>
                 </div>
             </div>
