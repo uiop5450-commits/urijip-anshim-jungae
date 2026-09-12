@@ -676,6 +676,10 @@
                         <div id="client-review-deletion-status" class="space-y-2"></div>
                     </div>
                     <div class="space-y-3 pt-2">
+                        <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="message-square-x" class="w-4 h-4 text-roseCustom"></i> 삭제된 내 게시글</h4>
+                        <div id="client-community-deletion-status" class="space-y-2"></div>
+                    </div>
+                    <div class="space-y-3 pt-2">
                         <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="user-check" class="w-4 h-4 text-roseCustom"></i> 파트너 평가 내역</h4>
                         <div id="client-rating-status" class="space-y-2"></div>
                     </div>
@@ -1848,6 +1852,20 @@
                 <p class="text-[11px] text-ink-500 font-medium leading-relaxed">제출하시면 매니저 센터가 심사 후 후기 복원 또는 반려 여부를 안내해드려요.</p>
                 <div><label class="field-label">이의신청 내용</label><textarea id="review-deletion-appeal-reason-input" rows="4" placeholder="삭제가 부당하다고 생각되는 이유를 자세히 적어주세요." class="textarea"></textarea></div>
                 <button type="button" onclick="submitReviewDeletionAppeal()" class="btn btn-primary btn-block">이의신청 제출</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="community-deletion-appeal-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="community-deletion-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">이의신청</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">게시글 삭제에 이의를 제기합니다</h3></div>
+                <button type="button" onclick="closeCommunityDeletionAppealModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">제출하시면 매니저 센터가 심사 후 게시글 복원 또는 반려 여부를 안내해드려요.</p>
+                <div><label class="field-label">이의신청 내용</label><textarea id="community-deletion-appeal-reason-input" rows="4" placeholder="삭제가 부당하다고 생각되는 이유를 자세히 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitCommunityDeletionAppeal()" class="btn btn-primary btn-block">이의신청 제출</button>
             </div>
         </div>
     </div>

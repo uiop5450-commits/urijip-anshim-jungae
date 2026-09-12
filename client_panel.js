@@ -2251,6 +2251,7 @@ function renderClientAccountSettings() {
     renderClientNotificationPrefToggle();
     renderClientReportedStatus();
     renderClientReviewDeletionStatus();
+    renderClientCommunityDeletionStatus();
     renderClientBenefitsStatus();
     renderClientRatingStatus();
 }
@@ -2353,6 +2354,65 @@ function renderClientReviewDeletionStatus() {
         }
         return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5">
             <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">[${escapeHtml(e.partnerName)}]에 남긴 후기가 삭제되었습니다: "${escapeHtml(e.reviewSnapshot.text)}" (${e.date})</p>
+            ${statusHtml}
+        </div>`;
+    }).join('');
+}
+
+let communityDeletionAppealTarget = null;
+
+function openCommunityDeletionAppealModal(logId) {
+    const auth = window.AppState.clientAuth;
+    const entry = (window.AppState.communityDeletionLog || []).find(e => e.id === logId && e.authorId === auth.id);
+    if (!entry) return;
+    if (entry.appeal && entry.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    communityDeletionAppealTarget = logId;
+    safeUpdateValue('community-deletion-appeal-reason-input', '');
+    openModal('community-deletion-appeal-modal', 'community-deletion-appeal-modal-card');
+}
+
+function closeCommunityDeletionAppealModal() {
+    communityDeletionAppealTarget = null;
+    closeModal('community-deletion-appeal-modal', 'community-deletion-appeal-modal-card');
+}
+
+function submitCommunityDeletionAppeal() {
+    const entry = (window.AppState.communityDeletionLog || []).find(e => e.id === communityDeletionAppealTarget);
+    if (!entry) { closeCommunityDeletionAppealModal(); return; }
+    const reason = document.getElementById('community-deletion-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    entry.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    const auth = window.AppState.clientAuth;
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_DELETION_APPEAL', `[${auth.name}] 고객님이 삭제된 게시글 "${entry.postSnapshot.title}"에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeCommunityDeletionAppealModal();
+    renderClientCommunityDeletionStatus();
+}
+
+function renderClientCommunityDeletionStatus() {
+    const container = document.getElementById('client-community-deletion-status');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    const myEntries = (window.AppState.communityDeletionLog || []).filter(e => e.authorId === auth.id);
+
+    if (myEntries.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">삭제된 게시글이 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = myEntries.map(e => {
+        let statusHtml;
+        if (e.appeal && e.appeal.status === 'pending') {
+            statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">이의신청 심사 대기중</p>`;
+        } else if (e.appeal && e.appeal.status === 'rejected') {
+            statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">이의신청 반려됨${e.appeal.adminResponse ? ` — ${escapeHtml(e.appeal.adminResponse)}` : ''}</p>`;
+        } else {
+            statusHtml = `<button type="button" onclick="openCommunityDeletionAppealModal('${e.id}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">이의신청하기</button>`;
+        }
+        return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5">
+            <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">작성하신 게시글이 삭제되었습니다: "${escapeHtml(e.postSnapshot.title)}" (${e.date})</p>
             ${statusHtml}
         </div>`;
     }).join('');
@@ -3781,15 +3841,60 @@ function toggleCommunityPostPin(postId) {
     renderAdminCommunityModeration();
 }
 
+/* 후기·시공사례 삭제 이의신청과 동일한 비대칭이 커뮤니티 게시글에도 있었다 —
+ * 삭제되면 신고자에게는 알림이 가지만(notifyReportResolved) 작성자 본인은 자기
+ * 글이 지워진 사실조차 알 방법이 없었고 소명할 방법도 없었다. 삭제 시 스냅샷을
+ * communityDeletionLog에 남겨 작성자가 이의신청을 제출하면 관리자가 승인(복원)
+ * 또는 반려할 수 있게 한다. */
 function adminDeleteCommunityPost(postId) {
     const idx = (window.AppState.communityPosts || []).findIndex(p => p.id === postId);
     if (idx === -1) return;
-    const reportedBy = window.AppState.communityPosts[idx].reportedBy;
+    const post = window.AppState.communityPosts[idx];
+    const reportedBy = post.reportedBy;
     window.AppState.communityPosts.splice(idx, 1);
+
+    if (!window.AppState.communityDeletionLog) window.AppState.communityDeletionLog = [];
+    const logEntry = { id: `cdl-${Date.now()}-${Math.floor(Math.random() * 1000)}`, authorId: post.authorId, authorName: post.authorName, postSnapshot: post, date: getLocalDateString(), appeal: null };
+    window.AppState.communityDeletionLog.unshift(logEntry);
+
     if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_MODERATE', `[커뮤니티 관리] 게시글(${postId})을 매니저 센터에서 삭제 조치함.`, 'WARNING');
     if (typeof notifyReportResolved === 'function') notifyReportResolved(reportedBy, `신고하신 커뮤니티 게시글이 검토 후 삭제 처리되었습니다.`);
+    const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === post.authorId);
+    if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') pushClientNotification(authorAccount.phone, `작성하신 게시글 "${post.title}"이 매니저 센터 검토 후 삭제되었습니다. 부당하다고 생각되시면 마이페이지에서 소명하실 수 있어요.`);
     showToast('게시글을 삭제했습니다.', 'info');
     renderAdminCommunityModeration();
+}
+
+/* 후기 삭제 이의신청 승인(adminApproveReviewDeletionAppeal, partner_panel.js)과
+ * 동일하게, 스냅샷을 그대로 communityPosts에 되돌려 복원한다. */
+function adminApproveCommunityDeletionAppeal(logId) {
+    const entry = (window.AppState.communityDeletionLog || []).find(e => e.id === logId);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+
+    if (!window.AppState.communityPosts) window.AppState.communityPosts = [];
+    window.AppState.communityPosts.unshift(entry.postSnapshot);
+    window.AppState.communityDeletionLog = window.AppState.communityDeletionLog.filter(e => e.id !== logId);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_DELETION_APPEAL_APPROVE', `[이의신청 승인] 게시글 "${entry.postSnapshot.title}"을 재검토하여 복원했습니다.`, 'SUCCESS');
+    const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === entry.authorId);
+    if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') pushClientNotification(authorAccount.phone, `제출하신 이의신청이 승인되어 삭제됐던 게시글이 복원되었습니다.`);
+    showToast('게시글을 복원했습니다.', 'success');
+    if (typeof renderAdminCommunityModeration === 'function') renderAdminCommunityModeration();
+    if (typeof renderAdminAppealInbox === 'function') renderAdminAppealInbox();
+}
+
+function adminRejectCommunityDeletionAppeal(logId, reason) {
+    const entry = (window.AppState.communityDeletionLog || []).find(e => e.id === logId);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+    entry.appeal.status = 'rejected';
+    entry.appeal.adminResponse = reason;
+    entry.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'COMMUNITY_DELETION_APPEAL_REJECT', `[이의신청 반려] 게시글 "${entry.postSnapshot.title}" 삭제 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === entry.authorId);
+    if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') pushClientNotification(authorAccount.phone, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast('이의신청을 반려했습니다.', 'info');
+    if (typeof renderAdminAppealInbox === 'function') renderAdminAppealInbox();
 }
 
 function adminDeleteCommunityComment(postId, commentIndex) {
@@ -4331,6 +4436,12 @@ window.openReviewDeletionAppealModal = openReviewDeletionAppealModal;
 window.closeReviewDeletionAppealModal = closeReviewDeletionAppealModal;
 window.submitReviewDeletionAppeal = submitReviewDeletionAppeal;
 window.renderClientReviewDeletionStatus = renderClientReviewDeletionStatus;
+window.openCommunityDeletionAppealModal = openCommunityDeletionAppealModal;
+window.closeCommunityDeletionAppealModal = closeCommunityDeletionAppealModal;
+window.submitCommunityDeletionAppeal = submitCommunityDeletionAppeal;
+window.renderClientCommunityDeletionStatus = renderClientCommunityDeletionStatus;
+window.adminApproveCommunityDeletionAppeal = adminApproveCommunityDeletionAppeal;
+window.adminRejectCommunityDeletionAppeal = adminRejectCommunityDeletionAppeal;
 window.renderClientBenefitsStatus = renderClientBenefitsStatus;
 window.claimClientBenefit = claimClientBenefit;
 

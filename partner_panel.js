@@ -2782,6 +2782,14 @@ function getAllPendingAppeals() {
             });
         }
     });
+    (window.AppState.communityDeletionLog || []).forEach(e => {
+        if (e.appeal && e.appeal.status === 'pending') {
+            items.push({
+                typeLabel: '커뮤니티 게시글 삭제 이의신청', subject: `${e.authorName} · ${e.postSnapshot.title}`, reason: e.appeal.reason, date: e.appeal.date,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectCommunityDeletionAppeal('${e.id}', reason))`) + approveBtn('승인(게시글 복원)', `adminApproveCommunityDeletionAppeal('${e.id}')`)
+            });
+        }
+    });
     (window.AppState.orders || []).forEach(o => {
         (o.paymentMilestones || []).forEach(m => {
             if (m.status === 'disputed') {
