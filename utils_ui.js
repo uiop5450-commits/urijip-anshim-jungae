@@ -386,8 +386,25 @@ function buildOrderMessageThreadHtml(order, viewerRole) {
             </div>`;
         }).join('');
     const sendFn = viewerRole === 'client' ? 'sendClientOrderMessage' : 'sendPartnerOrderMessage';
+    /* 후기/커뮤니티/시공사례 문의 삭제는 전부 작성자가 이의신청할 수 있는데,
+     * 메시지 삭제(adminDeleteReportedOrderMessage, partner_panel.js)만 그 경로가
+     * 없었다 — 스레드 상단에 내가 쓴 메시지 중 삭제된 게 있으면 이의신청 배너를 둔다. */
+    const myDeletionEntries = (window.AppState.orderMessageDeletionLog || []).filter(e => e.orderCode === order.code && e.messageSnapshot.from === viewerRole);
+    const deletionAppealHtml = myDeletionEntries.map(e => {
+        if (e.appeal && e.appeal.status === 'pending') {
+            return `<div class="p-2.5 bg-amber-50 rounded-xl text-[10px] font-black text-amberCustom">삭제된 메시지 이의신청 심사 대기중</div>`;
+        }
+        if (e.appeal && e.appeal.status === 'rejected') {
+            return `<div class="p-2.5 bg-ink-50 rounded-xl text-[10px] font-bold text-ink-500 leading-relaxed">삭제된 메시지 이의신청 반려됨${e.appeal.adminResponse ? ` — ${escapeHtml(e.appeal.adminResponse)}` : ''}</div>`;
+        }
+        return `<div class="p-2.5 bg-ink-50 rounded-xl flex items-center justify-between gap-2">
+            <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">삭제된 메시지: "${escapeHtml(e.messageSnapshot.text)}"</p>
+            <button type="button" onclick="openReportReasonPrompt((reason) => appealOrderMessageDeletion('${e.id}', '${viewerRole}', reason))" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 shrink-0">이의신청</button>
+        </div>`;
+    }).join('');
     return `<div class="surface p-5 space-y-3">
         <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="message-circle" class="w-4 h-4 text-brand-500"></i> 메시지</h5>
+        ${deletionAppealHtml}
         <div class="space-y-2 max-h-64 overflow-y-auto custom-scroll pr-1">${listHtml}</div>
         <div class="flex gap-1.5">
             <input type="text" id="order-message-input-${order.code}" placeholder="메시지를 입력하세요" class="input flex-1 text-xs" onkeydown="if(event.key==='Enter'){${sendFn}('${order.code}');}">

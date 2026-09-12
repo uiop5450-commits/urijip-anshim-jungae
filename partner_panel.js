@@ -2927,6 +2927,14 @@ function getAllPendingAppeals() {
             }
         });
     });
+    (window.AppState.orderMessageDeletionLog || []).forEach(e => {
+        if (e.appeal && e.appeal.status === 'pending') {
+            items.push({
+                typeLabel: '메시지 삭제 이의신청', subject: `${e.orderCode} · ${e.messageSnapshot.from === 'client' ? '고객' : '파트너'} 메시지`, reason: e.appeal.reason, date: e.appeal.date, orderCode: e.orderCode,
+                actionsHtml: rejectBtn('반려', `openReportReasonPrompt((reason) => adminRejectOrderMessageDeletionAppeal('${e.id}', reason))`) + approveBtn('승인(메시지 복원)', `adminApproveOrderMessageDeletionAppeal('${e.id}')`)
+            });
+        }
+    });
     (window.AppState.portfolioQuestionDeletionLog || []).forEach(e => {
         if (e.appeal && e.appeal.status === 'pending') {
             items.push({
@@ -3081,17 +3089,66 @@ function adminDismissOrderMessageReport(orderCode, msgIndex) {
     if (typeof renderAdminAppealInbox === 'function') renderAdminAppealInbox();
 }
 
+/* 후기/후기 답글/커뮤니티/시공사례 문의/서류 반려는 전부 삭제 시 스냅샷을 남겨
+ * 작성자가 이의신청할 수 있는데, 메시지 삭제만 그 경로가 빠져 있었다 —
+ * 삭제된 메시지 하나하나를 되돌릴 수 있게 로그를 남긴다. */
 function adminDeleteReportedOrderMessage(orderCode, msgIndex) {
     const order = (window.AppState.orders || []).find(o => o.code === orderCode);
     const msg = order && order.messages && order.messages[msgIndex];
     if (!msg || !msg.report || msg.report.status !== 'pending') return;
     order.messages.splice(msgIndex, 1);
+
+    if (!window.AppState.orderMessageDeletionLog) window.AppState.orderMessageDeletionLog = [];
+    const logEntry = { id: `omdl-${Date.now()}-${Math.floor(Math.random() * 1000)}`, orderCode, clientPhone: order.clientPhone, partnerName: order.acceptedPartner, messageSnapshot: msg, date: getLocalDateString(), appeal: null };
+    window.AppState.orderMessageDeletionLog.unshift(logEntry);
+
     if (typeof pushLog === 'function') pushLog('MANAGER', 'ORDER_MESSAGE_MODERATE', `[메시지 삭제] 오더 ${orderCode}의 신고된 메시지를 매니저 센터에서 삭제 조치함.`, 'WARNING');
-    if (msg.from === 'client' && typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `보내신 메시지 중 일부가 매니저 센터 검토 후 삭제되었습니다.`);
-    if (msg.from === 'partner' && typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `보내신 메시지 중 일부가 매니저 센터 검토 후 삭제되었습니다.`);
+    if (msg.from === 'client' && typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `보내신 메시지 중 일부가 매니저 센터 검토 후 삭제되었습니다. 부당하다고 생각되시면 이의신청하실 수 있어요.`);
+    if (msg.from === 'partner' && typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `보내신 메시지 중 일부가 매니저 센터 검토 후 삭제되었습니다. 부당하다고 생각되시면 이의신청하실 수 있어요.`);
     showToast('메시지를 삭제했습니다.', 'info');
     searchOrderLookup();
     if (typeof renderAdminAppealInbox === 'function') renderAdminAppealInbox();
+}
+
+function appealOrderMessageDeletion(logId, viewerRole, reason) {
+    const entry = (window.AppState.orderMessageDeletionLog || []).find(e => e.id === logId);
+    if (!entry || entry.messageSnapshot.from !== viewerRole) return;
+    if (entry.appeal && entry.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    entry.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog(viewerRole === 'client' ? 'CLIENT' : 'PARTNER', 'ORDER_MESSAGE_DELETION_APPEAL', `오더(${entry.orderCode})의 삭제된 메시지에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+    if (viewerRole === 'client' && typeof selectMyPageEstimate === 'function') selectMyPageEstimate(entry.orderCode);
+    if (viewerRole === 'partner' && typeof openPartnerOrderDetailModal === 'function') openPartnerOrderDetailModal(entry.orderCode);
+}
+
+function adminApproveOrderMessageDeletionAppeal(logId) {
+    const entry = (window.AppState.orderMessageDeletionLog || []).find(e => e.id === logId);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+    const order = (window.AppState.orders || []).find(o => o.code === entry.orderCode);
+    if (!order) return;
+    if (!order.messages) order.messages = [];
+    order.messages.push(entry.messageSnapshot);
+    window.AppState.orderMessageDeletionLog = window.AppState.orderMessageDeletionLog.filter(e => e.id !== logId);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'ORDER_MESSAGE_DELETION_APPEAL_APPROVE', `[이의신청 승인] 오더 ${entry.orderCode}의 삭제된 메시지를 재검토하여 복원했습니다.`, 'SUCCESS');
+    if (entry.messageSnapshot.from === 'client' && typeof pushClientNotification === 'function') pushClientNotification(entry.clientPhone, `제출하신 이의신청이 승인되어 삭제됐던 메시지가 복원되었습니다.`);
+    if (entry.messageSnapshot.from === 'partner' && typeof pushPartnerNotification === 'function' && entry.partnerName) pushPartnerNotification(entry.partnerName, `제출하신 이의신청이 승인되어 삭제됐던 메시지가 복원되었습니다.`);
+    showToast('메시지를 복원했습니다.', 'success');
+    searchOrderLookup();
+}
+
+function adminRejectOrderMessageDeletionAppeal(logId, reason) {
+    const entry = (window.AppState.orderMessageDeletionLog || []).find(e => e.id === logId);
+    if (!entry || !entry.appeal || entry.appeal.status !== 'pending') return;
+    entry.appeal.status = 'rejected';
+    entry.appeal.adminResponse = reason;
+    entry.appeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'ORDER_MESSAGE_DELETION_APPEAL_REJECT', `[이의신청 반려] 오더 ${entry.orderCode}의 메시지 삭제 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (entry.messageSnapshot.from === 'client' && typeof pushClientNotification === 'function') pushClientNotification(entry.clientPhone, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    if (entry.messageSnapshot.from === 'partner' && typeof pushPartnerNotification === 'function' && entry.partnerName) pushPartnerNotification(entry.partnerName, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast('이의신청을 반려했습니다.', 'info');
 }
 
 function searchOrderLookup() {
@@ -7060,6 +7117,9 @@ window.searchOrderLookup = searchOrderLookup;
 window.toggleAdminOrderMessageThread = toggleAdminOrderMessageThread;
 window.adminDismissOrderMessageReport = adminDismissOrderMessageReport;
 window.adminDeleteReportedOrderMessage = adminDeleteReportedOrderMessage;
+window.appealOrderMessageDeletion = appealOrderMessageDeletion;
+window.adminApproveOrderMessageDeletionAppeal = adminApproveOrderMessageDeletionAppeal;
+window.adminRejectOrderMessageDeletionAppeal = adminRejectOrderMessageDeletionAppeal;
 window.renderAdminSupportTickets = renderAdminSupportTickets;
 window.setAdminSupportStatusFilter = setAdminSupportStatusFilter;
 window.setAdminPartnerMonitorStatusFilter = setAdminPartnerMonitorStatusFilter;
