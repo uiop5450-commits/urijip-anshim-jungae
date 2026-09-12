@@ -855,12 +855,12 @@ function buildPaymentMilestonesHtml(order) {
     return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
         <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="wallet" class="w-3.5 h-3.5 text-brand-500"></i> 단계별 공사대금</span>
         <div class="space-y-1.5">${milestones.map(m => {
-            const amount = Math.floor(price * m.percent / 100);
+            const amount = typeof getMilestoneAmount === 'function' ? getMilestoneAmount(m, price) : Math.floor(price * m.percent / 100);
             const overdue = typeof isMilestoneOverdue === 'function' && isMilestoneOverdue(m);
             const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : m.status === 'disputed' ? `<span class="badge badge-rose">이의제기중</span>` : overdue ? `<span class="badge badge-rose">연체</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구됨</span>` : `<span class="badge badge-neutral">청구 전</span>`;
             return `<div class="p-2.5 bg-ink-50 rounded-lg flex items-center justify-between gap-2">
                 <div class="min-w-0">
-                    <p class="text-[11px] font-black text-ink-900">${m.label} (${m.percent}%) · ₩${amount.toLocaleString()}만원</p>
+                    <p class="text-[11px] font-black text-ink-900">${m.label} ${typeof m.fixedAmount === 'number' ? '' : `(${m.percent}%) `}· ₩${amount.toLocaleString()}만원</p>
                     ${m.status === 'requested' && m.dueDate ? `<p class="text-[10px] ${overdue ? 'text-roseCustom font-bold' : 'text-ink-400 font-semibold'}">납부기한 ${m.dueDate}${overdue ? ' (기한 초과)' : ''}</p>` : ''}
                     ${m.status === 'disputed' ? `<p class="text-[10px] text-roseCustom font-bold">이의제기: ${escapeHtml(m.disputeReason || '')}</p>` : ''}
                     ${m.disputeResolution === 'rejected' ? `<p class="text-[10px] text-ink-400 font-semibold">이의제기 반려됨 — ${escapeHtml(m.disputeAdminResponse || '')}</p>` : ''}
@@ -883,12 +883,52 @@ function confirmPaymentMilestone(orderCode, key) {
     if (!m || m.status !== 'requested') return;
     m.status = 'paid';
     m.paidDate = getLocalDateString();
-    const amount = Math.floor((order.finalPrice || 0) * m.percent / 100);
+    const amount = typeof getMilestoneAmount === 'function' ? getMilestoneAmount(m, order.finalPrice) : Math.floor((order.finalPrice || 0) * m.percent / 100);
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'PAYMENT_MILESTONE_CONFIRM', `[${order.clientName}] 고객님이 계약(${order.code}) ${m.label} 납부를 완료 처리했습니다. (₩${amount.toLocaleString()}만원)`, 'INFO');
     if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 ${m.label} 납부를 완료했어요: ₩${amount.toLocaleString()}만원`);
     showToast(`${m.label} 납부를 완료 처리했습니다.`, 'success');
     selectMyPageEstimate(order.code);
+}
+
+/* 파트너의 추가공사 변경계약 제안(openChangeOrderModal, partner_panel.js)에 고객이
+ * 동의/거절할 수 있게 한다. 수락 시 계약금액을 올리고, 기존 계약금/중도금/잔금과
+ * 동일한 방식(getMilestoneAmount의 fixedAmount)으로 새 청구 항목을 자동 생성한다. */
+function respondChangeOrder(orderCode, id, accept) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const entry = order && order.changeOrders && order.changeOrders.find(e => e.id === id);
+    if (!entry || entry.status !== 'pending') return;
+    entry.status = accept ? 'accepted' : 'rejected';
+    entry.resolvedDate = getLocalDateString();
+
+    if (accept) {
+        order.finalPrice = (order.finalPrice || 0) + entry.extraAmount;
+        const milestones = getOrInitPaymentMilestones(order);
+        milestones.push({ key: `change-${entry.id}`, label: `추가공사비 (${entry.description})`, fixedAmount: entry.extraAmount, status: 'pending', requestedDate: null, paidDate: null, dueDate: null });
+    }
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'CHANGE_ORDER_RESPOND', `[${order.clientName}] 고객님이 추가공사 변경계약을 ${accept ? '수락' : '거절'}했습니다: ${entry.description}`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 추가공사 제안("${entry.description}")을 ${accept ? '수락했어요. 새 청구 항목이 추가됐어요' : '거절했어요'}.`);
+    showToast(accept ? '추가공사를 수락했습니다.' : '추가공사를 거절했습니다.', accept ? 'success' : 'info');
+    selectMyPageEstimate(orderCode);
+}
+
+function buildClientChangeOrdersHtml(order) {
+    if (order.status !== 'contracted') return '';
+    const entries = order.changeOrders || [];
+    if (entries.length === 0) return '';
+    const statusMeta = { pending: { label: '응답 대기중', cls: 'badge-amber' }, accepted: { label: '수락함', cls: 'badge-emerald' }, rejected: { label: '거절함', cls: 'badge-neutral' } };
+    return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
+        <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="file-plus-2" class="w-3.5 h-3.5 text-brand-500"></i> 추가공사 변경계약 제안</span>
+        <div class="space-y-1.5">${entries.map(e => {
+            const meta = statusMeta[e.status] || statusMeta.pending;
+            return `<div class="p-2.5 bg-ink-50 rounded-lg space-y-1">
+                <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-900">${escapeHtml(e.description)}</span><span class="badge ${meta.cls}">${meta.label}</span></div>
+                <p class="text-[10px] text-ink-500 font-semibold">추가 금액 +₩${e.extraAmount.toLocaleString()}만원 · 제안일 ${e.proposedDate}</p>
+                ${e.status === 'pending' ? `<div class="flex gap-1.5 mt-1"><button type="button" onclick="respondChangeOrder('${order.code}', '${e.id}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondChangeOrder('${order.code}', '${e.id}', false)" class="btn btn-secondary btn-sm flex-1">거절</button></div>` : ''}
+            </div>`;
+        }).join('')}</div>
+    </div>`;
 }
 
 /* 청구(requested)된 마일스톤에 고객이 취할 수 있는 행동이 "납부 완료" 하나뿐이라,
@@ -2776,6 +2816,7 @@ function renderMyPageEstimateDetails(order) {
         ${buildClientSiteVisitHtml(order)}
         ${buildProgressStagesHtml(order)}
         ${buildPaymentMilestonesHtml(order)}
+        ${buildClientChangeOrdersHtml(order)}
         ${buildRepairClaimsHtml(order)}
         ${typeof buildOrderMessageThreadHtml === 'function' ? buildOrderMessageThreadHtml(order, 'client') : ''}
         <button type="button" onclick="downloadTransactionReceipt('${order.code}')" class="btn btn-secondary btn-sm btn-block mt-3"><i data-lucide="receipt" class="w-3.5 h-3.5"></i> 거래 확인서 다운로드</button>
@@ -4049,6 +4090,7 @@ window.toggleBidCompareSelection = toggleBidCompareSelection;
 window.openBidCompareModal = openBidCompareModal;
 window.sendClientOrderMessage = sendClientOrderMessage;
 window.confirmRepairVisitDate = confirmRepairVisitDate;
+window.respondChangeOrder = respondChangeOrder;
 window.declineRepairVisitDate = declineRepairVisitDate;
 window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;

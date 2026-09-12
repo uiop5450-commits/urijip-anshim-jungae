@@ -249,6 +249,13 @@ function getOrInitPaymentMilestones(order) {
     return order.paymentMilestones;
 }
 
+/* 계약금/중도금/잔금은 항상 최종 계약금액의 %로 계산되는데, 추가공사 변경계약
+ * (proposeChangeOrder, partner_panel.js)으로 새로 생기는 청구는 총액 비율이 아니라
+ * 협의된 고정 금액이다 — 마일스톤 하나에 두 계산 방식을 모두 지원한다. */
+function getMilestoneAmount(m, finalPrice) {
+    return typeof m.fixedAmount === 'number' ? m.fixedAmount : Math.floor((finalPrice || 0) * m.percent / 100);
+}
+
 /* 청구(requested) 상태가 되면 고객이 언제까지 내야 하는지 기한이 전혀 없어서,
  * 파트너 입장에서는 고객이 "청구됨" 상태로 무기한 방치해도 연체인지 아닌지 알
  * 방법이 없었다 — requestPaymentMilestone이 청구 시점에 심어두는 dueDate로
@@ -553,6 +560,7 @@ window.getOrInitProgressStages = getOrInitProgressStages;
 window.getWarrantyEndDate = getWarrantyEndDate;
 window.isWarrantyExpired = isWarrantyExpired;
 window.getOrInitPaymentMilestones = getOrInitPaymentMilestones;
+window.getMilestoneAmount = getMilestoneAmount;
 window.isMilestoneOverdue = isMilestoneOverdue;
 window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
 window.getOrInitOrderMessages = getOrInitOrderMessages;

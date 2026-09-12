@@ -1974,12 +1974,12 @@ function buildPartnerPaymentMilestonesHtml(order) {
     return `<div class="surface p-5 space-y-3">
         <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="wallet" class="w-4 h-4 text-brand-500"></i> 단계별 공사대금 청구</h5>
         <div class="space-y-2">${milestones.map(m => {
-            const amount = Math.floor(price * m.percent / 100);
+            const amount = typeof getMilestoneAmount === 'function' ? getMilestoneAmount(m, price) : Math.floor(price * m.percent / 100);
             const overdue = typeof isMilestoneOverdue === 'function' && isMilestoneOverdue(m);
             const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : m.status === 'disputed' ? `<span class="badge badge-rose">이의제기중</span>` : overdue ? `<span class="badge badge-rose">연체</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구중</span>` : `<span class="badge badge-neutral">청구 전</span>`;
             return `<div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between gap-2">
                 <div class="text-left min-w-0">
-                    <p class="text-xs font-black text-ink-900">${m.label} (${m.percent}%)</p>
+                    <p class="text-xs font-black text-ink-900">${m.label} ${typeof m.fixedAmount === 'number' ? '' : `(${m.percent}%)`}</p>
                     <p class="text-[10px] ${overdue ? 'text-roseCustom font-bold' : 'text-ink-500 font-semibold'}">₩ ${amount.toLocaleString()}만원${m.paidDate ? ` · 납부일 ${m.paidDate}` : (m.dueDate ? ` · 납부기한 ${m.dueDate}${overdue ? ' (기한 초과)' : ''}` : '')}</p>
                     ${m.status === 'disputed' ? `<p class="text-[10px] text-roseCustom font-bold">고객 이의제기: ${escapeHtml(m.disputeReason || '')}</p>` : ''}
                 </div>
@@ -2005,12 +2005,75 @@ function requestPaymentMilestone(orderCode, key) {
     due.setDate(due.getDate() + 7);
     m.dueDate = due.toISOString().slice(0, 10);
     m.overdueNotified = false;
-    const amount = Math.floor((order.finalPrice || 0) * m.percent / 100);
+    const amount = typeof getMilestoneAmount === 'function' ? getMilestoneAmount(m, order.finalPrice) : Math.floor((order.finalPrice || 0) * m.percent / 100);
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'PAYMENT_MILESTONE_REQUEST', `[${partnerName}]가 오더(${order.code}) ${m.label} 청구를 요청했습니다. (₩${amount.toLocaleString()}만원, 납부기한 ${m.dueDate})`, 'INFO');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${m.label} 납부를 요청드려요: ₩${amount.toLocaleString()}만원 (납부기한 ${m.dueDate})`);
     showToast(`${m.label} 청구를 요청했습니다.`, 'success');
     openPartnerOrderDetailModal(order.code);
+}
+
+/* 계약금/중도금/잔금(PAYMENT_MILESTONE_DEFS)은 계약 시점에 고정되는 3단계뿐이라,
+ * 실제 인테리어 현장에서 흔한 "공사 중 구조 변경/자재 업그레이드로 추가 비용
+ * 발생" 상황을 반영할 방법이 없었다 — 고객 동의를 받는 변경계약(추가공사) 제안을
+ * 두고, 수락되면 기존 마일스톤과 같은 방식(getMilestoneAmount의 fixedAmount)으로
+ * 새 청구 항목이 자동 생성된다(client_panel.js의 respondChangeOrder가 처리). */
+let changeOrderTargetCode = null;
+
+function openChangeOrderModal(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
+    changeOrderTargetCode = orderCode;
+    safeUpdateValue('change-order-desc-input', '');
+    safeUpdateValue('change-order-amount-input', '');
+    openModal('change-order-modal', 'change-order-modal-card');
+}
+
+function closeChangeOrderModal() {
+    changeOrderTargetCode = null;
+    closeModal('change-order-modal', 'change-order-modal-card');
+}
+
+function submitChangeOrder() {
+    const order = window.AppState.orders.find(o => o.code === changeOrderTargetCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order) { closeChangeOrderModal(); return; }
+    const description = document.getElementById('change-order-desc-input')?.value.trim();
+    const extraAmount = parseInt(document.getElementById('change-order-amount-input')?.value, 10);
+    if (!description) { showToast('추가 공사 내용을 입력해주세요.', 'warning'); return; }
+    if (!extraAmount || extraAmount <= 0) { showToast('추가 금액을 올바르게 입력해주세요.', 'warning'); return; }
+
+    if (!order.changeOrders) order.changeOrders = [];
+    const entry = { id: `co-${Date.now()}-${Math.floor(Math.random() * 1000)}`, description, extraAmount, status: 'pending', proposedDate: getLocalDateString(), resolvedDate: null };
+    order.changeOrders.unshift(entry);
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'CHANGE_ORDER_PROPOSE', `[${partnerName}]가 오더(${order.code}) 추가공사 변경계약을 제안했습니다: ${description} (+₩${extraAmount.toLocaleString()}만원)`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}가 추가공사를 제안했어요: "${description}" (+₩${extraAmount.toLocaleString()}만원)`);
+    showToast('추가공사 변경계약을 제안했습니다. 고객 동의를 기다려주세요.', 'success');
+
+    closeChangeOrderModal();
+    openPartnerOrderDetailModal(order.code);
+}
+
+function buildPartnerChangeOrdersHtml(order) {
+    if (order.status !== 'contracted') return '';
+    const entries = order.changeOrders || [];
+    const statusMeta = { pending: { label: '고객 동의 대기중', cls: 'badge-amber' }, accepted: { label: '수락됨', cls: 'badge-emerald' }, rejected: { label: '거절됨', cls: 'badge-neutral' } };
+    const listHtml = entries.length === 0 ? `<p class="text-[10px] text-ink-400 font-semibold">등록된 추가공사 요청이 없습니다.</p>` : entries.map(e => {
+        const meta = statusMeta[e.status] || statusMeta.pending;
+        return `<div class="p-2.5 bg-ink-50 rounded-lg space-y-0.5">
+            <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-900">${escapeHtml(e.description)}</span><span class="badge ${meta.cls}">${meta.label}</span></div>
+            <p class="text-[10px] text-ink-500 font-semibold">추가 금액 +₩${e.extraAmount.toLocaleString()}만원 · 제안일 ${e.proposedDate}</p>
+        </div>`;
+    }).join('');
+    return `<div class="surface p-5 space-y-2">
+        <div class="flex items-center justify-between">
+            <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="file-plus-2" class="w-4 h-4 text-brand-500"></i> 추가공사 변경계약</h5>
+            <button type="button" onclick="openChangeOrderModal('${order.code}')" class="btn btn-secondary btn-sm">제안하기</button>
+        </div>
+        <div class="space-y-1.5">${listHtml}</div>
+    </div>`;
 }
 
 function openPartnerOrderDetailModal(orderCode) {
@@ -2123,6 +2186,7 @@ function openPartnerOrderDetailModal(orderCode) {
             ${buildPartnerSiteVisitHtml(order)}
             ${buildPartnerProgressStagesHtml(order)}
             ${buildPartnerPaymentMilestonesHtml(order)}
+            ${buildPartnerChangeOrdersHtml(order)}
             <div class="surface p-5 space-y-3">
                 <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="credit-card" class="w-4 h-4 text-ink-600"></i> 플랫폼 중개 수수료 결제</h5>
                 ${commissionBodyHtml}
@@ -5973,6 +6037,9 @@ window.adminApprovePortfolioDeletionAppeal = adminApprovePortfolioDeletionAppeal
 window.adminRejectPortfolioDeletionAppeal = adminRejectPortfolioDeletionAppeal;
 window.sendPartnerOrderMessage = sendPartnerOrderMessage;
 window.proposeRepairVisitDate = proposeRepairVisitDate;
+window.openChangeOrderModal = openChangeOrderModal;
+window.closeChangeOrderModal = closeChangeOrderModal;
+window.submitChangeOrder = submitChangeOrder;
 window.openClientRatingModal = openClientRatingModal;
 window.closeClientRatingModal = closeClientRatingModal;
 window.setClientRatingStar = setClientRatingStar;

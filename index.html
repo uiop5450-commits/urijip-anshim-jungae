@@ -1759,6 +1759,21 @@
         </div>
     </div>
 
+    <div id="change-order-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="change-order-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-brand">추가공사 변경계약</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">고객에게 추가공사를 제안합니다</h3></div>
+                <button type="button" onclick="closeChangeOrderModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">제안을 보내면 고객이 수락 또는 거절할 수 있어요. 수락 시 계약금액이 반영되고 새 청구 항목이 자동 생성돼요.</p>
+                <div><label class="field-label">추가 공사 내용</label><textarea id="change-order-desc-input" rows="3" placeholder="예: 발코니 확장 공사 추가" class="textarea"></textarea></div>
+                <div><label class="field-label">추가 금액 (만원)</label><input type="number" id="change-order-amount-input" placeholder="예: 300" class="input"></div>
+                <button type="button" onclick="submitChangeOrder()" class="btn btn-primary btn-block">제안 보내기</button>
+            </div>
+        </div>
+    </div>
+
     <div id="price-change-modal" class="hidden modal-overlay" style="z-index:220">
         <div id="price-change-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">
