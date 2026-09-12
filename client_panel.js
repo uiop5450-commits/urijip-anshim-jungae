@@ -785,6 +785,27 @@ function escalateRepairClaimToAdmin(orderCode, claimId, note) {
     selectMyPageEstimate(order.code);
 }
 
+/* 파트너가 하자보수를 "처리완료"로 표시하면 고객은 배지만 볼 뿐 실제로 제대로
+ * 고쳐졌는지 확인/이의제기할 방법이 없었다 — 반려된 신청에는 이미 재검토 요청
+ * (escalateRepairClaimToAdmin)이 있는데, 완료 처리에만 이 경로가 빠져 있던
+ * 비대칭을 해소한다. */
+function disputeCompletedRepairClaim(orderCode, claimId, note) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.status !== 'completed' || claim.completionDisputed) return;
+
+    claim.completionDisputed = true;
+    claim.completionDisputeNote = note;
+    claim.completionDisputeResolution = null;
+    claim.completionDisputeAdminResponse = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_CLAIM_COMPLETION_DISPUTE', `[${order.clientName}] 고객님이 처리완료된 하자보수 신청("${claim.title}")에 이의를 제기했습니다: ${note}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 처리완료된 하자보수("${claim.title}")에 이의를 제기했어요. 매니저 센터가 검토 중입니다.`);
+    showToast('매니저 센터에 이의제기를 접수했습니다.', 'success');
+
+    selectMyPageEstimate(order.code);
+}
+
 /* 계약 체결 후 고객이 확인할 수 있는 건 서명·서류·수수료 결제 상태뿐이라, 실제
  * 시공이 지금 어느 단계인지는 전혀 알 방법이 없었다 — 파트너가 진행 표시하는
  * 단계(advanceOrderProgressStage, partner_panel.js)를 읽기 전용 스테퍼로 보여준다. */
@@ -1000,6 +1021,11 @@ function buildRepairClaimsHtml(order) {
             ${c.status === 'rejected' ? (c.escalated
                 ? `<p class="text-[10px] font-bold text-brand-600 mt-1">매니저 재검토 요청됨</p>`
                 : `<button type="button" onclick="openReportReasonPrompt((note) => escalateRepairClaimToAdmin('${order.code}', '${c.id}', note))" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">매니저에게 재검토 요청</button>`) : ''}
+            ${c.status === 'completed' ? (c.completionDisputed
+                ? (c.completionDisputeResolution === 'rejected'
+                    ? `<p class="text-[10px] font-bold text-ink-400 mt-1">이의제기 반려됨${c.completionDisputeAdminResponse ? ` — ${escapeHtml(c.completionDisputeAdminResponse)}` : ''}</p>`
+                    : `<p class="text-[10px] font-bold text-amberCustom mt-1">완료 처리 이의제기 심사 대기중</p>`)
+                : `<button type="button" onclick="openReportReasonPrompt((note) => disputeCompletedRepairClaim('${order.code}', '${c.id}', note))" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">완료 처리에 이의있어요</button>`) : ''}
         </div>`;
     }).join('')}</div>`;
     const warrantyEnd = typeof getWarrantyEndDate === 'function' ? getWarrantyEndDate(order) : null;
@@ -4095,6 +4121,7 @@ window.openBidCompareModal = openBidCompareModal;
 window.sendClientOrderMessage = sendClientOrderMessage;
 window.confirmRepairVisitDate = confirmRepairVisitDate;
 window.respondChangeOrder = respondChangeOrder;
+window.disputeCompletedRepairClaim = disputeCompletedRepairClaim;
 window.declineRepairVisitDate = declineRepairVisitDate;
 window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;

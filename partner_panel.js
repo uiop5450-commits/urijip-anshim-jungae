@@ -2718,6 +2718,16 @@ function getAllPendingAppeals() {
             });
         }
     });
+    (window.AppState.orders || []).forEach(o => {
+        (o.repairClaims || []).forEach(c => {
+            if (c.completionDisputed && !c.completionDisputeResolution) {
+                items.push({
+                    typeLabel: '하자보수 완료처리 이의제기', subject: `${o.code} · ${c.title}`, reason: c.completionDisputeNote, date: c.resolvedDate || c.createdDate,
+                    actionsHtml: rejectBtn('반려(완료 유지)', `openReportReasonPrompt((reason) => adminRejectRepairClaimCompletionDispute('${o.code}', '${c.id}', reason))`) + approveBtn('승인(재작업)', `adminApproveRepairClaimCompletionDispute('${o.code}', '${c.id}')`)
+                });
+            }
+        });
+    });
 
     return items.sort((a, b) => new Date(b.date) - new Date(a.date));
 }
@@ -2916,6 +2926,37 @@ function adminDismissRepairClaimEscalation(orderCode, claimId) {
     if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_CLAIM_ESCALATION_DISMISS', `[하자보수 재검토 반려] 오더 ${order.code}의 하자보수 신청("${claim.title}") 재검토 요청을 검토했으나 기존 반려 결정을 유지합니다.`, 'INFO');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수 신청("${claim.title}")에 대한 매니저 재검토 결과, 기존 반려 결정이 유지됩니다.`);
     showToast('재검토 요청을 확인했습니다. 기존 반려 결정을 유지합니다.', 'info');
+    searchOrderLookup();
+}
+
+/* 고객의 완료 처리 이의제기(disputeCompletedRepairClaim, client_panel.js)를 관리자가
+ * 승인(재작업 필요 — in_progress로 되돌림)/반려(완료 처리 유지) 중 하나로 처리한다. */
+function adminApproveRepairClaimCompletionDispute(orderCode, claimId) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || !claim.completionDisputed || claim.completionDisputeResolution) return;
+    claim.status = 'in_progress';
+    claim.completionDisputeResolution = 'approved';
+    claim.completionDisputeResolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_CLAIM_COMPLETION_DISPUTE_APPROVE', `[이의제기 승인] 오더 ${order.code}의 하자보수 신청("${claim.title}") 완료 처리 이의제기를 승인하여 처리중으로 되돌렸습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 승인되어 하자보수("${claim.title}")가 다시 처리중 상태로 전환되었습니다.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `하자보수("${claim.title}") 완료 처리에 고객이 이의제기했고, 매니저 센터가 승인하여 재작업이 필요합니다.`);
+    showToast('이의제기를 승인하여 처리중 상태로 되돌렸습니다.', 'success');
+    searchOrderLookup();
+}
+
+function adminRejectRepairClaimCompletionDispute(orderCode, claimId, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || !claim.completionDisputed || claim.completionDisputeResolution) return;
+    claim.completionDisputeResolution = 'rejected';
+    claim.completionDisputeAdminResponse = reason;
+    claim.completionDisputeResolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_CLAIM_COMPLETION_DISPUTE_REJECT', `[이의제기 반려] 오더 ${order.code}의 하자보수 신청("${claim.title}") 완료 처리 이의제기를 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 반려되었습니다. 사유: ${reason}`);
+    showToast('이의제기를 반려했습니다.', 'info');
     searchOrderLookup();
 }
 
@@ -6036,6 +6077,8 @@ window.adminApproveClientRatingAppeal = adminApproveClientRatingAppeal;
 window.adminRejectClientRatingAppeal = adminRejectClientRatingAppeal;
 window.adminApprovePortfolioDeletionAppeal = adminApprovePortfolioDeletionAppeal;
 window.adminRejectPortfolioDeletionAppeal = adminRejectPortfolioDeletionAppeal;
+window.adminApproveRepairClaimCompletionDispute = adminApproveRepairClaimCompletionDispute;
+window.adminRejectRepairClaimCompletionDispute = adminRejectRepairClaimCompletionDispute;
 window.sendPartnerOrderMessage = sendPartnerOrderMessage;
 window.proposeRepairVisitDate = proposeRepairVisitDate;
 window.openChangeOrderModal = openChangeOrderModal;
