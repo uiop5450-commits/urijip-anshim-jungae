@@ -1470,9 +1470,22 @@ function requestDirectQuoteFromPortfolio(partnerName, portIdx = 0) {
     if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
 }
 
+/* 시공사례엔 이미 category(아파트/주택/상가·사무실/기타)가 있는데 배지로만
+ * 보여줄 뿐 필터로는 전혀 쓰이지 않았다 — 파트너 프로필의 시공사례 그리드가
+ * 전부 한 목록에 뒤섞여 있어, 원하는 공간 유형만 골라볼 방법이 없었다. */
+let profilePortfolioCategoryFilter = 'all';
+let profilePortfolioFilterTargetPartner = null;
+
+function setProfilePortfolioCategoryFilter(category) {
+    profilePortfolioCategoryFilter = category;
+    if (profilePortfolioFilterTargetPartner) openClientPartnerProfile(profilePortfolioFilterTargetPartner);
+}
+
 function openClientPartnerProfile(partnerName) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) { console.warn(`Partner '${partnerName}' not found in AppState.partners`); return; }
+    if (profilePortfolioFilterTargetPartner !== partnerName) profilePortfolioCategoryFilter = 'all';
+    profilePortfolioFilterTargetPartner = partnerName;
 
     safeUpdateText('profile-partner-name', partner.name);
     safeUpdateText('profile-partner-name-hero', partner.name);
@@ -1497,14 +1510,29 @@ function openClientPartnerProfile(partnerName) {
     const hero1on1Btn = document.getElementById('profile-hero-1on1-btn');
     if (hero1on1Btn) hero1on1Btn.onclick = () => requestDirectQuoteFromPortfolio(partner.name, 0);
 
+    const chipsEl = document.getElementById('profile-portfolio-category-chips');
+    if (chipsEl) {
+        const publishedAll = (partner.portfolios || []).filter(p => !p.isDraft);
+        const categoriesPresent = [...new Set(publishedAll.map(p => p.category).filter(Boolean))];
+        if (categoriesPresent.length > 1) {
+            const chips = [['all', '전체'], ...categoriesPresent.map(c => [c, PORTFOLIO_CATEGORY_LABELS[c] || c])];
+            chipsEl.innerHTML = chips.map(([key, label]) =>
+                `<button type="button" onclick="setProfilePortfolioCategoryFilter('${key}')" class="gnb-tab ${profilePortfolioCategoryFilter === key ? 'active' : ''}">${label}</button>`
+            ).join('');
+        } else {
+            chipsEl.innerHTML = '';
+        }
+    }
+
     const portGrid = document.getElementById('profile-portfolios-grid');
     if (portGrid) {
         portGrid.innerHTML = '';
-        const publishedPortfolios = (partner.portfolios || []).filter(p => !p.isDraft);
+        const publishedPortfolios = (partner.portfolios || []).filter(p => !p.isDraft && (profilePortfolioCategoryFilter === 'all' || p.category === profilePortfolioCategoryFilter));
         if (publishedPortfolios.length > 0) {
             const weeklyBestIds = getWeeklyBestPortfolioIds();
             partner.portfolios.forEach((port, idx) => {
                 if (port.isDraft) return;
+                if (profilePortfolioCategoryFilter !== 'all' && port.category !== profilePortfolioCategoryFilter) return;
                 const isWeeklyBest = weeklyBestIds.includes(getOrAssignPortfolioId(port));
                 const itemDiv = document.createElement('div');
                 itemDiv.className = "portfolio-card text-left group";
@@ -1525,7 +1553,10 @@ function openClientPartnerProfile(partnerName) {
                 portGrid.appendChild(itemDiv);
             });
         } else {
-            portGrid.innerHTML = `<p class="text-xs text-ink-400 font-bold py-8 text-center col-span-full">등록된 시공 사례가 없습니다.</p>`;
+            const hasAnyPublished = (partner.portfolios || []).some(p => !p.isDraft);
+            portGrid.innerHTML = hasAnyPublished
+                ? `<p class="text-xs text-ink-400 font-bold py-8 text-center col-span-full">해당 카테고리의 시공 사례가 없습니다.</p>`
+                : `<p class="text-xs text-ink-400 font-bold py-8 text-center col-span-full">등록된 시공 사례가 없습니다.</p>`;
         }
     }
 
@@ -2177,6 +2208,7 @@ window.renderPartnerConsolePortfolios = renderPartnerConsolePortfolios;
 window.submitPartnerPortfolio = submitPartnerPortfolio;
 window.openClientPartnerProfile = openClientPartnerProfile;
 window.openPartnerPortfolioModal = openClientPartnerProfile;
+window.setProfilePortfolioCategoryFilter = setProfilePortfolioCategoryFilter;
 window.closeClientPartnerProfile = closeClientPartnerProfile;
 window.openPortfolioBlogDetail = openPortfolioBlogDetail;
 window.closePortfolioBlogDetail = closePortfolioBlogDetail;
