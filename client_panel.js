@@ -2718,6 +2718,9 @@ function renderMyPageEstimateDetails(order) {
                             ? `<div class="p-3 bg-ink-50 rounded-xl text-center"><span class="text-[11px] font-bold text-ink-400">이의신청 반려됨${order.cancelRequest.appeal.adminResponse ? ` — ${escapeHtml(order.cancelRequest.appeal.adminResponse)}` : ''}</span></div>`
                             : `<button type="button" onclick="openForceCancelAppealModal('${order.code}')" class="btn btn-secondary btn-block">강제 취소에 이의신청하기</button>`
                 ) : ''}
+                ${!isRequested && !(order.cancelRequest && order.cancelRequest.appeal && order.cancelRequest.appeal.status === 'pending')
+                    ? `<button type="button" onclick="reopenCancelledOrder('${order.code}')" class="btn btn-dark btn-block"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 새 파트너사로 재매칭 받기</button>`
+                    : ''}
             </div>`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
@@ -2938,6 +2941,59 @@ function triggerRebidding(orderCode) {
         selected.forEach(partner => pushPartnerNotification(partner.name, `재매칭으로 새 오더(${orderCode})에 매칭되었어요. 고객: ${maskName(order.clientName)}님.`));
     }
     showToast(`새로운 파트너사 ${selected.length}곳이 매칭되었습니다!`, 'success');
+
+    renderClientMyPage();
+    selectMyPageEstimate(orderCode);
+    if (typeof renderPartnerOrderList === 'function') renderPartnerOrderList();
+    if (typeof recalculateKPIs === 'function') recalculateKPIs();
+}
+
+/* 계약이 취소(강제 취소·양측 합의 취소 승인 등 어떤 사유든)되면 detail 화면이
+ * "더 이상 유효하지 않습니다"로 영구 종료되고, 고객이 같은 의뢰를 이어가려면
+ * 완전히 새 견적신청서를 처음부터 다시 써야 했다 — 계약 파트너 정보만 제외하고
+ * 나머지 의뢰 스펙(면적·주소·예산 등)은 그대로 살려서 오픈 매칭으로 재개할 수
+ * 있게 한다(triggerRebidding과 동일한 후보 선정 로직 재사용). */
+function reopenCancelledOrder(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'cancelled') return;
+    if (order.cancelRequest && order.cancelRequest.appeal && order.cancelRequest.appeal.status === 'pending') { showToast('이의신청 심사가 끝난 후 다시 매칭할 수 있어요.', 'warning'); return; }
+
+    const previousPartner = order.acceptedPartner;
+    if (previousPartner) {
+        if (!order.excludedPartners) order.excludedPartners = [];
+        if (!order.excludedPartners.includes(previousPartner)) order.excludedPartners.push(previousPartner);
+    }
+
+    order.status = 'bidding';
+    order.acceptedPartner = null;
+    order.finalPrice = 0;
+    order.contractUploaded = false;
+    order.commissionPaid = false;
+    order.contractDoc = null;
+    order.estimateDoc = null;
+    order.clientSigned = false;
+    order.partnerSigned = false;
+    order.cancelRequest = null;
+    order.bids = [];
+
+    const slotsNeeded = order.partnerCountLimit || 3;
+    const excluded = new Set(order.excludedPartners || []);
+    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name));
+    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, slotsNeeded);
+    selected.forEach(partner => {
+        order.bids.push({
+            partner: partner.name,
+            price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
+            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
+            verified: true, progress: 'bidding'
+        });
+    });
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REOPEN_CANCELLED_ORDER', `[${order.clientName}] 고객님이 취소된 계약(${orderCode})을 새 파트너사로 재매칭했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, selected.length > 0 ? `새로운 파트너사 ${selected.length}곳이 매칭되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})` : `재매칭 가능한 파트너사가 아직 없어요. 잠시 후 다시 시도해주세요.`);
+    if (typeof pushPartnerNotification === 'function') { selected.forEach(partner => pushPartnerNotification(partner.name, `재매칭으로 새 오더(${orderCode})에 매칭되었어요. 고객: ${maskName(order.clientName)}님.`)); }
+    showToast(selected.length > 0 ? `새로운 파트너사 ${selected.length}곳이 매칭되었습니다!` : '재매칭 가능한 파트너사를 찾지 못했어요. 잠시 후 다시 시도해주세요.', selected.length > 0 ? 'success' : 'warning');
 
     renderClientMyPage();
     selectMyPageEstimate(orderCode);
@@ -4157,6 +4213,7 @@ window.confirmRepairVisitDate = confirmRepairVisitDate;
 window.respondChangeOrder = respondChangeOrder;
 window.disputeCompletedRepairClaim = disputeCompletedRepairClaim;
 window.toggleCommunityAcceptedAnswer = toggleCommunityAcceptedAnswer;
+window.reopenCancelledOrder = reopenCancelledOrder;
 window.declineRepairVisitDate = declineRepairVisitDate;
 window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
