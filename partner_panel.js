@@ -1263,6 +1263,40 @@ function toggleFavoriteClient(clientPhone, clientName, orderCode) {
     if (typeof renderPartnerPerformanceView === 'function' && window.AppState.partnerConsoleMode === 'performance') renderPartnerPerformanceView();
 }
 
+/* 고객은 관심 파트너에게 재의뢰(1:1 지정) 요청을 직접 보낼 수 있는데
+ * (requestDirectQuoteFromPortfolio, cms.js) 파트너 쪽엔 단골로 저장한 고객에게
+ * 먼저 손을 내밀 방법이 없었다 — 단골 고객 목록(buildPartnerFavoriteClientsHtml)에
+ * "해제"만 있고 다시 연락할 방법이 없던 공백. 스팸성 반복 전송을 막기 위해
+ * lastInvitedDate로 쿨다운을 둔다. */
+const FAVORITE_CLIENT_INVITE_COOLDOWN_DAYS = 7;
+
+function invitePartnerFavoriteClient(clientPhone, clientName) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || !partner.favoriteClients) return;
+    const entry = partner.favoriteClients.find(c => c.phone === clientPhone);
+    if (!entry) return;
+
+    const account = (window.AppState.clientAccounts || []).find(a => a.phone === clientPhone);
+    if (account && account.blockedPartners && account.blockedPartners.includes(partnerName)) {
+        showToast('해당 고객이 파트너사를 차단하여 제안을 보낼 수 없습니다.', 'warning');
+        return;
+    }
+    if (entry.lastInvitedDate) {
+        const daysSince = Math.floor((new Date() - new Date(entry.lastInvitedDate)) / (1000 * 60 * 60 * 24));
+        if (daysSince < FAVORITE_CLIENT_INVITE_COOLDOWN_DAYS) {
+            showToast(`최근에 이미 제안을 보냈어요. ${FAVORITE_CLIENT_INVITE_COOLDOWN_DAYS - daysSince}일 후 다시 보낼 수 있습니다.`, 'warning');
+            return;
+        }
+    }
+
+    entry.lastInvitedDate = getLocalDateString();
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'FAVORITE_CLIENT_INVITE', `[${partnerName}]가 단골 고객(${clientName})에게 견적 제안을 보냈습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(clientPhone, `${partnerName}에서 인테리어 견적 상담을 제안했어요. 관심 있으시면 견적 요청을 보내보세요!`);
+    showToast(`[${clientName}]님에게 견적 제안을 보냈습니다.`, 'success');
+    if (typeof renderPartnerPerformanceView === 'function' && window.AppState.partnerConsoleMode === 'performance') renderPartnerPerformanceView();
+}
+
 /* 고객은 특정 파트너를 영구 차단해 이후 매칭/1:1 지정에서 제외할 수 있는데
  * (togglePartnerBlock, client_panel.js) 파트너 쪽엔 대칭 기능이 없었다 — 노쇼·
  * 상습 갑질 고객은 신고(openReportClientModal)해서 매니저 센터가 판단하게 할 수는
@@ -1318,10 +1352,19 @@ function buildPartnerFavoriteClientsHtml(partner) {
         const contractedCount = myOrders.filter(o => o.status === 'contracted').length;
         const avgRating = typeof getClientAverageRating === 'function' ? getClientAverageRating(c.phone) : null;
         const tierBadge = typeof buildClientTierBadgeHtml === 'function' ? buildClientTierBadgeHtml(c.phone) : '';
+        let daysSinceInvite = null;
+        if (c.lastInvitedDate) daysSinceInvite = Math.floor((new Date() - new Date(c.lastInvitedDate)) / (1000 * 60 * 60 * 24));
+        const inCooldown = daysSinceInvite !== null && daysSinceInvite < FAVORITE_CLIENT_INVITE_COOLDOWN_DAYS;
+        const inviteBtn = inCooldown
+            ? `<span class="text-[10px] font-bold text-ink-300">제안 보냄 (${FAVORITE_CLIENT_INVITE_COOLDOWN_DAYS - daysSinceInvite}일 후 재전송 가능)</span>`
+            : `<button type="button" onclick="invitePartnerFavoriteClient('${escapeHtml(c.phone)}', '${escapeHtml(c.name)}')" class="text-[10px] font-bold text-brand-600 hover:underline bg-transparent border-0 cursor-pointer p-0">견적 제안 보내기</button>`;
         return `
         <div class="flex items-center justify-between p-3 bg-ink-50 rounded-xl">
             <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">${escapeHtml(c.name)} ${tierBadge}</p><p class="text-[10px] text-ink-500 font-bold">${escapeHtml(c.phone)} · 계약 ${contractedCount}건${avgRating ? ` · <span class="text-gold-500">★ ${avgRating.avg}</span> (${avgRating.count}건 평가)` : ''}</p></div>
-            <button type="button" onclick="toggleFavoriteClient('${escapeHtml(c.phone)}', '${escapeHtml(c.name)}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">해제</button>
+            <div class="flex items-center gap-3 shrink-0">
+                ${inviteBtn}
+                <button type="button" onclick="toggleFavoriteClient('${escapeHtml(c.phone)}', '${escapeHtml(c.name)}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">해제</button>
+            </div>
         </div>`;
     }).join('');
 }
@@ -6725,6 +6768,7 @@ window.adminApprovePartnerReportAppeal = adminApprovePartnerReportAppeal;
 window.adminRejectPartnerReportAppeal = adminRejectPartnerReportAppeal;
 window.isClientFavorited = isClientFavorited;
 window.toggleFavoriteClient = toggleFavoriteClient;
+window.invitePartnerFavoriteClient = invitePartnerFavoriteClient;
 window.requestReviewFromClient = requestReviewFromClient;
 window.buildPartnerRepairClaimsHtml = buildPartnerRepairClaimsHtml;
 window.openRepairClaimResponseModal = openRepairClaimResponseModal;
