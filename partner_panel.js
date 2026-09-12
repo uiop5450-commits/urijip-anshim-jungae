@@ -4328,6 +4328,15 @@ function buildPartnerRepairClaimsHtml(order) {
                 <p class="text-[11px] text-ink-600 font-semibold leading-relaxed">${escapeHtml(c.description)}</p>
                 <p class="text-[9px] text-ink-400 font-semibold">신청일: ${c.createdDate}</p>
                 ${c.partnerResponse ? `<p class="text-[10px] text-brand-700 font-semibold leading-relaxed pl-3 border-l-2 border-brand-200">${escapeHtml(c.partnerResponse)}</p>` : ''}
+                ${(c.status !== 'completed' && c.status !== 'rejected') ? `<div class="p-2 bg-white rounded-lg border border-ink-100 space-y-1">
+                    ${c.visitStatus === 'proposed' ? `<p class="text-[10px] font-black text-amberCustom">방문 일정 제안함: ${c.visitDate} (고객 확인 대기중)</p>`
+                        : c.visitStatus === 'confirmed' ? `<p class="text-[10px] font-black text-emeraldCustom">방문 일정 확정됨: ${c.visitDate}</p>`
+                        : `<div class="flex items-center gap-1.5">
+                            ${c.visitStatus === 'declined' ? `<span class="text-[9px] text-ink-400 font-semibold shrink-0">거절됨${c.visitDeclineReason ? ` — ${escapeHtml(c.visitDeclineReason)}` : ''}. 새로 제안:</span>` : `<span class="text-[9px] text-ink-400 font-semibold shrink-0">방문 일정 제안:</span>`}
+                            <input type="date" id="repair-visit-date-input-${c.id}" class="input text-[10px] py-1 px-1.5 flex-1">
+                            <button type="button" onclick="proposeRepairVisitDate('${order.code}', '${c.id}')" class="btn btn-secondary btn-sm shrink-0">제안</button>
+                        </div>`}
+                </div>` : ''}
                 ${(c.status !== 'completed' && c.status !== 'rejected') ? `<div class="flex gap-1.5 mt-1">
                     ${c.status === 'submitted' ? `<button type="button" onclick="openRepairClaimResponseModal('${order.code}', '${c.id}', 'in_progress')" class="btn btn-secondary btn-sm flex-1">처리 시작</button>` : ''}
                     <button type="button" onclick="openRepairClaimResponseModal('${order.code}', '${c.id}', 'completed')" class="btn btn-dark btn-sm flex-1">처리 완료</button>
@@ -4336,6 +4345,30 @@ function buildPartnerRepairClaimsHtml(order) {
             </div>`;
         }).join('')}</div>
     </div>`;
+}
+
+/* 계약 전 실측 방문은 propose/confirm/decline 전 과정이 있는데(openSiteVisitModal),
+ * 하자보수(AS) 방문은 파트너가 "처리중"이라고만 표시할 뿐 실제 방문 날짜를 조율할
+ * 방법이 없었다 — 확정/거절 처리는 client_panel.js의 confirmRepairVisitDate/
+ * declineRepairVisitDate가 담당한다. */
+function proposeRepairVisitDate(orderCode, claimId) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.acceptedPartner !== partnerName) return;
+    const claim = order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.status === 'completed' || claim.status === 'rejected') return;
+    const input = document.getElementById(`repair-visit-date-input-${claimId}`);
+    const date = input ? input.value : '';
+    if (!date) { showToast('방문 희망일을 선택해주세요.', 'warning'); return; }
+
+    claim.visitStatus = 'proposed';
+    claim.visitDate = date;
+    claim.visitDeclineReason = null;
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'REPAIR_VISIT_PROPOSE', `[${partnerName}]가 하자보수("${claim.title}") 방문 일정을 제안했습니다: ${date}`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수("${claim.title}") 방문 일정을 제안했어요: ${date}`);
+    showToast('방문 일정을 제안했습니다.', 'success');
+    openPartnerOrderDetailModal(orderCode);
 }
 
 /* buildOrderMessageThreadHtml(utils_ui.js)의 파트너 쪽 전송 핸들러 — 고객 쪽
@@ -5939,6 +5972,7 @@ window.adminRejectClientRatingAppeal = adminRejectClientRatingAppeal;
 window.adminApprovePortfolioDeletionAppeal = adminApprovePortfolioDeletionAppeal;
 window.adminRejectPortfolioDeletionAppeal = adminRejectPortfolioDeletionAppeal;
 window.sendPartnerOrderMessage = sendPartnerOrderMessage;
+window.proposeRepairVisitDate = proposeRepairVisitDate;
 window.openClientRatingModal = openClientRatingModal;
 window.closeClientRatingModal = closeClientRatingModal;
 window.setClientRatingStar = setClientRatingStar;

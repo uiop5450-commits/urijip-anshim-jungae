@@ -951,6 +951,11 @@ function buildRepairClaimsHtml(order) {
             <p class="text-[9px] text-ink-400 font-semibold">신청일: ${c.createdDate}</p>
             ${c.partnerResponse ? `<p class="text-[10px] text-brand-600 font-bold leading-relaxed mt-1">파트너 안내: ${escapeHtml(c.partnerResponse)}</p>` : ''}
             ${c.resolvedDate ? `<p class="text-[9px] text-ink-400 font-semibold">처리 완료일: ${c.resolvedDate}</p>` : ''}
+            ${c.visitStatus === 'proposed' ? `<div class="p-2 bg-amber-50 rounded-lg space-y-1 mt-1">
+                <p class="text-[10px] font-black text-amberCustom">파트너가 방문 일정을 제안했어요: ${c.visitDate}</p>
+                <div class="flex gap-1.5"><button type="button" onclick="confirmRepairVisitDate('${order.code}', '${c.id}')" class="btn btn-dark btn-sm flex-1">일정 확정</button><button type="button" onclick="openReportReasonPrompt((reason) => declineRepairVisitDate('${order.code}', '${c.id}', reason))" class="btn btn-secondary btn-sm flex-1">거절</button></div>
+            </div>` : c.visitStatus === 'confirmed' ? `<p class="text-[10px] font-black text-emeraldCustom mt-1">방문 일정 확정됨: ${c.visitDate}</p>`
+                : c.visitStatus === 'declined' ? `<p class="text-[10px] text-ink-400 font-semibold mt-1">제안된 방문 일정을 거절했어요. 파트너사의 새 제안을 기다려주세요.</p>` : ''}
             ${c.status === 'submitted' ? `<button type="button" onclick="retractRepairClaim('${order.code}', '${c.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">신청 철회</button>` : ''}
             ${c.status === 'rejected' ? (c.escalated
                 ? `<p class="text-[10px] font-bold text-brand-600 mt-1">매니저 재검토 요청됨</p>`
@@ -974,6 +979,34 @@ function buildRepairClaimsHtml(order) {
         </div>
         ${listHtml}
     </div>`;
+}
+
+/* 계약 전 실측 방문은 propose/confirm/decline 전 과정이 있는데(openSiteVisitModal),
+ * 계약 후 하자보수(AS) 방문은 파트너가 "처리중"이라고만 표시할 뿐 실제로 언제
+ * 방문할지 조율할 방법이 없었다 — 동일한 패턴을 하자보수 신청 건에도 적용한다. */
+function confirmRepairVisitDate(orderCode, claimId) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.visitStatus !== 'proposed') return;
+    claim.visitStatus = 'confirmed';
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_VISIT_CONFIRM', `[${order.clientName}] 고객님이 하자보수("${claim.title}") 방문 일정을 확정했습니다: ${claim.visitDate}`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 하자보수("${claim.title}") 방문 일정을 확정했어요: ${claim.visitDate}`);
+    showToast('방문 일정을 확정했습니다.', 'success');
+    selectMyPageEstimate(orderCode);
+}
+
+function declineRepairVisitDate(orderCode, claimId, reason) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.visitStatus !== 'proposed') return;
+    claim.visitStatus = 'declined';
+    claim.visitDeclineReason = reason;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_VISIT_DECLINE', `[${order.clientName}] 고객님이 하자보수("${claim.title}") 방문 일정을 거절했습니다. 사유: ${reason}`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 하자보수("${claim.title}") 방문 일정을 거절했어요. 사유: ${reason}`);
+    showToast('방문 일정을 거절했습니다.', 'info');
+    selectMyPageEstimate(orderCode);
 }
 
 /* 계약 체결 후 실측 일정·착공일 변경·금액 변경·마일스톤 청구는 모두 각자 전용
@@ -4015,6 +4048,8 @@ window.setClientBidSortMode = setClientBidSortMode;
 window.toggleBidCompareSelection = toggleBidCompareSelection;
 window.openBidCompareModal = openBidCompareModal;
 window.sendClientOrderMessage = sendClientOrderMessage;
+window.confirmRepairVisitDate = confirmRepairVisitDate;
+window.declineRepairVisitDate = declineRepairVisitDate;
 window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
