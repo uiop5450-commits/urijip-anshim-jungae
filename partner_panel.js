@@ -5167,6 +5167,31 @@ function computePartnerMetrics(partnerName) {
     return { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders, favoriteClientCount };
 }
 
+/* favoriteClientCount는 "몇 명이 나를 찜했는지" 숫자만 보여줄 뿐, 그 숫자를 만든
+ * toggleFavoritePartner(client_panel.js)를 클릭한 고객이 정확히 누구인지는 파트너가
+ * 끝내 알 수 없었다 — 파트너 본인이 고르는 단골 고객 목록(favoriteClients,
+ * toggleFavoriteClient)과는 정반대 방향의 데이터다. 이미 관심을 보인 고객을
+ * 바로 단골로 전환할 수 있게 한다. */
+function getPartnerFavoritedByClients(partnerName) {
+    return (window.AppState.clientAccounts || [])
+        .filter(a => !a.managerRole && (a.favoritePartners || []).includes(partnerName))
+        .map(a => ({ id: a.id, name: a.name, phone: a.phone }));
+}
+
+function buildPartnerFavoritedByClientsHtml(partnerName) {
+    const clients = getPartnerFavoritedByClients(partnerName);
+    if (clients.length === 0) {
+        return `<p class="text-[10px] text-ink-400 font-semibold">아직 나를 관심 등록한 고객이 없습니다.</p>`;
+    }
+    return `<div class="space-y-1.5">${clients.map(c => {
+        const alreadyFavorited = isClientFavorited(c.phone);
+        return `<div class="flex items-center justify-between p-2.5 bg-ink-50 rounded-xl">
+            <p class="text-xs font-black text-ink-900">${escapeHtml(maskName(c.name))}</p>
+            <button type="button" onclick="toggleFavoriteClient('${escapeHtml(c.phone)}', '${escapeHtml(c.name)}')" class="text-[10px] font-bold ${alreadyFavorited ? 'text-ink-400' : 'text-brand-600'} hover:underline bg-transparent border-0 cursor-pointer p-0">${alreadyFavorited ? '단골 등록됨' : '단골로 저장'}</button>
+        </div>`;
+    }).join('')}</div>`;
+}
+
 function buildPartnerContractedOrdersListHtml(contractedOrders, partnerName) {
     if (contractedOrders.length === 0) return `<div class="p-4 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center text-xs text-ink-400 font-bold">최근 체결된 안심 계약 내역이 없습니다.</div>`;
     return contractedOrders.map(o => {
@@ -5232,6 +5257,10 @@ function openPartnerMetricsModal(partnerName) {
                     <div class="article-spec-chip"><span>관심 고객 수</span><span class="val">${favoriteClientCount} 명</span></div>
                 </div>
                 <div class="space-y-2.5 pt-2">
+                    <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="heart" class="w-4 h-4 text-roseCustom"></i> 나를 관심 등록한 고객 (${favoriteClientCount}명)</h4>
+                    ${buildPartnerFavoritedByClientsHtml(partnerName)}
+                </div>
+                <div class="space-y-2.5 pt-2">
                     <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="file-check" class="w-4 h-4 text-ink-600"></i> 최근 안심 계약 체결 및 안심 문서 검증 (${contractedCount}건)</h4>
                     <div class="space-y-2">${contractedListHtml}</div>
                 </div>
@@ -5293,6 +5322,10 @@ function renderPartnerPerformanceView() {
                 <div class="article-spec-chip"><span>수수료 지불완료</span><span class="val">₩ ${totalCommissionPaid.toLocaleString()} 만원</span></div>
                 <div class="article-spec-chip"><span>보증 에스크로 잔액</span><span class="val">₩ ${pendingEscrow.toLocaleString()} 만원</span></div>
                 <div class="article-spec-chip"><span>관심 고객 수</span><span class="val">${favoriteClientCount} 명</span></div>
+            </div>
+            <div class="space-y-2.5 pt-2">
+                <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="heart" class="w-4 h-4 text-roseCustom"></i> 나를 관심 등록한 고객 (${favoriteClientCount}명)</h4>
+                ${buildPartnerFavoritedByClientsHtml(partnerName)}
             </div>
             <div class="space-y-2.5 pt-2">
                 <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="file-check" class="w-4 h-4 text-ink-600"></i> 최근 안심 계약 체결 및 안심 문서 검증 (${contractedCount}건)</h4>
