@@ -823,6 +823,36 @@ function renderPartnerInvalidatedBidsStatus(partnerName) {
     }).join('');
 }
 
+/* 안심 인증(isCertified)이 만료일 없는 영구 boolean이었다가 방금 만료일 관리가
+ * 생겼으니(sweepExpiredPartnerCertifications, partner_panel.js), 파트너 본인이
+ * 마이인포에서 만료 임박/만료 상태를 확인하고 갱신을 요청할 수 있게 한다. */
+function renderPartnerCertStatus(partner) {
+    const container = document.getElementById('partner-cert-status');
+    if (!container) return;
+
+    if (!partner.isCertified && !partner.certExpiryDate) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">현재 안심 인증 대상이 아닙니다.</p>`;
+        return;
+    }
+    const today = getLocalDateString();
+    const isExpired = partner.certExpiryDate && partner.certExpiryDate < today;
+    const daysLeft = partner.certExpiryDate ? Math.ceil((new Date(partner.certExpiryDate) - new Date(today)) / (1000 * 60 * 60 * 24)) : null;
+    const isExpiringSoon = !isExpired && daysLeft !== null && daysLeft <= 30;
+
+    let statusHtml;
+    if (isExpired) {
+        statusHtml = `<p class="text-[10px] font-black text-roseCustom">인증이 만료되었습니다. (만료일: ${partner.certExpiryDate})</p>`;
+    } else if (isExpiringSoon) {
+        statusHtml = `<p class="text-[10px] font-black text-amberCustom">인증 만료 임박 (D-${daysLeft}, 만료일: ${partner.certExpiryDate})</p>`;
+    } else {
+        statusHtml = `<p class="text-[10px] font-bold text-emeraldCustom">안심 인증 유효 (만료일: ${partner.certExpiryDate})</p>`;
+    }
+
+    const showRenewBtn = (isExpired || isExpiringSoon) && !partner.certRenewalRequested;
+    container.innerHTML = `${statusHtml}
+        ${partner.certRenewalRequested ? `<p class="text-[10px] font-bold text-brand-600 mt-1">갱신 요청 접수됨 — 매니저 센터 검토 중입니다.</p>` : (showRenewBtn ? `<button type="button" onclick="requestPartnerCertRenewal()" class="btn btn-secondary btn-sm mt-1">인증 갱신 요청</button>` : '')}`;
+}
+
 function renderPartnerProfileManager() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -840,6 +870,7 @@ function renderPartnerProfileManager() {
     renderPartnerStrikeAppealStatus(partner);
     renderPartnerReportedStatus(partnerName);
     renderPartnerInvalidatedBidsStatus(partnerName);
+    renderPartnerCertStatus(partner);
     safeUpdateText('partner-account-bizcert-filename', partner.bizCertDoc ? partner.bizCertDoc.name : '첨부된 사업자등록증이 없습니다.');
 
     const img = document.getElementById('partner-hero-slide-img');
@@ -1984,6 +2015,7 @@ window.openInvalidatedBidAppealModal = openInvalidatedBidAppealModal;
 window.closeInvalidatedBidAppealModal = closeInvalidatedBidAppealModal;
 window.submitInvalidatedBidAppeal = submitInvalidatedBidAppeal;
 window.renderPartnerInvalidatedBidsStatus = renderPartnerInvalidatedBidsStatus;
+window.renderPartnerCertStatus = renderPartnerCertStatus;
 window.togglePartnerNotificationPref = togglePartnerNotificationPref;
 window.updatePartnerPassword = updatePartnerPassword;
 window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;

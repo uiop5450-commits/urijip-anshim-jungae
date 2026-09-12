@@ -1021,6 +1021,7 @@ function validatePartnerLogin() {
     const errorMsg = document.getElementById('login-error-msg');
     if (!idInput || !pwInput) return;
 
+    if (typeof sweepExpiredPartnerCertifications === 'function') sweepExpiredPartnerCertifications();
     document.getElementById('partner-reapply-btn')?.classList.add('hidden');
     const partner = window.AppState.partners.find(p => p.id === idInput.value.trim() && p.pw === pwInput.value.trim());
 
@@ -3495,6 +3496,7 @@ function setAdminPartnerMonitorRegionFilter(region) {
 function renderAdminPartnerMonitor() {
     const container = document.getElementById('admin-partner-monitor-list');
     if (!container) return;
+    if (typeof sweepExpiredPartnerCertifications === 'function') sweepExpiredPartnerCertifications();
     const input = document.getElementById('admin-partner-search');
     const query = input ? input.value.trim().toLowerCase() : '';
     const sortSelect = document.getElementById('admin-partner-sort');
@@ -3558,7 +3560,7 @@ function renderAdminPartnerMonitor() {
             <div class="space-y-3">
                 <div class="flex justify-between items-start gap-2">
                     <div class="space-y-1">
-                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증</span>` : ''}${p.isPaused ? `<span class="badge badge-amber"><i data-lucide="pause-circle" class="w-2.5 h-2.5"></i> 매칭 일시중단</span>` : ''}${myPartnerReports.length > 0 ? `<span class="badge badge-rose">고객 신고 ${myPartnerReports.length}건</span>` : ''}</div>
+                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증${p.certExpiryDate ? ` (~${p.certExpiryDate})` : ''}</span>` : ''}${p.isPaused ? `<span class="badge badge-amber"><i data-lucide="pause-circle" class="w-2.5 h-2.5"></i> 매칭 일시중단</span>` : ''}${myPartnerReports.length > 0 ? `<span class="badge badge-rose">고객 신고 ${myPartnerReports.length}건</span>` : ''}${p.certRenewalRequested ? `<span class="badge badge-amber">인증 갱신 요청</span>` : ''}</div>
                         <h4 class="text-sm font-black text-ink-950">${p.name}</h4>
                         <p class="text-[10px] text-ink-400 font-mono">사업자 번호: ${p.bizFile || '미등록'}</p>
                     </div>
@@ -4567,14 +4569,84 @@ function adminRejectStrikeAppeal(partnerName, reason) {
     renderAdminStrikeAppeals();
 }
 
+/* 인증 부여(togglePartnerCertification)가 지금까지 만료 없는 영구 boolean이라,
+ * 실제 자격증·면허 갱신 없이도 인증이 평생 유지되는 공백이 있었다 — 매니저 권한
+ * 만료(sweepExpiredManagerRoles)와 동일하게 접근 시점에 만료를 검사해 자동
+ * 회수하고, 파트너가 직접 갱신을 요청할 수 있게 한다. */
 function togglePartnerCertification(partnerName) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
-    partner.isCertified = !partner.isCertified;
-    showToast(`[${partnerName}] 파트너사의 안심 인증 상태가 변경되었습니다.`, "info");
+    if (!partner.isCertified) {
+        openPartnerCertGrantModal(partnerName);
+        return;
+    }
+    partner.isCertified = false;
+    partner.certExpiryDate = null;
+    partner.certRenewalRequested = false;
+    showToast(`[${partnerName}] 파트너사의 안심 인증이 해제되었습니다.`, "info");
     renderAdminPartnerMonitor();
     if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
     if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+}
+
+let partnerCertGrantTarget = null;
+
+function openPartnerCertGrantModal(partnerName) {
+    partnerCertGrantTarget = partnerName;
+    const oneYearLater = new Date();
+    oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
+    safeUpdateValue('partner-cert-expiry-input', oneYearLater.toISOString().slice(0, 10));
+    openModal('partner-cert-grant-modal', 'partner-cert-grant-modal-card');
+}
+
+function closePartnerCertGrantModal() {
+    partnerCertGrantTarget = null;
+    closeModal('partner-cert-grant-modal', 'partner-cert-grant-modal-card');
+}
+
+function submitPartnerCertGrant() {
+    const partner = window.AppState.partners.find(p => p.name === partnerCertGrantTarget);
+    if (!partner) { closePartnerCertGrantModal(); return; }
+    const expiryDate = document.getElementById('partner-cert-expiry-input')?.value;
+    if (!expiryDate) { showToast('인증 만료일을 선택해주세요.', 'warning'); return; }
+
+    partner.isCertified = true;
+    partner.certExpiryDate = expiryDate;
+    partner.certRenewalRequested = false;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CERT_GRANT', `'${partner.name}' 파트너사에 안심 인증을 부여했습니다. (만료일: ${expiryDate})`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `안심 인증이 부여되었습니다. (만료일: ${expiryDate})`);
+    showToast(`[${partner.name}] 파트너사에 안심 인증을 부여했습니다.`, 'success');
+
+    closePartnerCertGrantModal();
+    renderAdminPartnerMonitor();
+    if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+}
+
+function sweepExpiredPartnerCertifications() {
+    const today = getLocalDateString();
+    (window.AppState.partners || []).forEach(p => {
+        if (p.isCertified && p.certExpiryDate && p.certExpiryDate < today) {
+            p.isCertified = false;
+            if (typeof pushLog === 'function') pushLog('MANAGER', 'CERT_EXPIRE', `'${p.name}' 파트너사의 안심 인증이 만료일(${p.certExpiryDate})을 지나 자동 해제되었습니다.`, 'WARNING');
+            if (typeof pushPartnerNotification === 'function') pushPartnerNotification(p.name, `안심 인증 만료일이 지나 인증이 자동 해제되었습니다. 갱신을 원하시면 마이인포에서 갱신을 요청해주세요.`);
+        }
+    });
+}
+
+/* 파트너가 마이인포에서 인증 만료 임박/만료 상태를 확인하고 직접 갱신을 요청할 수
+ * 있게 한다 — 지금까지는 관리자가 먼저 알아채야만 재인증이 가능했다. */
+function requestPartnerCertRenewal() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || partner.certRenewalRequested) return;
+    partner.certRenewalRequested = true;
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'CERT_RENEWAL_REQUEST', `[${partnerName}]가 안심 인증 갱신을 요청했습니다.`, 'WARNING');
+    showToast('인증 갱신을 요청했습니다. 매니저 센터에서 검토 후 재인증해드릴게요.', 'success');
+    if (typeof renderPartnerCertStatus === 'function') renderPartnerCertStatus(partner);
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
 }
 
 /* ----------------------------------------------------------------
@@ -5316,6 +5388,11 @@ window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
 window.resetPartnerStrikes = resetPartnerStrikes;
 window.togglePartnerCertification = togglePartnerCertification;
+window.openPartnerCertGrantModal = openPartnerCertGrantModal;
+window.closePartnerCertGrantModal = closePartnerCertGrantModal;
+window.submitPartnerCertGrant = submitPartnerCertGrant;
+window.sweepExpiredPartnerCertifications = sweepExpiredPartnerCertifications;
+window.requestPartnerCertRenewal = requestPartnerCertRenewal;
 window.renderAdminStrikeAppeals = renderAdminStrikeAppeals;
 window.adminApproveStrikeAppeal = adminApproveStrikeAppeal;
 window.adminRejectStrikeAppeal = adminRejectStrikeAppeal;

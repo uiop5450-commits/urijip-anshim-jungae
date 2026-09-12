@@ -812,6 +812,14 @@
                         <div id="partner-invalidated-bids-status"></div>
                     </div>
 
+                    <div class="surface surface-lg p-6 sm:p-8 space-y-3 text-left">
+                        <div>
+                            <h4 class="text-sm font-black text-ink-950 tracking-tight flex items-center gap-1.5"><i data-lucide="verified" class="w-4 h-4 text-brand-500"></i> 안심 인증 상태</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">우리집 안심 인증 만료 임박 또는 만료 시 갱신을 요청할 수 있어요.</p>
+                        </div>
+                        <div id="partner-cert-status"></div>
+                    </div>
+
                     <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-4">
                             <div>
@@ -1732,6 +1740,20 @@
                 <div><label class="field-label">새 계약 금액 (만원)</label><input type="number" id="partner-price-change-amount-input" min="1" class="input"></div>
                 <div><label class="field-label">변경 사유</label><textarea id="partner-price-change-reason-input" rows="3" placeholder="추가 공사, 자재 변경 등 금액 변경이 필요한 사유를 적어주세요." class="textarea"></textarea></div>
                 <button type="button" onclick="submitPartnerPriceChangeRequest()" class="btn btn-primary btn-block">변경 요청 보내기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="partner-cert-grant-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="partner-cert-grant-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-brand">안심 인증 부여</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">인증 만료일을 지정합니다</h3></div>
+                <button type="button" onclick="closePartnerCertGrantModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">만료일이 지나면 인증이 자동으로 해제됩니다. 파트너가 마이인포에서 갱신을 요청할 수 있어요.</p>
+                <div><label class="field-label">인증 만료일</label><input type="date" id="partner-cert-expiry-input" class="input"></div>
+                <button type="button" onclick="submitPartnerCertGrant()" class="btn btn-primary btn-block">인증 부여하기</button>
             </div>
         </div>
     </div>
