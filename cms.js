@@ -620,6 +620,17 @@ function renderPartnerNotificationPrefToggle(partner) {
     btn.textContent = enabled ? '켜짐' : '꺼짐';
     btn.classList.toggle('btn-dark', enabled);
     btn.classList.toggle('btn-secondary', !enabled);
+
+    ['community', 'marketing'].forEach(category => {
+        const catBtn = document.getElementById(`partner-notif-pref-${category}-toggle`);
+        if (!catBtn) return;
+        const field = category === 'community' ? 'notifyCommunity' : 'notifyMarketing';
+        const catEnabled = enabled && partner[field] !== false;
+        catBtn.disabled = !enabled;
+        catBtn.textContent = catEnabled ? '켜짐' : '꺼짐';
+        catBtn.classList.toggle('btn-dark', catEnabled);
+        catBtn.classList.toggle('btn-secondary', !catEnabled);
+    });
 }
 
 function togglePartnerNotificationPref() {
@@ -629,6 +640,19 @@ function togglePartnerNotificationPref() {
     const currentlyEnabled = partner.notificationsEnabled !== false;
     partner.notificationsEnabled = !currentlyEnabled;
     showToast(partner.notificationsEnabled ? '알림을 다시 받아요.' : '알림 수신을 꺼두었어요.', partner.notificationsEnabled ? 'success' : 'info');
+    renderPartnerNotificationPrefToggle(partner);
+}
+
+/* 클라이언트 쪽과 동일하게, 파트너도 필수 알림(계약/분쟁/제재)은 유지한 채
+ * 고객 커뮤니티 참여 알림이나 프로모션성 알림만 따로 끌 수 있게 한다. */
+function togglePartnerNotificationCategory(category) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    const field = category === 'community' ? 'notifyCommunity' : 'notifyMarketing';
+    const currentlyEnabled = partner[field] !== false;
+    partner[field] = !currentlyEnabled;
+    showToast(partner[field] ? '알림을 다시 받아요.' : '알림 수신을 꺼두었어요.', partner[field] ? 'success' : 'info');
     renderPartnerNotificationPrefToggle(partner);
 }
 
@@ -2020,7 +2044,7 @@ function handleBlogLikeClick() {
         // 커뮤니티 글 좋아요(toggleCommunityLike)는 작성자에게 알림이 가는데
         // 시공사례 좋아요는 조용히 쌓이기만 해서 파트너가 반응을 알 방법이 없었다 —
         // 동일하게 좋아요가 "새로" 눌렸을 때만(취소 시엔 제외) 알린다.
-        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `고객님이 시공사례 "${port.title || '-'}"에 좋아요를 눌렀어요.`);
+        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `고객님이 시공사례 "${port.title || '-'}"에 좋아요를 눌렀어요.`, null, 'community');
     }
     renderBlogLikeButton(port.likes || 0);
 }
@@ -2209,6 +2233,7 @@ window.renderPartnerCertStatus = renderPartnerCertStatus;
 window.renderPartnerBenefitsStatus = renderPartnerBenefitsStatus;
 window.claimPartnerBenefit = claimPartnerBenefit;
 window.togglePartnerNotificationPref = togglePartnerNotificationPref;
+window.togglePartnerNotificationCategory = togglePartnerNotificationCategory;
 window.updatePartnerPassword = updatePartnerPassword;
 window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;
 window.openPartnerAccountCloseModal = openPartnerAccountCloseModal;

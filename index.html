@@ -657,6 +657,14 @@
                             <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">알림 받기</p><p class="text-[10px] text-ink-500 font-semibold">매칭·계약·후기 등 모든 알림을 켜거나 끌 수 있어요.</p></div>
                             <button type="button" id="client-notif-pref-toggle" onclick="toggleClientNotificationPref()" class="btn btn-secondary btn-sm">켜짐</button>
                         </div>
+                        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl">
+                            <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">커뮤니티 알림</p><p class="text-[10px] text-ink-500 font-semibold">내 게시글의 좋아요·댓글·답변 알림만 따로 끌 수 있어요.</p></div>
+                            <button type="button" id="client-notif-pref-community-toggle" onclick="toggleClientNotificationCategory('community')" class="btn btn-secondary btn-sm">켜짐</button>
+                        </div>
+                        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl">
+                            <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">프로모션 알림</p><p class="text-[10px] text-ink-500 font-semibold">파트너의 견적 제안 등 프로모션성 알림만 따로 끌 수 있어요.</p></div>
+                            <button type="button" id="client-notif-pref-marketing-toggle" onclick="toggleClientNotificationCategory('marketing')" class="btn btn-secondary btn-sm">켜짐</button>
+                        </div>
                     </div>
                     <div class="space-y-3 pt-2">
                         <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="gift" class="w-4 h-4 text-brand-500"></i> 내 혜택함</h4>
@@ -806,13 +814,21 @@
                         </div>
                     </div>
 
-                    <div class="surface surface-lg p-6 sm:p-8 text-left">
+                    <div class="surface surface-lg p-6 sm:p-8 space-y-4 text-left">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                             <div class="space-y-0.5">
                                 <h4 class="text-sm font-black text-ink-950 tracking-tight flex items-center gap-1.5"><i data-lucide="bell" class="w-4 h-4 text-brand-500"></i> 알림 수신 설정</h4>
                                 <p class="text-[11px] text-ink-500 font-medium">매칭·계약·후기 등 모든 알림을 켜거나 끌 수 있어요.</p>
                             </div>
                             <button type="button" id="partner-notif-pref-toggle" onclick="togglePartnerNotificationPref()" class="btn btn-dark shrink-0">켜짐</button>
+                        </div>
+                        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl">
+                            <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">커뮤니티 알림</p><p class="text-[10px] text-ink-500 font-semibold">시공사례 좋아요·문의 등 커뮤니티 활동 알림만 따로 끌 수 있어요.</p></div>
+                            <button type="button" id="partner-notif-pref-community-toggle" onclick="togglePartnerNotificationCategory('community')" class="btn btn-secondary btn-sm">켜짐</button>
+                        </div>
+                        <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl">
+                            <div class="space-y-0.5"><p class="text-xs font-black text-ink-900">프로모션 알림</p><p class="text-[10px] text-ink-500 font-semibold">추천인 혜택 적립 등 프로모션성 알림만 따로 끌 수 있어요.</p></div>
+                            <button type="button" id="partner-notif-pref-marketing-toggle" onclick="togglePartnerNotificationCategory('marketing')" class="btn btn-secondary btn-sm">켜짐</button>
                         </div>
                     </div>
 

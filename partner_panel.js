@@ -1292,7 +1292,7 @@ function invitePartnerFavoriteClient(clientPhone, clientName) {
 
     entry.lastInvitedDate = getLocalDateString();
     if (typeof pushLog === 'function') pushLog('PARTNER', 'FAVORITE_CLIENT_INVITE', `[${partnerName}]가 단골 고객(${clientName})에게 견적 제안을 보냈습니다.`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(clientPhone, `${partnerName}에서 인테리어 견적 상담을 제안했어요. 관심 있으시면 견적 요청을 보내보세요!`, { invitingPartner: partnerName });
+    if (typeof pushClientNotification === 'function') pushClientNotification(clientPhone, `${partnerName}에서 인테리어 견적 상담을 제안했어요. 관심 있으시면 견적 요청을 보내보세요!`, { invitingPartner: partnerName }, 'marketing');
     showToast(`[${clientName}]님에게 견적 제안을 보냈습니다.`, 'success');
     if (typeof renderPartnerPerformanceView === 'function' && window.AppState.partnerConsoleMode === 'performance') renderPartnerPerformanceView();
 }

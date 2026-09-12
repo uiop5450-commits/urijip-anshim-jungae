@@ -2800,6 +2800,17 @@ function renderClientNotificationPrefToggle() {
     btn.textContent = enabled ? '켜짐' : '꺼짐';
     btn.classList.toggle('btn-dark', enabled);
     btn.classList.toggle('btn-secondary', !enabled);
+
+    ['community', 'marketing'].forEach(category => {
+        const catBtn = document.getElementById(`client-notif-pref-${category}-toggle`);
+        if (!catBtn) return;
+        const field = category === 'community' ? 'notifyCommunity' : 'notifyMarketing';
+        const catEnabled = enabled && (!account || account[field] !== false);
+        catBtn.disabled = !enabled;
+        catBtn.textContent = catEnabled ? '켜짐' : '꺼짐';
+        catBtn.classList.toggle('btn-dark', catEnabled);
+        catBtn.classList.toggle('btn-secondary', !catEnabled);
+    });
 }
 
 function toggleClientNotificationPref() {
@@ -2809,6 +2820,20 @@ function toggleClientNotificationPref() {
     const currentlyEnabled = account.notificationsEnabled !== false;
     account.notificationsEnabled = !currentlyEnabled;
     showToast(account.notificationsEnabled ? '알림을 다시 받아요.' : '알림 수신을 꺼두었어요.', account.notificationsEnabled ? 'success' : 'info');
+    renderClientNotificationPrefToggle();
+}
+
+/* "전체 on/off" 하나뿐이라, 계약/분쟁 같은 필수 알림을 계속 받으면서 커뮤니티
+ * 활동 알림이나 파트너 프로모션성 알림만 따로 끄고 싶어도 방법이 없었다 —
+ * pushClientNotification의 category 인자와 짝을 이루는 세분화 토글을 둔다. */
+function toggleClientNotificationCategory(category) {
+    const auth = window.AppState.clientAuth;
+    const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
+    if (!account) return;
+    const field = category === 'community' ? 'notifyCommunity' : 'notifyMarketing';
+    const currentlyEnabled = account[field] !== false;
+    account[field] = !currentlyEnabled;
+    showToast(account[field] ? '알림을 다시 받아요.' : '알림 수신을 꺼두었어요.', account[field] ? 'success' : 'info');
     renderClientNotificationPrefToggle();
 }
 
@@ -4617,7 +4642,7 @@ function notifyCommunityPostAuthor(post, message) {
     if (!post || !post.authorId || post.authorId === auth.id) return;
     const authorAccount = (window.AppState.clientAccounts || []).find(a => a.id === post.authorId);
     if (authorAccount && authorAccount.phone && typeof pushClientNotification === 'function') {
-        pushClientNotification(authorAccount.phone, message);
+        pushClientNotification(authorAccount.phone, message, null, 'community');
     }
 }
 
@@ -4796,6 +4821,7 @@ window.clearAllClientNotifications = clearAllClientNotifications;
 window.renderClientAccountSettings = renderClientAccountSettings;
 window.renderClientNotificationPrefToggle = renderClientNotificationPrefToggle;
 window.toggleClientNotificationPref = toggleClientNotificationPref;
+window.toggleClientNotificationCategory = toggleClientNotificationCategory;
 window.updateClientProfileInfo = updateClientProfileInfo;
 window.updateClientPassword = updateClientPassword;
 window.openAccountDeleteModal = openAccountDeleteModal;
