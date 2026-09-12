@@ -653,11 +653,19 @@ function exportClientOrderHistoryToCsv() {
         : o.status === 'cancelled' ? '계약 취소됨'
         : o.status === 'contracted' ? '계약 체결'
         : '입찰 심사중';
+    // 계약금액만으로는 실제로 얼마나 납부됐는지 알 수 없다 — 마일스톤 결제 기록이
+    // 있는 계약 건은 "완납 2/3건"처럼 진행 상황을 함께 보여준다.
+    const paymentStatusLabel = (o) => {
+        const milestones = o.paymentMilestones;
+        if (!milestones || milestones.length === 0) return '-';
+        const paidCount = milestones.filter(m => m.status === 'paid').length;
+        return `완납 ${paidCount}/${milestones.length}건`;
+    };
 
     const escapeCsvCell = (val) => `"${String(val == null ? '' : val).replace(/"/g, '""')}"`;
-    const header = ['의뢰코드', '시공장소', '상태', '계약파트너', '계약금액(만원)', '접수일'].map(escapeCsvCell).join(',');
+    const header = ['의뢰코드', '시공장소', '상태', '계약파트너', '계약금액(만원)', '결제현황', '접수일'].map(escapeCsvCell).join(',');
     const rows = myOrders.map(o => [
-        o.code, o.clientAddress, statusLabel(o), o.acceptedPartner || '-', o.finalPrice || 0, o.preferredDate || '-'
+        o.code, o.clientAddress, statusLabel(o), o.acceptedPartner || '-', o.finalPrice || 0, paymentStatusLabel(o), o.preferredDate || '-'
     ].map(escapeCsvCell).join(','));
     const csv = '﻿' + [header, ...rows].join('\r\n');
 
