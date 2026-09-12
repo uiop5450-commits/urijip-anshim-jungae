@@ -1885,7 +1885,8 @@ function openSiteVisitModal(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
-    if (order.siteVisit && (order.siteVisit.status === 'proposed' || order.siteVisit.status === 'confirmed')) { showToast('이미 제안했거나 확정된 실측 일정이 있어요.', 'warning'); return; }
+    if (order.siteVisit && order.siteVisit.status === 'proposed') { showToast('이미 고객 확인을 기다리는 실측 일정이 있어요.', 'warning'); return; }
+    if (order.siteVisit && order.siteVisit.status === 'completed') { showToast('이미 완료 처리된 실측 방문이에요.', 'info'); return; }
     siteVisitTargetCode = orderCode;
     safeUpdateValue('site-visit-date-input', '');
     safeUpdateValue('site-visit-note-input', '');
@@ -1905,13 +1906,36 @@ function submitSiteVisitProposal() {
     const note = document.getElementById('site-visit-note-input')?.value.trim();
     if (!date) { showToast('실측 방문 희망일을 선택해주세요.', 'warning'); return; }
 
-    order.siteVisit = { status: 'proposed', proposedDate: date, note, confirmedDate: null };
+    // 이미 확정된 일정을 뒤엎고 새로 제안하는 경우("일정 변경")와, 처음/재거절 후
+    // 새로 제안하는 경우를 구분해서 알림 문구를 다르게 준다 — 고객 입장에서 "확정된
+    // 일정이 갑자기 바뀌었다"는 사실을 명확히 알아야 하기 때문.
+    const isReschedule = order.siteVisit && order.siteVisit.status === 'confirmed';
+    order.siteVisit = { status: 'proposed', proposedDate: date, note, confirmedDate: null, completedDate: null };
 
-    if (typeof pushLog === 'function') pushLog('PARTNER', 'SITE_VISIT_PROPOSE', `[${partnerName}]가 오더(${order.code}) 실측 방문 일정을 제안했습니다: ${date}`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}가 실측 방문 일정을 제안했어요: ${date}${note ? ` (${note})` : ''}`);
-    showToast('실측 방문 일정을 제안했습니다. 고객 확인을 기다려주세요.', 'success');
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'SITE_VISIT_PROPOSE', `[${partnerName}]가 오더(${order.code}) 실측 방문 일정을 ${isReschedule ? '변경 제안' : '제안'}했습니다: ${date}`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, isReschedule
+        ? `${partnerName}가 확정된 실측 방문 일정을 ${date}로 변경 제안했어요. 다시 확인해 주세요.${note ? ` (${note})` : ''}`
+        : `${partnerName}가 실측 방문 일정을 제안했어요: ${date}${note ? ` (${note})` : ''}`);
+    showToast(isReschedule ? '실측 방문 일정 변경을 제안했습니다. 고객 재확인을 기다려주세요.' : '실측 방문 일정을 제안했습니다. 고객 확인을 기다려주세요.', 'success');
 
     closeSiteVisitModal();
+    openPartnerOrderDetailModal(order.code);
+}
+
+/* 실측 방문이 확정(confirmed)되면 그 다음부터는 아무 조치도 취할 수 없어서 —
+ * 실제로 방문을 다녀왔어도 그 사실을 기록할 방법이 없이 상태가 영구히
+ * "확정됨"에 멈춰 있었다. 파트너가 완료 처리로 마무리할 수 있게 한다. */
+function completeSiteVisit(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
+    if (!order.siteVisit || order.siteVisit.status !== 'confirmed') return;
+    order.siteVisit.status = 'completed';
+    order.siteVisit.completedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'SITE_VISIT_COMPLETE', `[${partnerName}]가 오더(${order.code}) 실측 방문을 완료 처리했습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `실측 방문이 완료 처리되었습니다.`);
+    showToast('실측 방문을 완료 처리했습니다.', 'success');
     openPartnerOrderDetailModal(order.code);
 }
 
@@ -1922,15 +1946,18 @@ function buildPartnerSiteVisitHtml(order) {
     if (visit && visit.status === 'proposed') {
         statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">고객 확인 대기중: ${visit.proposedDate}${visit.note ? ` (${escapeHtml(visit.note)})` : ''}</p>`;
     } else if (visit && visit.status === 'confirmed') {
-        statusHtml = `<p class="text-[10px] font-black text-emeraldCustom mt-1">확정됨: ${visit.confirmedDate}</p>`;
+        statusHtml = `<div class="mt-1 space-y-1.5"><p class="text-[10px] font-black text-emeraldCustom">확정됨: ${visit.confirmedDate}</p><button type="button" onclick="completeSiteVisit('${order.code}')" class="btn btn-dark btn-sm">방문 완료 처리</button></div>`;
+    } else if (visit && visit.status === 'completed') {
+        statusHtml = `<p class="text-[10px] font-black text-ink-500 mt-1">실측 완료됨: ${visit.completedDate}</p>`;
     } else if (visit && visit.status === 'declined') {
         statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">고객이 거절했어요${visit.declineReason ? ` — ${escapeHtml(visit.declineReason)}` : ''}. 새 일정을 다시 제안해주세요.</p>`;
     }
-    const showBtn = !visit || visit.status === 'none' || visit.status === 'declined';
+    const showBtn = !visit || visit.status === 'none' || visit.status === 'declined' || visit.status === 'confirmed';
+    const btnLabel = visit && visit.status === 'confirmed' ? '일정 변경 제안' : '일정 제안하기';
     return `<div class="surface p-5 space-y-2">
         <div class="flex items-center justify-between">
             <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="ruler" class="w-4 h-4 text-brand-500"></i> 실측 방문 일정</h5>
-            ${showBtn ? `<button type="button" onclick="openSiteVisitModal('${order.code}')" class="btn btn-secondary btn-sm">일정 제안하기</button>` : ''}
+            ${showBtn ? `<button type="button" onclick="openSiteVisitModal('${order.code}')" class="btn btn-secondary btn-sm">${btnLabel}</button>` : ''}
         </div>
         ${statusHtml || `<p class="text-[10px] text-ink-400 font-semibold">아직 제안한 실측 일정이 없습니다.</p>`}
     </div>`;
@@ -5993,6 +6020,7 @@ window.requestPaymentMilestone = requestPaymentMilestone;
 window.openSiteVisitModal = openSiteVisitModal;
 window.closeSiteVisitModal = closeSiteVisitModal;
 window.submitSiteVisitProposal = submitSiteVisitProposal;
+window.completeSiteVisit = completeSiteVisit;
 window.buildPartnerSiteVisitHtml = buildPartnerSiteVisitHtml;
 window.withdrawMyPartnerBid = withdrawMyPartnerBid;
 window.replyToBidQuestion = replyToBidQuestion;

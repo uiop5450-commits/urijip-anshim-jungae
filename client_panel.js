@@ -833,6 +833,8 @@ function buildClientSiteVisitHtml(order) {
             <div class="flex gap-1.5 mt-1.5"><button type="button" onclick="confirmSiteVisit('${order.code}')" class="btn btn-dark btn-sm flex-1">일정 확정</button><button type="button" onclick="openReportReasonPrompt((reason) => declineSiteVisit('${order.code}', reason))" class="btn btn-secondary btn-sm flex-1">거절</button></div>`;
     } else if (visit && visit.status === 'confirmed') {
         bodyHtml = `<p class="text-[10px] font-black text-emeraldCustom">실측 방문 일정 확정됨: ${visit.confirmedDate}</p>`;
+    } else if (visit && visit.status === 'completed') {
+        bodyHtml = `<p class="text-[10px] font-black text-ink-500">실측 방문이 완료되었어요: ${visit.completedDate}</p>`;
     } else if (visit && visit.status === 'declined') {
         bodyHtml = `<p class="text-[10px] text-ink-400 font-semibold">제안된 일정을 거절했어요. 파트너사의 새 제안을 기다려주세요.</p>`;
     }
