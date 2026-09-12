@@ -1059,6 +1059,14 @@ function validatePartnerLogin() {
             document.getElementById('partner-reapply-btn')?.classList.remove('hidden');
             return;
         }
+        // 고객 계정 정지(toggleClientSuspension)는 옐로카드 누적 없이도 매니저가 즉시
+        // 잠글 수 있는데, 파트너 쪽은 삼진아웃(영구 제명) 아니면 손 쓸 방법이 없었다
+        // — 조사 중인 파트너를 잠시 막아둘 가역적 수단이 없던 비대칭을 해소한다.
+        if (partner.isSuspended) {
+            showToast("귀사는 매니저 센터에 의해 일시 이용 정지 처리되었습니다.", "warning");
+            showInlineLoginError(errorMsg, "이용 정지된 계정입니다. 자세한 사유는 매니저 센터로 문의해 주세요.", 'pause-circle');
+            return;
+        }
         window.AppState.partnerLoggedIn = true;
         window.AppState.partnerName = partner.name;
         errorMsg?.classList.add('hidden');
@@ -3551,6 +3559,7 @@ function autoAllocateOrder(orderCode) {
 function getPartnerMonitorStatusKey(p) {
     if (p.status === 'banned') return 'banned';
     if (p.status === 'closed') return 'closed';
+    if (p.isSuspended) return 'suspended';
     if (p.isPaused) return 'paused';
     if (p.strikeCount > 0) return 'warning';
     return 'active';
@@ -3587,6 +3596,7 @@ function renderAdminPartnerMonitor() {
             ['active', '정상', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'active').length],
             ['warning', '경고', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'warning').length],
             ['paused', '일시중단', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'paused').length],
+            ['suspended', '이용 정지', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'suspended').length],
             ['banned', '제명', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'banned').length],
             ['closed', '자진 해지', allPartners.filter(p => getPartnerMonitorStatusKey(p) === 'closed').length]
         ];
@@ -3625,6 +3635,7 @@ function renderAdminPartnerMonitor() {
         let statusDotClass = 'bg-emeraldCustom', statusText = '정상 가동';
         if (isBanned) { statusDotClass = 'bg-roseCustom'; statusText = '영구 제명'; }
         else if (isClosed) { statusDotClass = 'bg-ink-400'; statusText = '자진 해지'; }
+        else if (p.isSuspended) { statusDotClass = 'bg-roseCustom'; statusText = '이용 정지'; }
         else if (isWarning) { statusDotClass = 'bg-amberCustom'; statusText = `옐로카드 ${p.strikeCount}회`; }
 
         const activeBidsCount = (window.AppState.orders || []).filter(o => o.bids && o.bids.some(b => b.partner === p.name)).length;
@@ -3659,6 +3670,7 @@ function renderAdminPartnerMonitor() {
                     <button type="button" onclick="togglePartnerCertification('${p.name}')" class="btn btn-secondary btn-sm">${p.isCertified ? '인증 해제' : '인증 부여'}</button>
                     ${isWarning ? `<button type="button" onclick="resetPartnerStrikes('${p.name}')" class="btn btn-secondary btn-sm">경고 리셋</button>` : ''}
                     ${!isBanned && !isClosed ? `<button type="button" onclick="issuePartnerStrike('${p.name}')" class="btn btn-secondary btn-sm">+ 옐로카드</button>` : ''}
+                    ${!isBanned && !isClosed ? `<button type="button" onclick="togglePartnerSuspension('${p.name}')" class="btn ${p.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${p.isSuspended ? '정지 해제' : '일시 정지'}</button>` : ''}
                 </div>
             </div>`;
         container.appendChild(card);
@@ -4580,6 +4592,24 @@ function resetPartnerStrikes(partnerName) {
     if (wasBanned) partner.status = 'active';
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, wasBanned ? '제명이 해제되고 경고 기록이 초기화되었습니다.' : '경고 기록이 초기화되었습니다.');
     showToast(`[${partnerName}] 파트너사의 경고가 정상 초기화되었습니다.`, "success");
+    renderAdminPartnerMonitor();
+}
+
+/* toggleClientSuspension(고객 계정 즉시 정지)의 파트너 쪽 대칭 기능. 옐로카드는
+ * 영구 기록이라 조사 중인 파트너를 잠시만 막아두기엔 과하고, 삼진아웃(영구 제명)
+ * 전까지는 매니저가 취할 조치가 전혀 없었다 — isSuspended 플래그만으로 로그인을
+ * 막는 가역적인 "일시 정지"를 strikeCount와 완전히 분리해서 추가한다. */
+function togglePartnerSuspension(partnerName) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    partner.isSuspended = !partner.isSuspended;
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_SUSPEND', `'${partner.name}' 파트너 계정을 ${partner.isSuspended ? '이용 정지' : '정지 해제'}했습니다.`, partner.isSuspended ? 'WARNING' : 'INFO');
+    if (typeof pushPartnerNotification === 'function') {
+        pushPartnerNotification(partner.name, partner.isSuspended
+            ? '이용 정지 처리되었습니다. 자세한 사유는 매니저 센터로 문의해 주세요.'
+            : '이용 정지가 해제되었습니다. 다시 서비스를 이용하실 수 있어요.');
+    }
+    showToast(`[${partner.name}] 파트너 계정이 ${partner.isSuspended ? '이용 정지되었습니다' : '정지 해제되었습니다'}.`, partner.isSuspended ? 'warning' : 'success');
     renderAdminPartnerMonitor();
 }
 
@@ -5535,6 +5565,7 @@ window.adminDeletePortfolioQuestion = adminDeletePortfolioQuestion;
 window.downloadEstimateDoc = downloadEstimateDoc;
 window.issuePartnerStrike = issuePartnerStrike;
 window.resetPartnerStrikes = resetPartnerStrikes;
+window.togglePartnerSuspension = togglePartnerSuspension;
 window.togglePartnerCertification = togglePartnerCertification;
 window.openPartnerCertGrantModal = openPartnerCertGrantModal;
 window.closePartnerCertGrantModal = closePartnerCertGrantModal;
