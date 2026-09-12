@@ -711,6 +711,24 @@ function retractRepairClaim(orderCode, claimId) {
     if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
 }
 
+/* 파트너가 하자보수 신청을 반려할 수 있게 됐는데(submitRepairClaimResponse,
+ * partner_panel.js), 그 반려가 부당하다고 느껴도 고객이 할 수 있는 건 없었다 —
+ * 관리자는 반려된 사실조차 파악할 방법이 없어 결국 방치되는 공백이었다. 고객이
+ * 명시적으로 재검토를 요청한 건만 관리자 오더 조회의 분쟁 목록에 노출한다. */
+function escalateRepairClaimToAdmin(orderCode, claimId, note) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.status !== 'rejected' || claim.escalated) return;
+
+    claim.escalated = true;
+    claim.escalationNote = note;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_CLAIM_ESCALATE', `[${order.clientName}] 고객님이 반려된 하자보수 신청("${claim.title}")에 대해 매니저 재검토를 요청했습니다. 사유: ${note}`, 'WARNING');
+    showToast('매니저 센터에 재검토를 요청했습니다.', 'success');
+
+    selectMyPageEstimate(order.code);
+}
+
 function buildRepairClaimsHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
     const statusMeta = {
@@ -729,6 +747,9 @@ function buildRepairClaimsHtml(order) {
             ${c.partnerResponse ? `<p class="text-[10px] text-brand-600 font-bold leading-relaxed mt-1">파트너 안내: ${escapeHtml(c.partnerResponse)}</p>` : ''}
             ${c.resolvedDate ? `<p class="text-[9px] text-ink-400 font-semibold">처리 완료일: ${c.resolvedDate}</p>` : ''}
             ${c.status === 'submitted' ? `<button type="button" onclick="retractRepairClaim('${order.code}', '${c.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">신청 철회</button>` : ''}
+            ${c.status === 'rejected' ? (c.escalated
+                ? `<p class="text-[10px] font-bold text-brand-600 mt-1">매니저 재검토 요청됨</p>`
+                : `<button type="button" onclick="openReportReasonPrompt((note) => escalateRepairClaimToAdmin('${order.code}', '${c.id}', note))" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">매니저에게 재검토 요청</button>`) : ''}
         </div>`;
     }).join('')}</div>`;
     return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
@@ -3370,6 +3391,7 @@ window.closeRepairClaimModal = closeRepairClaimModal;
 window.submitRepairClaim = submitRepairClaim;
 window.buildRepairClaimsHtml = buildRepairClaimsHtml;
 window.retractRepairClaim = retractRepairClaim;
+window.escalateRepairClaimToAdmin = escalateRepairClaimToAdmin;
 window.openScheduleChangeModal = openScheduleChangeModal;
 window.closeScheduleChangeModal = closeScheduleChangeModal;
 window.submitScheduleChangeRequest = submitScheduleChangeRequest;

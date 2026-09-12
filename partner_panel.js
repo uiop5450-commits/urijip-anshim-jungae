@@ -2229,10 +2229,23 @@ function searchOrderLookup() {
      * 정리할 수 있게 한다. */
     const buildDisputeRowHtml = (o) => {
         const rows = [];
-        (o.repairClaims || []).filter(c => c.status !== 'completed').forEach(c => {
+        (o.repairClaims || []).filter(c => c.status === 'submitted' || c.status === 'in_progress').forEach(c => {
             rows.push(`<div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-lg border border-ink-100">
                 <span class="text-[11px] font-bold text-ink-700 truncate">하자보수: ${escapeHtml(c.title)} (${c.status === 'in_progress' ? '처리중' : '접수됨'})</span>
                 <button type="button" onclick="openReportReasonPrompt((note) => adminForceCompleteRepairClaim('${o.code}', '${c.id}', note))" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 shrink-0">직권 처리완료</button>
+            </div>`);
+        });
+        /* 고객이 반려된 하자보수 신청에 재검토를 요청하면(escalateRepairClaimToAdmin,
+         * client_panel.js) 관리자가 이를 놓치지 않도록 별도 강조 행으로 보여준다 —
+         * 재검토를 요청하지 않은 단순 반려 건까지 모두 노출하면 정말 판단이 필요한
+         * 건이 파묻힌다. */
+        (o.repairClaims || []).filter(c => c.status === 'rejected' && c.escalated).forEach(c => {
+            rows.push(`<div class="flex items-center justify-between gap-2 px-3 py-2 bg-rose-50/60 rounded-lg border border-rose-200">
+                <span class="text-[11px] font-bold text-ink-700 truncate">하자보수(반려·재검토 요청): ${escapeHtml(c.title)} — ${escapeHtml(c.escalationNote || '')}</span>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="adminDismissRepairClaimEscalation('${o.code}', '${c.id}')" class="text-[10px] font-bold text-ink-500 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0">반려 유지</button>
+                    <button type="button" onclick="openReportReasonPrompt((note) => adminForceCompleteRepairClaim('${o.code}', '${c.id}', note))" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">직권 처리완료</button>
+                </div>
             </div>`);
         });
         if (o.scheduleChangeRequest && o.scheduleChangeRequest.status === 'pending') {
@@ -2286,6 +2299,18 @@ function adminForceCompleteRepairClaim(orderCode, claimId, note) {
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수 신청("${claim.title}")이 매니저 센터 직권으로 처리 완료되었습니다. 안내: ${note}`);
     if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `하자보수 신청("${claim.title}")이 매니저 센터 직권으로 처리 완료 처리되었습니다.`);
     showToast('하자보수 신청을 매니저 직권으로 처리 완료했습니다.', 'success');
+    searchOrderLookup();
+}
+
+function adminDismissRepairClaimEscalation(orderCode, claimId) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.status !== 'rejected' || !claim.escalated) return;
+    claim.escalated = false;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_CLAIM_ESCALATION_DISMISS', `[하자보수 재검토 반려] 오더 ${order.code}의 하자보수 신청("${claim.title}") 재검토 요청을 검토했으나 기존 반려 결정을 유지합니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수 신청("${claim.title}")에 대한 매니저 재검토 결과, 기존 반려 결정이 유지됩니다.`);
+    showToast('재검토 요청을 확인했습니다. 기존 반려 결정을 유지합니다.', 'info');
     searchOrderLookup();
 }
 
@@ -4919,6 +4944,7 @@ window.adminForceCancelContract = adminForceCancelContract;
 window.adminInvalidateBid = adminInvalidateBid;
 window.adminRestoreInvalidatedBid = adminRestoreInvalidatedBid;
 window.adminForceCompleteRepairClaim = adminForceCompleteRepairClaim;
+window.adminDismissRepairClaimEscalation = adminDismissRepairClaimEscalation;
 window.adminResolveScheduleChangeRequest = adminResolveScheduleChangeRequest;
 window.adminResolvePriceChangeRequest = adminResolvePriceChangeRequest;
 window.adminApproveClientReportAppeal = adminApproveClientReportAppeal;
