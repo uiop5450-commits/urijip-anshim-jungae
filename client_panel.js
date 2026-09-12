@@ -638,6 +638,40 @@ function downloadTransactionReceipt(orderCode) {
     showToast('거래 확인서 다운로드가 시작되었습니다.', 'success');
 }
 
+/* 관리자(5종)와 파트너(exportPartnerPerformanceCsv)는 전부 자기 데이터를 CSV로
+ * 내보낼 수 있는데, 정작 고객은 자신의 의뢰/계약 이력을 목록 화면으로만 볼 수
+ * 있고 엑셀 등으로 내려받아 개인 기록으로 보관할 방법이 없었다 — 동일한
+ * exportXToCsv 패턴을 재사용한다. */
+function exportClientOrderHistoryToCsv() {
+    const auth = window.AppState.clientAuth;
+    if (!auth || !auth.loggedIn) return;
+    const myOrders = (window.AppState.orders || []).filter(o => o.clientPhone === auth.phone);
+    if (myOrders.length === 0) { showToast('내보낼 의뢰 내역이 없습니다.', 'warning'); return; }
+
+    const statusLabel = (o) => o.status === 'withdrawn' ? '철회됨'
+        : o.status === 'cancel_requested' ? '계약 취소 심사중'
+        : o.status === 'cancelled' ? '계약 취소됨'
+        : o.status === 'contracted' ? '계약 체결'
+        : '입찰 심사중';
+
+    const escapeCsvCell = (val) => `"${String(val == null ? '' : val).replace(/"/g, '""')}"`;
+    const header = ['의뢰코드', '시공장소', '상태', '계약파트너', '계약금액(만원)', '접수일'].map(escapeCsvCell).join(',');
+    const rows = myOrders.map(o => [
+        o.code, o.clientAddress, statusLabel(o), o.acceptedPartner || '-', o.finalPrice || 0, o.preferredDate || '-'
+    ].map(escapeCsvCell).join(','));
+    const csv = '﻿' + [header, ...rows].join('\r\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `우리집안심중개_내의뢰내역_${auth.name}_${getLocalDateString()}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'ORDER_HISTORY_EXPORT', `[${auth.name}] 고객님이 내 의뢰 내역 ${myOrders.length}건을 CSV로 내보냄.`, 'INFO');
+    showToast(`의뢰 내역 ${myOrders.length}건을 CSV로 내보냈습니다.`, 'success');
+}
+
 let contractCancelRequestTargetCode = null;
 
 /* 계약이 체결되면(order.status='contracted') 지금까지 되돌릴 방법이 전혀 없었다 —
@@ -4652,6 +4686,7 @@ window.openEditOrderBudgetModal = openEditOrderBudgetModal;
 window.closeEditOrderBudgetModal = closeEditOrderBudgetModal;
 window.saveOrderBudgetEdit = saveOrderBudgetEdit;
 window.downloadTransactionReceipt = downloadTransactionReceipt;
+window.exportClientOrderHistoryToCsv = exportClientOrderHistoryToCsv;
 window.openContractCancelRequestModal = openContractCancelRequestModal;
 window.isPartnerReportedByMeForOrder = isPartnerReportedByMeForOrder;
 window.retractPartnerReport = retractPartnerReport;
