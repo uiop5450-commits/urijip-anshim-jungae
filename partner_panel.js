@@ -1852,17 +1852,18 @@ function buildPartnerSiteVisitHtml(order) {
  * 방법이 전혀 없었다. 시공 진행 단계와 자연스럽게 짝을 이루는 지급 마일스톤을 둔다. */
 function buildPartnerPaymentMilestonesHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
-    const milestones = getOrInitPaymentMilestones(order);
+    const milestones = typeof sweepOverduePaymentMilestones === 'function' ? sweepOverduePaymentMilestones(order) : getOrInitPaymentMilestones(order);
     const price = order.finalPrice || 0;
     return `<div class="surface p-5 space-y-3">
         <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="wallet" class="w-4 h-4 text-brand-500"></i> 단계별 공사대금 청구</h5>
         <div class="space-y-2">${milestones.map(m => {
             const amount = Math.floor(price * m.percent / 100);
-            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구중</span>` : `<span class="badge badge-neutral">청구 전</span>`;
+            const overdue = typeof isMilestoneOverdue === 'function' && isMilestoneOverdue(m);
+            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : overdue ? `<span class="badge badge-rose">연체</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구중</span>` : `<span class="badge badge-neutral">청구 전</span>`;
             return `<div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between gap-2">
                 <div class="text-left min-w-0">
                     <p class="text-xs font-black text-ink-900">${m.label} (${m.percent}%)</p>
-                    <p class="text-[10px] text-ink-500 font-semibold">₩ ${amount.toLocaleString()}만원${m.paidDate ? ` · 납부일 ${m.paidDate}` : (m.requestedDate ? ` · 청구일 ${m.requestedDate}` : '')}</p>
+                    <p class="text-[10px] ${overdue ? 'text-roseCustom font-bold' : 'text-ink-500 font-semibold'}">₩ ${amount.toLocaleString()}만원${m.paidDate ? ` · 납부일 ${m.paidDate}` : (m.dueDate ? ` · 납부기한 ${m.dueDate}${overdue ? ' (기한 초과)' : ''}` : '')}</p>
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     ${statusBadge}
@@ -1882,10 +1883,14 @@ function requestPaymentMilestone(orderCode, key) {
     if (!m || m.status !== 'pending') return;
     m.status = 'requested';
     m.requestedDate = getLocalDateString();
+    const due = new Date();
+    due.setDate(due.getDate() + 7);
+    m.dueDate = due.toISOString().slice(0, 10);
+    m.overdueNotified = false;
     const amount = Math.floor((order.finalPrice || 0) * m.percent / 100);
 
-    if (typeof pushLog === 'function') pushLog('PARTNER', 'PAYMENT_MILESTONE_REQUEST', `[${partnerName}]가 오더(${order.code}) ${m.label} 청구를 요청했습니다. (₩${amount.toLocaleString()}만원)`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${m.label} 납부를 요청드려요: ₩${amount.toLocaleString()}만원`);
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PAYMENT_MILESTONE_REQUEST', `[${partnerName}]가 오더(${order.code}) ${m.label} 청구를 요청했습니다. (₩${amount.toLocaleString()}만원, 납부기한 ${m.dueDate})`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${m.label} 납부를 요청드려요: ₩${amount.toLocaleString()}만원 (납부기한 ${m.dueDate})`);
     showToast(`${m.label} 청구를 요청했습니다.`, 'success');
     openPartnerOrderDetailModal(order.code);
 }

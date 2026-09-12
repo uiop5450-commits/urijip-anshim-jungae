@@ -244,9 +244,33 @@ const PAYMENT_MILESTONE_DEFS = [
 
 function getOrInitPaymentMilestones(order) {
     if (!order.paymentMilestones) {
-        order.paymentMilestones = PAYMENT_MILESTONE_DEFS.map(def => ({ ...def, status: 'pending', requestedDate: null, paidDate: null }));
+        order.paymentMilestones = PAYMENT_MILESTONE_DEFS.map(def => ({ ...def, status: 'pending', requestedDate: null, paidDate: null, dueDate: null }));
     }
     return order.paymentMilestones;
+}
+
+/* 청구(requested) 상태가 되면 고객이 언제까지 내야 하는지 기한이 전혀 없어서,
+ * 파트너 입장에서는 고객이 "청구됨" 상태로 무기한 방치해도 연체인지 아닌지 알
+ * 방법이 없었다 — requestPaymentMilestone이 청구 시점에 심어두는 dueDate로
+ * 연체 여부를 판정한다. */
+function isMilestoneOverdue(m) {
+    return !!(m && m.status === 'requested' && m.dueDate && new Date() > new Date(m.dueDate));
+}
+
+/* 파트너 인증 만료(sweepExpiredPartnerCertifications)와 동일한 "렌더 시점에
+ * 지연 체크" 패턴 — 연체로 갓 넘어간 마일스톤을 발견하면 파트너에게 1회만
+ * 알림을 보낸다(매번 렌더할 때마다 알림이 쌓이지 않도록 overdueNotified로 dedup). */
+function sweepOverduePaymentMilestones(order) {
+    const milestones = getOrInitPaymentMilestones(order);
+    milestones.forEach(m => {
+        if (isMilestoneOverdue(m) && !m.overdueNotified) {
+            m.overdueNotified = true;
+            if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) {
+                pushPartnerNotification(order.acceptedPartner, `${m.label} 납부가 기한(${m.dueDate})을 넘겨 연체되었습니다. 고객님께 확인을 요청해 보세요.`);
+            }
+        }
+    });
+    return milestones;
 }
 
 /* 홈 화면 이벤트 배너(pamphlets, config_state.js)가 "첫 견적 신청 5만원 상품권",
@@ -443,6 +467,8 @@ window.getOrInitProgressStages = getOrInitProgressStages;
 window.getWarrantyEndDate = getWarrantyEndDate;
 window.isWarrantyExpired = isWarrantyExpired;
 window.getOrInitPaymentMilestones = getOrInitPaymentMilestones;
+window.isMilestoneOverdue = isMilestoneOverdue;
+window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
 window.grantClientBenefit = grantClientBenefit;
 window.showToast = showToast;
 window.closeToast = closeToast;

@@ -848,15 +848,19 @@ function buildClientSiteVisitHtml(order) {
  * 응답할 수 있게 한다. */
 function buildPaymentMilestonesHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
-    const milestones = getOrInitPaymentMilestones(order);
+    const milestones = typeof sweepOverduePaymentMilestones === 'function' ? sweepOverduePaymentMilestones(order) : getOrInitPaymentMilestones(order);
     const price = order.finalPrice || 0;
     return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
         <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="wallet" class="w-3.5 h-3.5 text-brand-500"></i> 단계별 공사대금</span>
         <div class="space-y-1.5">${milestones.map(m => {
             const amount = Math.floor(price * m.percent / 100);
-            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구됨</span>` : `<span class="badge badge-neutral">청구 전</span>`;
+            const overdue = typeof isMilestoneOverdue === 'function' && isMilestoneOverdue(m);
+            const statusBadge = m.status === 'paid' ? `<span class="badge badge-emerald">납부완료</span>` : overdue ? `<span class="badge badge-rose">연체</span>` : m.status === 'requested' ? `<span class="badge badge-amber">청구됨</span>` : `<span class="badge badge-neutral">청구 전</span>`;
             return `<div class="p-2.5 bg-ink-50 rounded-lg flex items-center justify-between gap-2">
-                <div class="min-w-0"><p class="text-[11px] font-black text-ink-900">${m.label} (${m.percent}%) · ₩${amount.toLocaleString()}만원</p></div>
+                <div class="min-w-0">
+                    <p class="text-[11px] font-black text-ink-900">${m.label} (${m.percent}%) · ₩${amount.toLocaleString()}만원</p>
+                    ${m.status === 'requested' && m.dueDate ? `<p class="text-[10px] ${overdue ? 'text-roseCustom font-bold' : 'text-ink-400 font-semibold'}">납부기한 ${m.dueDate}${overdue ? ' (기한 초과)' : ''}</p>` : ''}
+                </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     ${statusBadge}
                     ${m.status === 'requested' ? `<button type="button" onclick="confirmPaymentMilestone('${order.code}', '${m.key}')" class="btn btn-dark btn-sm">납부 완료</button>` : ''}
