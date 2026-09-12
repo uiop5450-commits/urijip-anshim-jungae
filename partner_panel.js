@@ -4631,6 +4631,26 @@ function buildReviewDeletionAppealsHtml(partnerName) {
     </div>`;
 }
 
+/* buildReviewDeletionAppealsHtml(후기 자체 삭제 이의신청)이 관리자가 방금 이 파트너의
+ * 후기를 살펴보는 화면에 바로 노출되는 것과 동일하게, 답글 삭제 이의신청도 통합
+ * 이의신청함까지 가지 않고 이 화면에서 바로 처리할 수 있게 한다. */
+function buildReviewReplyDeletionAppealsHtml(partnerName) {
+    const entries = (window.AppState.reviewReplyDeletionLog || []).filter(e => e.partnerName === partnerName && e.appeal && e.appeal.status === 'pending');
+    if (entries.length === 0) return '';
+    return `<div class="space-y-2.5 pt-2">
+        <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="undo-2" class="w-4 h-4 text-roseCustom"></i> 후기 답글 삭제 이의신청 (${entries.length}건)</h4>
+        <div class="space-y-2">${entries.map(e => `
+        <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-200 space-y-1.5 text-left">
+            <p class="text-xs text-ink-700 font-medium leading-relaxed">삭제된 답글: "${escapeHtml(e.replySnapshot.text)}" (${e.date})</p>
+            <p class="text-[11px] font-black text-brand-700">이의신청: ${escapeHtml(e.appeal.reason)}</p>
+            <div class="flex items-center gap-1.5 justify-end">
+                <button type="button" onclick="openReportReasonPrompt((reason) => adminRejectReviewReplyDeletionAppeal('${e.id}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">반려</button>
+                <button type="button" onclick="adminApproveReviewReplyDeletionAppeal('${e.id}')" class="text-[10px] font-bold text-ink-500 hover:text-emeraldCustom bg-transparent border-0 cursor-pointer p-0">승인(답글 복원)</button>
+            </div>
+        </div>`).join('')}</div>
+    </div>`;
+}
+
 /* 후기 삭제 이의신청이 승인되면 스냅샷을 그대로 partner.reviews에 되돌려 복원한다 —
  * 신청 당시 배열 위치는 의미가 없으므로 맨 위에 다시 올린다. */
 function adminApproveReviewDeletionAppeal(logId) {
@@ -5541,6 +5561,7 @@ function openPartnerMetricsModal(partnerName) {
                     <div class="space-y-2">${buildAdminReviewModerationHtml(partner)}</div>
                 </div>
                 ${buildReviewDeletionAppealsHtml(partner.name)}
+                ${buildReviewReplyDeletionAppealsHtml(partner.name)}
                 <div class="space-y-2.5 pt-2">
                     <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="image" class="w-4 h-4 text-ink-600"></i> 등록된 시공사례 관리 (${(partner.portfolios || []).filter(p => !p.isDraft).length}건)</h4>
                     <div class="space-y-2">${buildAdminPortfolioModerationHtml(partner)}</div>
