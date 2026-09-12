@@ -2109,6 +2109,11 @@ function submitSiteVisitProposal() {
     const note = document.getElementById('site-visit-note-input')?.value.trim();
     if (!date) { showToast('실측 방문 희망일을 선택해주세요.', 'warning'); return; }
 
+    // 방문 일정 통합 뷰(renderPartnerScheduleView)를 보지 않는 이상, 이미 다른 오더에
+    // 같은 날 방문이 잡혀있어도 파트너가 모른 채 겹쳐서 잡을 수 있었다 — 막지는
+    // 않되(고객 사정상 그 날짜가 최선일 수 있으므로), 제안 시점에 미리 알려준다.
+    const conflictingVisit = getPartnerScheduledVisits(partnerName).find(v => v.date === date && v.orderCode !== order.code);
+
     // 이미 확정된 일정을 뒤엎고 새로 제안하는 경우("일정 변경")와, 처음/재거절 후
     // 새로 제안하는 경우를 구분해서 알림 문구를 다르게 준다 — 고객 입장에서 "확정된
     // 일정이 갑자기 바뀌었다"는 사실을 명확히 알아야 하기 때문.
@@ -2120,6 +2125,7 @@ function submitSiteVisitProposal() {
         ? `${partnerName}가 확정된 실측 방문 일정을 ${date}로 변경 제안했어요. 다시 확인해 주세요.${note ? ` (${note})` : ''}`
         : `${partnerName}가 실측 방문 일정을 제안했어요: ${date}${note ? ` (${note})` : ''}`);
     showToast(isReschedule ? '실측 방문 일정 변경을 제안했습니다. 고객 재확인을 기다려주세요.' : '실측 방문 일정을 제안했습니다. 고객 확인을 기다려주세요.', 'success');
+    if (conflictingVisit) showToast(`이 날짜(${date})에 이미 다른 방문 일정이 있어요: ${conflictingVisit.label} (${conflictingVisit.orderCode})`, 'warning');
 
     closeSiteVisitModal();
     openPartnerOrderDetailModal(order.code);
@@ -5388,6 +5394,7 @@ function proposeRepairVisitDate(orderCode, claimId) {
     const date = input ? input.value : '';
     if (!date) { showToast('방문 희망일을 선택해주세요.', 'warning'); return; }
 
+    const conflictingVisit = getPartnerScheduledVisits(partnerName).find(v => v.date === date && v.orderCode !== order.code);
     const isReschedule = claim.visitStatus === 'confirmed';
     claim.visitStatus = 'proposed';
     claim.visitDate = date;
@@ -5399,6 +5406,7 @@ function proposeRepairVisitDate(orderCode, claimId) {
         ? `${partnerName}가 확정된 하자보수("${claim.title}") 방문 일정을 ${date}로 변경 제안했어요. 다시 확인해 주세요.`
         : `하자보수("${claim.title}") 방문 일정을 제안했어요: ${date}`);
     showToast(isReschedule ? '방문 일정 변경을 제안했습니다. 고객 재확인을 기다려주세요.' : '방문 일정을 제안했습니다.', 'success');
+    if (conflictingVisit) showToast(`이 날짜(${date})에 이미 다른 방문 일정이 있어요: ${conflictingVisit.label} (${conflictingVisit.orderCode})`, 'warning');
     openPartnerOrderDetailModal(orderCode);
 }
 
