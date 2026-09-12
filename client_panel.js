@@ -1109,7 +1109,7 @@ function loginClientWithId() {
 
     const account = window.AppState.clientAccounts.find(acc => acc.id === idVal && acc.pw === pwVal);
     if (!account) { showToast("아이디 또는 비밀번호가 일치하지 않습니다.", "warning"); return; }
-    if (account.isSuspended) { showToast("이용이 정지된 계정입니다. 고객센터로 문의해 주세요.", "warning"); return; }
+    if (account.isSuspended) { openSuspensionAppealModal(account.id); return; }
     if (account.status === 'withdrawn') { showToast("탈퇴한 계정입니다. 새로 가입 후 이용해 주세요.", "warning"); return; }
 
     const auth = window.AppState.clientAuth;
@@ -1122,6 +1122,42 @@ function loginClientWithId() {
 
     toggleClientAuthUI(); syncFormStateUI();
     completePostLoginRedirect();
+}
+
+/* 이용 정지된 계정은 로그인 자체가 막혀 마이페이지에 전혀 접근할 수 없으므로,
+ * 파트너의 옐로카드 이의신청(strikeAppeal)과 동일한 절차를 로그인 화면에서
+ * 바로 제출할 수 있게 한다 — 정지 사유가 부당하다고 여겨도 지금까지는 "고객센터로
+ * 문의해 주세요" 안내만 있었고 실제로 소명할 방법은 전혀 없었다. */
+let suspensionAppealTargetId = null;
+
+function openSuspensionAppealModal(accountId) {
+    const account = window.AppState.clientAccounts.find(acc => acc.id === accountId);
+    if (!account) return;
+    if (account.suspensionAppeal && account.suspensionAppeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요. 매니저 센터 심사 결과를 기다려주세요.', 'warning'); return; }
+    suspensionAppealTargetId = accountId;
+    safeUpdateValue('suspension-appeal-reason-input', '');
+    openModal('suspension-appeal-modal', 'suspension-appeal-modal-card');
+}
+
+function closeSuspensionAppealModal() {
+    suspensionAppealTargetId = null;
+    closeModal('suspension-appeal-modal', 'suspension-appeal-modal-card');
+}
+
+function submitSuspensionAppeal() {
+    const account = window.AppState.clientAccounts.find(acc => acc.id === suspensionAppealTargetId);
+    if (!account) { closeSuspensionAppealModal(); return; }
+    const reason = document.getElementById('suspension-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    account.suspensionAppeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'CLIENT_SUSPENSION_APPEAL', `'${account.name}'(${account.id}) 고객님이 계정 정지에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `계정 정지 이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.`);
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closeSuspensionAppealModal();
+    if (typeof renderAdminClientManager === 'function') renderAdminClientManager();
 }
 
 function performClientLogout() {
@@ -3303,6 +3339,9 @@ window.isFavoritePartner = isFavoritePartner;
 window.toggleFavoritePartner = toggleFavoritePartner;
 window.renderClientFavoritePartners = renderClientFavoritePartners;
 window.renderClientRegularOfPartners = renderClientRegularOfPartners;
+window.openSuspensionAppealModal = openSuspensionAppealModal;
+window.closeSuspensionAppealModal = closeSuspensionAppealModal;
+window.submitSuspensionAppeal = submitSuspensionAppeal;
 window.renderClientMyPageNotifications = renderClientMyPageNotifications;
 window.markAllClientNotificationsRead = markAllClientNotificationsRead;
 window.markClientNotificationRead = markClientNotificationRead;

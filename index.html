@@ -1733,6 +1733,20 @@
         </div>
     </div>
 
+    <div id="suspension-appeal-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="suspension-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-rose">계정 정지</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">이용 정지에 이의를 제기합니다</h3></div>
+                <button type="button" onclick="closeSuspensionAppealModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">현재 계정이 이용 정지되어 로그인할 수 없어요. 정지가 부당하다고 생각되면 아래에 소명 내용을 남겨주세요. 매니저 센터가 심사 후 정지 해제 여부를 안내해드려요.</p>
+                <div><label class="field-label">이의신청 내용</label><textarea id="suspension-appeal-reason-input" rows="4" placeholder="정지가 부당하다고 생각되는 이유를 자세히 적어주세요." class="textarea"></textarea></div>
+                <button type="button" onclick="submitSuspensionAppeal()" class="btn btn-primary btn-block">이의신청 제출</button>
+            </div>
+        </div>
+    </div>
+
     <div id="client-report-appeal-modal" class="hidden modal-overlay" style="z-index:220">
         <div id="client-report-appeal-modal-card" class="modal-card w-full max-w-md p-6 sm:p-8 space-y-5 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">

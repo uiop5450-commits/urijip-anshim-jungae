@@ -2694,8 +2694,45 @@ function renderAdminClientManager() {
                     </div>` : `<p class="pl-3 text-[10px] font-bold text-ink-400">이의신청 반려됨 — ${escapeHtml(r.appeal.adminResponse || '')}</p>`) : ''}
                 </div>`).join('')}
             </div>` : ''}
+            ${acc.isSuspended && acc.suspensionAppeal ? (acc.suspensionAppeal.status === 'pending' ? `
+            <div class="p-3 bg-brand-50 rounded-xl flex items-center justify-between gap-2">
+                <p class="text-[11px] font-black text-brand-700">계정 정지 이의신청: ${escapeHtml(acc.suspensionAppeal.reason)}</p>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="openReportReasonPrompt((reason) => adminRejectClientSuspensionAppeal('${acc.id}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">반려</button>
+                    <button type="button" onclick="adminApproveClientSuspensionAppeal('${acc.id}')" class="text-[10px] font-bold text-ink-500 hover:text-emeraldCustom bg-transparent border-0 cursor-pointer p-0">승인(정지 해제)</button>
+                </div>
+            </div>` : `<div class="p-3 bg-ink-50 rounded-xl"><p class="text-[10px] font-bold text-ink-400">계정 정지 이의신청 반려됨 — ${escapeHtml(acc.suspensionAppeal.adminResponse || '')}</p></div>`) : ''}
         </div>`;
     }).join('');
+}
+
+/* 이용 정지된 계정은 로그인 화면에서 바로 이의신청을 제출할 수 있게 됐으니
+ * (openSuspensionAppealModal, client_panel.js), 관리자 쪽에도 심사(승인/반려)
+ * 화면이 필요하다 — 승인 시 toggleClientSuspension과 동일하게 정지를 해제한다. */
+function adminApproveClientSuspensionAppeal(accountId) {
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === accountId);
+    if (!account || !account.suspensionAppeal || account.suspensionAppeal.status !== 'pending') return;
+    account.isSuspended = false;
+    account.suspensionAppeal.status = 'approved';
+    account.suspensionAppeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_SUSPENSION_APPEAL_APPROVE', `[이의신청 승인] '${account.name}'(${account.id}) 고객의 계정 정지 이의신청을 승인하여 정지를 해제했습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `제출하신 이의신청이 승인되어 계정 정지가 해제되었습니다. 다시 로그인하실 수 있어요.`);
+    showToast(`[${account.name}] 고객의 이의신청을 승인하여 정지를 해제했습니다.`, 'success');
+    renderAdminClientManager();
+}
+
+function adminRejectClientSuspensionAppeal(accountId, reason) {
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === accountId);
+    if (!account || !account.suspensionAppeal || account.suspensionAppeal.status !== 'pending') return;
+    account.suspensionAppeal.status = 'rejected';
+    account.suspensionAppeal.adminResponse = reason;
+    account.suspensionAppeal.resolvedDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_SUSPENSION_APPEAL_REJECT', `[이의신청 반려] '${account.name}'(${account.id}) 고객의 계정 정지 이의신청을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `제출하신 이의신청이 반려되었습니다. 사유: ${reason}`);
+    showToast(`[${account.name}] 고객의 이의신청을 반려했습니다.`, 'info');
+    renderAdminClientManager();
 }
 
 /* 파트너는 노쇼·상습 갑질 고객을 신고할 수 있지만(submitClientReport), 고객은
@@ -4766,6 +4803,8 @@ window.adminForceCompleteRepairClaim = adminForceCompleteRepairClaim;
 window.adminResolveScheduleChangeRequest = adminResolveScheduleChangeRequest;
 window.adminResolvePriceChangeRequest = adminResolvePriceChangeRequest;
 window.adminApproveClientReportAppeal = adminApproveClientReportAppeal;
+window.adminApproveClientSuspensionAppeal = adminApproveClientSuspensionAppeal;
+window.adminRejectClientSuspensionAppeal = adminRejectClientSuspensionAppeal;
 window.adminRejectClientReportAppeal = adminRejectClientReportAppeal;
 window.adminApprovePartnerReportAppeal = adminApprovePartnerReportAppeal;
 window.adminRejectPartnerReportAppeal = adminRejectPartnerReportAppeal;
