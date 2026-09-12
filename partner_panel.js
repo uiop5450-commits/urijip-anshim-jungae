@@ -4670,7 +4670,7 @@ function renderAdminPartnerApplications() {
         return;
     }
 
-    container.innerHTML = pending.map(p => {
+    const listHtml = pending.map(p => {
         const doc = p.bizCertDoc;
         const isImg = isImageBizCertDoc(doc);
         const docPreview = doc
@@ -4685,7 +4685,10 @@ function renderAdminPartnerApplications() {
                 <div class="space-y-3">
                     <div class="flex justify-between items-start gap-2">
                         <div class="space-y-1">
-                            <span class="badge ${isInfoRequested ? 'badge-neutral' : 'badge-amber'}">${isInfoRequested ? '정보 보완 요청됨' : '심사 대기'}</span>
+                            <label class="flex items-center gap-2 cursor-pointer mb-1">
+                                <input type="checkbox" class="admin-partner-app-select-checkbox w-4 h-4" data-partner-id="${p.id}" onchange="syncSelectAllPartnerApplicationsCheckbox()">
+                                <span class="badge ${isInfoRequested ? 'badge-neutral' : 'badge-amber'}">${isInfoRequested ? '정보 보완 요청됨' : '심사 대기'}</span>
+                            </label>
                             <h4 class="text-sm font-black text-ink-950">${escapeHtml(p.name)}</h4>
                             <p class="text-[10px] text-ink-400 font-mono">신청일시: ${p.appliedAt || '-'}</p>
                         </div>
@@ -4711,6 +4714,19 @@ function renderAdminPartnerApplications() {
                 </div>
             </div>`;
     }).join('');
+
+    container.innerHTML = `
+        <div class="col-span-full flex flex-wrap items-center justify-between gap-2 pb-2">
+            <label class="flex items-center gap-2 text-xs font-bold text-ink-600 cursor-pointer">
+                <input type="checkbox" id="admin-partner-app-select-all" onchange="toggleSelectAllPartnerApplications(this)" class="w-4 h-4">
+                전체 선택
+            </label>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="bulkRejectPartnerApplications()" class="btn btn-secondary btn-sm whitespace-nowrap"><i data-lucide="x" class="w-3.5 h-3.5"></i> 선택 일괄 거절</button>
+                <button type="button" onclick="bulkApprovePartnerApplications()" class="btn btn-primary btn-sm whitespace-nowrap"><i data-lucide="check-check" class="w-3.5 h-3.5"></i> 선택 일괄 승인</button>
+            </div>
+        </div>
+        ${listHtml}`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -4741,15 +4757,25 @@ function viewPartnerBizCertDoc(partnerId) {
     window.open(doc.dataUrl, '_blank');
 }
 
-function approvePartnerApplication(partnerId) {
-    const partner = (window.AppState.partners || []).find(p => p.id === partnerId);
-    if (!partner) return;
+function approvePartnerApplicationCore(partner) {
     partner.status = 'active';
     partner.onboardingDismissed = false;
     if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_APPROVE', `[입점 승인] '${partner.name}'(${partner.id}) 파트너 계정을 승인했습니다.`, 'SUCCESS');
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, '입점 신청이 승인되었습니다! 이제 로그인 후 오더를 받아보실 수 있어요.');
+}
+
+function approvePartnerApplication(partnerId) {
+    const partner = (window.AppState.partners || []).find(p => p.id === partnerId);
+    if (!partner) return;
+    approvePartnerApplicationCore(partner);
     showToast(`[${partner.name}] 파트너사의 입점을 승인했습니다.`, 'success');
     switchAdminMode('applications');
+}
+
+function rejectPartnerApplicationCore(partner, reason) {
+    partner.status = 'rejected';
+    partner.rejectReason = reason || '매니저 센터 검토 결과 반려';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_REJECT', `[입점 거절] '${partner.name}'(${partner.id}) 입점 신청을 거절했습니다. 사유: ${partner.rejectReason}`, 'WARNING');
 }
 
 function rejectPartnerApplication(partnerId) {
@@ -4757,11 +4783,55 @@ function rejectPartnerApplication(partnerId) {
     if (!partner) return;
     const reasonInput = document.getElementById(`partner-app-reject-reason-${partnerId}`);
     const reason = reasonInput ? reasonInput.value.trim() : '';
-    partner.status = 'rejected';
-    partner.rejectReason = reason || '매니저 센터 검토 결과 반려';
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_REJECT', `[입점 거절] '${partner.name}'(${partner.id}) 입점 신청을 거절했습니다. 사유: ${partner.rejectReason}`, 'WARNING');
+    rejectPartnerApplicationCore(partner, reason);
     showToast(`[${partner.name}] 파트너사의 입점 신청을 거절했습니다.`, 'info');
     switchAdminMode('applications');
+}
+
+/* 입점 신청 심사가 건별로 승인/거절 버튼을 눌러야 해서, 신청이 몰리는 날에는
+ * 관리자가 같은 클릭을 반복해야 했다 — 오더 일괄 자동배정(bulkAutoAllocateSelectedOrders)
+ * 과 동일한 체크박스 선택 패턴을 심사 대기 목록에도 적용한다. */
+function toggleSelectAllPartnerApplications(checkbox) {
+    document.querySelectorAll('.admin-partner-app-select-checkbox').forEach(cb => { cb.checked = checkbox.checked; });
+}
+
+function syncSelectAllPartnerApplicationsCheckbox() {
+    const all = Array.from(document.querySelectorAll('.admin-partner-app-select-checkbox'));
+    const selectAll = document.getElementById('admin-partner-app-select-all');
+    if (selectAll) selectAll.checked = all.length > 0 && all.every(cb => cb.checked);
+}
+
+function bulkApprovePartnerApplications() {
+    const checked = Array.from(document.querySelectorAll('.admin-partner-app-select-checkbox:checked')).map(cb => cb.dataset.partnerId);
+    if (checked.length === 0) { showToast('일괄 승인할 신청을 먼저 선택해 주세요.', 'warning'); return; }
+
+    let successCount = 0;
+    checked.forEach(id => {
+        const partner = (window.AppState.partners || []).find(p => p.id === id);
+        if (partner) { approvePartnerApplicationCore(partner); successCount++; }
+    });
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'BULK_PARTNER_APPROVE', `[일괄 입점 승인] 선택한 신청 ${checked.length}건 중 ${successCount}건을 승인했습니다.`, 'SUCCESS');
+    showToast(`선택한 신청 ${successCount}건을 일괄 승인했습니다.`, 'success');
+    renderAdminPartnerApplications();
+}
+
+function bulkRejectPartnerApplications() {
+    const checked = Array.from(document.querySelectorAll('.admin-partner-app-select-checkbox:checked')).map(cb => cb.dataset.partnerId);
+    if (checked.length === 0) { showToast('일괄 거절할 신청을 먼저 선택해 주세요.', 'warning'); return; }
+
+    let successCount = 0;
+    checked.forEach(id => {
+        const partner = (window.AppState.partners || []).find(p => p.id === id);
+        if (!partner) return;
+        const reasonInput = document.getElementById(`partner-app-reject-reason-${id}`);
+        rejectPartnerApplicationCore(partner, reasonInput ? reasonInput.value.trim() : '');
+        successCount++;
+    });
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'BULK_PARTNER_REJECT', `[일괄 입점 거절] 선택한 신청 ${checked.length}건 중 ${successCount}건을 거절했습니다.`, 'WARNING');
+    showToast(`선택한 신청 ${successCount}건을 일괄 거절했습니다.`, 'info');
+    renderAdminPartnerApplications();
 }
 
 /* ----------------------------------------------------------------
@@ -5454,6 +5524,10 @@ window.submitPartnerSignup = submitPartnerSignup;
 window.renderAdminPartnerApplications = renderAdminPartnerApplications;
 window.viewPartnerBizCertDoc = viewPartnerBizCertDoc;
 window.approvePartnerApplication = approvePartnerApplication;
+window.toggleSelectAllPartnerApplications = toggleSelectAllPartnerApplications;
+window.syncSelectAllPartnerApplicationsCheckbox = syncSelectAllPartnerApplicationsCheckbox;
+window.bulkApprovePartnerApplications = bulkApprovePartnerApplications;
+window.bulkRejectPartnerApplications = bulkRejectPartnerApplications;
 window.rejectPartnerApplication = rejectPartnerApplication;
 window.requestMoreInfoFromApplicant = requestMoreInfoFromApplicant;
 window.pauseHeroAutoplay = pauseHeroAutoplay;
