@@ -892,7 +892,14 @@ function buildClientSiteVisitHtml(order) {
     } else if (visit && visit.status === 'confirmed') {
         bodyHtml = `<p class="text-[10px] font-black text-emeraldCustom">실측 방문 일정 확정됨: ${visit.confirmedDate}</p>`;
     } else if (visit && visit.status === 'completed') {
-        bodyHtml = `<p class="text-[10px] font-black text-ink-500">실측 방문이 완료되었어요: ${visit.completedDate}</p>`;
+        if (visit.disputed) {
+            bodyHtml = visit.disputeResolution === 'rejected'
+                ? `<p class="text-[10px] font-black text-ink-500">실측 방문이 완료되었어요: ${visit.completedDate}</p><p class="text-[9px] text-ink-400 font-semibold mt-0.5">이의제기 반려됨${visit.disputeAdminResponse ? ` — ${escapeHtml(visit.disputeAdminResponse)}` : ''}</p>`
+                : `<p class="text-[10px] font-black text-ink-500">실측 방문이 완료되었어요: ${visit.completedDate}</p><p class="text-[9px] font-black text-amberCustom mt-0.5">이의제기 심사중</p>`;
+        } else {
+            bodyHtml = `<p class="text-[10px] font-black text-ink-500">실측 방문이 완료되었어요: ${visit.completedDate}</p>
+            <button type="button" onclick="openReportReasonPrompt((reason) => disputeSiteVisitCompletion('${order.code}', reason))" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">완료 처리에 이의있어요</button>`;
+        }
     } else if (visit && visit.status === 'declined') {
         bodyHtml = `<p class="text-[10px] text-ink-400 font-semibold">제안된 일정을 거절했어요. 파트너사의 새 제안을 기다려주세요.</p>`;
     }
@@ -900,6 +907,27 @@ function buildClientSiteVisitHtml(order) {
         <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="ruler" class="w-3.5 h-3.5 text-brand-500"></i> 실측 방문 일정</span>
         ${bodyHtml}
     </div>`;
+}
+
+/* 시공 진행 단계 완료 표시(disputeProgressStage)와 하자보수 완료 처리
+ * (disputeCompletedRepairClaim)는 둘 다 고객이 이의제기할 수 있게 됐는데, 동일한
+ * "파트너 단독 완료 처리" 성격의 실측 방문 완료(completeSiteVisit)에만 이 경로가
+ * 빠져 있던 비대칭을 해소한다. */
+function disputeSiteVisitCompletion(orderCode, reason) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const visit = order && order.siteVisit;
+    if (!visit || visit.status !== 'completed' || visit.disputed) return;
+
+    visit.disputed = true;
+    visit.disputeReason = reason;
+    visit.disputeResolution = null;
+    visit.disputeAdminResponse = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'SITE_VISIT_COMPLETION_DISPUTE', `[${order.clientName}] 고객님이 계약(${order.code}) 실측 방문 완료 처리에 이의를 제기했습니다: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 실측 방문 완료 처리에 이의를 제기했어요. 매니저 센터가 검토 중입니다.`);
+    showToast('매니저 센터에 이의제기를 접수했습니다.', 'success');
+
+    selectMyPageEstimate(order.code);
 }
 
 /* commissionPaid는 플랫폼 중개 수수료 완납 여부만 표시할 뿐, 정작 고객이 파트너에게
@@ -4322,6 +4350,7 @@ window.isPartnerBlockedByClient = isPartnerBlockedByClient;
 window.togglePartnerBlock = togglePartnerBlock;
 window.renderBlockedPartnersList = renderBlockedPartnersList;
 window.disputeProgressStage = disputeProgressStage;
+window.disputeSiteVisitCompletion = disputeSiteVisitCompletion;
 window.declineRepairVisitDate = declineRepairVisitDate;
 window.closeBidCompareModal = closeBidCompareModal;
 window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;

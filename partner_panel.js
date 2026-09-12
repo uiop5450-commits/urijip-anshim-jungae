@@ -1989,7 +1989,10 @@ function buildPartnerSiteVisitHtml(order) {
     } else if (visit && visit.status === 'confirmed') {
         statusHtml = `<div class="mt-1 space-y-1.5"><p class="text-[10px] font-black text-emeraldCustom">확정됨: ${visit.confirmedDate}</p><button type="button" onclick="completeSiteVisit('${order.code}')" class="btn btn-dark btn-sm">방문 완료 처리</button></div>`;
     } else if (visit && visit.status === 'completed') {
-        statusHtml = `<p class="text-[10px] font-black text-ink-500 mt-1">실측 완료됨: ${visit.completedDate}</p>`;
+        const disputeNote = !visit.disputed ? '' : (visit.disputeResolution === 'rejected'
+            ? `<p class="text-[9px] font-bold text-ink-400 mt-0.5">고객 이의제기 반려됨(완료 유지)${visit.disputeAdminResponse ? ` — ${escapeHtml(visit.disputeAdminResponse)}` : ''}</p>`
+            : `<p class="text-[9px] font-black text-roseCustom mt-0.5">고객 이의제기 심사중</p>`);
+        statusHtml = `<p class="text-[10px] font-black text-ink-500 mt-1">실측 완료됨: ${visit.completedDate}</p>${disputeNote}`;
     } else if (visit && visit.status === 'declined') {
         statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">고객이 거절했어요${visit.declineReason ? ` — ${escapeHtml(visit.declineReason)}` : ''}. 새 일정을 다시 제안해주세요.</p>`;
     }
@@ -2775,6 +2778,12 @@ function getAllPendingAppeals() {
                 });
             }
         });
+        if (o.siteVisit && o.siteVisit.disputed && !o.siteVisit.disputeResolution) {
+            items.push({
+                typeLabel: '실측 방문 완료처리 이의제기', subject: o.code, reason: o.siteVisit.disputeReason, date: o.siteVisit.completedDate || getLocalDateString(),
+                actionsHtml: rejectBtn('반려(완료 유지)', `openReportReasonPrompt((reason) => adminRejectSiteVisitCompletionDispute('${o.code}', reason))`) + approveBtn('승인(재방문)', `adminApproveSiteVisitCompletionDispute('${o.code}')`)
+            });
+        }
     });
 
     return items.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -3039,6 +3048,40 @@ function adminRejectProgressStageDispute(orderCode, stageIndex, reason) {
     stage.disputeAdminResponse = reason;
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'PROGRESS_STAGE_DISPUTE_REJECT', `[이의제기 반려] 오더 ${order.code}의 시공 단계("${stage.label}") 완료 표시 이의제기를 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 반려되었습니다. 사유: ${reason}`);
+    showToast('이의제기를 반려했습니다.', 'info');
+    searchOrderLookup();
+}
+
+/* 고객의 실측 방문 완료 처리 이의제기(disputeSiteVisitCompletion, client_panel.js)를
+ * 관리자가 승인(재방문 필요 — confirmed로 되돌림)/반려(완료 유지) 중 하나로
+ * 처리한다. 시공 진행 단계 이의제기(adminApprove/RejectProgressStageDispute)와
+ * 동일한 패턴. */
+function adminApproveSiteVisitCompletionDispute(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const visit = order && order.siteVisit;
+    if (!visit || !visit.disputed || visit.disputeResolution) return;
+    visit.status = 'confirmed';
+    visit.completedDate = null;
+    visit.disputed = false;
+    visit.disputeResolution = null;
+    visit.disputeReason = null;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'SITE_VISIT_COMPLETION_DISPUTE_APPROVE', `[이의제기 승인] 오더 ${order.code}의 실측 방문 완료 처리 이의제기를 승인하여 확정 상태로 되돌렸습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 승인되어 실측 방문이 다시 확정 상태로 전환되었습니다.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `실측 방문 완료 처리에 고객이 이의제기했고, 매니저 센터가 승인하여 재방문이 필요합니다.`);
+    showToast('이의제기를 승인하여 확정 상태로 되돌렸습니다.', 'success');
+    searchOrderLookup();
+}
+
+function adminRejectSiteVisitCompletionDispute(orderCode, reason) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const visit = order && order.siteVisit;
+    if (!visit || !visit.disputed || visit.disputeResolution) return;
+    visit.disputeResolution = 'rejected';
+    visit.disputeAdminResponse = reason;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'SITE_VISIT_COMPLETION_DISPUTE_REJECT', `[이의제기 반려] 오더 ${order.code}의 실측 방문 완료 처리 이의제기를 반려했습니다. 사유: ${reason}`, 'WARNING');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `제출하신 이의제기가 반려되었습니다. 사유: ${reason}`);
     showToast('이의제기를 반려했습니다.', 'info');
     searchOrderLookup();
@@ -6165,6 +6208,8 @@ window.adminApproveRepairClaimCompletionDispute = adminApproveRepairClaimComplet
 window.adminRejectRepairClaimCompletionDispute = adminRejectRepairClaimCompletionDispute;
 window.adminApproveProgressStageDispute = adminApproveProgressStageDispute;
 window.adminRejectProgressStageDispute = adminRejectProgressStageDispute;
+window.adminApproveSiteVisitCompletionDispute = adminApproveSiteVisitCompletionDispute;
+window.adminRejectSiteVisitCompletionDispute = adminRejectSiteVisitCompletionDispute;
 window.sendPartnerOrderMessage = sendPartnerOrderMessage;
 window.proposeRepairVisitDate = proposeRepairVisitDate;
 window.openChangeOrderModal = openChangeOrderModal;
