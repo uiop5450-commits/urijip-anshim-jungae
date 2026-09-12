@@ -122,7 +122,7 @@ function pushLog(category, target, message, status = 'INFO') {
 
 /* 고객 마이페이지 > 알림 탭에 쌓이는 개인화 알림. 토스트는 그 순간 안 보면 사라지지만
  * 이 목록은 남아있어서, 매칭/배정/계약 같은 이력을 나중에 다시 확인할 수 있다. */
-function pushClientNotification(clientPhone, message) {
+function pushClientNotification(clientPhone, message, extra) {
     if (!clientPhone) return;
     // 지금까지 알림을 끌 방법이 전혀 없었다 — 계정 설정에서 끄면(notificationsEnabled=false)
     // 이 시점에서 조용히 무시한다(구버전 계정은 필드가 없으므로 !== false로 기본값 켜짐 유지).
@@ -130,7 +130,8 @@ function pushClientNotification(clientPhone, message) {
     if (account && account.notificationsEnabled === false) return;
     window.AppState.clientNotifications.unshift({
         id: `ntf-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        clientPhone, message, date: new Date().toISOString(), read: false
+        clientPhone, message, date: new Date().toISOString(), read: false,
+        ...(extra || {})
     });
     if (window.AppState.clientNotifications.length > 200) window.AppState.clientNotifications.length = 200;
     if (typeof renderClientMyPage === 'function') renderClientMyPage();
@@ -183,13 +184,14 @@ function notifyReportResolved(reportedByIds, message) {
 /* 파트너 콘솔 > 알림 탭에 쌓이는 개인화 알림. 지금까지 파트너는 새 오더 매칭·계약
  * 체결·후기 등록·경고/제명 같은 중요한 이벤트를 알 방법이 전혀 없었다(고객에게만
  * pushClientNotification이 있었음) — 동일한 패턴으로 파트너용도 추가한다. */
-function pushPartnerNotification(partnerName, message) {
+function pushPartnerNotification(partnerName, message, extra) {
     if (!partnerName) return;
     const partner = (window.AppState.partners || []).find(p => p.name === partnerName);
     if (partner && partner.notificationsEnabled === false) return;
     window.AppState.partnerNotifications.unshift({
         id: `pntf-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        partnerName, message, date: new Date().toISOString(), read: false
+        partnerName, message, date: new Date().toISOString(), read: false,
+        ...(extra || {})
     });
     if (window.AppState.partnerNotifications.length > 200) window.AppState.partnerNotifications.length = 200;
     if (typeof renderPartnerNotifications === 'function') renderPartnerNotifications();

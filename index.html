@@ -1624,7 +1624,8 @@
                 <button type="button" onclick="closeAdminDirectMessageModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <div class="space-y-3">
-                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">전체 공지와 달리 이 대상에게만 전달되는 1:1 메시지예요.</p>
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">전체 공지와 달리 이 대상에게만 전달되는 1:1 메시지예요. 답장을 보내면 여기서 대화 내역을 이어볼 수 있어요.</p>
+                <div id="admin-direct-message-thread-history" class="space-y-1.5 max-h-40 overflow-y-auto custom-scroll"></div>
                 <textarea id="admin-direct-message-text" rows="4" maxlength="500" placeholder="전달할 내용을 입력해주세요. (최대 500자)" class="input w-full resize-none"></textarea>
                 <button type="button" onclick="submitAdminDirectMessage()" class="btn btn-dark btn-block"><i data-lucide="send" class="w-4 h-4"></i> 쪽지 발송하기</button>
             </div>

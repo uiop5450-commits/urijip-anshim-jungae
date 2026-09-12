@@ -710,10 +710,32 @@ function renderPartnerNotifications() {
                     <button type="button" onclick="deletePartnerNotification('${n.id}')" class="text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0" aria-label="알림 삭제"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
                 </div>
                 <p class="text-[10px] text-ink-400 font-bold mt-0.5">${dateLabel}${n.read ? '' : ' · <span class="text-brand-600">탭하여 읽음 처리</span>'}</p>
+                ${n.dmThreadId ? `<div class="flex gap-1.5 mt-1.5"><input type="text" id="partner-dm-reply-input-${n.id}" placeholder="매니저에게 답장하기" class="input flex-1 text-xs"><button type="button" onclick="replyToManagerDmAsPartner('${n.id}')" class="btn btn-dark btn-sm shrink-0">답장</button></div>` : ''}
             </div>
         </div>`;
     }).join('') + `</div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 고객 쪽에 관리자 쪽지 답장(replyToManagerDirectMessage, client_panel.js)이
+ * 생겼으니 파트너 쪽에도 대칭으로 필요하다. 두 파일 모두 전역 window에 노출되므로
+ * client_panel.js가 나중에 로드되어 동일 이름을 덮어쓰지 않도록 별도 이름을 쓴다. */
+function replyToManagerDmAsPartner(notifId) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const notif = (window.AppState.partnerNotifications || []).find(n => n.id === notifId);
+    if (!notif || !notif.dmThreadId) return;
+    const input = document.getElementById(`partner-dm-reply-input-${notifId}`);
+    const text = input?.value.trim();
+    if (!text) { showToast('답장 내용을 입력해주세요.', 'warning'); return; }
+
+    const thread = (window.AppState.directMessageThreads || []).find(t => t.id === notif.dmThreadId);
+    if (!thread) return;
+    thread.messages.push({ from: 'recipient', text, date: getLocalDateString() });
+    thread.hasUnreadReply = true;
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'DM_REPLY', `[${partnerName}]가 매니저 쪽지에 답장했습니다: "${text.slice(0, 40)}${text.length > 40 ? '...' : ''}"`, 'INFO');
+    showToast('답장을 보냈습니다.', 'success');
+    renderPartnerNotifications();
 }
 
 function markAllPartnerNotificationsRead() {
@@ -2625,11 +2647,41 @@ function sendAdminBroadcastNotification() {
  * 메시지를 보내려면 억지로 전체 공지를 쓰거나 아예 방법이 없었다. */
 let _adminDmTarget = null;
 
+/* 1:1 쪽지가 일방향 알림 발송에 그쳐, 받는 쪽이 답장할 방법이 없었다 — 문의나
+ * 소명이 필요한 내용이어도 관리자가 다시 확인할 방법 없이 새 쪽지로만 대응해야
+ * 했다. (type, identifier) 쌍마다 지속되는 스레드를 두어 여러 번 주고받을 수
+ * 있게 한다. */
+function findOrCreateDmThread(type, identifier, displayName) {
+    if (!window.AppState.directMessageThreads) window.AppState.directMessageThreads = [];
+    let thread = window.AppState.directMessageThreads.find(t => t.type === type && t.identifier === identifier);
+    if (!thread) {
+        thread = { id: `dmthread-${Date.now()}-${Math.floor(Math.random() * 1000)}`, type, identifier, displayName, messages: [], hasUnreadReply: false };
+        window.AppState.directMessageThreads.push(thread);
+    }
+    return thread;
+}
+
+function renderDmThreadHistory(thread) {
+    const container = document.getElementById('admin-direct-message-thread-history');
+    if (!container) return;
+    if (!thread || !thread.messages || thread.messages.length === 0) { container.innerHTML = ''; return; }
+    container.innerHTML = thread.messages.map(m => `
+        <div class="p-2 rounded-lg text-[11px] font-semibold leading-relaxed ${m.from === 'manager' ? 'bg-brand-50 text-brand-700 ml-6' : 'bg-ink-50 text-ink-700 mr-6'}">
+            <span class="text-[9px] font-bold text-ink-400 block mb-0.5">${m.from === 'manager' ? '매니저' : escapeHtml(thread.displayName)} · ${m.date}</span>
+            ${escapeHtml(m.text)}
+        </div>`).join('');
+}
+
 function openAdminDirectMessageModal(type, identifier, displayName) {
-    _adminDmTarget = { type, identifier, displayName: displayName || identifier };
+    const thread = findOrCreateDmThread(type, identifier, displayName || identifier);
+    thread.hasUnreadReply = false;
+    _adminDmTarget = { type, identifier, displayName: displayName || identifier, threadId: thread.id };
     safeUpdateText('admin-direct-message-modal-title', `${_adminDmTarget.displayName}님께 쪽지 보내기`);
     safeUpdateValue('admin-direct-message-text', '');
+    renderDmThreadHistory(thread);
     openModal('admin-direct-message-modal', 'admin-direct-message-modal-card');
+    if (type === 'client' && typeof renderAdminClientManager === 'function') renderAdminClientManager();
+    if (type === 'partner' && typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
 }
 
 function closeAdminDirectMessageModal() {
@@ -2642,16 +2694,27 @@ function submitAdminDirectMessage() {
     const text = document.getElementById('admin-direct-message-text')?.value.trim();
     if (!text) { showToast('보낼 내용을 입력해 주세요.', 'warning'); return; }
 
-    const { type, identifier, displayName } = _adminDmTarget;
+    const { type, identifier, displayName, threadId } = _adminDmTarget;
+    const thread = (window.AppState.directMessageThreads || []).find(t => t.id === threadId);
+    if (thread) thread.messages.push({ from: 'manager', text, date: getLocalDateString() });
+
     if (type === 'partner' && typeof pushPartnerNotification === 'function') {
-        pushPartnerNotification(identifier, `[매니저 쪽지] ${text}`);
+        pushPartnerNotification(identifier, `[매니저 쪽지] ${text}`, { dmThreadId: threadId });
     } else if (type === 'client' && typeof pushClientNotification === 'function') {
-        pushClientNotification(identifier, `[매니저 쪽지] ${text}`);
+        pushClientNotification(identifier, `[매니저 쪽지] ${text}`, { dmThreadId: threadId });
     }
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'DIRECT_MESSAGE', `[1:1 쪽지] ${type === 'partner' ? '파트너' : '고객'} '${displayName}'에게 쪽지를 보냈습니다: "${text.slice(0, 40)}${text.length > 40 ? '...' : ''}"`, 'INFO');
     showToast(`${displayName}님께 쪽지를 보냈습니다.`, 'success');
-    closeAdminDirectMessageModal();
+    safeUpdateValue('admin-direct-message-text', '');
+    renderDmThreadHistory(thread);
+}
+
+/* 파트너/고객이 매니저 쪽지에 답장하면(replyToManagerDirectMessage, client_panel.js/
+ * partner_panel.js) 관리자가 알아챌 방법이 필요하다 — 파트너 모니터링/고객 관리
+ * 카드의 "쪽지 보내기" 버튼 옆에 답장 도착 배지를 띄운다. */
+function hasUnreadDmReply(type, identifier) {
+    return (window.AppState.directMessageThreads || []).some(t => t.type === type && t.identifier === identifier && t.hasUnreadReply);
 }
 
 /* 지금까지 관리자 콘솔은 파트너 모니터링/블랙리스트/가입심사처럼 파트너 관리 도구는
@@ -2724,7 +2787,7 @@ function renderAdminClientManager() {
                 <div class="flex items-center flex-wrap gap-3 text-[11px] font-bold text-ink-600 w-full sm:w-auto sm:shrink-0">
                     <span>의뢰 ${myOrders.length}건</span><span>계약 ${contractedCount}건</span><span>후기 ${reviewCount}건</span><span>관심업체 ${favoriteCount}곳</span>
                     <button type="button" onclick="jumpToClientOrderLookup('${escapeHtml(acc.phone || '')}')" class="btn btn-secondary btn-sm">의뢰 조회</button>
-                    <button type="button" onclick="openAdminDirectMessageModal('client', '${escapeHtml(acc.phone || '')}', '${escapeHtml(acc.name)}')" class="btn btn-secondary btn-sm"><i data-lucide="send" class="w-3 h-3"></i> 쪽지 보내기</button>
+                    <button type="button" onclick="openAdminDirectMessageModal('client', '${escapeHtml(acc.phone || '')}', '${escapeHtml(acc.name)}')" class="btn btn-secondary btn-sm relative"><i data-lucide="send" class="w-3 h-3"></i> 쪽지 보내기${hasUnreadDmReply('client', acc.phone) ? `<span class="badge badge-rose absolute -top-2 -right-2 px-1.5">답장</span>` : ''}</button>
                     <button type="button" onclick="toggleClientSuspension('${acc.id}')" class="btn ${acc.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${acc.isSuspended ? '정지 해제' : '계정 정지'}</button>
                 </div>
             </div>
@@ -3234,7 +3297,7 @@ function renderAdminPartnerMonitor() {
                     <button type="button" onclick="window.openClientPartnerProfile('${p.name}')" class="btn btn-secondary btn-sm">프로필 조회</button>
                     <button type="button" onclick="openPartnerMetricsModal('${p.name}')" class="btn btn-dark btn-sm"><i data-lucide="bar-chart-2" class="w-3 h-3"></i> 상세 성과</button>
                     <button type="button" onclick="viewPartnerBizCertDoc('${p.id}')" class="btn btn-secondary btn-sm"><i data-lucide="file-text" class="w-3 h-3"></i> 사업자등록증</button>
-                    <button type="button" onclick="openAdminDirectMessageModal('partner', '${escapeHtml(p.name)}')" class="btn btn-secondary btn-sm"><i data-lucide="send" class="w-3 h-3"></i> 쪽지 보내기</button>
+                    <button type="button" onclick="openAdminDirectMessageModal('partner', '${escapeHtml(p.name)}')" class="btn btn-secondary btn-sm relative"><i data-lucide="send" class="w-3 h-3"></i> 쪽지 보내기${hasUnreadDmReply('partner', p.name) ? `<span class="badge badge-rose absolute -top-2 -right-2 px-1.5">답장</span>` : ''}</button>
                 </div>
                 <div class="flex items-center gap-1.5">
                     <button type="button" onclick="togglePartnerCertification('${p.name}')" class="btn btn-secondary btn-sm">${p.isCertified ? '인증 해제' : '인증 부여'}</button>
@@ -4790,6 +4853,7 @@ window.togglePartnerConsoleVisibility = togglePartnerConsoleVisibility;
 window.renderPartnerOnboardingBanner = renderPartnerOnboardingBanner;
 window.dismissPartnerOnboardingBanner = dismissPartnerOnboardingBanner;
 window.renderPartnerNotifications = renderPartnerNotifications;
+window.replyToManagerDmAsPartner = replyToManagerDmAsPartner;
 window.markAllPartnerNotificationsRead = markAllPartnerNotificationsRead;
 window.markPartnerNotificationRead = markPartnerNotificationRead;
 window.deletePartnerNotification = deletePartnerNotification;

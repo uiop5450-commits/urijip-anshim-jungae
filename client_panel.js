@@ -1656,10 +1656,33 @@ function renderClientMyPageNotifications(myNotifications) {
                     <button type="button" onclick="deleteClientNotification('${n.id}')" class="text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0" aria-label="알림 삭제"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
                 </div>
                 <p class="text-[10px] text-ink-400 font-bold mt-0.5">${dateLabel}${n.read ? '' : ' · <span class="text-brand-600">탭하여 읽음 처리</span>'}</p>
+                ${n.dmThreadId ? `<div class="flex gap-1.5 mt-1.5"><input type="text" id="dm-reply-input-${n.id}" placeholder="매니저에게 답장하기" class="input flex-1 text-xs"><button type="button" onclick="replyToManagerDirectMessage('${n.id}')" class="btn btn-dark btn-sm shrink-0">답장</button></div>` : ''}
             </div>
         </div>`;
     }).join('') + `</div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 관리자 1:1 쪽지(submitAdminDirectMessage, partner_panel.js)는 알림만 보낼 뿐
+ * 답장 방법이 없었다 — 문의성 쪽지를 받아도 새로 고객센터 문의를 넣는 것 말고는
+ * 대응할 방법이 없던 공백. 알림에 매달린 dmThreadId로 같은 스레드에 답장을
+ * 이어붙인다. */
+function replyToManagerDirectMessage(notifId) {
+    const auth = window.AppState.clientAuth;
+    const notif = (window.AppState.clientNotifications || []).find(n => n.id === notifId);
+    if (!notif || !notif.dmThreadId) return;
+    const input = document.getElementById(`dm-reply-input-${notifId}`);
+    const text = input?.value.trim();
+    if (!text) { showToast('답장 내용을 입력해주세요.', 'warning'); return; }
+
+    const thread = (window.AppState.directMessageThreads || []).find(t => t.id === notif.dmThreadId);
+    if (!thread) return;
+    thread.messages.push({ from: 'recipient', text, date: getLocalDateString() });
+    thread.hasUnreadReply = true;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'DM_REPLY', `[${auth.name}] 고객님이 매니저 쪽지에 답장했습니다: "${text.slice(0, 40)}${text.length > 40 ? '...' : ''}"`, 'INFO');
+    showToast('답장을 보냈습니다.', 'success');
+    renderClientMyPage();
 }
 
 /* 지금까지는 알림 전체를 한 번에 읽음 처리하는 방법만 있어서, 여러 알림 중
@@ -3389,6 +3412,7 @@ window.openSuspensionAppealModal = openSuspensionAppealModal;
 window.closeSuspensionAppealModal = closeSuspensionAppealModal;
 window.submitSuspensionAppeal = submitSuspensionAppeal;
 window.renderClientMyPageNotifications = renderClientMyPageNotifications;
+window.replyToManagerDirectMessage = replyToManagerDirectMessage;
 window.markAllClientNotificationsRead = markAllClientNotificationsRead;
 window.markClientNotificationRead = markClientNotificationRead;
 window.deleteClientNotification = deleteClientNotification;
