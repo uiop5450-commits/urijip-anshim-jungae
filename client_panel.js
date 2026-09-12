@@ -1830,7 +1830,10 @@ function renderClientFavoritePartners() {
                 </div>
                 <p class="text-[10px] text-ink-400 font-bold">${p.region ? `부산 ${escapeHtml(p.region)} · ` : ''}완공사례 ${p.portfolios ? p.portfolios.length : 0}건</p>
             </div>
-            <button type="button" onclick="toggleFavoritePartner('${p.name}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">찜 해제</button>
+            <div class="flex items-center gap-2 shrink-0">
+                ${!isBanned ? `<button type="button" onclick="requestDirectQuoteFromPortfolio('${p.name}')" class="btn btn-secondary btn-sm">재의뢰하기</button>` : ''}
+                <button type="button" onclick="toggleFavoritePartner('${p.name}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">찜 해제</button>
+            </div>
         </div>`;
     }).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
