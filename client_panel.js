@@ -3747,10 +3747,12 @@ function submitCommunityReply(postId, commentIndex) {
 /* 본인이 쓴 댓글/답글만 삭제할 수 있다 — 목록에서도 authorId가 내 아이디일 때만
  * 삭제 버튼을 그려서, 서버 검증이 없는 프로토타입이라도 실수로 남의 글을 지울 방법이 없게 한다. */
 function deleteCommunityComment(postId, commentIndex) {
-    const auth = window.AppState.clientAuth;
+    const myId = window.AppState.clientAuth && window.AppState.clientAuth.loggedIn ? window.AppState.clientAuth.id : null;
+    const myPartnerCommentId = window.AppState.partnerLoggedIn ? `partner:${window.AppState.partnerName || '오륙도 디자인 실내건축'}` : null;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     if (!post || !post.comments || !post.comments[commentIndex]) return;
-    if (post.comments[commentIndex].authorId !== auth.id) return;
+    const authorId = post.comments[commentIndex].authorId;
+    if (authorId !== myId && authorId !== myPartnerCommentId) return;
     post.comments.splice(commentIndex, 1);
     // openReplyBoxKeys는 '게시글id-댓글인덱스'로 답글창 열림 상태를 기억하는데, 댓글이 하나
     // 지워지면 뒤에 있던 댓글들의 인덱스가 한 칸씩 앞으로 밀린다. 이 상태를 그대로 두면
@@ -3812,10 +3814,11 @@ function toggleCommentEdit(postId, commentIndex) {
 }
 
 function saveCommunityCommentEdit(postId, commentIndex) {
-    const auth = window.AppState.clientAuth;
+    const myId = window.AppState.clientAuth && window.AppState.clientAuth.loggedIn ? window.AppState.clientAuth.id : null;
+    const myPartnerCommentId = window.AppState.partnerLoggedIn ? `partner:${window.AppState.partnerName || '오륙도 디자인 실내건축'}` : null;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     const comment = post && post.comments && post.comments[commentIndex];
-    if (!comment || comment.authorId !== auth.id) return;
+    if (!comment || (comment.authorId !== myId && comment.authorId !== myPartnerCommentId)) return;
 
     const input = document.getElementById(`community-comment-edit-input-${commentIndex}`);
     const text = input ? input.value.trim() : '';
@@ -4141,22 +4144,28 @@ function isCommunityUserBlockedByMe(authorId) {
  * 수 있고 타인의 악성 댓글·답글을 신고할 방법이 없었다 — 동일한 1인 1회 reportedBy
  * 배열 패턴을 댓글/답글 각각에 적용한다. */
 function isCommunityCommentReportedByMe(comment) {
+    if (window.AppState.partnerLoggedIn) {
+        const partnerId = `partner:${window.AppState.partnerName || '오륙도 디자인 실내건축'}`;
+        return !!(comment.reportedBy && comment.reportedBy.includes(partnerId));
+    }
     const auth = window.AppState.clientAuth;
     if (!auth || !auth.loggedIn) return false;
     return !!(comment.reportedBy && comment.reportedBy.includes(auth.id));
 }
 
 function reportCommunityComment(postId, commentIndex, reason) {
-    if (!requireClientLoginForCommunity()) return;
-    const auth = window.AppState.clientAuth;
+    const isPartnerReporter = window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn);
+    if (!isPartnerReporter && !requireClientLoginForCommunity()) return;
+    const reporterId = isPartnerReporter ? `partner:${window.AppState.partnerName || '오륙도 디자인 실내건축'}` : window.AppState.clientAuth.id;
+    const reporterName = isPartnerReporter ? (window.AppState.partnerName || '오륙도 디자인 실내건축') : window.AppState.clientAuth.name;
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     const comment = post && post.comments && post.comments[commentIndex];
     if (!comment) return;
     if (!comment.reportedBy) comment.reportedBy = [];
-    if (comment.reportedBy.includes(auth.id)) { showToast('이미 신고한 댓글입니다.', 'info'); return; }
-    comment.reportedBy.push(auth.id);
-    if (reason) { if (!comment.reportReasons) comment.reportReasons = []; comment.reportReasons.push({ id: auth.id, reason }); }
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'COMMUNITY_COMMENT_REPORT', `'${auth.name}' 고객님이 댓글(작성자: ${comment.authorName})을 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
+    if (comment.reportedBy.includes(reporterId)) { showToast('이미 신고한 댓글입니다.', 'info'); return; }
+    comment.reportedBy.push(reporterId);
+    if (reason) { if (!comment.reportReasons) comment.reportReasons = []; comment.reportReasons.push({ id: reporterId, reason }); }
+    if (typeof pushLog === 'function') pushLog(isPartnerReporter ? 'PARTNER' : 'CLIENT', 'COMMUNITY_COMMENT_REPORT', `'${reporterName}'가 댓글(작성자: ${comment.authorName})을 신고했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'WARNING');
     showToast('신고가 접수되었습니다. 검토 후 조치할게요.', 'success');
     openCommunityDetail(postId);
 }
@@ -4205,6 +4214,11 @@ function openCommunityDetail(postId) {
     document.getElementById('community-detail-subview')?.classList.remove('hidden');
 
     const myId = window.AppState.clientAuth && window.AppState.clientAuth.loggedIn ? window.AppState.clientAuth.id : null;
+    /* Q&A 전문가 답변(submitCommunityComment의 isPartnerAnswer)을 "수정/삭제/신고
+     * 대상은 되지 않는 최소 범위"로 남겨뒀던 것을 마저 채운다 — 파트너 자신의 답변도
+     * 고객 댓글과 동일하게 수정/삭제할 수 있고, 남의 댓글엔 신고도 할 수 있게 한다. */
+    const myPartnerCommentId = window.AppState.partnerLoggedIn ? `partner:${window.AppState.partnerName || '오륙도 디자인 실내건축'}` : null;
+    const viewerCommentId = myId || myPartnerCommentId;
     const liked = !!(myId && (post.likedBy || []).includes(myId));
 
     const commentsHtml = (post.comments || []).length > 0
@@ -4258,9 +4272,9 @@ function openCommunityDetail(postId) {
                     <button type="button" onclick="toggleReplyBox('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0">답글 달기</button>
                     ${isQnaPost && isPostAuthor ? `
                     <button type="button" onclick="toggleCommunityAcceptedAnswer('${post.id}', ${idx})" class="text-[10px] font-bold ${c.accepted ? 'text-emeraldCustom' : 'text-ink-400 hover:text-emeraldCustom'} bg-transparent border-0 cursor-pointer p-0">${c.accepted ? '채택 취소' : '채택하기'}</button>` : ''}
-                    ${myId && c.authorId === myId ? `
+                    ${viewerCommentId && c.authorId === viewerCommentId ? `
                     <button type="button" onclick="toggleCommentEdit('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">${isCommentEditing ? '취소' : '수정'}</button>
-                    <button type="button" onclick="deleteCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (myId && c.authorId !== myId ? `
+                    <button type="button" onclick="deleteCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (viewerCommentId && c.authorId !== viewerCommentId ? `
                     <button type="button" onclick="${isCommunityCommentReportedByMe(c) ? `showToast('이미 신고한 댓글입니다.', 'info')` : `openReportReasonPrompt((reason) => reportCommunityComment('${post.id}', ${idx}, reason))`}" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${isCommunityCommentReportedByMe(c) ? '신고됨' : '신고'}</button>` : '')}
                 </div>
                 ${repliesHtml}
@@ -4465,8 +4479,9 @@ function toggleCommunityLike(postId) {
  * 방법이 전혀 없었다 — 커뮤니티 패널 자체는 역할 구분 없이 누구나 들어올 수 있는
  * 전역 패널(CLIENT_AUTH_REQUIRED_PANELS에 community-panel이 없음)인데, 댓글
  * 작성만 클라이언트 로그인으로 막혀 있던 비대칭. Q&A 글에 한해 로그인한 파트너의
- * "전문가 답변"을 허용한다(수정/삭제/신고 대상은 되지 않는 최소 범위 — 고객
- * 댓글과 동일한 CRUD는 다음 단계로 남긴다). */
+ * "전문가 답변"을 허용한다. 수정/삭제/신고는 openCommunityDetail의
+ * myPartnerCommentId 분기(deleteCommunityComment/saveCommunityCommentEdit/
+ * reportCommunityComment)에서 고객 댓글과 동일하게 처리한다. */
 function submitCommunityComment(postId) {
     const post = (window.AppState.communityPosts || []).find(p => p.id === postId);
     if (!post) return;
