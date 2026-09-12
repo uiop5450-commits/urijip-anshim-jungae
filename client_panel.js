@@ -2388,6 +2388,7 @@ function renderClientAccountSettings() {
     renderClientReportedStatus();
     renderClientReviewDeletionStatus();
     renderClientCommunityDeletionStatus();
+    renderClientPortfolioQuestionDeletionStatus();
     renderClientBenefitsStatus();
     renderClientRatingStatus();
     renderClientStrikeAppealStatus();
@@ -2550,6 +2551,69 @@ function renderClientCommunityDeletionStatus() {
         }
         return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5">
             <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">작성하신 ${e.typeLabelKo}이 삭제되었습니다: "${escapeHtml(e.contentPreview)}" (${e.date})</p>
+            ${statusHtml}
+        </div>`;
+    }).join('');
+}
+
+/* 커뮤니티 게시글 삭제 이의신청과 동일한 비대칭이 시공사례 문의(portfolioQuestion)
+ * 삭제에도 있었다 — 삭제 시 알림은 가지만(adminDeletePortfolioQuestion,
+ * partner_panel.js) 소명할 방법은 없었다. 동일한 스냅샷 로그/승인·반려 구조를
+ * 적용한다. */
+let portfolioQuestionDeletionAppealTarget = null;
+
+function openPortfolioQuestionDeletionAppealModal(logId) {
+    const auth = window.AppState.clientAuth;
+    const entry = (window.AppState.portfolioQuestionDeletionLog || []).find(e => e.id === logId && e.authorId === auth.id);
+    if (!entry) return;
+    if (entry.appeal && entry.appeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요.', 'warning'); return; }
+    portfolioQuestionDeletionAppealTarget = logId;
+    safeUpdateValue('portfolio-question-deletion-appeal-reason-input', '');
+    openModal('portfolio-question-deletion-appeal-modal', 'portfolio-question-deletion-appeal-modal-card');
+}
+
+function closePortfolioQuestionDeletionAppealModal() {
+    portfolioQuestionDeletionAppealTarget = null;
+    closeModal('portfolio-question-deletion-appeal-modal', 'portfolio-question-deletion-appeal-modal-card');
+}
+
+function submitPortfolioQuestionDeletionAppeal() {
+    const entry = (window.AppState.portfolioQuestionDeletionLog || []).find(e => e.id === portfolioQuestionDeletionAppealTarget);
+    if (!entry) { closePortfolioQuestionDeletionAppealModal(); return; }
+    const reason = document.getElementById('portfolio-question-deletion-appeal-reason-input')?.value.trim();
+    if (!reason) { showToast('이의신청 내용을 입력해주세요.', 'warning'); return; }
+
+    entry.appeal = { reason, status: 'pending', date: getLocalDateString(), adminResponse: null, resolvedDate: null };
+
+    const auth = window.AppState.clientAuth;
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PORTFOLIO_QUESTION_DELETION_APPEAL', `[${auth.name}] 고객님이 삭제된 시공사례 문의에 대해 이의신청을 제출했습니다.`, 'WARNING');
+    showToast('이의신청이 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
+
+    closePortfolioQuestionDeletionAppealModal();
+    renderClientPortfolioQuestionDeletionStatus();
+}
+
+function renderClientPortfolioQuestionDeletionStatus() {
+    const container = document.getElementById('client-portfolio-question-deletion-status');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    const myEntries = (window.AppState.portfolioQuestionDeletionLog || []).filter(e => e.authorId === auth.id);
+
+    if (myEntries.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">삭제된 시공사례 문의가 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = myEntries.map(e => {
+        let statusHtml;
+        if (e.appeal && e.appeal.status === 'pending') {
+            statusHtml = `<p class="text-[10px] font-black text-amberCustom mt-1">이의신청 심사 대기중</p>`;
+        } else if (e.appeal && e.appeal.status === 'rejected') {
+            statusHtml = `<p class="text-[10px] font-bold text-ink-400 mt-1">이의신청 반려됨${e.appeal.adminResponse ? ` — ${escapeHtml(e.appeal.adminResponse)}` : ''}</p>`;
+        } else {
+            statusHtml = `<button type="button" onclick="openPortfolioQuestionDeletionAppealModal('${e.id}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0 mt-1">이의신청하기</button>`;
+        }
+        return `<div class="p-2.5 bg-amber-50 rounded-xl space-y-0.5">
+            <p class="text-[10px] text-ink-600 font-semibold leading-relaxed">[${escapeHtml(e.partnerName)}]에 남긴 시공사례 문의가 삭제되었습니다: "${escapeHtml(e.questionSnapshot.text)}" (${e.date})</p>
             ${statusHtml}
         </div>`;
     }).join('');
@@ -4640,6 +4704,10 @@ window.closeReviewDeletionAppealModal = closeReviewDeletionAppealModal;
 window.submitReviewDeletionAppeal = submitReviewDeletionAppeal;
 window.renderClientReviewDeletionStatus = renderClientReviewDeletionStatus;
 window.openCommunityDeletionAppealModal = openCommunityDeletionAppealModal;
+window.openPortfolioQuestionDeletionAppealModal = openPortfolioQuestionDeletionAppealModal;
+window.closePortfolioQuestionDeletionAppealModal = closePortfolioQuestionDeletionAppealModal;
+window.submitPortfolioQuestionDeletionAppeal = submitPortfolioQuestionDeletionAppeal;
+window.renderClientPortfolioQuestionDeletionStatus = renderClientPortfolioQuestionDeletionStatus;
 window.closeCommunityDeletionAppealModal = closeCommunityDeletionAppealModal;
 window.submitCommunityDeletionAppeal = submitCommunityDeletionAppeal;
 window.renderClientCommunityDeletionStatus = renderClientCommunityDeletionStatus;
