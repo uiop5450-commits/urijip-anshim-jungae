@@ -3130,16 +3130,24 @@ function renderAdminDashboard() {
         (o.scheduleChangeRequest && o.scheduleChangeRequest.status === 'pending' && o.scheduleChangeRequest.escalated) ||
         (o.priceChangeRequest && o.priceChangeRequest.status === 'pending' && o.priceChangeRequest.escalated)
     ).length;
-    const hasOperationalIssues = overdueMilestoneCount > 0 || expiredBidOrderCount > 0 || warrantyEndingSoonCount > 0 || escalatedNegotiationCount > 0;
+    // 입점 신청 단계의 블랙리스트 대조(submitPartnerSignup)는 새 신청만 막을 뿐,
+    // 그 검증이 생기기 전에 이미 승인되어 활동 중인 파트너까지 소급 확인해주지는
+    // 않는다 — 사업자등록번호가 블랙리스트와 우연히(또는 부정하게) 일치하는
+    // 활동 파트너가 있는지 관리자가 알 수 있는 유일한 창구를 대시보드에 둔다.
+    const blacklistedActivePartnerCount = partners.filter(p =>
+        p.status !== 'banned' && (window.AppState.blacklistDb || []).some(b => b.bizFile === p.bizFile)
+    ).length;
+    const hasOperationalIssues = overdueMilestoneCount > 0 || expiredBidOrderCount > 0 || warrantyEndingSoonCount > 0 || escalatedNegotiationCount > 0 || blacklistedActivePartnerCount > 0;
 
     container.innerHTML = `
         <div class="space-y-2.5">
             <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider">운영 이슈 모니터링</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
                 <div class="article-spec-chip ${overdueMilestoneCount > 0 ? '!border-rose-200' : ''}"><span>연체된 공사대금 마일스톤</span><span class="val ${overdueMilestoneCount > 0 ? 'text-roseCustom' : ''}">${overdueMilestoneCount}건</span></div>
                 <div class="article-spec-chip ${expiredBidOrderCount > 0 ? '!border-rose-200' : ''}"><span>만료 견적 방치 오더</span><span class="val ${expiredBidOrderCount > 0 ? 'text-roseCustom' : ''}">${expiredBidOrderCount}건</span></div>
                 <div class="article-spec-chip ${warrantyEndingSoonCount > 0 ? '!border-amber-200' : ''}"><span>보증 만료 임박(30일 내)</span><span class="val">${warrantyEndingSoonCount}건</span></div>
                 <div class="article-spec-chip ${escalatedNegotiationCount > 0 ? '!border-rose-200' : ''}"><span>협의 조정 요청 대기</span><span class="val ${escalatedNegotiationCount > 0 ? 'text-roseCustom' : ''}">${escalatedNegotiationCount}건</span></div>
+                <div class="article-spec-chip ${blacklistedActivePartnerCount > 0 ? '!border-rose-200' : ''}"><span>블랙리스트 대조 파트너</span><span class="val ${blacklistedActivePartnerCount > 0 ? 'text-roseCustom' : ''}">${blacklistedActivePartnerCount}곳</span></div>
             </div>
             ${!hasOperationalIssues ? '<p class="text-[11px] text-ink-400 font-semibold">현재 확인이 필요한 운영 이슈가 없습니다.</p>' : ''}
         </div>`;
