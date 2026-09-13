@@ -3088,6 +3088,12 @@ function cascadeClientPhoneChange(oldPhone, newPhone) {
     (window.AppState.clientRatings || []).forEach(r => { if (r.clientPhone === oldPhone) r.clientPhone = newPhone; });
     (window.AppState.clientReports || []).forEach(r => { if (r.clientPhone === oldPhone) r.clientPhone = newPhone; });
     (window.AppState.supportTickets || []).forEach(t => { if (t.clientPhone === oldPhone) t.clientPhone = newPhone; });
+    // 파트너 업체명 변경(cascadePartnerNameChange, partner_panel.js)은 1:1 쪽지
+    // 스레드(directMessageThreads)까지 갱신하는데, 고객 쪽은 스레드 키(identifier)가
+    // 바로 이 phone이라 연락처를 바꾸면 관리자의 다음 openAdminDirectMessageModal
+    // 호출이 옛 phone으로 찾아둔 기존 스레드를 못 찾고 빈 스레드를 새로 만들어,
+    // 기존 대화 이력과 안읽음 표시가 통째로 유실되고 있었다.
+    (window.AppState.directMessageThreads || []).forEach(t => { if (t.type === 'client' && t.identifier === oldPhone) t.identifier = newPhone; });
 }
 
 /* 연락처 변경은 cascadeClientPhoneChange로 관련 기록에 반영되는데, 이름 변경은
@@ -3130,6 +3136,10 @@ function cascadeClientNameChange(clientPhone, clientId, oldName, newName) {
         (p.favoriteClients || []).forEach(c => { if (c.phone === clientPhone) c.name = newName; });
         (p.blockedClients || []).forEach(c => { if (c.phone === clientPhone) c.name = newName; });
     });
+    // 1:1 쪽지 스레드(directMessageThreads)의 displayName도 개명 전 이름으로
+    // 스냅샷 찍혀 있어, 갱신하지 않으면 관리자 화면(renderDmThreadHistory)에
+    // 옛 이름이 영구히 남는다.
+    (window.AppState.directMessageThreads || []).forEach(t => { if (t.type === 'client' && t.identifier === clientPhone) t.displayName = newName; });
 }
 
 function updateClientProfileInfo() {
