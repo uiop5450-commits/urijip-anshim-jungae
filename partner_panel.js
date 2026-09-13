@@ -1298,6 +1298,15 @@ function submitPartnerSignup() {
     // 정당하게 해지했던 업체가 같은 사업자등록번호로는 다시는 재입점할 수 없는
     // 문제가 생긴다.
     if (window.AppState.partners.some(p => p.bizFile === bizNum && p.status !== 'closed')) { showToast('이미 등록된 사업자등록번호입니다.', 'warning'); return; }
+    // 삼진아웃·부정행위로 blacklistDb(영구 제명 명부)에 오른 업체는 partners 배열에서
+    // 아예 지워지거나 처음부터 없을 수 있어(사기 적발 등 시드 데이터), 위 partners
+    // 중복 체크만으로는 걸러지지 않는다 — 블랙리스트는 등록·조회·CSV 내보내기만
+    // 될 뿐 정작 재입점 신청 단계에서 한 번도 대조되지 않아 "영구 제명"이 이름뿐인
+    // 상태였다. 사업자등록번호로 대조해 재입점 자체를 막는다.
+    if ((window.AppState.blacklistDb || []).some(b => b.bizFile === bizNum)) {
+        showToast('해당 사업자등록번호는 블랙리스트에 등록되어 입점 신청이 제한됩니다. 문의사항은 고객센터로 연락해 주세요.', 'warning');
+        return;
+    }
     if (!_partnerSignupBizCertDraft) { showToast('사업자등록증 파일을 첨부해 주세요.', 'warning'); return; }
 
     // 고객 회원가입의 추천인 입력(form-signup-referral)과 동일하게, 추천인 아이디는
