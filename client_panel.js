@@ -895,7 +895,7 @@ function buildProgressStagesHtml(order) {
         if (s.disputed) {
             statusHtml = s.disputeResolution === 'rejected'
                 ? `<span class="text-[9px] font-bold text-ink-400">이의제기 반려됨${s.disputeAdminResponse ? ` — ${escapeHtml(s.disputeAdminResponse)}` : ''}</span>`
-                : `<span class="text-[9px] font-black text-amberCustom">이의제기 심사중</span>`;
+                : `<span class="flex items-center gap-1.5"><span class="text-[9px] font-black text-amberCustom">이의제기 심사중</span><button type="button" onclick="retractProgressStageDispute('${order.code}', ${idx})" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">철회</button></span>`;
         } else {
             statusHtml = `<button type="button" onclick="openReportReasonPrompt((reason) => disputeProgressStage('${order.code}', ${idx}, reason))" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">이의제기</button>`;
         }
@@ -927,6 +927,29 @@ function disputeProgressStage(orderCode, stageIndex, reason) {
     if (typeof pushLog === 'function') pushLog('CLIENT', 'PROGRESS_STAGE_DISPUTE', `[${order.clientName}] 고객님이 계약(${order.code}) 시공 단계("${stage.label}") 완료 표시에 이의를 제기했습니다: ${reason}`, 'WARNING');
     if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 "${stage.label}" 단계 완료 표시에 이의를 제기했어요. 매니저 센터가 검토 중입니다.`);
     showToast('매니저 센터에 이의제기를 접수했습니다.', 'success');
+
+    selectMyPageEstimate(order.code);
+}
+
+/* 계약 취소·일정/금액 변경 요청·하자보수 신청·파트너 신고는 전부 신청자 본인이
+ * 철회할 수 있는데(retractPartnerReport 등), 시공 단계 완료 표시 이의제기만
+ * 철회할 방법이 없었다 — 오해가 풀렸거나 착오로 제기했어도 매니저 센터 심사를
+ * 그냥 기다리는 수밖에 없던 공백이었다. 관리자가 아직 처리하지 않은
+ * (disputeResolution === null) 경우에만 철회할 수 있게 한다. */
+function retractProgressStageDispute(orderCode, stageIndex) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const stages = order && getOrInitProgressStages(order);
+    const stage = stages && stages[stageIndex];
+    if (!stage || !stage.disputed || stage.disputeResolution) return;
+
+    stage.disputed = false;
+    stage.disputeReason = null;
+    stage.disputeResolution = null;
+    stage.disputeAdminResponse = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PROGRESS_STAGE_DISPUTE_RETRACT', `[${order.clientName}] 고객님이 계약(${order.code}) 시공 단계("${stage.label}") 완료 표시 이의제기를 철회했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 "${stage.label}" 단계 완료 표시 이의제기를 철회했어요.`);
+    showToast('이의제기를 철회했습니다.', 'info');
 
     selectMyPageEstimate(order.code);
 }
@@ -5348,6 +5371,7 @@ window.isPartnerBlockedByClient = isPartnerBlockedByClient;
 window.togglePartnerBlock = togglePartnerBlock;
 window.renderBlockedPartnersList = renderBlockedPartnersList;
 window.disputeProgressStage = disputeProgressStage;
+window.retractProgressStageDispute = retractProgressStageDispute;
 window.disputeSiteVisitCompletion = disputeSiteVisitCompletion;
 window.computeClientTier = computeClientTier;
 window.buildClientTierBadgeHtml = buildClientTierBadgeHtml;
