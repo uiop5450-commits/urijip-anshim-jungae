@@ -788,6 +788,11 @@ function openRepairClaimModal(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order || order.status !== 'contracted') return;
     if (!order.clientSigned || !order.partnerSigned) { showToast('양측 서명이 완료된 계약만 하자보수를 신청할 수 있어요.', 'warning'); return; }
+    // isWarrantyExpired는 준공 전(getWarrantyEndDate가 null)이면 "아직 만료 안 됨"으로
+    // 취급해 false를 반환하므로, 이 체크만으로는 착공도 안 한 계약에 하자보수 신청이
+    // 그대로 열려 있었다 — 준공 판정(isConstructionCompleted, 후기 작성 게이트와 동일한
+    // 기준) 없이는 애초에 "하자"라는 개념이 성립하지 않는다.
+    if (typeof isConstructionCompleted === 'function' && !isConstructionCompleted(order)) { showToast('준공 완료 후에 하자보수를 신청할 수 있어요.', 'warning'); return; }
     if (typeof isWarrantyExpired === 'function' && isWarrantyExpired(order)) { showToast('무상 보증기간(준공일로부터 3년)이 만료되어 하자보수를 신청할 수 없어요.', 'warning'); return; }
     repairClaimTargetCode = orderCode;
     safeUpdateValue('repair-claim-title', '');
@@ -844,6 +849,12 @@ function handleRepairClaimPhotoUpload(input) {
 function submitRepairClaim() {
     const order = window.AppState.orders.find(o => o.code === repairClaimTargetCode);
     if (!order) { closeRepairClaimModal(); return; }
+    // openRepairClaimModal에서 이미 확인하지만, 모달이 열려 있는 동안 상태가 바뀌는
+    // 경합을 방지하기 위해 제출 시점에도 한 번 더 확인한다.
+    if (typeof isConstructionCompleted === 'function' && !isConstructionCompleted(order)) {
+        showToast('준공 완료 후에 하자보수를 신청할 수 있어요.', 'warning');
+        return;
+    }
 
     const title = document.getElementById('repair-claim-title')?.value.trim();
     const desc = document.getElementById('repair-claim-desc')?.value.trim();
