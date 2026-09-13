@@ -1229,7 +1229,7 @@ function buildRepairClaimsHtml(order) {
                 : c.visitStatus === 'completed' ? (c.visitCompletionDisputed
                     ? (c.visitCompletionDisputeResolution === 'rejected'
                         ? `<p class="text-[10px] font-black text-ink-500 mt-1">방문 완료됨: ${c.visitCompletedDate}</p><p class="text-[9px] text-ink-400 font-semibold mt-0.5">이의제기 반려됨${c.visitCompletionDisputeAdminResponse ? ` — ${escapeHtml(c.visitCompletionDisputeAdminResponse)}` : ''}</p>`
-                        : `<p class="text-[10px] font-black text-ink-500 mt-1">방문 완료됨: ${c.visitCompletedDate}</p><p class="text-[9px] font-black text-amberCustom mt-0.5">이의제기 심사중</p>`)
+                        : `<p class="text-[10px] font-black text-ink-500 mt-1">방문 완료됨: ${c.visitCompletedDate}</p><p class="flex items-center gap-1.5 mt-0.5"><span class="text-[9px] font-black text-amberCustom">이의제기 심사중</span><button type="button" onclick="retractRepairVisitCompletionDispute('${order.code}', '${c.id}')" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">철회</button></p>`)
                     : `<p class="text-[10px] font-black text-ink-500 mt-1">방문 완료됨: ${c.visitCompletedDate}</p><button type="button" onclick="openReportReasonPrompt((reason) => disputeRepairVisitCompletion('${order.code}', '${c.id}', reason))" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-0.5">완료 처리에 이의있어요</button>`)
                 : c.visitStatus === 'declined' ? `<p class="text-[10px] text-ink-400 font-semibold mt-1">제안된 방문 일정을 거절했어요. 파트너사의 새 제안을 기다려주세요.</p>` : ''}
             ${c.status === 'submitted' ? `<button type="button" onclick="retractRepairClaim('${order.code}', '${c.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">신청 철회</button>` : ''}
@@ -1283,6 +1283,26 @@ function disputeRepairVisitCompletion(orderCode, claimId, reason) {
     if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_VISIT_COMPLETION_DISPUTE', `[${order.clientName}] 고객님이 하자보수("${claim.title}") 방문 완료 처리에 이의를 제기했습니다: ${reason}`, 'WARNING');
     if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 하자보수("${claim.title}") 방문 완료 처리에 이의를 제기했어요. 매니저 센터가 검토 중입니다.`);
     showToast('매니저 센터에 이의제기를 접수했습니다.', 'success');
+
+    selectMyPageEstimate(orderCode);
+}
+
+/* retractProgressStageDispute와 동일한 이유로, 하자보수 방문 완료 처리
+ * 이의제기도 관리자가 처리하기 전(visitCompletionDisputeResolution === null)
+ * 까지는 신청자가 직접 철회할 수 있게 한다. */
+function retractRepairVisitCompletionDispute(orderCode, claimId) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || !claim.visitCompletionDisputed || claim.visitCompletionDisputeResolution) return;
+
+    claim.visitCompletionDisputed = false;
+    claim.visitCompletionDisputeReason = null;
+    claim.visitCompletionDisputeResolution = null;
+    claim.visitCompletionDisputeAdminResponse = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_VISIT_COMPLETION_DISPUTE_RETRACT', `[${order.clientName}] 고객님이 하자보수("${claim.title}") 방문 완료 처리 이의제기를 철회했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 하자보수("${claim.title}") 방문 완료 처리 이의제기를 철회했어요.`);
+    showToast('이의제기를 철회했습니다.', 'info');
 
     selectMyPageEstimate(orderCode);
 }
@@ -5403,6 +5423,7 @@ window.openBidCompareModal = openBidCompareModal;
 window.sendClientOrderMessage = sendClientOrderMessage;
 window.confirmRepairVisitDate = confirmRepairVisitDate;
 window.disputeRepairVisitCompletion = disputeRepairVisitCompletion;
+window.retractRepairVisitCompletionDispute = retractRepairVisitCompletionDispute;
 window.respondChangeOrder = respondChangeOrder;
 window.disputeCompletedRepairClaim = disputeCompletedRepairClaim;
 window.retractRepairClaimCompletionDispute = retractRepairClaimCompletionDispute;
