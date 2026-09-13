@@ -1555,6 +1555,16 @@ function openClientPartnerProfile(partnerName) {
     const tierBadgeEl = document.getElementById('profile-partner-tier-badge');
     if (tierBadgeEl) tierBadgeEl.innerHTML = typeof buildPartnerTierBadgeHtml === 'function' ? buildPartnerTierBadgeHtml(partner.name) : '';
 
+    /* 파트너는 옐로카드(strikeCount)가 쌓여 3진아웃 한 걸음 전이어도, 고객 눈엔
+     * 평점·인증뱃지만 보여 옐로카드 없는 파트너와 구별이 안 됐다 — 계약 전 알아야
+     * 할 안전 이력을 관리자·파트너 화면과 동일한 strikeCount 그대로 노출한다. */
+    const safetyBadgeEl = document.getElementById('profile-partner-safety-badge');
+    if (safetyBadgeEl) {
+        safetyBadgeEl.innerHTML = (partner.strikeCount > 0)
+            ? `<span class="badge badge-rose" title="누적 옐로카드 ${partner.strikeCount}회 (3회 누적 시 영구 제명)"><i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> 옐로카드 ${partner.strikeCount}회</span>`
+            : `<span class="badge badge-emerald"><i data-lucide="shield-check" class="w-2.5 h-2.5"></i> 안전 이력 없음</span>`;
+    }
+
     const favoriteBtn = document.getElementById('client-partner-profile-favorite-btn');
     if (favoriteBtn && typeof syncFavoriteButtonIcon === 'function') syncFavoriteButtonIcon(favoriteBtn, partner.name);
 

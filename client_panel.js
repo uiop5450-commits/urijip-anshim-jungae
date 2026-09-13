@@ -3505,6 +3505,7 @@ function renderMyPageEstimateDetails(order) {
                             ${typeof buildPartnerTierBadgeHtml === 'function' ? buildPartnerTierBadgeHtml(bid.partner) : ''}
                             <span class="text-gold-500 font-extrabold text-xs">★ ${ratingVal}</span>
                             ${isBannedBid ? `<span class="badge badge-rose">영구 제명</span>` : ''}
+                            ${!isBannedBid && partnerInfo && partnerInfo.strikeCount > 0 ? `<span class="badge badge-rose" title="누적 옐로카드 ${partnerInfo.strikeCount}회"><i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> 옐로카드 ${partnerInfo.strikeCount}회</span>` : ''}
                             ${isExpiredBid ? `<span class="badge badge-rose"><i data-lucide="clock" class="w-2.5 h-2.5"></i> 견적 만료</span>` : ''}
                             ${daysRemaining !== null && daysRemaining <= 3 ? `<span class="badge badge-amber">D-${daysRemaining}</span>` : ''}
                         </div>
