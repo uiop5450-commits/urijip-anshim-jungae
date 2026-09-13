@@ -349,6 +349,26 @@ function sweepOverduePaymentMilestones(order) {
     return milestones;
 }
 
+const MILESTONE_DUE_SOON_DAYS_BEFORE = 2;
+
+/* isMilestoneOverdue/sweepOverduePaymentMilestones는 기한을 이미 넘긴 뒤 파트너에게만
+ * 알릴 뿐, 정작 납부해야 할 고객에게는 청구 시점(requestPaymentMilestone) 알림 이후
+ * 기한이 다가온다는 사전 안내가 전혀 없었다 — 하자보수 보증 만료 임박 알림
+ * (sweepWarrantyExpiryReminders)과 동일한 패턴으로, 연체로 넘어가기 전에 먼저 알린다. */
+function sweepMilestoneDueSoonReminders(order) {
+    const milestones = getOrInitPaymentMilestones(order);
+    milestones.forEach(m => {
+        if (m.status !== 'requested' || !m.dueDate || m.dueSoonNotified) return;
+        const daysLeft = Math.ceil((new Date(m.dueDate) - new Date(getLocalDateString())) / (1000 * 60 * 60 * 24));
+        if (daysLeft < 0 || daysLeft > MILESTONE_DUE_SOON_DAYS_BEFORE) return;
+        m.dueSoonNotified = true;
+        if (typeof pushClientNotification === 'function') {
+            pushClientNotification(order.clientPhone, `${m.label} 납부기한이 ${daysLeft === 0 ? '오늘' : `${daysLeft}일 후`}(${m.dueDate})로 다가왔어요. 잊지 말고 납부해 주세요.`);
+        }
+    });
+    return milestones;
+}
+
 /* 홈 화면 이벤트 배너(pamphlets, config_state.js)가 "첫 견적 신청 5만원 상품권",
  * "후기 작성 10만원 상품권", "계약 시 3년 하자이행보증 쿠폰"을 100% 증정한다고
  * 광고하지만, 실제로 이 혜택을 적립·확인할 방법이 어디에도 없었다 — 순수 마케팅
@@ -756,6 +776,7 @@ window.computeBidValidUntil = computeBidValidUntil;
 window.computePartnerAvgResponseHours = computePartnerAvgResponseHours;
 window.formatResponseHours = formatResponseHours;
 window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
+window.sweepMilestoneDueSoonReminders = sweepMilestoneDueSoonReminders;
 window.getOrInitOrderMessages = getOrInitOrderMessages;
 window.sendOrderMessage = sendOrderMessage;
 window.reportOrderMessage = reportOrderMessage;

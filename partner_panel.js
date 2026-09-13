@@ -2244,6 +2244,7 @@ function buildPartnerSiteVisitHtml(order) {
 function buildPartnerPaymentMilestonesHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
     const milestones = typeof sweepOverduePaymentMilestones === 'function' ? sweepOverduePaymentMilestones(order) : getOrInitPaymentMilestones(order);
+    if (typeof sweepMilestoneDueSoonReminders === 'function') sweepMilestoneDueSoonReminders(order);
     const price = order.finalPrice || 0;
     return `<div class="surface p-5 space-y-3">
         <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="wallet" class="w-4 h-4 text-brand-500"></i> 단계별 공사대금 청구</h5>
@@ -2281,6 +2282,7 @@ function requestPaymentMilestone(orderCode, key) {
     due.setDate(due.getDate() + 7);
     m.dueDate = due.toISOString().slice(0, 10);
     m.overdueNotified = false;
+    m.dueSoonNotified = false;
     const amount = typeof getMilestoneAmount === 'function' ? getMilestoneAmount(m, order.finalPrice) : Math.floor((order.finalPrice || 0) * m.percent / 100);
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'PAYMENT_MILESTONE_REQUEST', `[${partnerName}]가 오더(${order.code}) ${m.label} 청구를 요청했습니다. (₩${amount.toLocaleString()}만원, 납부기한 ${m.dueDate})`, 'INFO');
@@ -3650,6 +3652,7 @@ function adminApproveMilestoneDispute(orderCode, key) {
     m.requestedDate = null;
     m.dueDate = null;
     m.overdueNotified = false;
+    m.dueSoonNotified = false;
     m.disputeResolution = 'approved';
     m.disputeResolvedDate = getLocalDateString();
 
@@ -3689,6 +3692,7 @@ function adminApprovePaymentReceiptDispute(orderCode, key) {
     due.setDate(due.getDate() + 7);
     m.dueDate = due.toISOString().slice(0, 10);
     m.overdueNotified = false;
+    m.dueSoonNotified = false;
     m.paymentDisputeResolution = 'approved';
     m.paymentDisputeResolvedDate = getLocalDateString();
 

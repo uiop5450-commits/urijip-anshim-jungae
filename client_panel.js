@@ -1019,6 +1019,7 @@ function disputeSiteVisitCompletion(orderCode, reason) {
 function buildPaymentMilestonesHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
     const milestones = typeof sweepOverduePaymentMilestones === 'function' ? sweepOverduePaymentMilestones(order) : getOrInitPaymentMilestones(order);
+    if (typeof sweepMilestoneDueSoonReminders === 'function') sweepMilestoneDueSoonReminders(order);
     const price = order.finalPrice || 0;
     return `<div class="p-3.5 surface-flat space-y-2 text-left mt-3">
         <span class="text-[11px] font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="wallet" class="w-3.5 h-3.5 text-brand-500"></i> 단계별 공사대금</span>
