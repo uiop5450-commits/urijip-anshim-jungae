@@ -1020,6 +1020,7 @@ function renderPartnerProfileManager() {
     }
 
     renderPartnerMyReviews(partner);
+    if (typeof renderPartnerBlockedCommunityUsersList === 'function') renderPartnerBlockedCommunityUsersList();
     safeUpdateValue('partner-account-edit-region', partner.region || '');
     safeUpdateValue('partner-account-edit-bizfile', partner.bizFile || '');
     safeUpdateValue('partner-account-edit-phone', partner.phone || '');

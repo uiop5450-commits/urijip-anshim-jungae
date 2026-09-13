@@ -4316,10 +4316,20 @@ function reportCommunityPost(postId, reason) {
 /* 특정 게시글 신고(reportCommunityPost)는 있는데, 특정 사용자가 반복적으로 불편한
  * 글을 올려도 그 사람 글 전체를 안 보이게 할 방법이 전혀 없었다 — 즐겨찾기
  * 파트너와 동일하게 내 계정에 blockedUsers 배열을 두고, 커뮤니티 목록 렌더링에서
- * 차단한 작성자의 글을 걸러낸다(삭제가 아니라 내 화면에서만 숨김).*/
+ * 차단한 작성자의 글을 걸러낸다(삭제가 아니라 내 화면에서만 숨김).
+ *
+ * 파트너도 Q&A 답변 작성자로서 커뮤니티에 참여하고 신고도 할 수 있는데
+ * (reportCommunityComment의 isPartnerReporter 분기와 동일한 비대칭), 정작 특정
+ * 사용자의 글을 안 보이게 차단할 방법은 클라이언트 계정에만 있었다 — 파트너
+ * 객체에 별도의 communityBlockedUsers 배열을 두어 동일한 기능을 제공한다. */
 function isCommunityUserBlockedByMe(authorId) {
+    if (!authorId) return false;
+    if (window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn)) {
+        const partner = window.AppState.partners.find(p => p.name === (window.AppState.partnerName || '오륙도 디자인 실내건축'));
+        return !!(partner && partner.communityBlockedUsers && partner.communityBlockedUsers.includes(authorId));
+    }
     const auth = window.AppState.clientAuth;
-    if (!auth || !auth.loggedIn || !authorId) return false;
+    if (!auth || !auth.loggedIn) return false;
     const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
     return !!(account && account.blockedUsers && account.blockedUsers.includes(authorId));
 }
@@ -4373,6 +4383,24 @@ function reportCommunityReply(postId, commentIndex, replyIndex, reason) {
 }
 
 function toggleBlockCommunityUser(authorId, authorName, postId) {
+    const isPartnerBlocker = window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn);
+    if (isPartnerBlocker) {
+        const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+        if (authorId === `partner:${partnerName}`) return;
+        const partner = window.AppState.partners.find(p => p.name === partnerName);
+        if (!partner) return;
+        if (!partner.communityBlockedUsers) partner.communityBlockedUsers = [];
+        const pIdx = partner.communityBlockedUsers.indexOf(authorId);
+        if (pIdx >= 0) { partner.communityBlockedUsers.splice(pIdx, 1); showToast(`[${authorName}]님을 차단 해제했습니다.`, 'info'); }
+        else {
+            partner.communityBlockedUsers.push(authorId);
+            if (typeof pushLog === 'function') pushLog('PARTNER', 'COMMUNITY_BLOCK', `[${partnerName}]가 '${authorName}'님을 커뮤니티에서 차단했습니다.`, 'INFO');
+            showToast(`[${authorName}]님을 차단했습니다. 이 사용자의 글이 더 이상 보이지 않아요.`, 'success');
+        }
+        if (postId) openCommunityDetail(postId); else renderCommunityList();
+        if (typeof renderPartnerBlockedCommunityUsersList === 'function') renderPartnerBlockedCommunityUsersList();
+        return;
+    }
     if (!requireClientLoginForCommunity()) return;
     const auth = window.AppState.clientAuth;
     if (authorId === auth.id) return;
@@ -4482,7 +4510,7 @@ function openCommunityDetail(postId) {
                         <div class="flex items-center gap-2.5 shrink-0">
                             <button type="button" onclick="openCommunityEdit('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button>
                             <button type="button" onclick="deleteCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
-                        </div>` : (myId ? `
+                        </div>` : (viewerCommentId ? `
                         <div class="flex items-center gap-2.5 shrink-0">
                             <button type="button" onclick="toggleBlockCommunityUser('${escapeHtml(post.authorId)}', '${escapeHtml(post.authorName)}', '${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"><i data-lucide="user-x" class="w-3 h-3"></i> ${isCommunityUserBlockedByMe(post.authorId) ? '차단 해제' : '작성자 차단'}</button>
                             <button type="button" onclick="${(post.reportedBy || []).includes(myId) ? `showToast('이미 신고한 게시글입니다.', 'info')` : `openReportReasonPrompt((reason) => reportCommunityPost('${post.id}', reason))`}" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"><i data-lucide="flag" class="w-3 h-3"></i> ${(post.reportedBy || []).includes(myId) ? '신고 완료' : '신고'}</button>

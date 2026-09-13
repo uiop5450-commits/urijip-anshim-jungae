@@ -1368,6 +1368,33 @@ function buildPartnerBlockedClientsHtml(partner) {
         </div>`).join('');
 }
 
+/* 클라이언트는 마이페이지에서 커뮤니티 차단 목록을 확인/해제할 수 있는데
+ * (renderBlockedUsersList), 파트너는 toggleBlockCommunityUser로 차단은 할 수 있어도
+ * 콘솔 어디서도 누굴 차단했는지 확인·해제할 방법이 없었다 — 동일한 패턴을
+ * 마이인포 화면에 추가한다. */
+function renderPartnerBlockedCommunityUsersList() {
+    const container = document.getElementById('partner-blocked-community-users-list');
+    if (!container) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const blockedIds = (partner && partner.communityBlockedUsers) || [];
+
+    if (blockedIds.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-bold text-center py-3">차단한 사용자가 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = blockedIds.map(id => {
+        const account = (window.AppState.clientAccounts || []).find(acc => acc.id === id);
+        const post = (window.AppState.communityPosts || []).find(p => p.authorId === id);
+        const displayName = (account && account.name) || (post && post.authorName) || id;
+        return `
+        <div class="flex items-center justify-between p-3 bg-ink-50 rounded-xl">
+            <span class="text-xs font-bold text-ink-800">${escapeHtml(displayName)}</span>
+            <button type="button" onclick="toggleBlockCommunityUser('${escapeHtml(id)}', '${escapeHtml(displayName)}')" class="text-[11px] font-bold text-brand-600 hover:underline bg-transparent border-0 cursor-pointer p-0">차단 해제</button>
+        </div>`;
+    }).join('');
+}
+
 function buildPartnerFavoriteClientsHtml(partner) {
     const favorites = partner.favoriteClients || [];
     if (favorites.length === 0) {
@@ -7322,6 +7349,7 @@ window.retractPartnerCancellationRequest = retractPartnerCancellationRequest;
 window.exportBlacklistDbToCsv = exportBlacklistDbToCsv;
 window.dismissReviewReport = dismissReviewReport;
 window.dismissPartnerReviewFlag = dismissPartnerReviewFlag;
+window.renderPartnerBlockedCommunityUsersList = renderPartnerBlockedCommunityUsersList;
 window.dismissReviewReplyReport = dismissReviewReplyReport;
 window.adminDeleteReviewReply = adminDeleteReviewReply;
 window.openReviewReplyDeletionAppealModal = openReviewReplyDeletionAppealModal;
