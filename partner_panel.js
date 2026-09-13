@@ -1629,187 +1629,6 @@ function renderPartnerOrderList() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function selectOrderForAudit(code) {
-    window.AppState.selectedOrderCode = code;
-    const order = window.AppState.orders.find(o => o.code === code);
-    if (!order) return;
-
-    document.getElementById('partner-audit-empty')?.classList.add('hidden');
-    const details = document.getElementById('partner-audit-details');
-    if (!details) return;
-    details.classList.remove('hidden');
-
-    const currentPartnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
-    const isAlreadyBid = order.bids.some(b => b.partner === currentPartnerName);
-
-    let displayClientName = `${maskName(order.clientName)} 고객님 (${maskPhone(order.clientPhone)})`;
-    let displayClientAddress = "입찰 참여 즉시 실제 개인정보 자동 잠금해제";
-    if (isAlreadyBid || order.status === 'contracted') { displayClientName = `${order.clientName} 고객님 (${order.clientPhone})`; displayClientAddress = order.clientAddress; }
-
-    /* 고객 쪽엔 파트너를 고르기 전부터 등급 배지·평점이 보이는데(renderPartnerSearchGrid),
-     * 정작 파트너가 입찰 여부를 결정하는 이 화면에는 고객의 단골/평점 이력이 전혀
-     * 노출되지 않았다 — 관심 고객으로 저장한 뒤에야(buildPartnerFavoriteClientsHtml)
-     * 볼 수 있었던 정보를 입찰 결정 시점으로 앞당긴다. */
-    const auditClientTierBadge = typeof buildClientTierBadgeHtml === 'function' ? buildClientTierBadgeHtml(order.clientPhone) : '';
-    const auditClientAvgRating = typeof getClientAverageRating === 'function' ? getClientAverageRating(order.clientPhone) : null;
-
-    let competitorBidsHtml = '';
-    if (order.bids && order.bids.length > 0) {
-        competitorBidsHtml = `<div class="mt-4 pt-4 border-t border-ink-100 text-left"><span class="text-[11px] font-black text-ink-950 block mb-2.5 flex items-center gap-1.5"><i data-lucide="users" class="w-3.5 h-3.5 text-ink-500"></i> 현재 입찰 참여 업체 리스트 (금액 비공개)</span><div class="grid grid-cols-1 sm:grid-cols-2 gap-2">`;
-        order.bids.forEach(b => {
-            const isMe = b.partner === currentPartnerName;
-            const isContractCompletedPartner = order.status === 'contracted' && order.acceptedPartner === b.partner;
-            const statusLabel = isContractCompletedPartner ? '계약 완료' : '입찰 완료';
-            competitorBidsHtml += `
-                <div class="flex justify-between items-center px-3.5 py-2.5 rounded-xl ${isMe ? 'bg-ink-100 border border-ink-200' : 'bg-ink-50'} text-[11px] font-bold text-ink-800">
-                    <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full ${isMe ? 'bg-ink-950' : 'bg-ink-400'}"></span>${b.partner} ${isMe ? '<span class="text-[9px] text-ink-600 font-extrabold">(귀사)</span>' : ''}</span>
-                    <span class="text-ink-950 font-extrabold">${statusLabel}</span>
-                </div>`;
-        });
-        competitorBidsHtml += `</div></div>`;
-    }
-
-    details.innerHTML = `
-        <div class="space-y-5">
-            <div class="surface p-6 text-left">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div class="space-y-1.5">
-                        <div class="flex items-center gap-2 flex-wrap"><span class="badge badge-neutral"><span class="badge-dot bg-ink-500"></span> 우리집 안심 중개보증</span><span id="audit-code" class="text-xs font-mono font-bold text-ink-500 tracking-wider">${order.code}</span><span class="badge badge-brand">희망예산 ₩ ${order.budget.toLocaleString()}만원</span></div>
-                        <h4 class="text-base font-black text-ink-950 tracking-tight flex items-center gap-1.5 flex-wrap">${displayClientName} ${auditClientTierBadge}${auditClientAvgRating ? `<span class="text-xs font-bold text-ink-500"><span class="text-gold-500">★</span> ${auditClientAvgRating.avg} (파트너 평가 ${auditClientAvgRating.count}건)</span>` : ''}</h4>
-                        <p class="text-xs text-ink-600 font-bold leading-relaxed max-w-md">${displayClientAddress}</p>
-                    </div>
-                </div>
-                ${order.status === 'bidding' && typeof isClientAccountWithdrawn === 'function' && isClientAccountWithdrawn(order.clientPhone) ? `
-                <div class="mt-3 p-2.5 bg-ink-50 rounded-xl border border-ink-200 flex items-center gap-1.5">
-                    <i data-lucide="user-x" class="w-3.5 h-3.5 text-ink-400"></i>
-                    <span class="text-[11px] font-bold text-ink-500">이 고객님은 회원 탈퇴하셨어요. 계약이 진행되지 않을 수 있으니 참고해 주세요.</span>
-                </div>` : ''}
-            </div>
-
-            <div class="surface p-5 space-y-4">
-                <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="compass" class="w-4 h-4 text-ink-500"></i> 시공 마스터 명세</h5>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-left">
-                    <div class="article-spec-chip"><span>공간 구분</span><span class="val">${order.spaceType === 'residential' ? '주거 공간' : '상업 공간'}</span></div>
-                    <div class="article-spec-chip"><span>시공 형태</span><span class="val">${order.workType === 'all' ? '전체 시공' : '부분 시공'}</span></div>
-                    <div class="article-spec-chip"><span>시공 면적</span><span class="val">${order.pyung}평</span></div>
-                    <div class="article-spec-chip"><span>공실 여부</span><span class="val">${order.vacancy === 'empty' ? '공실' : '거주중'}</span></div>
-                    <div class="article-spec-chip"><span>고객 희망예산</span><span class="val">₩ ${order.budget.toLocaleString()}만원</span></div>
-                </div>
-            </div>
-
-            ${competitorBidsHtml}
-
-            ${isAlreadyBid ? `
-                <div class="p-4 surface-flat text-left space-y-1"><h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="check-circle" class="w-4 h-4 text-ink-700"></i> 선착순 즉시 입찰 선점 완료</h5><p class="text-[10px] text-ink-500 font-semibold leading-relaxed">의뢰자가 우리 시공사의 포트폴리오를 검토 중입니다.</p></div>
-                ${order.status === 'bidding' ? (() => {
-                    const myBid = order.bids.find(b => b.partner === currentPartnerName);
-                    return `
-                <div class="surface-flat p-4 space-y-3 text-left">
-                    <h5 class="text-xs font-black text-ink-950">제출한 입찰 내용 수정</h5>
-                    <div><label class="field-label">입찰 제안 금액 (만원)</label><input type="number" id="partner-bid-price-input" value="${myBid ? myBid.price : ''}" min="1" class="input"></div>
-                    <div><label class="field-label">제안 메시지</label><textarea id="partner-bid-desc-input" class="textarea h-20">${escapeHtml(myBid ? myBid.desc : '')}</textarea></div>
-                    ${buildBidCostBreakdownInputsHtml(myBid)}
-                    <button type="button" onclick="editPartnerBid('${order.code}')" class="btn btn-secondary btn-lg btn-block">입찰 내용 수정 완료</button>
-                </div>`;
-                })() : ''}
-            ` : `
-                ${buildPreBidQnaHtml(order, currentPartnerName)}
-                <div class="surface-flat p-4 space-y-3 text-left">
-                    <div><label class="field-label">입찰 제안 금액 (만원)</label><input type="number" id="partner-bid-price-input" value="${Math.floor(order.budget * 0.95)}" min="1" class="input"></div>
-                    <div><label class="field-label">제안 메시지</label><textarea id="partner-bid-desc-input" class="textarea h-20" placeholder="고객에게 보여줄 제안 메시지를 입력하세요.">${currentPartnerName}에서 제안하는 하이엔드 시공 안심 제안입니다.</textarea></div>
-                    ${buildBidCostBreakdownInputsHtml(null)}
-                    <button type="button" onclick="submitPartnerBid()" class="btn btn-dark btn-lg btn-block"><i data-lucide="zap" class="w-4 h-4"></i> 선착순 입찰 즉시 참여하기</button>
-                </div>`}
-        </div>`;
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-
-/* 입찰서가 견적금액 하나로만 이뤄져 있어서, 고객이 비교 테이블(openBidCompareModal,
- * client_panel.js)로 여러 입찰서를 봐도 "왜 이 가격인지" 근거를 전혀 알 수 없었다 —
- * 자재비/인건비/철거비/기타로 나눠 선택 입력받는다(전부 선택 사항이라, 입력 안 해도
- * 기존과 동일하게 총액만으로 입찰 가능). */
-const BID_COST_BREAKDOWN_CATEGORIES = [
-    { key: 'materials', label: '자재비' },
-    { key: 'labor', label: '인건비' },
-    { key: 'demolition', label: '철거비' },
-    { key: 'other', label: '기타' }
-];
-
-function buildBidCostBreakdownInputsHtml(existingBid) {
-    const existing = {};
-    (existingBid && existingBid.costBreakdown || []).forEach(item => { existing[item.key] = item.amount; });
-    return `<div class="space-y-1.5">
-        <label class="field-label mb-0">비용 세부내역 (만원, 선택)</label>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            ${BID_COST_BREAKDOWN_CATEGORIES.map(c => `<input type="number" id="partner-bid-cost-${c.key}-input" placeholder="${c.label}" min="0" value="${existing[c.key] || ''}" class="input text-xs">`).join('')}
-        </div>
-    </div>`;
-}
-
-function readBidCostBreakdownInputs() {
-    return BID_COST_BREAKDOWN_CATEGORIES
-        .map(c => ({ key: c.key, label: c.label, amount: parseInt(document.getElementById(`partner-bid-cost-${c.key}-input`)?.value, 10) || 0 }))
-        .filter(item => item.amount > 0);
-}
-
-function submitPartnerBid() {
-    const code = window.AppState.selectedOrderCode;
-    if (!code) return;
-    const order = window.AppState.orders.find(o => o.code === code);
-    if (!order) return;
-
-    const partnerName = window.AppState.partnerName || "오륙도 디자인 실내건축";
-    const priceInput = document.getElementById('partner-bid-price-input');
-    const price = priceInput ? parseInt(priceInput.value, 10) : NaN;
-    if (!price || price <= 0) { showToast('입찰 제안 금액을 올바르게 입력해 주세요.', 'warning'); return; }
-    const descInput = document.getElementById('partner-bid-desc-input');
-    const desc = (descInput && descInput.value.trim()) || `${partnerName}에서 제안하는 하이엔드 시공 안심 제안입니다.`;
-    const costBreakdown = readBidCostBreakdownInputs();
-
-    order.bids.push({ partner: partnerName, price, desc, verified: true, progress: 'bidding', costBreakdown, date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString() });
-
-    selectOrderForAudit(code);
-    renderPartnerOrderList();
-    recalculateKPIs();
-    pushLog('PARTNER', 'BID', `[${partnerName}]가 오더 ${code} 입찰 선점.`, 'SUCCESS');
-    showToast("선착순 입찰에 참여했습니다!", "success");
-}
-
-/* 지금까지 입찰 제출 후 오탈자나 경쟁사 대비 금액을 조정하려면 철회(withdrawMyPartnerBid)
- * 후 재입찰해야 했는데, 철회는 즉시 excludedPartners에 등록되어 해당 오더에 다시는
- * 입찰할 수 없게 막아버린다 — 사실상 "수정"의 대가가 영구 퇴장이었다. 계약 확정 전
- * (status === 'bidding')이라면 기존 입찰을 그대로 두고 금액/제안 내용만 바꿀 수 있게 한다. */
-function editPartnerBid(orderCode) {
-    const order = window.AppState.orders.find(o => o.code === orderCode);
-    if (!order || order.status !== 'bidding') { showToast('이미 계약이 진행 중이거나 종료된 오더는 입찰을 수정할 수 없어요.', 'warning'); return; }
-    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
-    const bid = order.bids.find(b => b.partner === partnerName);
-    if (!bid) return;
-
-    const priceInput = document.getElementById('partner-bid-price-input');
-    const price = priceInput ? parseInt(priceInput.value, 10) : NaN;
-    if (!price || price <= 0) { showToast('입찰 제안 금액을 올바르게 입력해 주세요.', 'warning'); return; }
-    const descInput = document.getElementById('partner-bid-desc-input');
-    const desc = (descInput && descInput.value.trim()) || bid.desc;
-
-    const oldPrice = bid.price;
-    const wasExpired = typeof isBidExpired === 'function' && isBidExpired(bid);
-    bid.price = price;
-    bid.desc = desc;
-    bid.costBreakdown = readBidCostBreakdownInputs();
-    // 견적 내용을 다시 제출하는 행위 자체가 최신 자재·인건비 기준으로 재확인했다는
-    // 뜻이므로, 수정할 때마다 유효기간(validUntil)도 오늘로부터 새로 갱신한다.
-    bid.validUntil = computeBidValidUntil();
-
-    if (typeof pushLog === 'function') pushLog('PARTNER', 'BID_EDIT', `[${partnerName}]가 오더 ${orderCode}의 입찰 금액을 ₩${oldPrice.toLocaleString()}만원 → ₩${price.toLocaleString()}만원으로 수정했습니다.`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, wasExpired
-        ? `${partnerName} 파트너사가 만료됐던 입찰 견적을 최신 기준으로 재확인하여 다시 제출했어요. (의뢰 코드: ${orderCode})`
-        : `${partnerName} 파트너사가 입찰 제안 내용을 수정했어요. (의뢰 코드: ${orderCode})`);
-    showToast(wasExpired ? '만료됐던 견적을 재확인하여 갱신했습니다.' : '입찰 내용을 수정했습니다.', 'success');
-    selectOrderForAudit(orderCode);
-    recalculateKPIs();
-}
-
 /* 지금까지는 고객만 파트너의 입찰을 취소(cancelPartnerBid)할 수 있었고, 파트너
  * 본인은 한 번 입찰하면 되돌릴 방법이 없었다 — 예약 초과나 사정 변경으로 시공이
  * 어려워져도 그대로 남아있어야 했다. 계약 확정 전(status === 'bidding')에만
@@ -1841,6 +1660,35 @@ function withdrawMyPartnerBid(orderCode) {
     recalculateKPIs();
 }
 
+/* 고객이 만료된 견적의 재확인을 요청하면(requestBidReconfirmation, client_panel.js)
+ * 파트너가 최신 가격으로 다시 제출할 방법이 필요하다 — 예전엔 이제는 폐지된 즉시입찰
+ * 심사 화면(editPartnerBid)에서 처리했지만, 그 화면 자체가 사라졌으므로 지금 파트너가
+ * 실제로 여는 오더 상세 모달(openPartnerOrderDetailModal)에 동일한 기능을 옮겨온다. */
+function reconfirmMyPartnerBid(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order || order.status !== 'bidding') { showToast('이미 계약이 진행 중이거나 종료된 오더는 입찰을 수정할 수 없어요.', 'warning'); return; }
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const bid = order.bids.find(b => b.partner === partnerName);
+    if (!bid) return;
+
+    const priceInput = document.getElementById(`partner-bid-reconfirm-price-input-${orderCode}`);
+    const price = priceInput ? parseInt(priceInput.value, 10) : NaN;
+    if (!price || price <= 0) { showToast('입찰 제안 금액을 올바르게 입력해 주세요.', 'warning'); return; }
+    const descInput = document.getElementById(`partner-bid-reconfirm-desc-input-${orderCode}`);
+    const desc = (descInput && descInput.value.trim()) || bid.desc;
+
+    const oldPrice = bid.price;
+    bid.price = price;
+    bid.desc = desc;
+    bid.validUntil = computeBidValidUntil();
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'BID_RECONFIRM', `[${partnerName}]가 오더 ${orderCode}의 만료된 견적을 재확인하여 ₩${oldPrice.toLocaleString()}만원 → ₩${price.toLocaleString()}만원으로 갱신했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 만료됐던 입찰 견적을 최신 기준으로 재확인하여 다시 제출했어요. (의뢰 코드: ${orderCode})`);
+    showToast('만료됐던 견적을 재확인하여 갱신했습니다.', 'success');
+    openPartnerOrderDetailModal(orderCode);
+    recalculateKPIs();
+}
+
 /* 고객의 계약 전 문의(openBidQuestionModal, client_panel.js)에 답변한다 — 후기 답글
  * 알림(submitReviewReply)과 동일한 패턴으로 pushClientNotification을 재사용한다. */
 function replyToBidQuestion(orderCode, questionIdx) {
@@ -1861,60 +1709,6 @@ function replyToBidQuestion(orderCode, questionIdx) {
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 계약 전 문의에 답변했어요. (의뢰 코드: ${orderCode})`);
     showToast('답변이 등록되었습니다.', 'success');
     openPartnerOrderDetailModal(orderCode);
-}
-
-/* 고객은 이미 입찰한 파트너에게 계약 전 문의를 할 수 있는데(openBidQuestionModal,
- * client_panel.js), 반대로 파트너가 입찰하기 전에 고객에게 층수·엘리베이터 유무처럼
- * 견적에 영향을 줄 사항을 미리 물어볼 방법은 없었다 — 아직 입찰 전이라 bid 객체가
- * 없으므로 오더 자체에 질문을 쌓고(order.partnerPreQuestions) 파트너별로 자기 질문만
- * 보이게 한다(경쟁사에게 노출되지 않도록).*/
-let preBidQuestionTargetCode = null;
-
-function buildPreBidQnaHtml(order, partnerName) {
-    const myQuestions = (order.partnerPreQuestions || []).filter(q => q.partnerName === partnerName);
-    const listHtml = myQuestions.length > 0 ? `
-        <div class="space-y-2">${myQuestions.map(q => `
-            <div class="p-3 bg-ink-50 rounded-xl space-y-1">
-                <p class="text-xs text-ink-700 font-semibold leading-relaxed"><i data-lucide="help-circle" class="w-3 h-3 inline text-ink-400"></i> ${escapeHtml(q.text)} <span class="text-[10px] text-ink-400 font-bold">(${q.date})</span></p>
-                ${q.reply ? `<p class="text-xs text-brand-700 font-semibold leading-relaxed pl-4"><i data-lucide="reply" class="w-3 h-3 inline"></i> ${escapeHtml(q.reply)}</p>` : `<p class="text-[10px] text-ink-400 font-bold pl-4">답변 대기중</p>`}
-            </div>`).join('')}</div>` : '';
-    return `
-        <div class="surface-flat p-4 space-y-2.5 text-left">
-            <div class="flex justify-between items-center">
-                <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="message-circle-question" class="w-4 h-4 text-brand-500"></i> 입찰 전 문의 (경쟁사에게 비공개)</h5>
-                <button type="button" onclick="openPreBidQuestionModal('${order.code}')" class="btn btn-secondary btn-sm">질문하기</button>
-            </div>
-            ${listHtml}
-        </div>`;
-}
-
-function openPreBidQuestionModal(orderCode) {
-    preBidQuestionTargetCode = orderCode;
-    safeUpdateValue('partner-preask-text', '');
-    openModal('partner-preask-modal', 'partner-preask-modal-card');
-}
-
-function closePreBidQuestionModal() {
-    preBidQuestionTargetCode = null;
-    closeModal('partner-preask-modal', 'partner-preask-modal-card');
-}
-
-function submitPreBidQuestion() {
-    const order = window.AppState.orders.find(o => o.code === preBidQuestionTargetCode);
-    if (!order) { closePreBidQuestionModal(); return; }
-    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
-
-    const text = document.getElementById('partner-preask-text')?.value.trim();
-    if (!text) { showToast('문의 내용을 입력해 주세요.', 'warning'); return; }
-
-    if (!order.partnerPreQuestions) order.partnerPreQuestions = [];
-    order.partnerPreQuestions.push({ partnerName, text, date: getLocalDateString(), reply: null, replyDate: null });
-
-    if (typeof pushLog === 'function') pushLog('PARTNER', 'PRE_BID_QUESTION', `[${partnerName}]가 오더(${order.code})에 입찰 전 문의를 남겼습니다.`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName}에서 오더(${order.code})에 대해 입찰 전 문의를 남겼어요: "${text}"`);
-    showToast('문의를 보냈습니다. 답변이 도착하면 알려드릴게요.', 'success');
-    closePreBidQuestionModal();
-    selectOrderForAudit(order.code);
 }
 
 let partnerCancelRequestTargetCode = null;
@@ -2072,7 +1866,7 @@ function renderPartnerContractsView() {
         const statusKey = getPartnerOrderStatusKey(o, partnerName);
         // 지금까지는 고객이 계약을 체결하려다 막혀야만(clientFinalizeContract) 파트너가
         // 자기 견적의 유효기간이 지난 걸 알 수 있었다 — 고객의 행동을 기다리지 않고
-        // 입찰 심사중 목록에서 바로 확인하고 미리 재확인(editPartnerBid)할 수 있게 한다.
+        // 입찰 심사중 목록에서 바로 확인하고 미리 재확인(reconfirmMyPartnerBid)할 수 있게 한다.
         const isMyBidExpired = statusKey === 'bidding' && myBid && typeof isBidExpired === 'function' && isBidExpired(myBid);
         // 이미 입찰을 넣은 뒤 고객이 회원 탈퇴한 경우엔 위 필터(renderPartnerOrderList)가
         // 걸리지 않으므로, 이미 참여한 건은 여기서 별도로 알려준다 — 계약 전 단계에서만
@@ -2085,7 +1879,7 @@ function renderPartnerContractsView() {
             : statusKey === 'cancelled' ? `<span class="badge badge-rose">계약 취소됨</span>`
             : `<span class="badge badge-amber">입찰 심사중</span>${isMyBidExpired ? ` <span class="badge badge-rose"><i data-lucide="clock" class="w-2.5 h-2.5"></i> 견적 만료</span>` : ''}${isClientWithdrawnBid ? ` <span class="badge badge-neutral"><i data-lucide="user-x" class="w-2.5 h-2.5"></i> 고객 탈퇴</span>` : ''}`;
         // 이 목록에 뜨는 오더는 전부 우리가 이미 입찰에 참여한 건이므로(이미 안심 잠금해제 대상),
-        // selectOrderForAudit()의 "입찰 참여 시 개인정보 잠금해제" 규칙과 동일하게 고객명을 가리지 않는다.
+        // 이미 배정/입찰 참여된 오더는 개인정보가 잠금해제된다는 규칙과 동일하게 고객명을 가리지 않는다.
         const unreadCount = typeof getUnreadOrderMessageCount === 'function' ? getUnreadOrderMessageCount(o, 'partner') : 0;
         return `<tr class="cursor-pointer hover:bg-ink-50 transition-colors" onclick="openPartnerOrderDetailModal('${o.code}')"><td class="font-mono">${o.code}${unreadCount > 0 ? ` <span class="badge badge-rose"><i data-lucide="message-circle" class="w-2.5 h-2.5"></i> ${unreadCount}</span>` : ''}</td><td class="font-black text-ink-950">${o.clientName}</td><td>${o.pyung}평</td><td onclick="event.stopPropagation(); setPartnerContractsStatusFilter('${statusKey}')" class="cursor-pointer" title="이 상태만 필터링">${statusBadge}</td><td class="font-black text-ink-950">₩ ${(myBid ? myBid.price : 0).toLocaleString()}만</td><td><span class="btn btn-outline btn-sm">상세보기</span></td></tr>`;
     }).join('') : `<tr><td colspan="6" class="text-center text-ink-400 font-bold py-8">해당 상태의 오더가 없습니다.</td></tr>`;
@@ -2724,6 +2518,14 @@ function openPartnerOrderDetailModal(orderCode) {
                             ? `<p class="text-xs text-brand-700 font-semibold leading-relaxed pl-3 border-l-2 border-brand-200">${escapeHtml(q.reply)}</p>`
                             : `<div class="flex gap-1.5"><input type="text" id="bid-question-reply-input-${order.code}-${qIdx}" placeholder="답변을 입력하세요" class="input flex-1 text-xs"><button type="button" onclick="replyToBidQuestion('${order.code}', ${qIdx})" class="btn btn-dark btn-sm shrink-0">답변</button></div>`}
                     </div>`).join('')}</div>
+            </div>` : ''}
+            ${myBid && order.status === 'bidding' && typeof isBidExpired === 'function' && isBidExpired(myBid) ? `
+            <div class="p-4 surface-flat text-left space-y-2">
+                <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5"><i data-lucide="clock" class="w-4 h-4 text-roseCustom"></i> 견적 유효기간 만료 — 재확인 필요</h5>
+                <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">자재비·인건비 변동을 반영해 최신 가격으로 다시 제출해주세요. 재확인하면 유효기간이 오늘부터 새로 갱신됩니다.</p>
+                <div><label class="field-label">입찰 제안 금액 (만원)</label><input type="number" id="partner-bid-reconfirm-price-input-${order.code}" value="${myBid.price}" min="1" class="input"></div>
+                <div><label class="field-label">제안 메시지</label><textarea id="partner-bid-reconfirm-desc-input-${order.code}" class="textarea h-20">${escapeHtml(myBid.desc || '')}</textarea></div>
+                <button type="button" onclick="reconfirmMyPartnerBid('${order.code}')" class="btn btn-dark btn-sm btn-block">최신 가격으로 재확인</button>
             </div>` : ''}
             ${myBid && order.status === 'bidding' ? `
             <div class="p-4 surface-flat text-left space-y-2">
@@ -7725,11 +7527,8 @@ window.switchPartnerRecoveryTab = switchPartnerRecoveryTab;
 window.findPartnerId = findPartnerId;
 window.sendPartnerPasswordResetCode = sendPartnerPasswordResetCode;
 window.resetPartnerPassword = resetPartnerPassword;
-window.submitPartnerBid = submitPartnerBid;
-window.editPartnerBid = editPartnerBid;
 window.renderAdminRefundPendingList = renderAdminRefundPendingList;
 window.processCommissionRefund = processCommissionRefund;
-window.selectOrderForAudit = selectOrderForAudit;
 window.togglePartnerConsoleVisibility = togglePartnerConsoleVisibility;
 window.renderPartnerOnboardingBanner = renderPartnerOnboardingBanner;
 window.dismissPartnerOnboardingBanner = dismissPartnerOnboardingBanner;
@@ -7977,11 +7776,8 @@ window.submitSiteVisitProposal = submitSiteVisitProposal;
 window.completeSiteVisit = completeSiteVisit;
 window.buildPartnerSiteVisitHtml = buildPartnerSiteVisitHtml;
 window.withdrawMyPartnerBid = withdrawMyPartnerBid;
+window.reconfirmMyPartnerBid = reconfirmMyPartnerBid;
 window.replyToBidQuestion = replyToBidQuestion;
-window.buildPreBidQnaHtml = buildPreBidQnaHtml;
-window.openPreBidQuestionModal = openPreBidQuestionModal;
-window.closePreBidQuestionModal = closePreBidQuestionModal;
-window.submitPreBidQuestion = submitPreBidQuestion;
 window.closePartnerOrderDetailModal = closePartnerOrderDetailModal;
 window.triggerPartnerDocUpload = triggerPartnerDocUpload;
 window.handlePartnerDocUpload = handlePartnerDocUpload;
