@@ -4343,6 +4343,12 @@ function deleteCommunityComment(postId, commentIndex) {
     if (!post || !post.comments || !post.comments[commentIndex]) return;
     const authorId = post.comments[commentIndex].authorId;
     if (authorId !== myId && authorId !== myPartnerCommentId) return;
+    // deleteMyClientReview(후기)와 동일한 이유로, 신고가 접수되어 관리자 심사
+    // 대기 중인 댓글을 작성자가 스스로 지워버리면 신고 큐의 증거가 사라진다.
+    if ((post.comments[commentIndex].reportedBy || []).length > 0) {
+        showToast('신고가 접수되어 심사 중인 댓글은 삭제할 수 없어요.', 'warning');
+        return;
+    }
     post.comments.splice(commentIndex, 1);
     // openReplyBoxKeys는 '게시글id-댓글인덱스'로 답글창 열림 상태를 기억하는데, 댓글이 하나
     // 지워지면 뒤에 있던 댓글들의 인덱스가 한 칸씩 앞으로 밀린다. 이 상태를 그대로 두면
@@ -4393,6 +4399,10 @@ function deleteCommunityReply(postId, commentIndex, replyIndex) {
     if (!comment || !comment.replies || !comment.replies[replyIndex]) return;
     const authorId = comment.replies[replyIndex].authorId;
     if (authorId !== myId && authorId !== myPartnerCommentId) return;
+    if ((comment.replies[replyIndex].reportedBy || []).length > 0) {
+        showToast('신고가 접수되어 심사 중인 답글은 삭제할 수 없어요.', 'warning');
+        return;
+    }
     comment.replies.splice(replyIndex, 1);
     showToast('답글을 삭제했습니다.', 'info');
     openCommunityDetail(postId);
@@ -4698,6 +4708,10 @@ function deleteCommunityPost(postId) {
     const idx = (window.AppState.communityPosts || []).findIndex(p => p.id === postId);
     if (idx === -1) return;
     if (window.AppState.communityPosts[idx].authorId !== auth.id) return;
+    if ((window.AppState.communityPosts[idx].reportedBy || []).length > 0) {
+        showToast('신고가 접수되어 심사 중인 게시글은 삭제할 수 없어요.', 'warning');
+        return;
+    }
     window.AppState.communityPosts.splice(idx, 1);
     showToast('게시글을 삭제했습니다.', 'info');
     closeCommunityDetail();
@@ -4857,7 +4871,9 @@ function openCommunityDetail(postId) {
                                 <span class="text-[10px] text-ink-400 font-bold">${r.date}${r.edited ? ' (수정됨)' : ''}</span>
                                 ${viewerCommentId && r.authorId === viewerCommentId ? `
                                 <button type="button" onclick="toggleReplyEdit('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">${isReplyEditing ? '취소' : '수정'}</button>
-                                <button type="button" onclick="deleteCommunityReply('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (viewerCommentId && r.authorId !== viewerCommentId ? `
+                                ${(r.reportedBy || []).length > 0
+                                    ? `<span class="text-[10px] font-bold text-roseCustom">신고 심사중</span>`
+                                    : `<button type="button" onclick="deleteCommunityReply('${post.id}', ${idx}, ${rIdx})" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>`}` : (viewerCommentId && r.authorId !== viewerCommentId ? `
                                 <button type="button" onclick="${isCommunityCommentReportedByMe(r) ? `showToast('이미 신고한 답글입니다.', 'info')` : `openReportReasonPrompt((reason) => reportCommunityReply('${post.id}', ${idx}, ${rIdx}, reason))`}" class="text-[10px] font-bold text-ink-300 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${isCommunityCommentReportedByMe(r) ? '신고됨' : '신고'}</button>` : '')}
                             </div>
                         </div>
@@ -4897,7 +4913,9 @@ function openCommunityDetail(postId) {
                     <button type="button" onclick="toggleCommunityAcceptedAnswer('${post.id}', ${idx})" class="text-[10px] font-bold ${c.accepted ? 'text-emeraldCustom' : 'text-ink-400 hover:text-emeraldCustom'} bg-transparent border-0 cursor-pointer p-0">${c.accepted ? '채택 취소' : '채택하기'}</button>` : ''}
                     ${viewerCommentId && c.authorId === viewerCommentId ? `
                     <button type="button" onclick="toggleCommentEdit('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">${isCommentEditing ? '취소' : '수정'}</button>
-                    <button type="button" onclick="deleteCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>` : (viewerCommentId && c.authorId !== viewerCommentId ? `
+                    ${(c.reportedBy || []).length > 0
+                        ? `<span class="text-[10px] font-bold text-roseCustom">신고 심사중</span>`
+                        : `<button type="button" onclick="deleteCommunityComment('${post.id}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>`}` : (viewerCommentId && c.authorId !== viewerCommentId ? `
                     <button type="button" onclick="${isCommunityCommentReportedByMe(c) ? `showToast('이미 신고한 댓글입니다.', 'info')` : `openReportReasonPrompt((reason) => reportCommunityComment('${post.id}', ${idx}, reason))`}" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">${isCommunityCommentReportedByMe(c) ? '신고됨' : '신고'}</button>` : '')}
                 </div>
                 ${repliesHtml}
@@ -4918,7 +4936,9 @@ function openCommunityDetail(postId) {
                     ${myId && post.authorId === myId ? `
                         <div class="flex items-center gap-2.5 shrink-0">
                             <button type="button" onclick="openCommunityEdit('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button>
-                            <button type="button" onclick="deleteCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                            ${(post.reportedBy || []).length > 0
+                                ? `<span class="text-[11px] font-bold text-roseCustom">신고 심사중</span>`
+                                : `<button type="button" onclick="deleteCommunityPost('${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>`}
                         </div>` : (viewerCommentId ? `
                         <div class="flex items-center gap-2.5 shrink-0">
                             <button type="button" onclick="toggleBlockCommunityUser('${escapeHtml(post.authorId)}', '${escapeHtml(post.authorName)}', '${post.id}')" class="text-[11px] font-bold text-ink-400 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0 flex items-center gap-1"><i data-lucide="user-x" class="w-3 h-3"></i> ${isCommunityUserBlockedByMe(post.authorId) ? '차단 해제' : '작성자 차단'}</button>
