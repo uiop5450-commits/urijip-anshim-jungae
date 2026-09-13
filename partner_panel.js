@@ -2473,7 +2473,8 @@ function buildPartnerPaymentMilestonesHtml(order) {
                 </div>
                 <div class="flex items-center gap-1.5 shrink-0">
                     ${statusBadge}
-                    ${m.status === 'pending' ? `<button type="button" onclick="requestPaymentMilestone('${order.code}', '${m.key}')" class="btn btn-secondary btn-sm">청구하기</button>` : ''}
+                    ${m.status === 'pending' && m.key === 'final' && typeof isConstructionCompleted === 'function' && !isConstructionCompleted(order) ? `<span class="text-[10px] font-bold text-ink-400">준공 완료 후 청구 가능</span>` : ''}
+                    ${m.status === 'pending' && (m.key !== 'final' || typeof isConstructionCompleted !== 'function' || isConstructionCompleted(order)) ? `<button type="button" onclick="requestPaymentMilestone('${order.code}', '${m.key}')" class="btn btn-secondary btn-sm">청구하기</button>` : ''}
                     ${m.status === 'paid' ? `<button type="button" onclick="openReportReasonPrompt((reason) => disputeMilestonePaymentReceipt('${order.code}', '${m.key}', reason))" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">이 납부, 실제로 못 받았어요</button>` : ''}
                 </div>
             </div>`;
@@ -2488,6 +2489,13 @@ function requestPaymentMilestone(orderCode, key) {
     const milestones = getOrInitPaymentMilestones(order);
     const m = milestones.find(x => x.key === key);
     if (!m || m.status !== 'pending') return;
+    // 준공 전엔 후기·하자보수 신청이 성립하지 않는 것과 동일한 이유로, 시공이
+    // 끝나지도 않았는데 잔금(전체 공사대금의 마지막 30%)을 청구할 수 있으면
+    // "준공 확인 후 잔금 지급"이라는 실제 거래 관행과 맞지 않는다.
+    if (key === 'final' && typeof isConstructionCompleted === 'function' && !isConstructionCompleted(order)) {
+        showToast('준공 완료 후에 잔금을 청구할 수 있어요.', 'warning');
+        return;
+    }
     m.status = 'requested';
     m.requestedDate = getLocalDateString();
     const due = new Date();
