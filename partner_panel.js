@@ -4969,7 +4969,10 @@ function renderAdminOrderAllocation() {
     if (!container) return;
 
     const orders = window.AppState.orders || [];
-    const certifiedPartners = (window.AppState.partners || []).filter(p => p.status !== 'banned' && p.isCertified);
+    // autoAllocateOrderCore(자동 배정)는 일시중단(isPaused) 파트너를 후보에서 뺐지만,
+    // 같은 화면의 '전속 배정' 수동 선택 드롭다운은 그 체크가 없어 파트너 본인이
+    // 켜놓은 "신규 오더 매칭 일시중단"을 관리자가 모른 채 무시하고 배정할 수 있었다.
+    const certifiedPartners = (window.AppState.partners || []).filter(p => p.status !== 'banned' && !p.isPaused && p.isCertified);
     const allTargetOrders = orders.filter(o => o.status === 'bidding' && !o.is1on1);
     const normalPendingOrders = allTargetOrders.filter(o => !isOrderAllocationComplete(o) && !o.isHighBudgetAdminPending);
     const highPendingOrders = allTargetOrders.filter(o => !isOrderAllocationComplete(o) && o.isHighBudgetAdminPending);
@@ -5069,6 +5072,11 @@ function allocateOrderToPartner(orderCode) {
 
     if (order.bids.some(b => b.partner === partnerName)) { showToast(`이미 [${partnerName}] 파트너사가 이 오더에 배정되어 있습니다.`, "info"); return; }
     if (order.bids.length >= order.partnerCountLimit) { showToast(`목표 배정 수량(${order.partnerCountLimit}개사)이 이미 차서 더 이상 추가할 수 없습니다.`, "warning"); return; }
+
+    // 드롭다운 자체를 일시중단 파트너 제외로 필터링해도, 관리자가 화면을 열어둔 채
+    // 파트너가 그 사이 일시중단을 켰을 수 있다 — 배정 순간에 한 번 더 확인한다.
+    const targetPartner = (window.AppState.partners || []).find(p => p.name === partnerName);
+    if (targetPartner && targetPartner.isPaused) { showToast(`[${partnerName}] 파트너사는 신규 오더 매칭을 일시중단 중이라 배정할 수 없어요.`, "warning"); return; }
 
     order.bids.push({ partner: partnerName, price: order.budget, desc: `[매니저 센터 직할 수동 배정] ${partnerName}에 프리미엄 전속 오더가 안전하게 할당되었습니다.`, verified: true, progress: 'bidding', date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString() });
 
