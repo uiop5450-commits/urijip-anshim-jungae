@@ -2475,8 +2475,13 @@ function renderClientFavoritePartners() {
     // 동일한 패턴으로 상태를 표시한다.
     container.innerHTML = favoritePartners.map(p => {
         const isBanned = p.status === 'banned';
+        // 삼진아웃 제명(banned)·일시중단(isPaused)은 표시했는데, 자진 입점 해지(status
+        // === 'closed', openPartnerAccountCloseModal)는 빠져 있었다 — 폐업한 업체를
+        // 계속 관심 파트너로 찜해둔 채 "재의뢰하기"를 눌렀다가 그제서야(requestDirectQuoteFromPortfolio의
+        // active 상태 체크) 폐업 사실을 알게 되는 것보다, 목록에서 바로 보여준다.
+        const isClosed = p.status === 'closed';
         const isPaused = !!p.isPaused;
-        const statusBadge = isBanned ? `<span class="badge badge-rose">영구 제명</span>` : isPaused ? `<span class="badge badge-amber">일시중단</span>` : '';
+        const statusBadge = isBanned ? `<span class="badge badge-rose">영구 제명</span>` : isClosed ? `<span class="badge badge-neutral">자진 해지</span>` : isPaused ? `<span class="badge badge-amber">일시중단</span>` : '';
         return `
         <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl gap-3">
             <div class="min-w-0 flex-1 cursor-pointer" onclick="window.openClientPartnerProfile('${p.name}')">
@@ -2488,7 +2493,7 @@ function renderClientFavoritePartners() {
                 <p class="text-[10px] text-ink-400 font-bold">${p.region ? `부산 ${escapeHtml(p.region)} · ` : ''}완공사례 ${p.portfolios ? p.portfolios.length : 0}건</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-                ${!isBanned ? `<button type="button" onclick="requestDirectQuoteFromPortfolio('${p.name}')" class="btn btn-secondary btn-sm">재의뢰하기</button>` : ''}
+                ${!isBanned && !isClosed ? `<button type="button" onclick="requestDirectQuoteFromPortfolio('${p.name}')" class="btn btn-secondary btn-sm">재의뢰하기</button>` : ''}
                 <button type="button" onclick="toggleFavoritePartner('${p.name}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">찜 해제</button>
             </div>
         </div>`;
@@ -2514,17 +2519,21 @@ function renderClientRegularOfPartners() {
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
-    container.innerHTML = partners.map(p => `
+    container.innerHTML = partners.map(p => {
+        const statusBadge = p.status === 'banned' ? `<span class="badge badge-rose">영구 제명</span>` : p.status === 'closed' ? `<span class="badge badge-neutral">자진 해지</span>` : p.isPaused ? `<span class="badge badge-amber">일시중단</span>` : '';
+        return `
         <div class="flex items-center justify-between p-3.5 bg-ink-50 rounded-xl gap-3">
             <div class="min-w-0 flex-1 cursor-pointer" onclick="window.openClientPartnerProfile('${p.name}')">
                 <div class="flex items-center gap-2">
                     <h5 class="text-xs font-black text-ink-950 truncate">${escapeHtml(p.name)}</h5>
                     <span class="text-gold-500 font-extrabold text-[11px]">★ ${p.rating.toFixed(1)}</span>
+                    ${statusBadge}
                 </div>
                 <p class="text-[10px] text-ink-400 font-bold">${p.region ? `부산 ${escapeHtml(p.region)}` : ''}</p>
             </div>
             <span class="badge badge-amber shrink-0"><i data-lucide="star" class="w-2.5 h-2.5"></i> 단골 등록</span>
-        </div>`).join('');
+        </div>`;
+    }).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
