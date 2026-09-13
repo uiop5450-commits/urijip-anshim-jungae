@@ -3113,7 +3113,10 @@ function renderAdminDashboard() {
     const activePartners = partners.filter(p => p.status === 'active').length;
     const pendingPartners = partners.filter(p => p.status === 'pending' || p.status === 'info_requested').length;
     const bannedPartners = partners.filter(p => p.status === 'banned').length;
-    const certifiedPartners = partners.filter(p => p.isCertified).length;
+    // 바로 위 activePartners/bannedPartners는 상태로 걸러내는데 이 지표만 걸러내지
+    // 않아, 제명·자진해지 후에도 isCertified 플래그가 그대로 남은 파트너까지 신뢰
+    // 지표에 잡혔다 — 홈페이지 통계(위 349번째 줄)와 동일한 기준으로 맞춘다.
+    const certifiedPartners = partners.filter(p => p.isCertified && p.status === 'active').length;
     // 파트너 쪽은 활동/심사대기/제명으로 상태별로 쪼개 보여주는데, '가입 고객'은
     // 자진 탈퇴(status==='withdrawn') 계정까지 그냥 합산해 실제 활성 고객 수보다
     // 항상 부풀려져 있었다 — 파트너와 동일하게 활동/탈퇴로 나눈다.
