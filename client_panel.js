@@ -1593,6 +1593,12 @@ function clientFinalizeContract(orderCode, partnerName, finalPrice) {
         showToast(`[${partnerName}] 파트너사는 자진 입점 해지하여 계약을 체결할 수 없어요. 매칭취소 후 다른 파트너사를 이용해 주세요.`, 'warning');
         return;
     }
+    // 배정 시점엔 차단이 아니었다가 이후 파트너가 이 고객을 차단했을 수 있다 —
+    // banned/closed와 동일하게 계약 체결을 막는다.
+    if (partnerInfo && typeof isPartnerBlockingClient === 'function' && isPartnerBlockingClient(partnerInfo, order.clientPhone)) {
+        showToast(`[${partnerName}] 파트너사가 고객님을 차단해 계약을 체결할 수 없어요. 매칭취소 후 다른 파트너사를 이용해 주세요.`, 'warning');
+        return;
+    }
     // 자재비·인건비 변동을 전혀 반영하지 않은 오래된 견적이 그대로 계약으로
     // 전환되는 것을 막는다 — 파트너가 재확인(editPartnerBid)해서 유효기간을
     // 갱신하기 전까지는 체결할 수 없다.
@@ -3590,7 +3596,13 @@ function renderMyPageEstimateDetails(order) {
             // === 'closed')한 파트너의 입찰도 계약 체결을 막고 매칭취소만 유도해야 한다
             // — clientFinalizeContract의 해지 파트너 차단과 짝을 이룬다.
             const isClosedBid = partnerInfo && partnerInfo.status === 'closed';
-            const isBlockedBid = isBannedBid || isClosedBid;
+            // 파트너가 이 오더의 고객을 차단(togglePartnerBlockClient)하면, 배정
+            // 단계(allocateOrderToPartner/autoAllocateOrderCore)의 체크는 이미
+            // 존재하는 입찰에는 적용되지 않는다 — 배정 이후에 파트너가 차단했거나,
+            // 배정 시점엔 차단이 아니었다가 나중에 차단된 경우 그대로 남는다.
+            // isBannedBid/isClosedBid와 동일하게 계약 체결을 막고 매칭취소만 유도한다.
+            const isBlockingBid = partnerInfo && typeof isPartnerBlockingClient === 'function' && isPartnerBlockingClient(partnerInfo, order.clientPhone);
+            const isBlockedBid = isBannedBid || isClosedBid || isBlockingBid;
             const isExpiredBid = !isContracted && !isBlockedBid && typeof isBidExpired === 'function' && isBidExpired(bid);
             const daysRemaining = !isContracted && !isBlockedBid && !isExpiredBid && typeof getBidDaysRemaining === 'function' ? getBidDaysRemaining(bid) : null;
 
@@ -3603,7 +3615,7 @@ function renderMyPageEstimateDetails(order) {
                             <span class="font-black text-ink-950 cursor-pointer hover:underline" onclick="openPartnerPortfolioModal('${bid.partner}')">${escapeHtml(bid.partner)}</span>
                             ${typeof buildPartnerTierBadgeHtml === 'function' ? buildPartnerTierBadgeHtml(bid.partner) : ''}
                             <span class="text-gold-500 font-extrabold text-xs">★ ${ratingVal}</span>
-                            ${isBannedBid ? `<span class="badge badge-rose">영구 제명</span>` : isClosedBid ? `<span class="badge badge-neutral">자진 해지</span>` : ''}
+                            ${isBannedBid ? `<span class="badge badge-rose">영구 제명</span>` : isClosedBid ? `<span class="badge badge-neutral">자진 해지</span>` : isBlockingBid ? `<span class="badge badge-rose">파트너 차단</span>` : ''}
                             ${!isBlockedBid && partnerInfo && partnerInfo.strikeCount > 0 ? `<span class="badge badge-rose" title="누적 옐로카드 ${partnerInfo.strikeCount}회"><i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> 옐로카드 ${partnerInfo.strikeCount}회</span>` : ''}
                             ${isExpiredBid ? `<span class="badge badge-rose"><i data-lucide="clock" class="w-2.5 h-2.5"></i> 견적 만료</span>` : ''}
                             ${daysRemaining !== null && daysRemaining <= 3 ? `<span class="badge badge-amber">D-${daysRemaining}</span>` : ''}
@@ -3631,6 +3643,11 @@ function renderMyPageEstimateDetails(order) {
                                 <span class="text-[10px] font-bold text-roseCustom">자진 입점 해지하여 계약할 수 없어요</span>
                                 <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}', '파트너 자진 입점 해지로 인한 자동 취소')" class="btn btn-secondary btn-sm">매칭취소</button>
                             </div>
+                        ` : (isBlockingBid ? `
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[10px] font-bold text-roseCustom">이 파트너사가 고객님을 차단하여 계약할 수 없어요</span>
+                                <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}', '파트너 차단으로 인한 자동 취소')" class="btn btn-secondary btn-sm">매칭취소</button>
+                            </div>
                         ` : (isExpiredBid ? `
                             <div class="flex items-center gap-1.5 flex-wrap justify-end">
                                 <span class="text-[10px] font-bold text-roseCustom">견적 유효기간이 지났어요</span>
@@ -3643,7 +3660,7 @@ function renderMyPageEstimateDetails(order) {
                                 <button type="button" onclick="openReportReasonPrompt((reason) => cancelPartnerBid('${order.code}', '${bid.partner}', reason))" class="btn btn-secondary btn-sm">매칭취소</button>
                                 <button type="button" onclick="clientFinalizeContract('${order.code}', '${bid.partner}', ${bid.price})" class="btn btn-dark btn-sm">이 파트너와 계약 체결하기</button>
                             </div>
-                        `)))}
+                        `))))}
                     </div>
                 </div>`;
         });
