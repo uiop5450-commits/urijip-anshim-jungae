@@ -349,6 +349,36 @@ function sweepOverduePaymentMilestones(order) {
     return milestones;
 }
 
+/* 착공일/계약금액 변경 협의(scheduleChangeRequest/priceChangeRequest)는 서로
+ * 거절·역제안만 반복할 수 있을 뿐, 협의가 결렬됐을 때 다른 분쟁들(공사대금 청구,
+ * 후기 등)처럼 관리자에게 조정을 요청할 방법이 없었다 — 관리자 직권 승인/반려는
+ * 이미 있었으니(adminResolveScheduleChangeRequest/adminResolvePriceChangeRequest,
+ * partner_panel.js) escalated 플래그만 추가해 통합 대기함(getAllPendingAppeals)에
+ * 노출되게 한다. 어느 쪽이든(요청한 쪽/받은 쪽) 요청할 수 있다. */
+function escalateScheduleChangeToAdmin(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || !order.scheduleChangeRequest || order.scheduleChangeRequest.status !== 'pending') return;
+    if (order.scheduleChangeRequest.escalated) { showToast('이미 관리자에게 조정을 요청했습니다.', 'info'); return; }
+    const isPartnerActor = window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn);
+    order.scheduleChangeRequest.escalated = true;
+    if (typeof pushLog === 'function') pushLog(isPartnerActor ? 'PARTNER' : 'CLIENT', 'SCHEDULE_CHANGE_ESCALATE', `오더(${orderCode})의 착공일 변경 협의에 대해 매니저 조정을 요청했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `착공일 변경 협의에 대해 매니저 센터의 조정을 요청했어요. 검토 후 안내드릴게요.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `착공일 변경 협의에 대해 매니저 센터의 조정을 요청했어요. 검토 후 안내드릴게요.`);
+    showToast('매니저 센터에 조정을 요청했습니다.', 'success');
+}
+
+function escalatePriceChangeToAdmin(orderCode) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    if (!order || !order.priceChangeRequest || order.priceChangeRequest.status !== 'pending') return;
+    if (order.priceChangeRequest.escalated) { showToast('이미 관리자에게 조정을 요청했습니다.', 'info'); return; }
+    const isPartnerActor = window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn);
+    order.priceChangeRequest.escalated = true;
+    if (typeof pushLog === 'function') pushLog(isPartnerActor ? 'PARTNER' : 'CLIENT', 'PRICE_CHANGE_ESCALATE', `오더(${orderCode})의 계약금액 변경 협의에 대해 매니저 조정을 요청했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `계약금액 변경 협의에 대해 매니저 센터의 조정을 요청했어요. 검토 후 안내드릴게요.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `계약금액 변경 협의에 대해 매니저 센터의 조정을 요청했어요. 검토 후 안내드릴게요.`);
+    showToast('매니저 센터에 조정을 요청했습니다.', 'success');
+}
+
 const MILESTONE_DUE_SOON_DAYS_BEFORE = 2;
 
 /* isMilestoneOverdue/sweepOverduePaymentMilestones는 기한을 이미 넘긴 뒤 파트너에게만
@@ -777,6 +807,8 @@ window.computePartnerAvgResponseHours = computePartnerAvgResponseHours;
 window.formatResponseHours = formatResponseHours;
 window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
 window.sweepMilestoneDueSoonReminders = sweepMilestoneDueSoonReminders;
+window.escalateScheduleChangeToAdmin = escalateScheduleChangeToAdmin;
+window.escalatePriceChangeToAdmin = escalatePriceChangeToAdmin;
 window.getOrInitOrderMessages = getOrInitOrderMessages;
 window.sendOrderMessage = sendOrderMessage;
 window.reportOrderMessage = reportOrderMessage;

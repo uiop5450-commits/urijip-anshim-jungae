@@ -1347,14 +1347,19 @@ function buildScheduleChangeHtml(order) {
     const req = order.scheduleChangeRequest;
     let statusHtml = '';
     if (req && req.status === 'pending') {
+        const escalateRow = req.escalated
+            ? `<p class="text-[10px] font-bold text-roseCustom">매니저 센터에 조정을 요청했어요. 결과를 기다려 주세요.</p>`
+            : `<button type="button" onclick="escalateScheduleChangeToAdmin('${order.code}'); selectMyPageEstimate('${order.code}');" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">협의가 어렵다면 매니저에게 조정 요청</button>`;
         statusHtml = req.requestedBy === 'client'
             ? `<div class="p-2.5 bg-amber-50 rounded-xl mt-2 space-y-1.5">
                 <p class="text-[10px] font-black text-amberCustom">파트너사 확인 대기중: ${req.newDate}로 변경 요청</p>
                 <button type="button" onclick="retractScheduleChangeRequest('${order.code}')" class="btn btn-secondary btn-sm">요청 철회</button>
+                ${escalateRow}
             </div>`
             : `<div class="p-2.5 bg-brand-50 rounded-xl mt-2 space-y-1.5">
                 <p class="text-[10px] font-black text-brand-700">파트너사가 착공일 변경을 요청했어요: ${req.newDate} (사유: ${escapeHtml(req.reason)})</p>
                 <div class="flex gap-1.5"><button type="button" onclick="respondToPartnerScheduleChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToPartnerScheduleChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button><button type="button" onclick="openScheduleChangeModal('${order.code}')" class="btn btn-ghost btn-sm flex-1">역제안</button></div>
+                ${escalateRow}
             </div>`;
     }
     return `<div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between mt-2">
@@ -1446,14 +1451,19 @@ function buildPriceChangeHtml(order) {
     const req = order.priceChangeRequest;
     let statusHtml = '';
     if (req && req.status === 'pending') {
+        const escalateRow = req.escalated
+            ? `<p class="text-[10px] font-bold text-roseCustom">매니저 센터에 조정을 요청했어요. 결과를 기다려 주세요.</p>`
+            : `<button type="button" onclick="escalatePriceChangeToAdmin('${order.code}'); selectMyPageEstimate('${order.code}');" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">협의가 어렵다면 매니저에게 조정 요청</button>`;
         statusHtml = req.requestedBy === 'client'
             ? `<div class="p-2.5 bg-amber-50 rounded-xl mt-2 space-y-1.5">
                 <p class="text-[10px] font-black text-amberCustom">파트너사 확인 대기중: ₩${req.newPrice.toLocaleString()}만원으로 변경 요청</p>
                 <button type="button" onclick="retractPriceChangeRequest('${order.code}')" class="btn btn-secondary btn-sm">요청 철회</button>
+                ${escalateRow}
             </div>`
             : `<div class="p-2.5 bg-brand-50 rounded-xl mt-2 space-y-1.5">
                 <p class="text-[10px] font-black text-brand-700">파트너사가 계약 금액 변경을 요청했어요: ₩${req.newPrice.toLocaleString()}만원 (사유: ${escapeHtml(req.reason)})</p>
                 <div class="flex gap-1.5"><button type="button" onclick="respondToPartnerPriceChangeRequest('${order.code}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondToPartnerPriceChangeRequest('${order.code}', false)" class="btn btn-secondary btn-sm flex-1">거절</button><button type="button" onclick="openPriceChangeModal('${order.code}')" class="btn btn-ghost btn-sm flex-1">역제안</button></div>
+                ${escalateRow}
             </div>`;
     }
     return `<div class="p-3 bg-ink-50 rounded-xl flex items-center justify-between mt-2">
