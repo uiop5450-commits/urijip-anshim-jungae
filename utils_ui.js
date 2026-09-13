@@ -508,6 +508,12 @@ function reportOrderMessage(orderCode, msgIndex, viewerRole, reason) {
 function buildOrderMessageThreadHtml(order, viewerRole) {
     if (typeof markOrderMessagesRead === 'function') markOrderMessagesRead(order.code, viewerRole);
     const messages = getOrInitOrderMessages(order);
+    // m.read는 안읽은 개수 배지(getUnreadOrderMessageCount)에만 쓰였을 뿐, 보낸
+    // 사람 본인에게는 상대가 실제로 읽었는지 알려줄 방법이 전혀 없었다 — 이미
+    // 있는 read 값을 그대로 활용해, 내가 보낸 마지막 메시지에만(매 메시지마다
+    // 붙이면 채팅창이 어수선해짐) '읽음' 표시를 붙인다.
+    let lastMineIdx = -1;
+    messages.forEach((m, i) => { if (m.from === viewerRole) lastMineIdx = i; });
     const listHtml = messages.length === 0
         ? `<p class="text-[11px] text-ink-400 font-semibold text-center py-3">아직 메시지가 없습니다.</p>`
         : messages.map((m, idx) => {
@@ -517,7 +523,7 @@ function buildOrderMessageThreadHtml(order, viewerRole) {
                 <div class="max-w-[80%] space-y-0.5">
                     <div class="${isMine ? 'bg-brand-500 text-white' : 'bg-ink-100 text-ink-800'} rounded-2xl px-3 py-2">
                         <p class="text-[11px] font-semibold leading-relaxed whitespace-pre-wrap">${escapeHtml(m.text)}</p>
-                        <p class="text-[9px] ${isMine ? 'text-white/70' : 'text-ink-400'} font-bold mt-0.5">${m.date}</p>
+                        <p class="text-[9px] ${isMine ? 'text-white/70' : 'text-ink-400'} font-bold mt-0.5">${m.date}${isMine && idx === lastMineIdx && m.read ? ' · 읽음' : ''}</p>
                     </div>
                     ${!isMine ? `<button type="button" ${isReported ? 'disabled' : `onclick="openReportReasonPrompt((reason) => reportOrderMessage('${order.code}', ${idx}, '${viewerRole}', reason))"`} class="text-[9px] font-bold ${isReported ? 'text-ink-300' : 'text-ink-400 hover:text-roseCustom'} bg-transparent border-0 cursor-pointer p-0">${isReported ? '신고됨' : '신고'}</button>` : ''}
                 </div>
