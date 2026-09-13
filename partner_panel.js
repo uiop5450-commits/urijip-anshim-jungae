@@ -2335,6 +2335,25 @@ function submitChangeOrder() {
     openPartnerOrderDetailModal(order.code);
 }
 
+/* 계약 취소·일정 변경·금액 변경·하자보수 신청은 모두 진행 전이면 신청자가 직접
+ * 철회할 수 있는데(retractRepairClaim 등, client_panel.js), 파트너가 제안하는
+ * 추가공사 변경계약만 유일하게 철회 방법이 없었다 — 금액을 잘못 입력했거나 고객과
+ * 통화로 먼저 조율했는데도, 고객이 응답하기 전까지 취소할 방법이 없는 공백이었다. */
+function retractChangeOrder(orderCode, id) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const entry = order && order.changeOrders && order.changeOrders.find(e => e.id === id);
+    if (!entry) return;
+    if (entry.status !== 'pending') { showToast('고객이 이미 응답한 제안은 철회할 수 없어요.', 'warning'); return; }
+
+    order.changeOrders = order.changeOrders.filter(e => e.id !== id);
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'CHANGE_ORDER_RETRACT', `[${window.AppState.partnerName}]가 오더(${order.code}) 추가공사 변경계약 제안("${entry.description}")을 철회했습니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `파트너사가 추가공사 제안("${entry.description}")을 철회했어요.`);
+    showToast('추가공사 변경계약 제안을 철회했습니다.', 'info');
+
+    openPartnerOrderDetailModal(order.code);
+}
+
 function buildPartnerChangeOrdersHtml(order) {
     if (order.status !== 'contracted') return '';
     const entries = order.changeOrders || [];
@@ -2344,6 +2363,7 @@ function buildPartnerChangeOrdersHtml(order) {
         return `<div class="p-2.5 bg-ink-50 rounded-lg space-y-0.5">
             <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-900">${escapeHtml(e.description)}</span><span class="badge ${meta.cls}">${meta.label}</span></div>
             <p class="text-[10px] text-ink-500 font-semibold">추가 금액 +₩${e.extraAmount.toLocaleString()}만원 · 제안일 ${e.proposedDate}</p>
+            ${e.status === 'pending' ? `<button type="button" onclick="retractChangeOrder('${order.code}', '${e.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">제안 철회</button>` : ''}
         </div>`;
     }).join('');
     return `<div class="surface p-5 space-y-2">
@@ -7644,6 +7664,7 @@ window.adminRejectRepairVisitCompletionDispute = adminRejectRepairVisitCompletio
 window.openChangeOrderModal = openChangeOrderModal;
 window.closeChangeOrderModal = closeChangeOrderModal;
 window.submitChangeOrder = submitChangeOrder;
+window.retractChangeOrder = retractChangeOrder;
 window.openClientRatingModal = openClientRatingModal;
 window.closeClientRatingModal = closeClientRatingModal;
 window.setClientRatingStar = setClientRatingStar;
