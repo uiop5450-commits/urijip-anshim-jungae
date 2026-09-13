@@ -1052,6 +1052,7 @@ function updatePartnerRegion() {
 }
 
 function updatePartnerBizFile() {
+    if (blockIfPartnerStaffLogin()) return;
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
@@ -1079,6 +1080,7 @@ function updatePartnerPhone() {
 }
 
 function updatePartnerPassword() {
+    if (blockIfPartnerStaffLogin()) return;
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
@@ -1094,6 +1096,24 @@ function updatePartnerPassword() {
     safeUpdateValue('partner-account-edit-current-pw', '');
     safeUpdateValue('partner-account-edit-new-pw', '');
     safeUpdateValue('partner-account-edit-new-pw2', '');
+}
+
+/* 담당자 부계정(staffAccounts)이 마스터 계정과 똑같은 콘솔에 로그인하면서도
+ * 권한 구분이 전혀 없었다 — 담당자가 다른 담당자 계정을 추가/삭제(권한
+ * 승격/축출)하거나, 비밀번호·사업자등록번호·사업자등록증을 바꾸거나,
+ * 심지어 회사 전체를 자진 입점 해지할 수 있었다. window.AppState.partnerLoggedInStaffLabel은
+ * 담당자 로그인일 때만 채워지는 값(partner_panel.js validatePartnerLogin)이라,
+ * 이 값의 존재 여부로 마스터 전용 조작을 가른다. */
+function isPartnerStaffLogin() {
+    return !!window.AppState.partnerLoggedInStaffLabel;
+}
+
+function blockIfPartnerStaffLogin() {
+    if (isPartnerStaffLogin()) {
+        showToast('마스터 계정만 이용할 수 있어요.', 'warning');
+        return true;
+    }
+    return false;
 }
 
 /* 관리자 콘솔은 매니저 권한을 여러 계정에 나눠 위임할 수 있는데(grantManagerRole),
@@ -1119,6 +1139,7 @@ function renderPartnerStaffAccountsList() {
 }
 
 function addPartnerStaffAccount() {
+    if (blockIfPartnerStaffLogin()) return;
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
@@ -1139,6 +1160,7 @@ function addPartnerStaffAccount() {
 }
 
 function removePartnerStaffAccount(staffId) {
+    if (blockIfPartnerStaffLogin()) return;
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.staffAccounts) return;
@@ -1158,6 +1180,7 @@ function handlePartnerBizCertReupload(input) {
     const file = input.files && input.files[0];
     input.value = '';
     if (!file) return;
+    if (blockIfPartnerStaffLogin()) return;
     if (file.size > 15 * 1024 * 1024) { showToast('파일 용량은 15MB 이하로 올려주세요.', 'warning'); return; }
     if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
         showToast('이미지 또는 PDF 파일만 업로드할 수 있어요.', 'warning'); return;
@@ -1181,6 +1204,7 @@ function handlePartnerBizCertReupload(input) {
  * 계정을 막을 수 있었다. 진행 중인 계약(status==='contracted')이 있으면 해지를
  * 막아서, 시공 중인 고객을 방치한 채 나갈 수 없게 한다. */
 function openPartnerAccountCloseModal() {
+    if (blockIfPartnerStaffLogin()) return;
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const activeContract = (window.AppState.orders || []).some(o => o.status === 'contracted' && o.acceptedPartner === partnerName);
     if (activeContract) { showToast('진행 중인 계약이 있어 입점을 해지할 수 없어요. 계약을 모두 마친 후 다시 시도해주세요.', 'warning'); return; }
@@ -1193,6 +1217,7 @@ function closePartnerAccountCloseModal() {
 }
 
 function confirmPartnerAccountClosure() {
+    if (blockIfPartnerStaffLogin()) { closePartnerAccountCloseModal(); return; }
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
