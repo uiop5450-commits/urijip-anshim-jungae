@@ -6558,7 +6558,7 @@ function issuePartnerStrike(partnerName, reason) {
     partner.strikeHistory.push({ reason: reason || '사유 미기재', countAtTime: partner.strikeCount, date: getLocalDateString() });
     if (partner.strikeCount >= 3) {
         partner.status = 'banned';
-        window.AppState.blacklistDb.unshift({ company: partner.name, bizFile: partner.bizFile || '미등록', phone: '010-****-****', reason: '누적 옐로카드 3회 초과로 매니저 센터 직할 영구 제명 처리', date: getLocalDateString() });
+        window.AppState.blacklistDb.unshift({ company: partner.name, bizFile: partner.bizFile || '미등록', phone: '010-****-****', reason: '누적 옐로카드 3회 초과로 매니저 센터 직할 영구 제명 처리', date: getLocalDateString(), strikeOut: true });
         if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE_OUT', `[삼진아웃] '${partner.name}' 경고 3회 초과로 영구 제명 및 블랙리스트 등록. (최종 사유: ${reason || '사유 미기재'})`, 'WARNING');
         if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `삼진아웃(경고 3회 초과)으로 영구 제명 처리되었습니다. 사유: ${reason || '사유 미기재'}`);
         showToast(`[${partner.name}] 파트너사가 삼진아웃(경고 3회)으로 영구 제명되었습니다.`, "warning");
@@ -6570,16 +6570,27 @@ function issuePartnerStrike(partnerName, reason) {
     renderAdminPartnerMonitor(); renderBlacklistDb();
 }
 
+/* 삼진아웃(issuePartnerStrike)이 제명과 동시에 blacklistDb에 영구 등록하는데,
+ * 제명 해제(resetPartnerStrikes/adminApproveStrikeAppeal) 쪽은 status만
+ * 'active'로 되돌리고 blacklistDb 항목은 그대로 남겨뒀다 — "제명도 해제되었습니다"
+ * 라는 알림 문구와 달리 실제로는 신규 가입 차단(submitPartnerSignup의 bizFile
+ * 대조)과 블랙리스트 대조 파트너 KPI(blacklistedActivePartnerCount)에 여전히
+ * 걸리는 반쪽짜리 해제였다. 삼진아웃으로 등록된 항목(strikeOut: true)만 걷어내
+ * 수동으로 등록한 블랙리스트는 건드리지 않는다. */
 function resetPartnerStrikes(partnerName) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
     const wasBanned = partner.status === 'banned';
     partner.strikeCount = 0;
     partner.strikeHistory = [];
-    if (wasBanned) partner.status = 'active';
-    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, wasBanned ? '제명이 해제되고 경고 기록이 초기화되었습니다.' : '경고 기록이 초기화되었습니다.');
+    if (wasBanned) {
+        partner.status = 'active';
+        window.AppState.blacklistDb = (window.AppState.blacklistDb || []).filter(b => !(b.company === partner.name && b.strikeOut));
+    }
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, wasBanned ? '제명이 해제되고 경고 기록이 초기화되었습니다. 블랙리스트에서도 제외되었습니다.' : '경고 기록이 초기화되었습니다.');
     showToast(`[${partnerName}] 파트너사의 경고가 정상 초기화되었습니다.`, "success");
     renderAdminPartnerMonitor();
+    if (wasBanned && typeof renderBlacklistDb === 'function') renderBlacklistDb();
 }
 
 /* 파트너에는 옐로카드(strikeCount) 누적→삼진아웃(영구 제명) 체계가 있는데, 고객
@@ -6775,15 +6786,20 @@ function adminApproveStrikeAppeal(partnerName) {
     if (!partner || !partner.strikeAppeal || partner.strikeAppeal.status !== 'pending') return;
     const wasBanned = partner.status === 'banned';
     partner.strikeCount = Math.max(0, (partner.strikeCount || 0) - 1);
-    if (wasBanned && partner.strikeCount < 3) partner.status = 'active';
+    const unbanned = wasBanned && partner.strikeCount < 3;
+    if (unbanned) {
+        partner.status = 'active';
+        window.AppState.blacklistDb = (window.AppState.blacklistDb || []).filter(b => !(b.company === partner.name && b.strikeOut));
+    }
     partner.strikeAppeal.status = 'approved';
     partner.strikeAppeal.resolvedDate = getLocalDateString();
 
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE_APPEAL_APPROVE', `[이의신청 승인] '${partner.name}' 파트너의 이의신청을 승인하여 경고 1회를 취소했습니다.${wasBanned ? ' 제명도 해제되었습니다.' : ''} (현재 누적 ${partner.strikeCount}회)`, 'SUCCESS');
-    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `이의신청이 승인되어 경고가 취소되었습니다.${wasBanned ? ' 제명도 해제되었습니다.' : ''} (현재 누적 ${partner.strikeCount}회)`);
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE_APPEAL_APPROVE', `[이의신청 승인] '${partner.name}' 파트너의 이의신청을 승인하여 경고 1회를 취소했습니다.${unbanned ? ' 제명 및 블랙리스트 등록도 해제되었습니다.' : ''} (현재 누적 ${partner.strikeCount}회)`, 'SUCCESS');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `이의신청이 승인되어 경고가 취소되었습니다.${unbanned ? ' 제명 및 블랙리스트 등록도 해제되었습니다.' : ''} (현재 누적 ${partner.strikeCount}회)`);
     showToast(`[${partnerName}] 이의신청을 승인했습니다.`, 'success');
     renderAdminStrikeAppeals();
     if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+    if (unbanned && typeof renderBlacklistDb === 'function') renderBlacklistDb();
 }
 
 function adminRejectStrikeAppeal(partnerName, reason) {
