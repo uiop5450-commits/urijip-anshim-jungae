@@ -1927,6 +1927,7 @@ function renderClientMyPage() {
     if (tierBadgeEl) tierBadgeEl.innerHTML = buildClientTierBadgeHtml(auth.phone);
 
     const myPostsCount = (window.AppState.communityPosts || []).filter(p => p.authorId === auth.id).length;
+    const myReviewsCount = (window.AppState.orders || []).filter(o => o.clientPhone === auth.phone && o.reviewWritten).length;
     const myNotifications = (window.AppState.clientNotifications || []).filter(n => n.clientPhone === auth.phone);
     const unreadCount = myNotifications.filter(n => !n.read).length;
     const mainTabsEl = document.getElementById('client-mypage-main-tabs');
@@ -1935,6 +1936,7 @@ function renderClientMyPage() {
         const mainTabs = [
             ['history', '의뢰이력'],
             ['posts', `내가 쓴 글 (${myPostsCount})`],
+            ['reviews', `내가 쓴 후기 (${myReviewsCount})`],
             ['favorites', `관심 파트너 (${myFavoritesCount})`],
             ['notifications', unreadCount > 0 ? `알림 (${unreadCount})` : '알림'],
             ['account', '계정 정보']
@@ -1945,10 +1947,12 @@ function renderClientMyPage() {
     }
     document.getElementById('client-mypage-subtab-history-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'history');
     document.getElementById('client-mypage-subtab-posts-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'posts');
+    document.getElementById('client-mypage-subtab-reviews-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'reviews');
     document.getElementById('client-mypage-subtab-favorites-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'favorites');
     document.getElementById('client-mypage-subtab-notifications-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'notifications');
     document.getElementById('client-mypage-subtab-account-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'account');
     if (clientMyPageActiveSubtab === 'posts') { renderClientMyPagePosts(); renderClientMyPageSavedPosts(); }
+    if (clientMyPageActiveSubtab === 'reviews') renderClientMyPageReviews();
     if (clientMyPageActiveSubtab === 'favorites') { renderClientFavoritePartners(); if (typeof renderClientSavedPortfolios === 'function') renderClientSavedPortfolios(); renderClientRegularOfPartners(); }
     if (clientMyPageActiveSubtab === 'notifications') renderClientMyPageNotifications(myNotifications);
     if (clientMyPageActiveSubtab === 'account') renderClientAccountSettings();
@@ -2075,6 +2079,54 @@ function renderClientMyPagePosts() {
 function jumpToMyCommunityPost(postId) {
     switchPanel('community-panel');
     openCommunityDetail(postId);
+}
+
+/* "내가 쓴 글"(renderClientMyPagePosts)은 마이페이지에 모아서 볼 수 있는데, 정작
+ * 여러 파트너에게 남긴 후기(reviewWritten 오더들)는 한 곳에 모아 볼 방법이 없어
+ * 의뢰이력을 하나하나 열어봐야만 확인할 수 있었다 — 수정/삭제(deleteMyClientReview)는
+ * 이미 있으니 목록 진입점만 추가한다. */
+function renderClientMyPageReviews() {
+    const container = document.getElementById('client-mypage-my-reviews-container');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+
+    const myReviewOrders = (window.AppState.orders || [])
+        .filter(o => o.clientPhone === auth.phone && o.reviewWritten && o.acceptedPartner)
+        .map(o => {
+            const partner = window.AppState.partners.find(p => p.name === o.acceptedPartner);
+            const review = partner && partner.reviews ? partner.reviews.find(r => r.orderCode === o.code) : null;
+            return { order: o, partner, review };
+        })
+        .filter(entry => entry.review);
+
+    if (myReviewOrders.length === 0) {
+        container.innerHTML = buildEmptyStateHtml('star', '아직 작성한 후기가 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = myReviewOrders.map(({ order, partner, review }) => `
+        <div class="p-3.5 bg-ink-50 rounded-xl space-y-1.5">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-black text-ink-800">${escapeHtml(partner ? partner.name : order.acceptedPartner)}</span>
+                    <span class="text-gold-500 font-extrabold text-xs">★ ${review.rating}.0</span>
+                    <span class="text-[10px] text-ink-400 font-bold">${review.date}</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button type="button" onclick="jumpToMyReviewOrder('${order.code}')" class="text-[11px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button>
+                    <button type="button" onclick="deleteMyClientReview('${order.code}'); renderClientMyPageReviews();" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                </div>
+            </div>
+            <p class="text-xs text-ink-600 font-medium leading-relaxed line-clamp-2">${escapeHtml(review.text)}</p>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function jumpToMyReviewOrder(orderCode) {
+    clientMyPageActiveSubtab = 'history';
+    selectMyPageEstimate(orderCode);
 }
 
 /* 커뮤니티 글을 좋아요·댓글·신고는 할 수 있지만, 지금 당장 답할 시간이 없어 나중에
@@ -4829,6 +4881,8 @@ window.setClientMyPageHistoryStatusFilter = setClientMyPageHistoryStatusFilter;
 window.switchClientMyPageSubtab = switchClientMyPageSubtab;
 window.renderClientMyPagePosts = renderClientMyPagePosts;
 window.jumpToMyCommunityPost = jumpToMyCommunityPost;
+window.renderClientMyPageReviews = renderClientMyPageReviews;
+window.jumpToMyReviewOrder = jumpToMyReviewOrder;
 window.isFavoritePartner = isFavoritePartner;
 window.toggleFavoritePartner = toggleFavoritePartner;
 window.renderClientFavoritePartners = renderClientFavoritePartners;
