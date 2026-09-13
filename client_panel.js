@@ -995,7 +995,7 @@ function buildClientSiteVisitHtml(order) {
         if (visit.disputed) {
             bodyHtml = visit.disputeResolution === 'rejected'
                 ? `<p class="text-[10px] font-black text-ink-500">실측 방문이 완료되었어요: ${visit.completedDate}</p><p class="text-[9px] text-ink-400 font-semibold mt-0.5">이의제기 반려됨${visit.disputeAdminResponse ? ` — ${escapeHtml(visit.disputeAdminResponse)}` : ''}</p>`
-                : `<p class="text-[10px] font-black text-ink-500">실측 방문이 완료되었어요: ${visit.completedDate}</p><p class="text-[9px] font-black text-amberCustom mt-0.5">이의제기 심사중</p>`;
+                : `<p class="text-[10px] font-black text-ink-500">실측 방문이 완료되었어요: ${visit.completedDate}</p><p class="flex items-center gap-1.5 mt-0.5"><span class="text-[9px] font-black text-amberCustom">이의제기 심사중</span><button type="button" onclick="retractSiteVisitCompletionDispute('${order.code}')" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">철회</button></p>`;
         } else {
             bodyHtml = `<p class="text-[10px] font-black text-ink-500">실측 방문이 완료되었어요: ${visit.completedDate}</p>
             <button type="button" onclick="openReportReasonPrompt((reason) => disputeSiteVisitCompletion('${order.code}', reason))" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">완료 처리에 이의있어요</button>`;
@@ -1026,6 +1026,26 @@ function disputeSiteVisitCompletion(orderCode, reason) {
     if (typeof pushLog === 'function') pushLog('CLIENT', 'SITE_VISIT_COMPLETION_DISPUTE', `[${order.clientName}] 고객님이 계약(${order.code}) 실측 방문 완료 처리에 이의를 제기했습니다: ${reason}`, 'WARNING');
     if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 실측 방문 완료 처리에 이의를 제기했어요. 매니저 센터가 검토 중입니다.`);
     showToast('매니저 센터에 이의제기를 접수했습니다.', 'success');
+
+    selectMyPageEstimate(order.code);
+}
+
+/* retractProgressStageDispute와 동일한 이유로, 실측 방문 완료 처리 이의제기도
+ * 관리자가 처리하기 전(disputeResolution === null)까지는 신청자가 직접
+ * 철회할 수 있게 한다. */
+function retractSiteVisitCompletionDispute(orderCode) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const visit = order && order.siteVisit;
+    if (!visit || !visit.disputed || visit.disputeResolution) return;
+
+    visit.disputed = false;
+    visit.disputeReason = null;
+    visit.disputeResolution = null;
+    visit.disputeAdminResponse = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'SITE_VISIT_COMPLETION_DISPUTE_RETRACT', `[${order.clientName}] 고객님이 계약(${order.code}) 실측 방문 완료 처리 이의제기를 철회했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 실측 방문 완료 처리 이의제기를 철회했어요.`);
+    showToast('이의제기를 철회했습니다.', 'info');
 
     selectMyPageEstimate(order.code);
 }
@@ -5373,6 +5393,7 @@ window.renderBlockedPartnersList = renderBlockedPartnersList;
 window.disputeProgressStage = disputeProgressStage;
 window.retractProgressStageDispute = retractProgressStageDispute;
 window.disputeSiteVisitCompletion = disputeSiteVisitCompletion;
+window.retractSiteVisitCompletionDispute = retractSiteVisitCompletionDispute;
 window.computeClientTier = computeClientTier;
 window.buildClientTierBadgeHtml = buildClientTierBadgeHtml;
 window.declineRepairVisitDate = declineRepairVisitDate;
