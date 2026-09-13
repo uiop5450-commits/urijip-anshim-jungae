@@ -5127,6 +5127,13 @@ function allocateOrderToPartner(orderCode) {
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `매니저 센터가 ${orderLabel}(${orderCode})를 전속 배정했어요. (예산 ₩ ${order.budget.toLocaleString()}만원)`);
     renderAdminOrderAllocation(); recalculateKPIs();
     showToast(`[${partnerName}] 파트너사에 배정이 완료되었습니다!`, "success");
+    // 실측/하자보수 방문 제안에는 파트너 본인이 등록한 휴무일 경고가 있는데,
+    // 정작 그 날짜를 희망하는 오더를 그 파트너에게 배정하는 순간엔 아무 확인도
+    // 없었다 — 배정 자체를 막지는 않되(실측 후 일정은 다시 조율되므로), 관리자에게
+    // 미리 알려준다.
+    if (order.preferredDate && isPartnerDateBlocked(partnerName, order.preferredDate)) {
+        showToast(`희망 착공일(${order.preferredDate})은 [${partnerName}] 파트너사가 휴무일로 등록해둔 날짜예요. 착오가 아닌지 확인해 주세요.`, 'warning');
+    }
 }
 
 /* 배정 실수를 되돌릴 방법이 전혀 없었다 — 수동/자동 배정 모두 order.bids에 한 번

@@ -1607,6 +1607,13 @@ function clientFinalizeContract(orderCode, partnerName, finalPrice) {
         showToast(`이 견적은 유효기간이 지났어요. 파트너사에 최신 가격으로 재확인을 요청해 주세요.`, 'warning');
         return;
     }
+    // 실측/하자보수 방문 제안, 일정변경 요청에는 파트너 본인이 등록한 휴무일
+    // 경고가 있는데, 정작 그 날짜를 착공일로 확정하는 계약 체결 순간에는 아무
+    // 확인도 없었다 — 막지는 않되(계약 후 실제 착공일은 실측 이후 다시 조율되므로),
+    // 미리 알려준다.
+    if (order.preferredDate && typeof isPartnerDateBlocked === 'function' && isPartnerDateBlocked(partnerName, order.preferredDate)) {
+        showToast(`희망 착공일(${order.preferredDate})은 [${partnerName}] 파트너사가 휴무일로 등록해둔 날짜예요. 실측 후 일정을 다시 조율해 주세요.`, 'warning');
+    }
     order.status = 'contracted';
     order.acceptedPartner = partnerName;
     order.finalPrice = finalPrice;
