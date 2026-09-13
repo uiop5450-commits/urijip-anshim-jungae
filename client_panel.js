@@ -1605,6 +1605,13 @@ function clientFinalizeContract(orderCode, partnerName, finalPrice) {
         showToast(`[${partnerName}] 파트너사는 삼진아웃으로 영구 제명되어 계약을 체결할 수 없어요. 매칭취소 후 다른 파트너사를 이용해 주세요.`, 'warning');
         return;
     }
+    // 영구 제명(banned)만 막고 있었는데, 입찰 이후 자진 입점 해지(status==='closed')한
+    // 파트너와도 그대로 계약이 체결될 수 있었다 — 이미 영업을 종료한 업체와 계약하면
+    // 시공 자체가 진행될 수 없으므로 제명과 동일하게 막는다.
+    if (partnerInfo && partnerInfo.status === 'closed') {
+        showToast(`[${partnerName}] 파트너사는 자진 입점 해지하여 계약을 체결할 수 없어요. 매칭취소 후 다른 파트너사를 이용해 주세요.`, 'warning');
+        return;
+    }
     // 자재비·인건비 변동을 전혀 반영하지 않은 오래된 견적이 그대로 계약으로
     // 전환되는 것을 막는다 — 파트너가 재확인(editPartnerBid)해서 유효기간을
     // 갱신하기 전까지는 체결할 수 없다.
@@ -3581,20 +3588,25 @@ function renderMyPageEstimateDetails(order) {
             // 중개 플랫폼인데 제명된 파트너와 계약을 체결할 수 있으면 블랙리스트 정책이
             // 무의미해지므로, 제명된 파트너의 입찰은 계약 체결을 막고 매칭취소만 유도한다.
             const isBannedBid = partnerInfo && partnerInfo.status === 'banned';
-            const isExpiredBid = !isContracted && !isBannedBid && typeof isBidExpired === 'function' && isBidExpired(bid);
-            const daysRemaining = !isContracted && !isBannedBid && !isExpiredBid && typeof getBidDaysRemaining === 'function' ? getBidDaysRemaining(bid) : null;
+            // isBannedBid(영구 제명)와 동일한 이유로, 입찰 이후 자진 입점 해지(status
+            // === 'closed')한 파트너의 입찰도 계약 체결을 막고 매칭취소만 유도해야 한다
+            // — clientFinalizeContract의 해지 파트너 차단과 짝을 이룬다.
+            const isClosedBid = partnerInfo && partnerInfo.status === 'closed';
+            const isBlockedBid = isBannedBid || isClosedBid;
+            const isExpiredBid = !isContracted && !isBlockedBid && typeof isBidExpired === 'function' && isBidExpired(bid);
+            const daysRemaining = !isContracted && !isBlockedBid && !isExpiredBid && typeof getBidDaysRemaining === 'function' ? getBidDaysRemaining(bid) : null;
 
-            const showCompareCheckbox = order.status === 'bidding' && !isBannedBid;
+            const showCompareCheckbox = order.status === 'bidding' && !isBlockedBid;
             bidsHtml += `
-                <div class="p-4 rounded-2xl border ${isContracted ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : (isBannedBid || isExpiredBid ? 'border-rose-200 bg-rose-50/40' : 'border-ink-100 bg-ink-50/70')} text-left space-y-3">
+                <div class="p-4 rounded-2xl border ${isContracted ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : (isBlockedBid || isExpiredBid ? 'border-rose-200 bg-rose-50/40' : 'border-ink-100 bg-ink-50/70')} text-left space-y-3">
                     <div class="flex justify-between items-center text-xs">
                         <div class="flex items-center gap-2">
                             ${showCompareCheckbox ? `<input type="checkbox" onchange="toggleBidCompareSelection('${order.code}', '${bid.partner}')" ${bidCompareSelection.includes(bid.partner) ? 'checked' : ''} class="w-3.5 h-3.5 shrink-0" aria-label="비교 대상으로 선택">` : ''}
                             <span class="font-black text-ink-950 cursor-pointer hover:underline" onclick="openPartnerPortfolioModal('${bid.partner}')">${escapeHtml(bid.partner)}</span>
                             ${typeof buildPartnerTierBadgeHtml === 'function' ? buildPartnerTierBadgeHtml(bid.partner) : ''}
                             <span class="text-gold-500 font-extrabold text-xs">★ ${ratingVal}</span>
-                            ${isBannedBid ? `<span class="badge badge-rose">영구 제명</span>` : ''}
-                            ${!isBannedBid && partnerInfo && partnerInfo.strikeCount > 0 ? `<span class="badge badge-rose" title="누적 옐로카드 ${partnerInfo.strikeCount}회"><i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> 옐로카드 ${partnerInfo.strikeCount}회</span>` : ''}
+                            ${isBannedBid ? `<span class="badge badge-rose">영구 제명</span>` : isClosedBid ? `<span class="badge badge-neutral">자진 해지</span>` : ''}
+                            ${!isBlockedBid && partnerInfo && partnerInfo.strikeCount > 0 ? `<span class="badge badge-rose" title="누적 옐로카드 ${partnerInfo.strikeCount}회"><i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> 옐로카드 ${partnerInfo.strikeCount}회</span>` : ''}
                             ${isExpiredBid ? `<span class="badge badge-rose"><i data-lucide="clock" class="w-2.5 h-2.5"></i> 견적 만료</span>` : ''}
                             ${daysRemaining !== null && daysRemaining <= 3 ? `<span class="badge badge-amber">D-${daysRemaining}</span>` : ''}
                         </div>
@@ -3616,6 +3628,11 @@ function renderMyPageEstimateDetails(order) {
                                 <span class="text-[10px] font-bold text-roseCustom">삼진아웃으로 제명되어 계약할 수 없어요</span>
                                 <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}', '파트너 영구 제명으로 인한 자동 취소')" class="btn btn-secondary btn-sm">매칭취소</button>
                             </div>
+                        ` : (isClosedBid ? `
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[10px] font-bold text-roseCustom">자진 입점 해지하여 계약할 수 없어요</span>
+                                <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}', '파트너 자진 입점 해지로 인한 자동 취소')" class="btn btn-secondary btn-sm">매칭취소</button>
+                            </div>
                         ` : (isExpiredBid ? `
                             <div class="flex items-center gap-1.5 flex-wrap justify-end">
                                 <span class="text-[10px] font-bold text-roseCustom">견적 유효기간이 지났어요</span>
@@ -3628,7 +3645,7 @@ function renderMyPageEstimateDetails(order) {
                                 <button type="button" onclick="openReportReasonPrompt((reason) => cancelPartnerBid('${order.code}', '${bid.partner}', reason))" class="btn btn-secondary btn-sm">매칭취소</button>
                                 <button type="button" onclick="clientFinalizeContract('${order.code}', '${bid.partner}', ${bid.price})" class="btn btn-dark btn-sm">이 파트너와 계약 체결하기</button>
                             </div>
-                        `))}
+                        `)))}
                     </div>
                 </div>`;
         });
