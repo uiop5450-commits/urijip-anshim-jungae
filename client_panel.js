@@ -3715,10 +3715,10 @@ function renderMyPageEstimateDetails(order) {
         const reviewUnderModeration = !!(myReview && (myReview.partnerFlagged || (myReview.reportedBy || []).length > 0));
         reviewBtnHtml = `<div class="p-3 bg-ink-100 rounded-xl flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-ink-600">
             <span class="flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 솔직 안심 리뷰 생성이 성공적으로 등록 완료되었습니다.</span>
-            <button type="button" onclick="openReviewWriteModal('${order.code}')" class="text-brand-600 hover:underline bg-transparent border-0 cursor-pointer p-0 font-black">수정하기</button>
             ${reviewUnderModeration
                 ? `<span class="text-roseCustom font-black">신고 심사중</span>`
-                : `<button type="button" onclick="deleteMyClientReview('${order.code}')" class="text-roseCustom hover:underline bg-transparent border-0 cursor-pointer p-0 font-black">삭제하기</button>`}
+                : `<button type="button" onclick="openReviewWriteModal('${order.code}')" class="text-brand-600 hover:underline bg-transparent border-0 cursor-pointer p-0 font-black">수정하기</button>
+            <button type="button" onclick="deleteMyClientReview('${order.code}')" class="text-roseCustom hover:underline bg-transparent border-0 cursor-pointer p-0 font-black">삭제하기</button>`}
         </div>`;
     }
 
@@ -3958,6 +3958,10 @@ function openReviewWriteModal(orderCode) {
     // 한 번 등록하면 오타나 별점을 다시 고칠 방법이 전혀 없었다.
     const partner = window.AppState.partners.find(p => p.name === order.acceptedPartner);
     const existingReview = order.reviewWritten && partner ? (partner.reviews || []).find(r => r.orderCode === orderCode) : null;
+    if (existingReview && (existingReview.partnerFlagged || (existingReview.reportedBy || []).length > 0)) {
+        showToast('신고가 접수되어 심사 중인 후기는 수정할 수 없어요. 처리가 끝난 후 다시 시도해주세요.', 'warning');
+        return;
+    }
 
     window.AppState.reviewPhotoDrafts = existingReview ? (existingReview.photos || []).slice() : [];
     window.AppState.activeReviewRating = existingReview ? existingReview.rating : 5;
@@ -4051,6 +4055,13 @@ function submitClientReview() {
     if (partner) {
         if (!partner.reviews) partner.reviews = [];
         const existingReview = isEditing ? partner.reviews.find(r => r.orderCode === orderCode) : null;
+        // deleteMyClientReview와 동일한 이유로, 신고/허위후기 신고가 걸려있는 후기를
+        // 고객이 그냥 수정해버리면 모더레이션(adminDeleteReview 등)이 심사해야 할
+        // 원본 텍스트·사진이 사라져 대기열을 셀프서비스로 무력화하게 된다.
+        if (existingReview && (existingReview.partnerFlagged || (existingReview.reportedBy || []).length > 0)) {
+            showToast('신고가 접수되어 심사 중인 후기는 수정할 수 없어요. 처리가 끝난 후 다시 시도해주세요.', 'warning');
+            return;
+        }
         if (existingReview) {
             existingReview.rating = window.AppState.activeReviewRating || 5;
             existingReview.text = text;
