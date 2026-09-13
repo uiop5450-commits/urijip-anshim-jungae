@@ -4818,7 +4818,7 @@ function renderAdminContractCancellations() {
                 <p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(o.cancelRequest ? o.cancelRequest.reason : '-')}</p>
             </div>
             <div class="flex items-center gap-2 justify-end pt-1">
-                <button type="button" onclick="rejectContractCancellation('${o.code}')" class="btn btn-secondary btn-sm">요청 반려 (계약 유지)</button>
+                <button type="button" onclick="openReportReasonPrompt((reason) => rejectContractCancellation('${o.code}', reason))" class="btn btn-secondary btn-sm">요청 반려 (계약 유지)</button>
                 <button type="button" onclick="approveContractCancellation('${o.code}')" class="btn btn-dark btn-sm text-roseCustom">취소 승인</button>
             </div>
         </div>`).join('');
@@ -4955,14 +4955,14 @@ function adminConfirmBenefitPayout(ownerType, ownerId, benefitId) {
     renderAdminBenefitClaimsList();
 }
 
-function rejectContractCancellation(orderCode) {
+function rejectContractCancellation(orderCode, reason) {
     const order = (window.AppState.orders || []).find(o => o.code === orderCode);
     if (!order || order.status !== 'cancel_requested') return;
     order.status = 'contracted';
     order.cancelRequest = null;
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'CONTRACT_CANCEL_REJECT', `[계약 취소 반려] 오더 ${order.code}의 계약 취소 요청을 반려했습니다. 계약이 유지됩니다.`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `요청하신 계약(${order.code}) 취소가 반려되어 계약이 그대로 유지됩니다.`);
-    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `계약(${order.code}) 취소 요청이 반려되어 계약이 그대로 유지됩니다.`);
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CONTRACT_CANCEL_REJECT', `[계약 취소 반려] 오더 ${order.code}의 계약 취소 요청을 반려했습니다. 계약이 유지됩니다. 사유: ${reason}`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `요청하신 계약(${order.code}) 취소가 반려되어 계약이 그대로 유지됩니다. 사유: ${reason}`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `계약(${order.code}) 취소 요청이 반려되어 계약이 그대로 유지됩니다. 사유: ${reason}`);
     showToast(`오더 ${order.code}의 계약 취소 요청을 반려했습니다.`, 'info');
     renderAdminContractCancellations();
 }
