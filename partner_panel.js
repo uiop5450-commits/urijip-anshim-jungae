@@ -1177,13 +1177,25 @@ function findPartnerId() {
     resultEl.textContent = `귀사의 아이디는 [${partner.id}] 입니다.`;
 }
 
+// 파트너 계정 찾기(findPartnerId 등)는 마스터 계정만 대상으로 했는데, 담당자
+// 부계정(partner.staffAccounts, 오늘 추가된 기능)으로 로그인하는 직원이 비밀번호를
+// 잊으면 복구할 방법이 없었다 — 소속 업체의 사업자등록번호로 본인 확인해 담당자
+// 계정 비밀번호도 재설정할 수 있게, 마스터/담당자 아이디를 모두 조회한다.
+function findPartnerAccountByRecoveryId(id, company, bizNum) {
+    const partner = window.AppState.partners.find(p => p.name === company && p.bizFile === bizNum);
+    if (!partner) return null;
+    if (partner.id === id) return { partner, staffAccount: null };
+    const staffAccount = (partner.staffAccounts || []).find(s => s.id === id);
+    return staffAccount ? { partner, staffAccount } : null;
+}
+
 function sendPartnerPasswordResetCode() {
     const id = document.getElementById('partner-recovery-resetpw-id')?.value.trim();
     const company = document.getElementById('partner-recovery-resetpw-company')?.value.trim();
     const bizNum = document.getElementById('partner-recovery-resetpw-biznum')?.value.trim();
     if (!id || !company || !bizNum) { showToast('아이디·업체명·사업자등록번호를 모두 입력해 주세요.', 'warning'); return; }
-    const partner = window.AppState.partners.find(p => p.id === id && p.name === company && p.bizFile === bizNum);
-    if (!partner) { showToast('입력하신 정보와 일치하는 계정을 찾을 수 없습니다.', 'warning'); return; }
+    const match = findPartnerAccountByRecoveryId(id, company, bizNum);
+    if (!match) { showToast('입력하신 정보와 일치하는 계정을 찾을 수 없습니다.', 'warning'); return; }
 
     partnerRecoverySentCode = String(Math.floor(1000 + Math.random() * 9000));
     document.getElementById('partner-recovery-resetpw-verified-fields')?.classList.remove('hidden');
@@ -1193,6 +1205,8 @@ function sendPartnerPasswordResetCode() {
 
 function resetPartnerPassword() {
     const id = document.getElementById('partner-recovery-resetpw-id')?.value.trim();
+    const company = document.getElementById('partner-recovery-resetpw-company')?.value.trim();
+    const bizNum = document.getElementById('partner-recovery-resetpw-biznum')?.value.trim();
     const code = document.getElementById('partner-recovery-resetpw-code')?.value.trim();
     const newPw = document.getElementById('partner-recovery-resetpw-newpw')?.value;
     const newPw2 = document.getElementById('partner-recovery-resetpw-newpw2')?.value;
@@ -1200,10 +1214,10 @@ function resetPartnerPassword() {
     if (!code || code !== partnerRecoverySentCode) { showToast('인증코드가 일치하지 않습니다.', 'warning'); return; }
     if (!newPw || !newPw2) { showToast('새 비밀번호를 입력해 주세요.', 'warning'); return; }
     if (newPw !== newPw2) { showToast('새 비밀번호가 일치하지 않습니다.', 'warning'); return; }
-    const partner = window.AppState.partners.find(p => p.id === id);
-    if (!partner) { showToast('계정을 찾을 수 없습니다.', 'warning'); return; }
+    const match = findPartnerAccountByRecoveryId(id, company, bizNum);
+    if (!match) { showToast('계정을 찾을 수 없습니다.', 'warning'); return; }
 
-    partner.pw = newPw;
+    if (match.staffAccount) match.staffAccount.pw = newPw; else match.partner.pw = newPw;
     partnerRecoverySentCode = null;
     if (typeof pushLog === 'function') pushLog('PARTNER', 'PASSWORD_RESET', `'${id}' 계정이 본인 확인 후 비밀번호를 재설정했습니다.`, 'WARNING');
     showToast('비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해 주세요.', 'success');
