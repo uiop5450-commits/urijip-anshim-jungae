@@ -3211,6 +3211,16 @@ function getSortedBidsForDisplay(bids) {
         const rb = (window.AppState.partners.find(p => p.name === b.partner) || {}).rating || 5.0;
         return rb - ra;
     });
+    // 응답 속도 집계가 아직 없는(respondedAt 이력 부족) 파트너는 느린 쪽이 아니라
+    // "판단 불가"이므로, 느린 쪽으로 취급해 뒤로 밀지 않고 정렬 마지막에 고정한다.
+    if (clientBidSortMode === 'response_asc') return [...bids].sort((a, b) => {
+        const ha = typeof computePartnerAvgResponseHours === 'function' ? computePartnerAvgResponseHours(a.partner) : null;
+        const hb = typeof computePartnerAvgResponseHours === 'function' ? computePartnerAvgResponseHours(b.partner) : null;
+        if (ha === null && hb === null) return 0;
+        if (ha === null) return 1;
+        if (hb === null) return -1;
+        return ha - hb;
+    });
     return bids;
 }
 
@@ -3544,6 +3554,7 @@ function renderMyPageEstimateDetails(order) {
                             <option value="default" ${clientBidSortMode === 'default' ? 'selected' : ''}>도착순</option>
                             <option value="price_asc" ${clientBidSortMode === 'price_asc' ? 'selected' : ''}>가격 낮은순</option>
                             <option value="rating_desc" ${clientBidSortMode === 'rating_desc' ? 'selected' : ''}>평점 높은순</option>
+                            <option value="response_asc" ${clientBidSortMode === 'response_asc' ? 'selected' : ''}>응답 빠른순</option>
                         </select>
                         <button type="button" onclick="openBidCompareModal('${order.code}')" ${bidCompareSelection.length < 2 ? 'disabled' : ''} class="btn btn-secondary btn-sm shrink-0"><i data-lucide="columns-3" class="w-3.5 h-3.5"></i> 비교하기${bidCompareSelection.length > 0 ? ` (${bidCompareSelection.length})` : ''}</button>` : ''}
                         ${(order.status !== 'contracted' && !order.is1on1) ? `<button type="button" onclick="triggerRebidding('${order.code}')" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i> 새 파트너 재매칭 받기</button>` : ''}
