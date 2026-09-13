@@ -1056,9 +1056,24 @@ function updatePartnerBizFile() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
+    // 관리자 대시보드의 '블랙리스트 대조 파트너' 경고(renderAdminDashboard)는 활성
+    // 파트너의 현재 bizFile을 blacklistDb와 실시간 대조해서 뜨는데, 정작 이 자기
+    // 수정 화면은 그 대조를 전혀 하지 않았다 — 이미 대조 경고가 뜬 파트너가 여기서
+    // 번호만 바꾸면 다음 렌더링에 경고가 조용히 사라져, 의심 계정이 스스로 증거를
+    // 지우는 셀프서비스 회피 통로가 됐다. 입점 신청(submitPartnerSignup)과 동일한
+    // 대조 기준으로 (1) 이미 걸려있는 계정의 변경 자체와 (2) 다른 블랙리스트
+    // 사업자번호로의 변경을 모두 막는다.
+    if ((window.AppState.blacklistDb || []).some(b => b.bizFile === partner.bizFile)) {
+        showToast('현재 사업자등록번호가 블랙리스트 대조 대상이라 자체 수정이 제한됩니다. 고객센터로 문의해 주세요.', 'warning');
+        return;
+    }
     const bizFileVal = document.getElementById('partner-account-edit-bizfile')?.value.trim();
     if (!bizFileVal || bizFileVal.replace(/[^0-9]/g, '').length !== 10) { showToast('사업자등록번호 10자리를 올바르게 입력해 주세요. (예: 000-00-00000)', 'warning'); return; }
     if (window.AppState.partners.some(p => p !== partner && p.bizFile === bizFileVal)) { showToast('이미 등록된 사업자등록번호입니다.', 'warning'); return; }
+    if ((window.AppState.blacklistDb || []).some(b => b.bizFile === bizFileVal)) {
+        showToast('해당 사업자등록번호는 블랙리스트에 등록되어 변경할 수 없습니다.', 'warning');
+        return;
+    }
     if (bizFileVal === partner.bizFile) return;
 
     const oldBizFile = partner.bizFile;
