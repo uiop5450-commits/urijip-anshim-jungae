@@ -3118,6 +3118,18 @@ function cascadeClientNameChange(clientPhone, clientId, oldName, newName) {
     (window.AppState.clientRatings || []).forEach(r => { if (r.clientPhone === clientPhone) r.clientName = newName; });
     (window.AppState.clientReports || []).forEach(r => { if (r.clientPhone === clientPhone) r.clientName = newName; });
     (window.AppState.supportTickets || []).forEach(t => { if (t.clientId === clientId) t.clientName = newName; });
+    // 커뮤니티 글/댓글/답글도 작성 시점에 authorName: auth.name을 스냅샷으로
+    // 찍어두는데, 위 컬렉션들과 달리 이 함수가 지금까지 한 번도 건드리지
+    // 않아 고객이 개명해도 과거 글에는 옛 이름이 영구히 남아 있었다.
+    // 소유권 판별은 안정적인 authorId로 하므로(4588번째 줄의 'partner:' 접두
+    // 규칙과 동일하게), authorName만 이 clientId 기준으로 갱신한다.
+    (window.AppState.communityPosts || []).forEach(post => {
+        if (post.authorId === clientId) post.authorName = newName;
+        (post.comments || []).forEach(comment => {
+            if (comment.authorId === clientId) comment.authorName = newName;
+            (comment.replies || []).forEach(reply => { if (reply.authorId === clientId) reply.authorName = newName; });
+        });
+    });
 }
 
 function updateClientProfileInfo() {
