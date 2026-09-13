@@ -1599,8 +1599,17 @@ function openClientRatingModal(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     if (!order || order.status !== 'contracted' || order.acceptedPartner !== partnerName) return;
-    clientRatingTargetCode = orderCode;
     const existing = (window.AppState.clientRatings || []).find(r => r.orderCode === orderCode);
+    // 고객의 이의신청(openClientRatingAppealModal, client_panel.js)은 관리자만 심사·
+    // 승인/반려할 수 있어야 하는데, 파트너가 심사 대기 중에도 수정 버튼으로 평가를
+    // 다시 제출하면 submitClientRating이 appeal을 조건 없이 null로 지워버려 심사
+    // 자체가 통째로 사라졌다 — 신고 심사 중 자체 삭제를 막는 다른 기능들
+    // (deleteCommunityPost 등)과 동일하게 심사 대기 중에는 수정 자체를 막는다.
+    if (existing && existing.appeal && existing.appeal.status === 'pending') {
+        showToast('이의신청 심사 중에는 평가를 수정할 수 없어요.', 'warning');
+        return;
+    }
+    clientRatingTargetCode = orderCode;
     window.AppState.activeClientRating = existing ? existing.rating : 5;
     safeUpdateValue('client-rating-comment-input', existing ? (existing.comment || '') : '');
     renderClientRatingStars();
@@ -1634,10 +1643,15 @@ function submitClientRating() {
 
     if (!window.AppState.clientRatings) window.AppState.clientRatings = [];
     const existing = window.AppState.clientRatings.find(r => r.orderCode === order.code);
+    if (existing && existing.appeal && existing.appeal.status === 'pending') {
+        showToast('이의신청 심사 중에는 평가를 수정할 수 없어요.', 'warning');
+        closeClientRatingModal();
+        return;
+    }
     const isEditing = !!existing;
     if (existing) {
         existing.rating = rating; existing.comment = comment; existing.editedDate = getLocalDateString();
-        existing.appeal = null;
+        existing.appeal = null; // 위에서 pending은 이미 걸러졌으므로 여기 도달했다면 해결된(승인/반려) 이의신청뿐이다.
     } else {
         window.AppState.clientRatings.push({ orderCode: order.code, clientPhone: order.clientPhone, clientName: order.clientName, partnerName, rating, comment, date: getLocalDateString(), appeal: null });
     }
@@ -1659,7 +1673,7 @@ function buildPartnerClientRatingHtml(order) {
         <h5 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="user-check" class="w-4 h-4 text-gold-500"></i> 고객 평가</h5>
         <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">협조도·소통·결제 신뢰도 등을 평가해 다른 파트너사가 참고할 수 있게 해요. 코멘트는 공개되지 않아요.</p>
         ${myRating
-            ? `<div class="flex items-center justify-between"><span class="text-gold-500 font-black text-sm">${'★'.repeat(myRating.rating)}${'☆'.repeat(5 - myRating.rating)}</span><button type="button" onclick="openClientRatingModal('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button></div>`
+            ? `<div class="flex items-center justify-between"><span class="text-gold-500 font-black text-sm">${'★'.repeat(myRating.rating)}${'☆'.repeat(5 - myRating.rating)}</span>${myRating.appeal && myRating.appeal.status === 'pending' ? `<span class="text-[10px] font-bold text-ink-400">이의신청 심사중</span>` : `<button type="button" onclick="openClientRatingModal('${order.code}')" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button>`}</div>`
             : `<button type="button" onclick="openClientRatingModal('${order.code}')" class="btn btn-secondary btn-sm">고객 평가하기</button>`}
     </div>`;
 }
