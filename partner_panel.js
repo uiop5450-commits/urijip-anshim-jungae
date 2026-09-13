@@ -565,7 +565,7 @@ function switchAdminMode(mode) {
     else if (mode === 'support' && typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
     else if (mode === 'clients') renderAdminClientManager();
     else if (mode === 'cancellations') { renderAdminContractCancellations(); renderAdminRefundPendingList(); renderAdminStrikeAppeals(); }
-    else if (mode === 'broadcast' && typeof updateAdminBroadcastSegmentUI === 'function') updateAdminBroadcastSegmentUI();
+    else if (mode === 'broadcast') { if (typeof updateAdminBroadcastSegmentUI === 'function') updateAdminBroadcastSegmentUI(); if (typeof renderAdminNoticeHistory === 'function') renderAdminNoticeHistory(); }
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -4299,9 +4299,42 @@ function sendAdminBroadcastNotification() {
         segmentLabel = statusFilter === 'normal' ? '정상 이용 고객' : statusFilter === 'suspended' ? '이용정지 고객' : '전체 고객';
     }
 
+    window.AppState.noticeBoard.unshift({ id: `notice-${Date.now()}-${Math.floor(Math.random() * 100000)}`, target, segmentLabel, message, date: nowIso, recipientCount });
+    if (typeof renderAdminNoticeHistory === 'function') renderAdminNoticeHistory();
+
     if (typeof pushLog === 'function') pushLog('MANAGER', 'BROADCAST', `${segmentLabel} ${recipientCount}명에게 공지 발송: "${message.slice(0, 40)}${message.length > 40 ? '...' : ''}"`, 'SUCCESS');
     showToast(`${segmentLabel} ${recipientCount}명에게 공지가 발송되었습니다.`, 'success');
     if (msgInput) msgInput.value = '';
+}
+
+/* 개인 알림함(clientNotifications/partnerNotifications)은 수신자별 200건 캡으로
+ * 잘려나가고, 발송 이후 가입한 계정에는 아예 노출되지 않아 "언제 무슨 공지를
+ * 보냈는지" 되짚어볼 방법이 없었다. noticeBoard에 발송 시점 기록을 영구 보관해
+ * 관제 탭에서 이력을 조회할 수 있게 한다. */
+function renderAdminNoticeHistory() {
+    const container = document.getElementById('admin-notice-history-list');
+    if (!container) return;
+    const history = window.AppState.noticeBoard || [];
+
+    if (history.length === 0) {
+        container.innerHTML = buildEmptyStateHtml('history', '아직 발송한 공지가 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = history.map(n => {
+        const d = new Date(n.date);
+        const dateLabel = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        return `
+        <div class="p-3 surface-flat text-left space-y-1">
+            <div class="flex justify-between items-center gap-2">
+                <span class="badge ${n.target === 'partners' ? 'badge-brand' : 'badge-amber'}">${escapeHtml(n.segmentLabel)}</span>
+                <span class="text-[10px] text-ink-400 font-semibold shrink-0">${dateLabel} · ${n.recipientCount}명 수신</span>
+            </div>
+            <p class="text-xs font-semibold text-ink-700 leading-relaxed">${escapeHtml(n.message)}</p>
+        </div>`;
+    }).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 /* 전체 공지 발송(sendAdminBroadcastNotification)은 세그먼트(지역/상태) 단위로만
@@ -7634,6 +7667,7 @@ window.adminDeletePortfolio = adminDeletePortfolio;
 window.setAdminClientStatusFilter = setAdminClientStatusFilter;
 window.exportOrderLookupResultsToCsv = exportOrderLookupResultsToCsv;
 window.updateAdminBroadcastSegmentUI = updateAdminBroadcastSegmentUI;
+window.renderAdminNoticeHistory = renderAdminNoticeHistory;
 window.downloadContractDoc = downloadContractDoc;
 window.downloadPartnerSettlementReceipt = downloadPartnerSettlementReceipt;
 window.initPartnerSignatureCanvas = initPartnerSignatureCanvas;

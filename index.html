@@ -1351,6 +1351,13 @@
                             <button type="button" onclick="sendAdminBroadcastNotification()" class="btn btn-dark btn-block"><i data-lucide="send" class="w-4 h-4"></i> 공지 발송하기</button>
                         </div>
                     </div>
+                    <div class="surface surface-lg p-6 space-y-4 text-left max-w-xl">
+                        <div class="border-b border-ink-100 pb-4 space-y-1">
+                            <h4 class="text-sm font-black text-ink-800 flex items-center gap-2"><i data-lucide="history" class="w-4 h-4"></i> 발송 이력</h4>
+                            <p class="text-[11px] text-ink-500 font-medium">지금까지 발송한 전체 공지의 영구 기록이에요. 수신자 알림함과 별개로, 발송 후 가입한 계정 유무와 관계없이 계속 남아있어요.</p>
+                        </div>
+                        <div id="admin-notice-history-list" class="space-y-2.5"></div>
+                    </div>
                 </div>
 
                 <div id="admin-mode-clients-view" class="hidden space-y-6 transition-all duration-300">

@@ -282,6 +282,11 @@ window.AppState = {
     // (clientNotifications와 동일한 패턴 — pushPartnerNotification 참고).
     partnerNotifications: [],
 
+    // 관리자가 발송한 전체 공지의 영구 기록. clientNotifications/partnerNotifications는
+    // 수신자별 200건 캡으로 잘려나가고 발송 시점 이후 가입한 계정에는 보이지 않으므로,
+    // 감사/이력 조회용으로 별도 보관한다 (sendAdminBroadcastNotification 참고).
+    noticeBoard: [],
+
     // 고객센터 1:1 문의 티켓. clientId로 소유자를 구분하고, 관리자 콘솔 '고객 문의'
     // 탭에서 답변하면 status가 'answered'로 바뀌고 고객 알림이 발송된다.
     supportTickets: [],
