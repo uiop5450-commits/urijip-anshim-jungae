@@ -1454,7 +1454,9 @@ function renderPartnerConsolePortfolios() {
                 <div class="flex justify-between items-center pt-2 border-t border-ink-100 mt-1">
                     <div class="flex items-center gap-1">
                         <button type="button" onclick="event.stopPropagation();openPortfolioEditor(${idx})" class="btn btn-ghost btn-sm px-1.5">수정</button>
-                        <button type="button" onclick="event.stopPropagation();deletePartnerPortfolio(${idx})" class="btn btn-ghost btn-sm px-1.5 text-roseCustom">삭제</button>
+                        ${(item.reportedBy || []).length > 0
+                            ? `<span class="text-[10px] font-bold text-roseCustom px-1.5">신고 심사중</span>`
+                            : `<button type="button" onclick="event.stopPropagation();deletePartnerPortfolio(${idx})" class="btn btn-ghost btn-sm px-1.5 text-roseCustom">삭제</button>`}
                         <button type="button" onclick="event.stopPropagation();movePartnerPortfolio(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="btn btn-ghost btn-sm px-1.5" aria-label="위로 이동"><i data-lucide="arrow-up" class="w-3.5 h-3.5"></i></button>
                         <button type="button" onclick="event.stopPropagation();movePartnerPortfolio(${idx}, 1)" ${idx === partner.portfolios.length - 1 ? 'disabled' : ''} class="btn btn-ghost btn-sm px-1.5" aria-label="아래로 이동"><i data-lucide="arrow-down" class="w-3.5 h-3.5"></i></button>
                         ${!item.isPrimary ? `<button type="button" onclick="event.stopPropagation();setPrimaryPortfolio(${idx})" class="btn btn-ghost btn-sm px-1.5" aria-label="대표 시공사례로 지정"><i data-lucide="star" class="w-3.5 h-3.5"></i></button>` : ''}
@@ -1471,6 +1473,13 @@ function deletePartnerPortfolio(idx) {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.portfolios[idx]) return;
+    // 후기/커뮤니티/시공사례 문의와 동일한 이유로, 신고가 접수되어 관리자 심사
+    // 대기 중인 포트폴리오를 파트너 본인이 스스로 지워버리면 adminDeletePortfolio/
+    // dismissPortfolioReport가 심사할 증거(신고된 사진 등)가 사라진다.
+    if ((partner.portfolios[idx].reportedBy || []).length > 0) {
+        showToast('신고가 접수되어 심사 중인 포트폴리오는 삭제할 수 없어요.', 'warning');
+        return;
+    }
     const removed = partner.portfolios.splice(idx, 1)[0];
     if (removed && typeof pushLog === 'function') pushLog('PARTNER', 'PORTFOLIO', `[${partnerName}]가 포트폴리오 "${removed.title}"를 삭제했습니다.`, 'WARNING');
     showToast('포트폴리오를 삭제했습니다.', 'info');
