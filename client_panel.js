@@ -3113,6 +3113,18 @@ function cascadeClientNameChange(clientPhone, clientId, oldName, newName) {
             (comment.replies || []).forEach(reply => { if (reply.authorId === clientId) reply.authorName = newName; });
         });
     });
+    // 파트너 후기(submitClientReview)도 작성 시점에 client: maskName(order.clientName)을
+    // 스냅샷으로 찍어두는데, 위 컬렉션들과 달리 이 함수가 지금까지 건드리지 않아
+    // 고객이 개명해도 이미 게시된 후기에는 옛 이름이 영구히 남아 있었다. 후기는
+    // 소유자 phone/id를 직접 들고 있지 않으므로 orderCode로 주문을 찾아 연결한다.
+    (window.AppState.partners || []).forEach(p => {
+        (p.reviews || []).forEach(rev => {
+            const order = (window.AppState.orders || []).find(o => o.code === rev.orderCode);
+            if (order && order.clientPhone === clientPhone) {
+                rev.client = (typeof maskName === 'function') ? maskName(newName) : newName;
+            }
+        });
+    });
 }
 
 function updateClientProfileInfo() {
