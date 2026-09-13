@@ -5124,6 +5124,13 @@ function renderAdminPartnerMonitor() {
                         <button type="button" onclick="adminApprovePartnerSuspensionAppeal('${p.id}')" class="text-[10px] font-bold text-ink-500 hover:text-emeraldCustom bg-transparent border-0 cursor-pointer p-0">승인(정지 해제)</button>
                     </div>
                 </div>` : `<div class="p-3 bg-ink-50 rounded-xl"><p class="text-[10px] font-bold text-ink-400">계정 정지 이의신청 반려됨 — ${escapeHtml(p.suspensionAppeal.adminResponse || '')}</p></div>`) : ''}
+                ${(p.certApplicationRequested || p.certRenewalRequested) ? `
+                <div class="p-3 bg-brand-50 rounded-xl flex items-center justify-between gap-2">
+                    <p class="text-[11px] font-black text-brand-700">${p.certApplicationRequested ? '인증 신청' : '인증 갱신 요청'} 검토 대기중</p>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" onclick="openReportReasonPrompt((reason) => adminRejectPartnerCertRequest('${p.name}', reason))" class="text-[10px] font-bold text-ink-500 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">반려</button>
+                    </div>
+                </div>` : (p.certRequestRejection ? `<div class="p-3 bg-ink-50 rounded-xl"><p class="text-[10px] font-bold text-ink-400">인증 요청 반려됨 — ${escapeHtml(p.certRequestRejection.reason || '')}</p></div>` : '')}
             </div>
             <div class="pt-3 border-t border-ink-100 flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center flex-wrap gap-1.5">
@@ -6831,6 +6838,7 @@ function requestPartnerCertRenewal() {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || partner.certRenewalRequested) return;
     partner.certRenewalRequested = true;
+    partner.certRequestRejection = null;
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'CERT_RENEWAL_REQUEST', `[${partnerName}]가 안심 인증 갱신을 요청했습니다.`, 'WARNING');
     showToast('인증 갱신을 요청했습니다. 매니저 센터에서 검토 후 재인증해드릴게요.', 'success');
@@ -6846,11 +6854,31 @@ function requestPartnerCertApplication() {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || partner.isCertified || partner.certApplicationRequested) return;
     partner.certApplicationRequested = true;
+    partner.certRequestRejection = null;
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'CERT_APPLICATION_REQUEST', `[${partnerName}]가 안심 인증 신청을 접수했습니다.`, 'INFO');
     showToast('인증 신청을 접수했습니다. 매니저 센터에서 검토 후 안내해드릴게요.', 'success');
     if (typeof renderPartnerCertStatus === 'function') renderPartnerCertStatus(partner);
     if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
+/* 인증 신청/갱신 요청(requestPartnerCertApplication/requestPartnerCertRenewal)은
+ * 승인(submitPartnerCertGrant) 경로만 있고 반려 경로가 없어, 인증을 내주지 않기로
+ * 결정해도 요청 플래그를 지울 방법이 없어 파트너가 "검토 중" 상태에 영구히 갇히고
+ * 재요청도 막혀 있었다 — 계정 정지 이의신청(adminRejectPartnerSuspensionAppeal)과
+ * 동일한 패턴으로 반려 사유를 남기고 재요청이 가능하게 한다. */
+function adminRejectPartnerCertRequest(partnerName, reason) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || (!partner.certApplicationRequested && !partner.certRenewalRequested)) return;
+    const requestLabel = partner.certApplicationRequested ? '인증 신청' : '인증 갱신 요청';
+    partner.certApplicationRequested = false;
+    partner.certRenewalRequested = false;
+    partner.certRequestRejection = { reason, date: getLocalDateString() };
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CERT_REQUEST_REJECT', `'${partner.name}' 파트너사의 ${requestLabel}을 반려했습니다. 사유: ${reason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `${requestLabel}이 반려되었습니다. 사유: ${reason}`);
+    showToast(`[${partner.name}] 파트너사의 ${requestLabel}을 반려했습니다.`, 'info');
+    renderAdminPartnerMonitor();
 }
 
 /* ----------------------------------------------------------------
@@ -7758,6 +7786,7 @@ window.submitPartnerCertGrant = submitPartnerCertGrant;
 window.sweepExpiredPartnerCertifications = sweepExpiredPartnerCertifications;
 window.requestPartnerCertRenewal = requestPartnerCertRenewal;
 window.requestPartnerCertApplication = requestPartnerCertApplication;
+window.adminRejectPartnerCertRequest = adminRejectPartnerCertRequest;
 window.renderAdminStrikeAppeals = renderAdminStrikeAppeals;
 window.adminApproveStrikeAppeal = adminApproveStrikeAppeal;
 window.adminRejectStrikeAppeal = adminRejectStrikeAppeal;

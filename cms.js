@@ -933,7 +933,7 @@ function renderPartnerCertStatus(partner) {
         // 갱신 요청(requestPartnerCertRenewal)과 동일한 패턴으로 신청 경로를 둔다.
         container.innerHTML = partner.certApplicationRequested
             ? `<p class="text-[10px] font-bold text-brand-600">인증 신청 접수됨 — 매니저 센터 검토 중입니다.</p>`
-            : `<p class="text-[11px] text-ink-400 font-semibold mb-1">현재 안심 인증 대상이 아닙니다.</p><button type="button" onclick="requestPartnerCertApplication()" class="btn btn-secondary btn-sm">안심 인증 신청</button>`;
+            : `${partner.certRequestRejection ? `<p class="text-[10px] font-bold text-roseCustom mb-1">인증 신청이 반려되었습니다. 사유: ${escapeHtml(partner.certRequestRejection.reason || '')}</p>` : `<p class="text-[11px] text-ink-400 font-semibold mb-1">현재 안심 인증 대상이 아닙니다.</p>`}<button type="button" onclick="requestPartnerCertApplication()" class="btn btn-secondary btn-sm">안심 인증 ${partner.certRequestRejection ? '재신청' : '신청'}</button>`;
         return;
     }
     const today = getLocalDateString();
@@ -952,7 +952,7 @@ function renderPartnerCertStatus(partner) {
 
     const showRenewBtn = (isExpired || isExpiringSoon) && !partner.certRenewalRequested;
     container.innerHTML = `${statusHtml}
-        ${partner.certRenewalRequested ? `<p class="text-[10px] font-bold text-brand-600 mt-1">갱신 요청 접수됨 — 매니저 센터 검토 중입니다.</p>` : (showRenewBtn ? `<button type="button" onclick="requestPartnerCertRenewal()" class="btn btn-secondary btn-sm mt-1">인증 갱신 요청</button>` : '')}`;
+        ${partner.certRenewalRequested ? `<p class="text-[10px] font-bold text-brand-600 mt-1">갱신 요청 접수됨 — 매니저 센터 검토 중입니다.</p>` : (showRenewBtn ? `${partner.certRequestRejection ? `<p class="text-[10px] font-bold text-roseCustom mt-1">갱신 요청이 반려되었습니다. 사유: ${escapeHtml(partner.certRequestRejection.reason || '')}</p>` : ''}<button type="button" onclick="requestPartnerCertRenewal()" class="btn btn-secondary btn-sm mt-1">인증 갱신 ${partner.certRequestRejection ? '재요청' : '요청'}</button>` : '')}`;
 }
 
 /* 고객 친구 추천 보상함(renderClientBenefitsStatus, client_panel.js)과 동일한 패턴 —
