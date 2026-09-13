@@ -3084,6 +3084,22 @@ function renderBlockedUsersList() {
     }).join('');
 }
 
+/* order.clientPhone이 사실상 고객의 외래키로 오더·알림·평가·신고 전반에 쓰이는데
+ * (예: 회원 탈퇴의 진행 중인 계약 확인 — openAccountDeleteModal/confirmAccountDeletion,
+ * o.clientPhone === auth.phone), 연락처를 변경하면 account.phone/auth.phone만
+ * 바뀌고 기존 기록의 clientPhone은 그대로 남아 있었다. 그러면 (1) 진행 중인
+ * 계약이 있어도 새 번호로는 탈퇴 가드에 걸리지 않아 그냥 탈퇴할 수 있고,
+ * (2) 기존 의뢰이력·알림·평가·신고 내역이 새 번호로는 전혀 조회되지 않는
+ * 두 가지 문제가 생긴다 — 탈퇴 가드와 동일한 진행 중 계약 확인을 두고,
+ * 통과하면 관련 컬렉션의 clientPhone을 새 번호로 일괄 갱신한다. */
+function cascadeClientPhoneChange(oldPhone, newPhone) {
+    if (oldPhone === newPhone) return;
+    (window.AppState.orders || []).forEach(o => { if (o.clientPhone === oldPhone) o.clientPhone = newPhone; });
+    (window.AppState.clientNotifications || []).forEach(n => { if (n.clientPhone === oldPhone) n.clientPhone = newPhone; });
+    (window.AppState.clientRatings || []).forEach(r => { if (r.clientPhone === oldPhone) r.clientPhone = newPhone; });
+    (window.AppState.clientReports || []).forEach(r => { if (r.clientPhone === oldPhone) r.clientPhone = newPhone; });
+}
+
 function updateClientProfileInfo() {
     const auth = window.AppState.clientAuth;
     if (!auth.loggedIn) return;
@@ -3093,10 +3109,16 @@ function updateClientProfileInfo() {
     if (/['"`<>\\]/.test(nameVal)) { showToast('이름에는 따옴표, 백틱, 꺾쇠, 백슬래시를 사용할 수 없습니다.', 'warning'); return; }
     if (!/^0\d{1,2}-\d{3,4}-\d{4}$/.test(phoneVal)) { showToast('휴대폰 연락처를 올바른 형식으로 입력해 주세요. (예: 010-0000-0000)', 'warning'); return; }
     if (window.AppState.clientAccounts.some(acc => acc.id !== auth.id && acc.phone === phoneVal)) { showToast('이미 다른 계정에서 사용 중인 휴대폰 번호입니다.', 'warning'); return; }
+    const oldPhone = auth.phone;
+    if (oldPhone !== phoneVal && (window.AppState.orders || []).some(o => o.status === 'contracted' && o.clientPhone === oldPhone)) {
+        showToast('진행 중인 계약이 있어 연락처를 변경할 수 없어요. 계약을 모두 마친 후 다시 시도해주세요.', 'warning');
+        return;
+    }
 
     const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
     if (account) { account.name = nameVal; account.phone = phoneVal; }
     auth.name = nameVal; auth.phone = phoneVal;
+    cascadeClientPhoneChange(oldPhone, phoneVal);
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'PROFILE_UPDATE', `'${auth.id}' 고객님이 회원 정보를 수정했습니다.`, 'INFO');
     showToast('회원 정보가 저장되었습니다.', 'success');
