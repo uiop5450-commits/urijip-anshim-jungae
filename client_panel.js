@@ -495,27 +495,16 @@ function restoreWithdrawnOrder(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order || order.status !== 'withdrawn') return;
 
+    // 파트너 자율 입찰이 폐지된 이후에도 이 함수는 옛 방식대로 무작위 파트너를
+    // 즉시 자동 매칭해 관리자 배정관(renderAdminOrderAllocation)을 완전히
+    // 건너뛰고 있었다 — 신규 오더 생성(completeMatchingSim)과 동일하게 재개된
+    // 의뢰도 빈 bids로 매니저 센터 수동 배정 대기열에 올린다.
     order.status = 'bidding';
     order.bids = [];
 
-    const slotsNeeded = order.partnerCountLimit || 3;
-    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !isPartnerBlockedByClient(p.name));
-    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, slotsNeeded);
-    selected.forEach(partner => {
-        order.bids.push({
-            partner: partner.name,
-            price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
-            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
-        });
-    });
-
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'RESTORE_WITHDRAWN_ORDER', `[${order.clientName}] 고객님이 철회했던 의뢰(${orderCode})를 재개하여 재매칭했습니다.`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, selected.length > 0 ? `의뢰를 재개하여 새 파트너사 ${selected.length}곳이 매칭되었어요. (의뢰 코드: ${orderCode})` : `재매칭 가능한 파트너사가 아직 없어요. 잠시 후 다시 시도해주세요.`);
-    if (typeof pushPartnerNotification === 'function') { selected.forEach(partner => pushPartnerNotification(partner.name, `고객님이 재개한 오더(${orderCode})에 매칭되었어요. 고객: ${maskName(order.clientName)}님.`)); }
-    showToast(selected.length > 0 ? `의뢰를 재개했습니다! 새로운 파트너사 ${selected.length}곳이 매칭되었습니다.` : '의뢰를 재개했지만 재매칭 가능한 파트너사를 찾지 못했어요. 잠시 후 다시 시도해주세요.', selected.length > 0 ? 'success' : 'warning');
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'RESTORE_WITHDRAWN_ORDER', `[${order.clientName}] 고객님이 철회했던 의뢰(${orderCode})를 재개했습니다. 매니저 센터 수동 배정 대기열에 등록됩니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `의뢰를 재개했어요. 관리자가 적합한 파트너사를 선별해 배정해드려요. (의뢰 코드: ${orderCode})`);
+    showToast('의뢰를 재개했습니다! 관리자가 적합한 파트너사를 선별해 배정해드려요.', 'success');
 
     renderClientMyPage();
     selectMyPageEstimate(orderCode);
@@ -3800,9 +3789,11 @@ function renderMyPageEstimateDetails(order) {
     if (order.status === 'contracted' && !order.clientSigned) initSignatureCanvas(order.code);
 }
 
-/* "매칭취소"로 뺀 자리를 새 파트너사로 다시 채운다 — 예전엔 토스트만 띄우고 실제로는
- * order.bids를 전혀 건드리지 않던 자리채우기용 스텁이었음. 취소/이미 입찰한 파트너는
- * 제외하고, 남은 슬롯만큼 새 파트너를 뽑아 입찰서를 만들어준다(자동매칭 로직과 동일한 방식). */
+/* "매칭취소"로 뺀 자리를 다시 채워달라고 요청하는 버튼 — 파트너 자율 입찰이
+ * 폐지된 이후에도 이 함수만 옛 방식대로 무작위 파트너를 즉시 자동으로 채워
+ * 관리자 배정관을 건너뛰고 있었다. 이제는 남은 슬롯만큼 매니저 센터 수동
+ * 배정 대기열에 다시 올린다는 안내만 하고, 실제 배정은 관리자가 한다
+ * (order는 이미 status==='bidding'이라 renderAdminOrderAllocation에 자동으로 잡힌다). */
 function triggerRebidding(orderCode) {
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order || order.status === 'contracted') return;
@@ -3811,28 +3802,10 @@ function triggerRebidding(orderCode) {
     const slotsNeeded = (order.partnerCountLimit || 3) - (order.bids ? order.bids.length : 0);
     if (slotsNeeded <= 0) { showToast('이미 배정 인원이 모두 채워져 있어요.', 'info'); return; }
 
-    const excluded = new Set([...(order.excludedPartners || []), ...(order.bids || []).map(b => b.partner)]);
-    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name) && !isPartnerBlockedByClient(p.name));
-    if (candidates.length === 0) { showToast('현재 매칭 가능한 새로운 파트너사가 없어요.', 'warning'); return; }
-
-    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, slotsNeeded);
-    selected.forEach(partner => {
-        order.bids.push({
-            partner: partner.name,
-            price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
-            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
-        });
-    });
-
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'REBID', `[${order.clientName}] 고객님 요청으로 오더 ${orderCode}에 파트너사 ${selected.length}곳 재매칭.`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `새로운 파트너사 ${selected.length}곳이 매칭되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
-    if (typeof pushPartnerNotification === 'function') {
-        selected.forEach(partner => pushPartnerNotification(partner.name, `재매칭으로 새 오더(${orderCode})에 매칭되었어요. 고객: ${maskName(order.clientName)}님.`));
-    }
-    showToast(`새로운 파트너사 ${selected.length}곳이 매칭되었습니다!`, 'success');
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REBID_REQUEST', `[${order.clientName}] 고객님이 오더 ${orderCode}의 남은 ${slotsNeeded}자리 재배정을 요청했습니다. 매니저 센터 수동 배정 대기열에 등록됩니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `재매칭을 요청했어요. 관리자가 적합한 파트너사를 선별해 남은 자리를 배정해드려요. (의뢰 코드: ${orderCode})`);
+    showToast('재매칭을 요청했습니다! 관리자가 적합한 파트너사를 선별해 배정해드려요.', 'success');
+    if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
 
     renderClientMyPage();
     selectMyPageEstimate(orderCode);
@@ -3866,27 +3839,16 @@ function reopenCancelledOrder(orderCode) {
     order.clientSigned = false;
     order.partnerSigned = false;
     order.cancelRequest = null;
+    // 파트너 자율 입찰이 폐지된 이후에도 여기는 옛 방식대로 무작위 파트너를
+    // 즉시 자동 매칭해 관리자 배정관을 건너뛰고 있었다 — 이제는 빈 bids로
+    // 매니저 센터 수동 배정 대기열에만 올린다 (order.excludedPartners에
+    // 남겨둔 이전 계약 파트너는 자동배정(autoAllocateOrderCore)에서 자동으로 제외된다).
     order.bids = [];
 
-    const slotsNeeded = order.partnerCountLimit || 3;
-    const excluded = new Set(order.excludedPartners || []);
-    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name) && !isPartnerBlockedByClient(p.name));
-    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, slotsNeeded);
-    selected.forEach(partner => {
-        order.bids.push({
-            partner: partner.name,
-            price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
-            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
-        });
-    });
-
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'REOPEN_CANCELLED_ORDER', `[${order.clientName}] 고객님이 취소된 계약(${orderCode})을 새 파트너사로 재매칭했습니다.`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, selected.length > 0 ? `새로운 파트너사 ${selected.length}곳이 매칭되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})` : `재매칭 가능한 파트너사가 아직 없어요. 잠시 후 다시 시도해주세요.`);
-    if (typeof pushPartnerNotification === 'function') { selected.forEach(partner => pushPartnerNotification(partner.name, `재매칭으로 새 오더(${orderCode})에 매칭되었어요. 고객: ${maskName(order.clientName)}님.`)); }
-    showToast(selected.length > 0 ? `새로운 파트너사 ${selected.length}곳이 매칭되었습니다!` : '재매칭 가능한 파트너사를 찾지 못했어요. 잠시 후 다시 시도해주세요.', selected.length > 0 ? 'success' : 'warning');
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REOPEN_CANCELLED_ORDER', `[${order.clientName}] 고객님이 취소된 계약(${orderCode})을 재개했습니다. 매니저 센터 수동 배정 대기열에 등록됩니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `의뢰를 재개했어요. 관리자가 적합한 파트너사를 선별해 배정해드려요. (의뢰 코드: ${orderCode})`);
+    showToast('의뢰를 재개했습니다! 관리자가 적합한 파트너사를 선별해 배정해드려요.', 'success');
+    if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
 
     renderClientMyPage();
     selectMyPageEstimate(orderCode);
@@ -3911,27 +3873,15 @@ function convertOrderToOpenMatching(orderCode) {
         if (!order.excludedPartners.includes(formerTarget)) order.excludedPartners.push(formerTarget);
     }
 
-    const slotsNeeded = order.partnerCountLimit || 3;
-    const excluded = new Set(order.excludedPartners || []);
-    const candidates = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused && !excluded.has(p.name) && !isPartnerBlockedByClient(p.name));
-    const shuffled = [...candidates].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, slotsNeeded);
+    // 파트너 자율 입찰이 폐지된 이후에도 여기는 옛 방식대로 무작위 파트너를
+    // 즉시 자동 매칭해 관리자 배정관을 건너뛰고 있었다 — 이제는 빈 bids로
+    // 매니저 센터 수동 배정 대기열에만 올린다.
     if (!order.bids) order.bids = [];
-    selected.forEach(partner => {
-        order.bids.push({
-            partner: partner.name,
-            price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
-            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
-        });
-    });
 
-    if (typeof pushLog === 'function') pushLog('CLIENT', 'CONVERT_TO_OPEN', `[${order.clientName}] 고객님이 의뢰(${orderCode})를 1:1 지정에서 오픈 매칭으로 전환했습니다.`, 'INFO');
-    if (typeof pushPartnerNotification === 'function') {
-        selected.forEach(partner => pushPartnerNotification(partner.name, `오픈 매칭으로 전환된 오더(${orderCode})에 매칭되었어요. 고객: ${maskName(order.clientName)}님.`));
-    }
-    showToast(selected.length > 0 ? `오픈 매칭으로 전환되어 파트너사 ${selected.length}곳이 매칭되었습니다!` : '오픈 매칭으로 전환되었습니다. 현재 매칭 가능한 파트너사가 없어 추후 재매칭을 시도해 주세요.', 'success');
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'CONVERT_TO_OPEN', `[${order.clientName}] 고객님이 의뢰(${orderCode})를 1:1 지정에서 오픈 매칭으로 전환했습니다. 매니저 센터 수동 배정 대기열에 등록됩니다.`, 'INFO');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `오픈 매칭으로 전환했어요. 관리자가 적합한 파트너사를 선별해 배정해드려요. (의뢰 코드: ${orderCode})`);
+    showToast('오픈 매칭으로 전환되었습니다! 관리자가 적합한 파트너사를 선별해 배정해드려요.', 'success');
+    if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
 
     renderClientMyPage();
     selectMyPageEstimate(orderCode);

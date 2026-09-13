@@ -5118,7 +5118,12 @@ function autoAllocateOrderCore(orderCode) {
     const slotsNeeded = totalSlotLimit - currentMatchedCount;
     if (slotsNeeded <= 0) return { assignedCount: 0, reason: 'full' };
 
-    let candidates = (window.AppState.partners || []).filter(p => p.status !== 'banned' && !p.isPaused && p.isCertified && !order.bids.some(b => b.partner === p.name));
+    // excludedPartners는 고객이 매칭을 취소해 내보낸 파트너 목록이다 — 자동배정이
+    // 이를 무시하면 고객이 방금 뺀 파트너를 바로 다시 자동으로 채워 넣는 꼴이 된다.
+    // 관리자가 직접 선택하는 '전속 배정'은 의도적 예외 처리이므로 그대로 두고,
+    // 자동 배정 경로에만 이 체크를 추가한다.
+    const excluded = new Set(order.excludedPartners || []);
+    let candidates = (window.AppState.partners || []).filter(p => p.status !== 'banned' && !p.isPaused && p.isCertified && !excluded.has(p.name) && !order.bids.some(b => b.partner === p.name));
     if (candidates.length === 0) return { assignedCount: 0, reason: 'no-candidates' };
 
     candidates.sort((a, b) => b.rating - a.rating);
