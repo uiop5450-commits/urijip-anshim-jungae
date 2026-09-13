@@ -1440,6 +1440,16 @@ function isClientBlockedByPartner(clientPhone) {
     return !!(partner && partner.blockedClients && partner.blockedClients.some(c => c.phone === clientPhone));
 }
 
+/* 고객이 회원 탈퇴(confirmAccountDeletion, client_panel.js — 진행 중인 계약이 있으면
+ * 막히지만 아직 계약 전인 입찰 심사중 오더는 막지 않는다)해도, 파트너 쪽 즉시입찰
+ * 목록·계약현황엔 아무 표시 없이 그대로 남아 있어 파트너가 시간을 들여 입찰을
+ * 준비해도 계약을 체결·서명할 사람이 이미 없는 "유령 오더"일 수 있었다. */
+function isClientAccountWithdrawn(clientPhone) {
+    if (!clientPhone) return false;
+    const account = (window.AppState.clientAccounts || []).find(acc => acc.phone === clientPhone);
+    return !!(account && account.status === 'withdrawn');
+}
+
 function togglePartnerBlockClient(clientPhone, clientName, orderCode) {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -1612,7 +1622,7 @@ function renderPartnerOrderList() {
 
     const currentPartner = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const allOrders = window.AppState.orders;
-    let filteredOrders = allOrders.filter(o => o.status === 'bidding' && o.budget < 7000 && !o.is1on1 && o.bids.length < o.partnerCountLimit && !o.bids.some(b => b.partner === currentPartner) && (!o.excludedPartners || !o.excludedPartners.includes(currentPartner)) && !isClientBlockedByPartner(o.clientPhone));
+    let filteredOrders = allOrders.filter(o => o.status === 'bidding' && o.budget < 7000 && !o.is1on1 && o.bids.length < o.partnerCountLimit && !o.bids.some(b => b.partner === currentPartner) && (!o.excludedPartners || !o.excludedPartners.includes(currentPartner)) && !isClientBlockedByPartner(o.clientPhone) && !isClientAccountWithdrawn(o.clientPhone));
     if (partnerFavoriteOrdersOnly) filteredOrders = filteredOrders.filter(o => isFavoriteOrder(o.code));
 
     if (liveOrderBadge) liveOrderBadge.innerText = `${filteredOrders.length}개 선착순 즉시입찰 참여 가능 오더`;
@@ -1704,6 +1714,11 @@ function selectOrderForAudit(code) {
                         <p class="text-xs text-ink-600 font-bold leading-relaxed max-w-md">${displayClientAddress}</p>
                     </div>
                 </div>
+                ${order.status === 'bidding' && typeof isClientAccountWithdrawn === 'function' && isClientAccountWithdrawn(order.clientPhone) ? `
+                <div class="mt-3 p-2.5 bg-ink-50 rounded-xl border border-ink-200 flex items-center gap-1.5">
+                    <i data-lucide="user-x" class="w-3.5 h-3.5 text-ink-400"></i>
+                    <span class="text-[11px] font-bold text-ink-500">이 고객님은 회원 탈퇴하셨어요. 계약이 진행되지 않을 수 있으니 참고해 주세요.</span>
+                </div>` : ''}
             </div>
 
             <div class="surface p-5 space-y-4">
@@ -2094,12 +2109,16 @@ function renderPartnerContractsView() {
         // 자기 견적의 유효기간이 지난 걸 알 수 있었다 — 고객의 행동을 기다리지 않고
         // 입찰 심사중 목록에서 바로 확인하고 미리 재확인(editPartnerBid)할 수 있게 한다.
         const isMyBidExpired = statusKey === 'bidding' && myBid && typeof isBidExpired === 'function' && isBidExpired(myBid);
+        // 이미 입찰을 넣은 뒤 고객이 회원 탈퇴한 경우엔 위 필터(renderPartnerOrderList)가
+        // 걸리지 않으므로, 이미 참여한 건은 여기서 별도로 알려준다 — 계약 전 단계에서만
+        // 의미가 있다.
+        const isClientWithdrawnBid = statusKey === 'bidding' && typeof isClientAccountWithdrawn === 'function' && isClientAccountWithdrawn(o.clientPhone);
         const statusBadge = statusKey === 'contracted_mine' ? `<span class="badge badge-emerald">계약 체결</span>`
             : statusKey === 'contracted_other' ? `<span class="badge badge-neutral">타사 계약</span>`
             : statusKey === 'withdrawn' ? `<span class="badge badge-rose">고객 철회</span>`
             : statusKey === 'cancel_requested' ? `<span class="badge badge-amber">계약 취소 심사중</span>`
             : statusKey === 'cancelled' ? `<span class="badge badge-rose">계약 취소됨</span>`
-            : `<span class="badge badge-amber">입찰 심사중</span>${isMyBidExpired ? ` <span class="badge badge-rose"><i data-lucide="clock" class="w-2.5 h-2.5"></i> 견적 만료</span>` : ''}`;
+            : `<span class="badge badge-amber">입찰 심사중</span>${isMyBidExpired ? ` <span class="badge badge-rose"><i data-lucide="clock" class="w-2.5 h-2.5"></i> 견적 만료</span>` : ''}${isClientWithdrawnBid ? ` <span class="badge badge-neutral"><i data-lucide="user-x" class="w-2.5 h-2.5"></i> 고객 탈퇴</span>` : ''}`;
         // 이 목록에 뜨는 오더는 전부 우리가 이미 입찰에 참여한 건이므로(이미 안심 잠금해제 대상),
         // selectOrderForAudit()의 "입찰 참여 시 개인정보 잠금해제" 규칙과 동일하게 고객명을 가리지 않는다.
         const unreadCount = typeof getUnreadOrderMessageCount === 'function' ? getUnreadOrderMessageCount(o, 'partner') : 0;
