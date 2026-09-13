@@ -1097,6 +1097,7 @@ function buildPaymentMilestonesHtml(order) {
                 <div class="flex items-center gap-1.5 shrink-0">
                     ${statusBadge}
                     ${m.status === 'requested' ? `<button type="button" onclick="openMilestoneDisputeModal('${order.code}', '${m.key}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">이의제기</button>` : ''}
+                    ${m.status === 'disputed' ? `<button type="button" onclick="retractMilestoneDispute('${order.code}', '${m.key}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">철회</button>` : ''}
                     ${m.status === 'requested' ? `<button type="button" onclick="confirmPaymentMilestone('${order.code}', '${m.key}')" class="btn btn-dark btn-sm">납부 완료</button>` : ''}
                 </div>
             </div>`;
@@ -1199,6 +1200,30 @@ function submitMilestoneDispute() {
     showToast('이의제기가 접수되었습니다. 매니저 센터 심사 후 결과를 안내드릴게요.', 'success');
 
     closeMilestoneDisputeModal();
+    selectMyPageEstimate(order.code);
+    if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
+}
+
+/* retractProgressStageDispute와 동일한 이유로, 마일스톤 청구 이의제기도 관리자가
+ * 처리하기 전까지는 신청자가 직접 철회할 수 있게 한다. 다른 이의제기들과 달리
+ * 별도 boolean 플래그가 아니라 status 자체가 상태를 나타내므로, 철회는 이전
+ * 상태였던 'requested'(청구됨)로 되돌리고 이의제기 관련 필드만 지운다
+ * (requestedDate/dueDate는 원래 청구 정보이므로 건드리지 않는다). */
+function retractMilestoneDispute(orderCode, key) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const m = order && getOrInitPaymentMilestones(order).find(x => x.key === key);
+    if (!m || m.status !== 'disputed') return;
+
+    m.status = 'requested';
+    m.disputeReason = null;
+    m.disputeDate = null;
+    m.disputeResolution = null;
+    m.disputeAdminResponse = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PAYMENT_MILESTONE_DISPUTE_RETRACT', `[${order.clientName}] 고객님이 계약(${order.code}) ${m.label} 청구 이의제기를 철회했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 ${m.label} 청구 이의제기를 철회했어요.`);
+    showToast('이의제기를 철회했습니다.', 'info');
+
     selectMyPageEstimate(order.code);
     if (typeof renderPartnerContractsView === 'function') renderPartnerContractsView();
 }
@@ -5313,6 +5338,7 @@ window.confirmPaymentMilestone = confirmPaymentMilestone;
 window.openMilestoneDisputeModal = openMilestoneDisputeModal;
 window.closeMilestoneDisputeModal = closeMilestoneDisputeModal;
 window.submitMilestoneDispute = submitMilestoneDispute;
+window.retractMilestoneDispute = retractMilestoneDispute;
 window.confirmSiteVisit = confirmSiteVisit;
 window.declineSiteVisit = declineSiteVisit;
 window.buildClientSiteVisitHtml = buildClientSiteVisitHtml;
