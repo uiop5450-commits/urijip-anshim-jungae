@@ -3124,6 +3124,11 @@ function cascadeClientNameChange(clientPhone, clientId, oldName, newName) {
                 rev.client = (typeof maskName === 'function') ? maskName(newName) : newName;
             }
         });
+        // 단골 고객(favoriteClients)/차단 고객(blockedClients)도 저장 시점에
+        // { phone, name: clientName }으로 이름을 스냅샷 찍어두는데, 고객이 개명해도
+        // 이 이름은 그대로 남아 파트너 콘솔에 옛 이름이 계속 노출되고 있었다.
+        (p.favoriteClients || []).forEach(c => { if (c.phone === clientPhone) c.name = newName; });
+        (p.blockedClients || []).forEach(c => { if (c.phone === clientPhone) c.name = newName; });
     });
 }
 
