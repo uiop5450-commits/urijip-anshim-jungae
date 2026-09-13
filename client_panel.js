@@ -1933,8 +1933,10 @@ function renderClientMyPage() {
     const mainTabsEl = document.getElementById('client-mypage-main-tabs');
     if (mainTabsEl) {
         const myFavoritesCount = (window.AppState.clientAccounts.find(acc => acc.id === auth.id)?.favoritePartners || []).length;
+        const myScheduleCount = getClientScheduledVisits(auth.phone).length;
         const mainTabs = [
             ['history', '의뢰이력'],
+            ['schedule', `방문 일정 (${myScheduleCount})`],
             ['posts', `내가 쓴 글 (${myPostsCount})`],
             ['reviews', `내가 쓴 후기 (${myReviewsCount})`],
             ['favorites', `관심 파트너 (${myFavoritesCount})`],
@@ -1946,11 +1948,13 @@ function renderClientMyPage() {
         ).join('');
     }
     document.getElementById('client-mypage-subtab-history-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'history');
+    document.getElementById('client-mypage-subtab-schedule-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'schedule');
     document.getElementById('client-mypage-subtab-posts-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'posts');
     document.getElementById('client-mypage-subtab-reviews-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'reviews');
     document.getElementById('client-mypage-subtab-favorites-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'favorites');
     document.getElementById('client-mypage-subtab-notifications-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'notifications');
     document.getElementById('client-mypage-subtab-account-view')?.classList.toggle('hidden', clientMyPageActiveSubtab !== 'account');
+    if (clientMyPageActiveSubtab === 'schedule') renderClientScheduleView();
     if (clientMyPageActiveSubtab === 'posts') { renderClientMyPagePosts(); renderClientMyPageSavedPosts(); }
     if (clientMyPageActiveSubtab === 'reviews') renderClientMyPageReviews();
     if (clientMyPageActiveSubtab === 'favorites') { renderClientFavoritePartners(); if (typeof renderClientSavedPortfolios === 'function') renderClientSavedPortfolios(); renderClientRegularOfPartners(); }
@@ -2125,6 +2129,70 @@ function renderClientMyPageReviews() {
 }
 
 function jumpToMyReviewOrder(orderCode) {
+    clientMyPageActiveSubtab = 'history';
+    selectMyPageEstimate(orderCode);
+}
+
+/* 파트너는 계약 건이 여러 개일 때 모든 오더의 실측/하자보수 방문을 한 곳에
+ * 모아보고 같은 날 겹치면 경고까지 받는다(getPartnerScheduledVisits,
+ * renderPartnerScheduleView) — 여러 견적/공사를 동시에 진행하는 고객은 동일한
+ * 필요가 있는데도 방문 일정이 오더 상세마다 흩어져 있어 한눈에 볼 방법이
+ * 없었다. 동일한 집계 로직을 고객 쪽 명의(clientPhone)로 그대로 적용한다. */
+function getClientScheduledVisits(clientPhone) {
+    const entries = [];
+    (window.AppState.orders || []).filter(o => o.clientPhone === clientPhone).forEach(o => {
+        const visit = o.siteVisit;
+        if (visit && (visit.status === 'proposed' || visit.status === 'confirmed')) {
+            const date = visit.status === 'confirmed' ? visit.confirmedDate : visit.proposedDate;
+            if (date) entries.push({ date, status: visit.status, orderCode: o.code, label: `${o.acceptedPartner || ''} · 실측 방문` });
+        }
+        (o.repairClaims || []).forEach(c => {
+            if ((c.visitStatus === 'proposed' || c.visitStatus === 'confirmed') && c.visitDate) {
+                entries.push({ date: c.visitDate, status: c.visitStatus, orderCode: o.code, label: `${o.acceptedPartner || ''} · 하자보수(${c.title}) 방문` });
+            }
+        });
+    });
+    entries.sort((a, b) => a.date.localeCompare(b.date));
+    return entries;
+}
+
+function renderClientScheduleView() {
+    const container = document.getElementById('client-mypage-schedule-container');
+    if (!container) return;
+    const auth = window.AppState.clientAuth;
+    if (!auth.loggedIn) return;
+    const entries = getClientScheduledVisits(auth.phone);
+
+    if (entries.length === 0) {
+        container.innerHTML = buildEmptyStateHtml('calendar', '예정된 방문 일정이 없습니다.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    const byDate = {};
+    entries.forEach(e => { if (!byDate[e.date]) byDate[e.date] = []; byDate[e.date].push(e); });
+
+    container.innerHTML = Object.keys(byDate).sort().map(date => {
+        const dayEntries = byDate[date];
+        const hasConflict = dayEntries.length > 1;
+        return `<div class="p-4 rounded-2xl border ${hasConflict ? 'border-rose-200 bg-rose-50/40' : 'border-ink-100 bg-ink-50/70'} space-y-2">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-black text-ink-950">${date}</span>
+                ${hasConflict ? `<span class="badge badge-rose"><i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> 같은 날 방문 ${dayEntries.length}건</span>` : ''}
+            </div>
+            <div class="space-y-1.5">
+                ${dayEntries.map(e => `
+                <div class="flex items-center justify-between gap-2 px-3 py-2 bg-white rounded-xl border border-ink-100 cursor-pointer hover:border-ink-300" onclick="jumpToMyPageOrder('${e.orderCode}')">
+                    <span class="text-[11px] font-bold text-ink-700">${escapeHtml(e.label)} <span class="text-ink-400 font-mono">${e.orderCode}</span></span>
+                    <span class="badge ${e.status === 'confirmed' ? 'badge-emerald' : 'badge-amber'}">${e.status === 'confirmed' ? '확정' : '제안중'}</span>
+                </div>`).join('')}
+            </div>
+        </div>`;
+    }).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function jumpToMyPageOrder(orderCode) {
     clientMyPageActiveSubtab = 'history';
     selectMyPageEstimate(orderCode);
 }
@@ -4883,6 +4951,9 @@ window.renderClientMyPagePosts = renderClientMyPagePosts;
 window.jumpToMyCommunityPost = jumpToMyCommunityPost;
 window.renderClientMyPageReviews = renderClientMyPageReviews;
 window.jumpToMyReviewOrder = jumpToMyReviewOrder;
+window.getClientScheduledVisits = getClientScheduledVisits;
+window.renderClientScheduleView = renderClientScheduleView;
+window.jumpToMyPageOrder = jumpToMyPageOrder;
 window.isFavoritePartner = isFavoritePartner;
 window.toggleFavoritePartner = toggleFavoritePartner;
 window.renderClientFavoritePartners = renderClientFavoritePartners;
