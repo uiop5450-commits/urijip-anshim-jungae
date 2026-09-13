@@ -1696,6 +1696,7 @@ function setProfilePortfolioCategoryFilter(category) {
 }
 
 function openClientPartnerProfile(partnerName) {
+    if (typeof sweepExpiredPartnerCertifications === 'function') sweepExpiredPartnerCertifications();
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) { console.warn(`Partner '${partnerName}' not found in AppState.partners`); return; }
     if (profilePortfolioFilterTargetPartner !== partnerName) profilePortfolioCategoryFilter = 'all';

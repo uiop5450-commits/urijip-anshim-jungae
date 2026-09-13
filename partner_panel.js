@@ -230,6 +230,10 @@ function getFeaturedHeroSlides(limit = 5) {
     // 매니저 콘솔 > 노출 관리에서 수동으로 지정한 업체가 있으면 그 순서 그대로 노출.
     // 지정해둔 이후 그 업체가 삼진아웃 등으로 제명될 수 있으므로, 여기서도 상태를
     // 다시 확인한다 — '안심' 플랫폼 첫 화면에 제명된 업체가 뜨면 신뢰도에 직결된다.
+    // 인증 만료도 마찬가지 — sweepExpiredPartnerCertifications는 지금까지 파트너
+    // 본인 로그인/관리자 파트너 모니터링 탭에서만 호출되어, 그 사이 아무도 접속하지
+    // 않으면 만료된 인증이 여기서도 계속 표시되고 있었다.
+    if (typeof sweepExpiredPartnerCertifications === 'function') sweepExpiredPartnerCertifications();
     const manual = window.AppState.featuredPartners || [];
     if (manual.length > 0) {
         return manual.slice(0, limit).map(item => {
@@ -386,6 +390,9 @@ function setPartnerSearchCategory(category) {
 function renderPartnerSearchGrid() {
     const container = document.getElementById('partner-search-grid');
     if (!container) return;
+    // getFeaturedHeroSlides와 동일한 이유로, 이 화면도 만료된 인증 배지가 그대로
+    // 남아있지 않도록 렌더링 전에 먼저 스윕한다.
+    if (typeof sweepExpiredPartnerCertifications === 'function') sweepExpiredPartnerCertifications();
     const input = document.getElementById('partner-search-input');
     const query = input ? input.value.trim().toLowerCase() : '';
     const sortSelect = document.getElementById('partner-search-sort');
@@ -5027,6 +5034,10 @@ function renderAdminOrderAllocation() {
     const container = document.getElementById('admin-order-allocation-container');
     if (!container) return;
 
+    // 파트너 본인 로그인이나 관리자 파트너 모니터링 탭을 아무도 열지 않으면
+    // 만료된 인증(isCertified)이 그대로 남아, 이 배정 후보 목록에도 만료된
+    // 파트너가 "인증 파트너"로 계속 잡힐 수 있었다.
+    if (typeof sweepExpiredPartnerCertifications === 'function') sweepExpiredPartnerCertifications();
     const orders = window.AppState.orders || [];
     // autoAllocateOrderCore(자동 배정)는 일시중단(isPaused) 파트너를 후보에서 뺐지만,
     // 같은 화면의 '전속 배정' 수동 선택 드롭다운은 그 체크가 없어 파트너 본인이
@@ -5178,6 +5189,10 @@ function unassignOrderFromPartner(orderCode, partnerName) {
 /* 오더 하나에 대해 남은 슬롯만큼 평점 우수 인증 파트너를 채워 배정하는 핵심 로직.
  * 토스트/재렌더링은 호출부(autoAllocateOrder 단건, bulkAutoAllocateSelectedOrders 일괄)에서 처리한다. */
 function autoAllocateOrderCore(orderCode) {
+    // renderAdminOrderAllocation과 동일한 이유로, 자동 배정 후보 필터링 직전에도
+    // 만료된 인증을 먼저 걷어낸다 — 다른 화면을 거치지 않고 이 함수가 바로
+    // 호출될 수 있는 경로(일괄 자동 배정 등)에서도 안전하도록 방어적으로 둔다.
+    if (typeof sweepExpiredPartnerCertifications === 'function') sweepExpiredPartnerCertifications();
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return null;
 
