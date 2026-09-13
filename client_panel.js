@@ -3676,11 +3676,17 @@ function renderMyPageEstimateDetails(order) {
     }
 
     let reviewBtnHtml = '';
-    if (order.status === 'contracted' && !order.reviewWritten) {
+    const isCompleted = typeof isConstructionCompleted === 'function' && isConstructionCompleted(order);
+    if (order.status === 'contracted' && !order.reviewWritten && isCompleted) {
         reviewBtnHtml = `
             <div class="p-4 rounded-2xl flex flex-wrap gap-3 justify-between items-center text-xs" style="background:var(--brand-50)">
                 <span class="font-bold text-brand-700">시공이 완료되셨나요? 솔직한 안심 후기를 남겨주세요!</span>
                 <button type="button" onclick="openReviewWriteModal('${order.code}')" class="btn btn-primary">후기 작성하기</button>
+            </div>`;
+    } else if (order.status === 'contracted' && !order.reviewWritten && !isCompleted) {
+        reviewBtnHtml = `
+            <div class="p-4 rounded-2xl flex flex-wrap gap-3 justify-between items-center text-xs bg-ink-50">
+                <span class="font-bold text-ink-500"><i data-lucide="hammer" class="w-3.5 h-3.5 inline"></i> 시공이 아직 준공되지 않았어요. 준공 완료 후 후기를 작성할 수 있어요.</span>
             </div>`;
     } else if (order.reviewWritten) {
         reviewBtnHtml = `<div class="p-3 bg-ink-100 rounded-xl flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-ink-600">
@@ -4042,6 +4048,13 @@ function submitClientReview() {
     const orderCode = window.AppState.reviewOrderTarget;
     const order = window.AppState.orders.find(o => o.code === orderCode);
     if (!order) return;
+    // 버튼 자체는 준공 전엔 숨겨지지만, 모달이 이미 열려 있는 상태에서 파트너가
+    // 뒤늦게 준공 처리를 되돌리는 등의 경합을 방지하기 위해 최초 작성 시점에도
+    // 한 번 더 확인한다(이미 작성된 후기를 수정하는 경우는 막지 않는다).
+    if (!order.reviewWritten && typeof isConstructionCompleted === 'function' && !isConstructionCompleted(order)) {
+        showToast('시공이 준공 완료된 후에 후기를 작성할 수 있어요.', 'warning');
+        return;
+    }
 
     const textEl = document.getElementById('input-review-text');
     const text = textEl ? textEl.value.trim() : '';

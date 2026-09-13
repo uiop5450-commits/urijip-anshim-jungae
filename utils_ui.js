@@ -218,6 +218,16 @@ function getOrInitProgressStages(order) {
     return order.progressStages;
 }
 
+/* 후기 작성 버튼은 "시공이 완료되셨나요?"라고 문구까지 써 있으면서도, 실제로는
+ * 계약 체결(status==='contracted') 즉시부터 열려 있어 철거도 시작하기 전에
+ * 후기를(완공 사진 후기 상품권까지) 남길 수 있었다 — getWarrantyEndDate와 동일하게
+ * 마지막 시공 단계("준공")의 완료 여부를 실제 완공 판정 기준으로 삼는다. */
+function isConstructionCompleted(order) {
+    const stages = getOrInitProgressStages(order);
+    const finalStage = stages[stages.length - 1];
+    return !!(finalStage && finalStage.done);
+}
+
 /* 계약서에 "하자이행 보증기간: 준공일로부터 3년 무상 보증"이라고 명시하면서도
  * (partner_panel.js 계약서 생성부) 정작 하자보수 신청(submitRepairClaim)에는
  * 기간 체크가 전혀 없어 준공 후 10년이 지나도 무한정 신청할 수 있었다 — 마지막
@@ -794,6 +804,7 @@ window.openFooterInfoModal = openFooterInfoModal;
 window.closeFooterInfoModal = closeFooterInfoModal;
 window.getLocalDateString = getLocalDateString;
 window.getOrInitProgressStages = getOrInitProgressStages;
+window.isConstructionCompleted = isConstructionCompleted;
 window.getWarrantyEndDate = getWarrantyEndDate;
 window.isWarrantyExpired = isWarrantyExpired;
 window.sweepWarrantyExpiryReminders = sweepWarrantyExpiryReminders;
