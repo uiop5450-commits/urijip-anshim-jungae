@@ -6053,7 +6053,13 @@ function openPartnerMetricsModal(partnerName) {
                     <div class="article-spec-chip"><span>보증 에스크로 잔액</span><span class="val">₩ ${pendingEscrow.toLocaleString()} 만원</span></div>
                     <div class="article-spec-chip"><span>관심 고객 수</span><span class="val">${favoriteClientCount} 명</span></div>
                     <div class="article-spec-chip"><span>평균 응답 속도</span><span class="val">${typeof formatResponseHours === 'function' ? formatResponseHours(avgResponseHours) : '-'}</span></div>
+                    <div class="article-spec-chip"><span>등록된 담당자 계정</span><span class="val">${(partner.staffAccounts || []).length} 명</span></div>
                 </div>
+                ${(partner.staffAccounts || []).length > 0 ? `
+                <div class="space-y-2.5 pt-2">
+                    <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="users" class="w-4 h-4 text-ink-600"></i> 담당자 계정 목록 (${partner.staffAccounts.length}명)</h4>
+                    <div class="flex flex-wrap gap-1.5">${partner.staffAccounts.map(s => `<span class="badge badge-neutral">${escapeHtml(s.label)} (${escapeHtml(s.id)})</span>`).join('')}</div>
+                </div>` : ''}
                 <div class="space-y-2.5 pt-2">
                     <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="heart" class="w-4 h-4 text-roseCustom"></i> 나를 관심 등록한 고객 (${favoriteClientCount}명)</h4>
                     ${buildPartnerFavoritedByClientsHtml(partnerName)}
