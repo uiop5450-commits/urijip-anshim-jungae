@@ -1768,6 +1768,7 @@ function openSuspensionAppealModal(accountId) {
     if (account.suspensionAppeal && account.suspensionAppeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요. 매니저 센터 심사 결과를 기다려주세요.', 'warning'); return; }
     suspensionAppealTargetId = accountId;
     safeUpdateValue('suspension-appeal-reason-input', '');
+    safeUpdateText('suspension-appeal-current-reason', `정지 사유: ${account.suspensionReason || '사유 미기재'}`);
     openModal('suspension-appeal-modal', 'suspension-appeal-modal-card');
 }
 

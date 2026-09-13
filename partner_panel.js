@@ -4519,7 +4519,7 @@ function renderAdminClientManager() {
                     <span>의뢰 ${myOrders.length}건</span><span>계약 ${contractedCount}건</span><span>후기 ${reviewCount}건</span><span>관심업체 ${favoriteCount}곳</span>
                     <button type="button" onclick="jumpToClientOrderLookup('${escapeHtml(acc.phone || '')}')" class="btn btn-secondary btn-sm">의뢰 조회</button>
                     <button type="button" onclick="openAdminDirectMessageModal('client', '${escapeHtml(acc.phone || '')}', '${escapeHtml(acc.name)}')" class="btn btn-secondary btn-sm relative"><i data-lucide="send" class="w-3 h-3"></i> 쪽지 보내기${hasUnreadDmReply('client', acc.phone) ? `<span class="badge badge-rose absolute -top-2 -right-2 px-1.5">답장</span>` : ''}</button>
-                    <button type="button" onclick="toggleClientSuspension('${acc.id}')" class="btn ${acc.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${acc.isSuspended ? '정지 해제' : '계정 정지'}</button>
+                    <button type="button" onclick="${acc.isSuspended ? `toggleClientSuspension('${acc.id}')` : `openReportReasonPrompt((reason) => toggleClientSuspension('${acc.id}', reason))`}" class="btn ${acc.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${acc.isSuspended ? '정지 해제' : '계정 정지'}</button>
                     <button type="button" onclick="openReportReasonPrompt((reason) => issueClientStrike('${acc.id}', reason))" class="btn btn-secondary btn-sm">경고 부여</button>
                     ${(acc.clientStrikeCount || 0) > 0 || acc.status === 'banned' ? `<button type="button" onclick="resetClientStrikes('${acc.id}')" class="btn btn-secondary btn-sm">경고 초기화</button>` : ''}
                 </div>
@@ -4640,17 +4640,24 @@ function adminRejectClientRatingAppeal(orderCode, reason) {
  * 어떤 제재 수단도 없었다 — 악성 후기·허위 의뢰가 반복되는 계정을 막을 방법이
  * 전혀 없던 공백. isSuspended 플래그만으로 가볍게 로그인을 막는다(파트너의
  * isPaused와 동일한 boolean 토글 패턴). */
-function toggleClientSuspension(accountId) {
+function toggleClientSuspension(accountId, reason) {
     const account = (window.AppState.clientAccounts || []).find(a => a.id === accountId);
     if (!account) return;
     account.isSuspended = !account.isSuspended;
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_SUSPEND', `'${account.name}'(${account.id}) 고객 계정을 ${account.isSuspended ? '이용 정지' : '정지 해제'}했습니다.`, account.isSuspended ? 'WARNING' : 'INFO');
+    if (account.isSuspended) {
+        account.suspensionReason = reason || '사유 미기재';
+        account.suspendedDate = getLocalDateString();
+    } else {
+        account.suspensionReason = null;
+        account.suspendedDate = null;
+    }
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_SUSPEND', `'${account.name}'(${account.id}) 고객 계정을 ${account.isSuspended ? '이용 정지' : '정지 해제'}했습니다.${account.isSuspended ? ` 사유: ${account.suspensionReason}` : ''}`, account.isSuspended ? 'WARNING' : 'INFO');
     // 파트너 제재(issuePartnerStrike)는 pushPartnerNotification으로 당사자에게 알리는데,
     // 대칭인 고객 계정 정지는 알림이 전혀 가지 않았다 — 정지 중엔 로그인이 막혀 당장
     // 볼 수 없어도, 정지 해제 후(또는 문의 시) 이력으로 확인할 수 있게 남겨둔다.
     if (typeof pushClientNotification === 'function' && account.phone) {
         pushClientNotification(account.phone, account.isSuspended
-            ? '이용 정지 처리되었습니다. 자세한 사유는 고객센터로 문의해 주세요.'
+            ? `이용 정지 처리되었습니다. 사유: ${account.suspensionReason}`
             : '이용 정지가 해제되었습니다. 다시 서비스를 이용하실 수 있어요.');
     }
     showToast(`[${account.name}] 고객 계정이 ${account.isSuspended ? '이용 정지되었습니다' : '정지 해제되었습니다'}.`, account.isSuspended ? 'warning' : 'success');
@@ -5163,7 +5170,7 @@ function renderAdminPartnerMonitor() {
                     <button type="button" onclick="${p.isCertified ? `openReportReasonPrompt((reason) => togglePartnerCertification('${p.name}', reason))` : `togglePartnerCertification('${p.name}')`}" class="btn btn-secondary btn-sm">${p.isCertified ? '인증 해제' : '인증 부여'}</button>
                     ${isWarning ? `<button type="button" onclick="resetPartnerStrikes('${p.name}')" class="btn btn-secondary btn-sm">경고 리셋</button>` : ''}
                     ${!isBanned && !isClosed ? `<button type="button" onclick="openReportReasonPrompt((reason) => issuePartnerStrike('${p.name}', reason))" class="btn btn-secondary btn-sm">+ 옐로카드</button>` : ''}
-                    ${!isBanned && !isClosed ? `<button type="button" onclick="togglePartnerSuspension('${p.name}')" class="btn ${p.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${p.isSuspended ? '정지 해제' : '일시 정지'}</button>` : ''}
+                    ${!isBanned && !isClosed ? `<button type="button" onclick="${p.isSuspended ? `togglePartnerSuspension('${p.name}')` : `openReportReasonPrompt((reason) => togglePartnerSuspension('${p.name}', reason))`}" class="btn ${p.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${p.isSuspended ? '정지 해제' : '일시 정지'}</button>` : ''}
                 </div>
             </div>`;
         container.appendChild(card);
@@ -6646,14 +6653,21 @@ function adminRejectClientStrikeAppeal(accountId, reason) {
  * 영구 기록이라 조사 중인 파트너를 잠시만 막아두기엔 과하고, 삼진아웃(영구 제명)
  * 전까지는 매니저가 취할 조치가 전혀 없었다 — isSuspended 플래그만으로 로그인을
  * 막는 가역적인 "일시 정지"를 strikeCount와 완전히 분리해서 추가한다. */
-function togglePartnerSuspension(partnerName) {
+function togglePartnerSuspension(partnerName, reason) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
     partner.isSuspended = !partner.isSuspended;
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_SUSPEND', `'${partner.name}' 파트너 계정을 ${partner.isSuspended ? '이용 정지' : '정지 해제'}했습니다.`, partner.isSuspended ? 'WARNING' : 'INFO');
+    if (partner.isSuspended) {
+        partner.suspensionReason = reason || '사유 미기재';
+        partner.suspendedDate = getLocalDateString();
+    } else {
+        partner.suspensionReason = null;
+        partner.suspendedDate = null;
+    }
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'PARTNER_SUSPEND', `'${partner.name}' 파트너 계정을 ${partner.isSuspended ? '이용 정지' : '정지 해제'}했습니다.${partner.isSuspended ? ` 사유: ${partner.suspensionReason}` : ''}`, partner.isSuspended ? 'WARNING' : 'INFO');
     if (typeof pushPartnerNotification === 'function') {
         pushPartnerNotification(partner.name, partner.isSuspended
-            ? '이용 정지 처리되었습니다. 자세한 사유는 매니저 센터로 문의해 주세요.'
+            ? `이용 정지 처리되었습니다. 사유: ${partner.suspensionReason}`
             : '이용 정지가 해제되었습니다. 다시 서비스를 이용하실 수 있어요.');
     }
     showToast(`[${partner.name}] 파트너 계정이 ${partner.isSuspended ? '이용 정지되었습니다' : '정지 해제되었습니다'}.`, partner.isSuspended ? 'warning' : 'success');
@@ -6672,6 +6686,7 @@ function openPartnerSuspensionAppealModal(partnerId) {
     if (partner.suspensionAppeal && partner.suspensionAppeal.status === 'pending') { showToast('이미 심사 대기 중인 이의신청이 있어요. 매니저 센터 심사 결과를 기다려주세요.', 'warning'); return; }
     partnerSuspensionAppealTargetId = partnerId;
     safeUpdateValue('partner-suspension-appeal-reason-input', '');
+    safeUpdateText('partner-suspension-appeal-current-reason', `정지 사유: ${partner.suspensionReason || '사유 미기재'}`);
     openModal('partner-suspension-appeal-modal', 'partner-suspension-appeal-modal-card');
 }
 
