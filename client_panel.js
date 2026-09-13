@@ -1902,8 +1902,11 @@ function renderClientStrikeAppealStatus() {
             ${appeal.adminResponse ? `<p class="text-[10px] text-ink-500 font-semibold leading-relaxed">매니저 답변: ${escapeHtml(appeal.adminResponse)}</p>` : ''}
         </div>`;
     }
+    const historyHtml = (account.clientStrikeHistory || []).length > 0
+        ? `<div class="space-y-1 mb-2">${account.clientStrikeHistory.map(h => `<p class="text-[10px] text-ink-500 font-semibold leading-relaxed">· (${h.countAtTime}회) ${escapeHtml(h.reason)} <span class="text-ink-400">(${h.date})</span></p>`).join('')}</div>`
+        : '';
     container.innerHTML = hasStrikes
-        ? `${resolvedHtml}<p class="text-[10px] font-black text-ink-500">누적 경고: ${account.clientStrikeCount || 0}/3회${isBanned ? ' (영구 제명)' : ''}</p><button type="button" onclick="openClientStrikeAppealModal()" class="btn btn-secondary btn-sm mt-1">${isBanned ? '영구 제명' : '경고'} 이의신청하기</button>`
+        ? `${historyHtml}${resolvedHtml}<p class="text-[10px] font-black text-ink-500">누적 경고: ${account.clientStrikeCount || 0}/3회${isBanned ? ' (영구 제명)' : ''}</p><button type="button" onclick="openClientStrikeAppealModal()" class="btn btn-secondary btn-sm mt-1">${isBanned ? '영구 제명' : '경고'} 이의신청하기</button>`
         : resolvedHtml;
 }
 

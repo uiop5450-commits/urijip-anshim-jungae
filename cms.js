@@ -713,8 +713,14 @@ function renderPartnerStrikeAppealStatus(partner) {
             ${appeal.adminResponse ? `<p class="text-[10px] text-ink-500 font-semibold leading-relaxed">매니저 답변: ${escapeHtml(appeal.adminResponse)}</p>` : ''}
         </div>`;
     }
+    // 사유 없이 쌓인 옐로카드에 대해 이의신청을 제출해야 했던 문제 — issuePartnerStrike가
+    // 이제 strikeHistory에 사유를 남기므로, 이의신청 버튼 위에 무엇에 대한 이의신청인지
+    // 먼저 보여준다.
+    const historyHtml = (partner.strikeHistory || []).length > 0
+        ? `<div class="space-y-1 mb-2">${partner.strikeHistory.map(h => `<p class="text-[10px] text-ink-500 font-semibold leading-relaxed">· (${h.countAtTime}회) ${escapeHtml(h.reason)} <span class="text-ink-400">(${h.date})</span></p>`).join('')}</div>`
+        : '';
     container.innerHTML = hasStrikes
-        ? `${resolvedHtml}<button type="button" onclick="openStrikeAppealModal()" class="btn btn-secondary btn-sm">${isBanned ? '영구 제명' : '옐로카드'} 이의신청하기</button>`
+        ? `${historyHtml}${resolvedHtml}<button type="button" onclick="openStrikeAppealModal()" class="btn btn-secondary btn-sm">${isBanned ? '영구 제명' : '옐로카드'} 이의신청하기</button>`
         : resolvedHtml;
 }
 

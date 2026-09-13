@@ -4686,7 +4686,7 @@ function renderAdminClientManager() {
                     <button type="button" onclick="jumpToClientOrderLookup('${escapeHtml(acc.phone || '')}')" class="btn btn-secondary btn-sm">의뢰 조회</button>
                     <button type="button" onclick="openAdminDirectMessageModal('client', '${escapeHtml(acc.phone || '')}', '${escapeHtml(acc.name)}')" class="btn btn-secondary btn-sm relative"><i data-lucide="send" class="w-3 h-3"></i> 쪽지 보내기${hasUnreadDmReply('client', acc.phone) ? `<span class="badge badge-rose absolute -top-2 -right-2 px-1.5">답장</span>` : ''}</button>
                     <button type="button" onclick="toggleClientSuspension('${acc.id}')" class="btn ${acc.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${acc.isSuspended ? '정지 해제' : '계정 정지'}</button>
-                    <button type="button" onclick="issueClientStrike('${acc.id}')" class="btn btn-secondary btn-sm">경고 부여</button>
+                    <button type="button" onclick="openReportReasonPrompt((reason) => issueClientStrike('${acc.id}', reason))" class="btn btn-secondary btn-sm">경고 부여</button>
                     ${(acc.clientStrikeCount || 0) > 0 || acc.status === 'banned' ? `<button type="button" onclick="resetClientStrikes('${acc.id}')" class="btn btn-secondary btn-sm">경고 초기화</button>` : ''}
                 </div>
             </div>
@@ -5321,7 +5321,7 @@ function renderAdminPartnerMonitor() {
                 <div class="flex items-center gap-1.5">
                     <button type="button" onclick="togglePartnerCertification('${p.name}')" class="btn btn-secondary btn-sm">${p.isCertified ? '인증 해제' : '인증 부여'}</button>
                     ${isWarning ? `<button type="button" onclick="resetPartnerStrikes('${p.name}')" class="btn btn-secondary btn-sm">경고 리셋</button>` : ''}
-                    ${!isBanned && !isClosed ? `<button type="button" onclick="issuePartnerStrike('${p.name}')" class="btn btn-secondary btn-sm">+ 옐로카드</button>` : ''}
+                    ${!isBanned && !isClosed ? `<button type="button" onclick="openReportReasonPrompt((reason) => issuePartnerStrike('${p.name}', reason))" class="btn btn-secondary btn-sm">+ 옐로카드</button>` : ''}
                     ${!isBanned && !isClosed ? `<button type="button" onclick="togglePartnerSuspension('${p.name}')" class="btn ${p.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${p.isSuspended ? '정지 해제' : '일시 정지'}</button>` : ''}
                 </div>
             </div>`;
@@ -6697,20 +6697,26 @@ function downloadEstimateDoc(orderCode, partnerName) {
     if (typeof showToast === 'function') showToast(`[${orderCode}] 공종별 정밀 견적서 다운로드가 시작되었습니다.`, "success");
 }
 
-function issuePartnerStrike(partnerName) {
+function issuePartnerStrike(partnerName, reason) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
     if (partner.status === 'banned') { showToast('이미 삼진아웃으로 영구 제명된 파트너사입니다.', 'info'); return; }
     partner.strikeCount = (partner.strikeCount || 0) + 1;
+    // 옐로카드에 사유를 전혀 남기지 않아서, 이의신청(openStrikeAppealModal)이
+    // 실제로는 뭘 반박해야 하는지도 모른 채 제출되는 "맹목적 이의신청"이었다 —
+    // 신고 사유 프롬프트(openReportReasonPrompt)와 동일한 방식으로 사유를 받아
+    // strikeHistory에 남기고, 당사자 알림에도 그대로 포함한다.
+    if (!partner.strikeHistory) partner.strikeHistory = [];
+    partner.strikeHistory.push({ reason: reason || '사유 미기재', countAtTime: partner.strikeCount, date: getLocalDateString() });
     if (partner.strikeCount >= 3) {
         partner.status = 'banned';
         window.AppState.blacklistDb.unshift({ company: partner.name, bizFile: partner.bizFile || '미등록', phone: '010-****-****', reason: '누적 옐로카드 3회 초과로 매니저 센터 직할 영구 제명 처리', date: getLocalDateString() });
-        if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE_OUT', `[삼진아웃] '${partner.name}' 경고 3회 초과로 영구 제명 및 블랙리스트 등록.`, 'WARNING');
-        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, '삼진아웃(경고 3회 초과)으로 영구 제명 처리되었습니다.');
+        if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE_OUT', `[삼진아웃] '${partner.name}' 경고 3회 초과로 영구 제명 및 블랙리스트 등록. (최종 사유: ${reason || '사유 미기재'})`, 'WARNING');
+        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `삼진아웃(경고 3회 초과)으로 영구 제명 처리되었습니다. 사유: ${reason || '사유 미기재'}`);
         showToast(`[${partner.name}] 파트너사가 삼진아웃(경고 3회)으로 영구 제명되었습니다.`, "warning");
     } else {
-        if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE', `'${partner.name}' 파트너사에 옐로카드 부여 (누적 ${partner.strikeCount}회).`, 'INFO');
-        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `옐로카드가 부여되었습니다. (누적 ${partner.strikeCount}/3회 — 3회 누적 시 영구 제명됩니다)`);
+        if (typeof pushLog === 'function') pushLog('MANAGER', 'STRIKE', `'${partner.name}' 파트너사에 옐로카드 부여 (누적 ${partner.strikeCount}회). 사유: ${reason || '사유 미기재'}`, 'INFO');
+        if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `옐로카드가 부여되었습니다. 사유: ${reason || '사유 미기재'} (누적 ${partner.strikeCount}/3회 — 3회 누적 시 영구 제명됩니다)`);
         showToast(`[${partner.name}] 파트너사에 옐로카드가 부여되었습니다. (누적: ${partner.strikeCount}/3회)`, "info");
     }
     renderAdminPartnerMonitor(); renderBlacklistDb();
@@ -6721,6 +6727,7 @@ function resetPartnerStrikes(partnerName) {
     if (!partner) return;
     const wasBanned = partner.status === 'banned';
     partner.strikeCount = 0;
+    partner.strikeHistory = [];
     if (wasBanned) partner.status = 'active';
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, wasBanned ? '제명이 해제되고 경고 기록이 초기화되었습니다.' : '경고 기록이 초기화되었습니다.');
     showToast(`[${partnerName}] 파트너사의 경고가 정상 초기화되었습니다.`, "success");
@@ -6731,19 +6738,21 @@ function resetPartnerStrikes(partnerName) {
  * 계정은 toggleClientSuspension의 가역적 boolean 정지 하나뿐이라 반복 위반자를
  * 단계적으로 제재하거나 영구 제명할 방법이 없었다 — issuePartnerStrike/
  * resetPartnerStrikes와 완전히 동일한 구조를 clientAccounts에도 적용한다. */
-function issueClientStrike(accountId) {
+function issueClientStrike(accountId, reason) {
     const account = (window.AppState.clientAccounts || []).find(a => a.id === accountId);
     if (!account) return;
     if (account.status === 'banned') { showToast('이미 삼진아웃으로 영구 제명된 고객입니다.', 'info'); return; }
     account.clientStrikeCount = (account.clientStrikeCount || 0) + 1;
+    if (!account.clientStrikeHistory) account.clientStrikeHistory = [];
+    account.clientStrikeHistory.push({ reason: reason || '사유 미기재', countAtTime: account.clientStrikeCount, date: getLocalDateString() });
     if (account.clientStrikeCount >= 3) {
         account.status = 'banned';
-        if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_STRIKE_OUT', `[삼진아웃] '${account.name}'(${account.id}) 경고 3회 초과로 영구 제명 처리.`, 'WARNING');
-        if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, '삼진아웃(경고 3회 초과)으로 영구 제명 처리되었습니다.');
+        if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_STRIKE_OUT', `[삼진아웃] '${account.name}'(${account.id}) 경고 3회 초과로 영구 제명 처리. (최종 사유: ${reason || '사유 미기재'})`, 'WARNING');
+        if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `삼진아웃(경고 3회 초과)으로 영구 제명 처리되었습니다. 사유: ${reason || '사유 미기재'}`);
         showToast(`[${account.name}] 고객이 삼진아웃(경고 3회)으로 영구 제명되었습니다.`, 'warning');
     } else {
-        if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_STRIKE', `'${account.name}'(${account.id}) 고객에게 경고 부여 (누적 ${account.clientStrikeCount}회).`, 'INFO');
-        if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `경고가 부여되었습니다. (누적 ${account.clientStrikeCount}/3회 — 3회 누적 시 영구 제명됩니다)`);
+        if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_STRIKE', `'${account.name}'(${account.id}) 고객에게 경고 부여 (누적 ${account.clientStrikeCount}회). 사유: ${reason || '사유 미기재'}`, 'INFO');
+        if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, `경고가 부여되었습니다. 사유: ${reason || '사유 미기재'} (누적 ${account.clientStrikeCount}/3회 — 3회 누적 시 영구 제명됩니다)`);
         showToast(`[${account.name}] 고객에게 경고가 부여되었습니다. (누적: ${account.clientStrikeCount}/3회)`, 'info');
     }
     renderAdminClientManager();
@@ -6754,6 +6763,7 @@ function resetClientStrikes(accountId) {
     if (!account) return;
     const wasBanned = account.status === 'banned';
     account.clientStrikeCount = 0;
+    account.clientStrikeHistory = [];
     if (wasBanned) account.status = 'active';
     if (typeof pushLog === 'function') pushLog('MANAGER', 'CLIENT_STRIKE_RESET', `'${account.name}'(${account.id}) 고객의 경고 기록을 초기화했습니다.${wasBanned ? ' 제명도 해제되었습니다.' : ''}`, 'INFO');
     if (typeof pushClientNotification === 'function' && account.phone) pushClientNotification(account.phone, wasBanned ? '제명이 해제되고 경고 기록이 초기화되었습니다.' : '경고 기록이 초기화되었습니다.');
