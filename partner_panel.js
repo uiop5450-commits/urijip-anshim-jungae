@@ -3720,6 +3720,7 @@ function searchOrderLookup() {
                 <span class="text-[11px] font-bold text-ink-700 truncate">하자보수(반려·재검토 요청): ${escapeHtml(c.title)} — ${escapeHtml(c.escalationNote || '')}</span>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <button type="button" onclick="adminDismissRepairClaimEscalation('${o.code}', '${c.id}')" class="text-[10px] font-bold text-ink-500 hover:text-ink-700 bg-transparent border-0 cursor-pointer p-0">반려 유지</button>
+                    <button type="button" onclick="adminApproveRepairClaimEscalation('${o.code}', '${c.id}')" class="text-[10px] font-bold text-ink-500 hover:text-emeraldCustom bg-transparent border-0 cursor-pointer p-0">승인(재검토)</button>
                     <button type="button" onclick="openReportReasonPrompt((note) => adminForceCompleteRepairClaim('${o.code}', '${c.id}', note))" class="text-[10px] font-bold text-ink-500 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">직권 처리완료</button>
                 </div>
             </div>`);
@@ -3858,6 +3859,25 @@ function adminDismissRepairClaimEscalation(orderCode, claimId) {
     if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_CLAIM_ESCALATION_DISMISS', `[하자보수 재검토 반려] 오더 ${order.code}의 하자보수 신청("${claim.title}") 재검토 요청을 검토했으나 기존 반려 결정을 유지합니다.`, 'INFO');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수 신청("${claim.title}")에 대한 매니저 재검토 결과, 기존 반려 결정이 유지됩니다.`);
     showToast('재검토 요청을 확인했습니다. 기존 반려 결정을 유지합니다.', 'info');
+    searchOrderLookup();
+}
+
+/* adminDismissRepairClaimEscalation(반려 유지)과 adminForceCompleteRepairClaim(직권
+ * 처리완료)만 있고, "파트너 반려가 부당했으니 다시 제대로 고치게 한다"는 승인
+ * 액션이 없었다 — 직권 처리완료는 실제 시공 없이 완료로 조작하는 것뿐이라 대체가
+ * 안 된다. adminApproveRepairClaimCompletionDispute(완료 이의제기 승인)과 동일한
+ * 패턴으로 in_progress로 되돌려 파트너가 실제로 재작업하게 한다. */
+function adminApproveRepairClaimEscalation(orderCode, claimId) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.status !== 'rejected' || !claim.escalated) return;
+    claim.status = 'in_progress';
+    claim.escalated = false;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_CLAIM_ESCALATION_APPROVE', `[하자보수 재검토 승인] 오더 ${order.code}의 하자보수 신청("${claim.title}") 재검토 요청을 승인하여 처리중 상태로 되돌렸습니다.`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수 신청("${claim.title}") 재검토 요청이 승인되어 파트너사가 다시 처리합니다.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `반려하셨던 하자보수 신청("${claim.title}")에 대해 고객이 재검토를 요청했고, 매니저 센터가 승인하여 재처리가 필요합니다.`);
+    showToast('재검토 요청을 승인하여 처리중 상태로 되돌렸습니다.', 'success');
     searchOrderLookup();
 }
 
@@ -7875,6 +7895,7 @@ window.adminRestoreInvalidatedBid = adminRestoreInvalidatedBid;
 window.adminRejectInvalidatedBidAppeal = adminRejectInvalidatedBidAppeal;
 window.adminForceCompleteRepairClaim = adminForceCompleteRepairClaim;
 window.adminDismissRepairClaimEscalation = adminDismissRepairClaimEscalation;
+window.adminApproveRepairClaimEscalation = adminApproveRepairClaimEscalation;
 window.adminResolveScheduleChangeRequest = adminResolveScheduleChangeRequest;
 window.adminResolvePriceChangeRequest = adminResolvePriceChangeRequest;
 window.adminApproveClientReportAppeal = adminApproveClientReportAppeal;
