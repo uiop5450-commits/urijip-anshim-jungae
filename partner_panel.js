@@ -1440,6 +1440,17 @@ function isPartnerBlockingClient(partner, clientPhone) {
     return !!(partner && partner.blockedClients && partner.blockedClients.some(c => c.phone === clientPhone));
 }
 
+/* isPartnerBlockedByClient(client_panel.js)도 마찬가지로 window.AppState.clientAuth
+ * (로그인한 그 고객) 기준이라 관리자 배정관에서는 쓸 수 없다 — isPartnerBlockingClient와
+ * 대칭으로, 관리자 배정 후보 필터링(buildOrderAllocationCardHtml/allocateOrderToPartner/
+ * autoAllocateOrderCore)은 지금까지 파트너→고객 차단만 걸러내고 반대 방향인
+ * 고객→파트너 차단(togglePartnerBlock, client_panel.js)은 전혀 확인하지 않아,
+ * 고객이 직접 차단한 파트너가 관리자에 의해 그대로 재배정될 수 있었다. */
+function isClientBlockingPartner(clientPhone, partnerName) {
+    const account = (window.AppState.clientAccounts || []).find(a => a.phone === clientPhone);
+    return !!(account && account.blockedPartners && account.blockedPartners.includes(partnerName));
+}
+
 /* 고객이 회원 탈퇴(confirmAccountDeletion, client_panel.js — 진행 중인 계약이 있으면
  * 막히지만 아직 계약 전인 입찰 심사중 오더는 막지 않는다)해도, 파트너 쪽 즉시입찰
  * 목록·계약현황엔 아무 표시 없이 그대로 남아 있어 파트너가 시간을 들여 입찰을
@@ -4806,7 +4817,7 @@ function isOrderAllocationComplete(o) {
 function buildOrderAllocationCardHtml(o, certifiedPartners, isComplete) {
     // certifiedPartners는 오더와 무관한 공용 후보 풀이지만, 차단 여부는 고객마다
     // 다르므로 이 오더의 고객(o.clientPhone)을 차단한 파트너는 여기서 걸러낸다.
-    const assignablePartners = certifiedPartners.filter(p => !isPartnerBlockingClient(p, o.clientPhone));
+    const assignablePartners = certifiedPartners.filter(p => !isPartnerBlockingClient(p, o.clientPhone) && !isClientBlockingPartner(o.clientPhone, p.name));
     const partnerOptions = assignablePartners.length > 0 ? assignablePartners.map(p => `<option value="${p.name}">${p.name} (★ ${p.rating.toFixed(1)} / 인증)</option>`).join('') : `<option value="">배정 가능한 인증 파트너사가 없습니다</option>`;
     const currentMatchedCount = o.bids ? o.bids.length : 0;
     const totalSlotLimit = o.partnerCountLimit || 3;
@@ -4959,6 +4970,7 @@ function allocateOrderToPartner(orderCode) {
     const targetPartner = (window.AppState.partners || []).find(p => p.name === partnerName);
     if (targetPartner && targetPartner.isPaused) { showToast(`[${partnerName}] 파트너사는 신규 오더 매칭을 일시중단 중이라 배정할 수 없어요.`, "warning"); return; }
     if (isPartnerBlockingClient(targetPartner, order.clientPhone)) { showToast(`[${partnerName}] 파트너사가 이 고객님을 차단해두어 배정할 수 없어요.`, "warning"); return; }
+    if (isClientBlockingPartner(order.clientPhone, partnerName)) { showToast(`고객님이 [${partnerName}] 파트너사를 차단해두어 배정할 수 없어요.`, "warning"); return; }
 
     order.bids.push({ partner: partnerName, price: order.budget, desc: `[매니저 센터 직할 수동 배정] ${partnerName}에 프리미엄 전속 오더가 안전하게 할당되었습니다.`, verified: true, progress: 'bidding', date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString() });
 
@@ -5012,7 +5024,7 @@ function autoAllocateOrderCore(orderCode) {
     // 관리자가 직접 선택하는 '전속 배정'은 의도적 예외 처리이므로 그대로 두고,
     // 자동 배정 경로에만 이 체크를 추가한다.
     const excluded = new Set(order.excludedPartners || []);
-    let candidates = (window.AppState.partners || []).filter(p => p.status !== 'banned' && !p.isPaused && p.isCertified && !excluded.has(p.name) && !isPartnerBlockingClient(p, order.clientPhone) && !order.bids.some(b => b.partner === p.name));
+    let candidates = (window.AppState.partners || []).filter(p => p.status !== 'banned' && !p.isPaused && p.isCertified && !excluded.has(p.name) && !isPartnerBlockingClient(p, order.clientPhone) && !isClientBlockingPartner(order.clientPhone, p.name) && !order.bids.some(b => b.partner === p.name));
     if (candidates.length === 0) return { assignedCount: 0, reason: 'no-candidates' };
 
     candidates.sort((a, b) => b.rating - a.rating);
