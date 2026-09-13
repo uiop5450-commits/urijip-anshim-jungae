@@ -2121,8 +2121,21 @@ function renderPartnerScheduleView() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const entries = getPartnerScheduledVisits(partnerName);
 
+    const blockedDatesHtml = `
+        <div class="surface surface-lg p-6 sm:p-8 space-y-4 text-left">
+            <h3 class="text-base font-black text-ink-950 tracking-tight flex items-center gap-2"><i data-lucide="calendar-x" class="w-4 h-4 text-roseCustom"></i> 휴무일 관리</h3>
+            <p class="text-[11px] text-ink-500 font-medium">연차·경조사 등으로 실측·하자보수 방문을 잡을 수 없는 날짜를 미리 등록해두면, 방문 일정을 제안할 때 착오로 겹치지 않게 알려드려요.</p>
+            <div id="partner-blocked-dates-list" class="space-y-2"></div>
+            <div class="flex flex-wrap gap-2">
+                <input type="date" id="partner-blocked-date-input" class="input w-auto">
+                <input type="text" id="partner-blocked-date-reason-input" placeholder="사유 (선택)" class="input flex-1 min-w-[120px]">
+                <button type="button" onclick="addPartnerBlockedDate()" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i> 휴무일 등록</button>
+            </div>
+        </div>`;
+
     if (entries.length === 0) {
-        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap" style="background:var(--brand-50);color:var(--brand-600)"><i data-lucide="calendar" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">예정된 방문 일정이 없습니다.</p></div>`;
+        container.innerHTML = blockedDatesHtml + `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap" style="background:var(--brand-50);color:var(--brand-600)"><i data-lucide="calendar" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">예정된 방문 일정이 없습니다.</p></div>`;
+        renderPartnerBlockedDatesList();
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
@@ -2137,10 +2150,14 @@ function renderPartnerScheduleView() {
                 ${Object.keys(byDate).sort().map(date => {
                     const dayEntries = byDate[date];
                     const hasConflict = dayEntries.length > 1;
-                    return `<div class="p-4 rounded-2xl border ${hasConflict ? 'border-rose-200 bg-rose-50/40' : 'border-ink-100 bg-ink-50/70'} space-y-2">
+                    const isBlocked = isPartnerDateBlocked(partnerName, date);
+                    return `<div class="p-4 rounded-2xl border ${hasConflict || isBlocked ? 'border-rose-200 bg-rose-50/40' : 'border-ink-100 bg-ink-50/70'} space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-black text-ink-950">${date}</span>
-                            ${hasConflict ? `<span class="badge badge-rose"><i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> 같은 날 방문 ${dayEntries.length}건</span>` : ''}
+                            <div class="flex items-center gap-1.5">
+                                ${isBlocked ? `<span class="badge badge-rose"><i data-lucide="calendar-x" class="w-2.5 h-2.5"></i> 휴무일 등록됨</span>` : ''}
+                                ${hasConflict ? `<span class="badge badge-rose"><i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> 같은 날 방문 ${dayEntries.length}건</span>` : ''}
+                            </div>
                         </div>
                         <div class="space-y-1.5">
                             ${dayEntries.map(e => `
@@ -2152,8 +2169,67 @@ function renderPartnerScheduleView() {
                     </div>`;
                 }).join('')}
             </div>
-        </div>`;
+        </div>` + blockedDatesHtml;
+    renderPartnerBlockedDatesList();
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 파트너는 매칭 자체를 통째로 멈추는 전체 일시중단(isPaused)만 가능할 뿐,
+ * 특정 날짜(휴무일·선약·연차)만 콕 집어 막아둘 방법이 없었다 — 방문 일정 통합
+ * 뷰(getPartnerScheduledVisits)와 동일한 "같은 날 겹침 경고" 패턴으로, 스스로
+ * 등록한 휴무일에 실측/하자보수 방문을 잡으려 할 때도 미리 알려준다. */
+function isPartnerDateBlocked(partnerName, date) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    return !!(partner && partner.blockedDates && partner.blockedDates.some(b => b.date === date));
+}
+
+function addPartnerBlockedDate() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    const date = document.getElementById('partner-blocked-date-input')?.value;
+    const reason = document.getElementById('partner-blocked-date-reason-input')?.value.trim();
+    if (!date) { showToast('휴무일로 등록할 날짜를 선택해 주세요.', 'warning'); return; }
+    if (!partner.blockedDates) partner.blockedDates = [];
+    if (partner.blockedDates.some(b => b.date === date)) { showToast('이미 등록된 휴무일입니다.', 'info'); return; }
+
+    partner.blockedDates.push({ date, reason: reason || '' });
+    partner.blockedDates.sort((a, b) => a.date.localeCompare(b.date));
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'BLOCKED_DATE_ADD', `[${partnerName}]가 휴무일(${date})을 등록했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'INFO');
+    showToast(`휴무일(${date})을 등록했습니다.`, 'success');
+    safeUpdateValue('partner-blocked-date-input', '');
+    safeUpdateValue('partner-blocked-date-reason-input', '');
+    renderPartnerBlockedDatesList();
+}
+
+function removePartnerBlockedDate(date) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || !partner.blockedDates) return;
+    const idx = partner.blockedDates.findIndex(b => b.date === date);
+    if (idx === -1) return;
+    partner.blockedDates.splice(idx, 1);
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'BLOCKED_DATE_REMOVE', `[${partnerName}]가 휴무일(${date}) 등록을 해제했습니다.`, 'INFO');
+    showToast(`휴무일(${date}) 등록을 해제했습니다.`, 'info');
+    renderPartnerBlockedDatesList();
+}
+
+function renderPartnerBlockedDatesList() {
+    const container = document.getElementById('partner-blocked-dates-list');
+    if (!container) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const blockedDates = (partner && partner.blockedDates) || [];
+
+    if (blockedDates.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-bold text-center py-3">등록된 휴무일이 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = blockedDates.map(b => `
+        <div class="flex items-center justify-between p-3 bg-ink-50 rounded-xl">
+            <span class="text-xs font-bold text-ink-800">${b.date}${b.reason ? ` <span class="text-ink-400 font-medium">· ${escapeHtml(b.reason)}</span>` : ''}</span>
+            <button type="button" onclick="removePartnerBlockedDate('${b.date}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+        </div>`).join('');
 }
 
 let siteVisitTargetCode = null;
@@ -2187,6 +2263,7 @@ function submitSiteVisitProposal() {
     // 같은 날 방문이 잡혀있어도 파트너가 모른 채 겹쳐서 잡을 수 있었다 — 막지는
     // 않되(고객 사정상 그 날짜가 최선일 수 있으므로), 제안 시점에 미리 알려준다.
     const conflictingVisit = getPartnerScheduledVisits(partnerName).find(v => v.date === date && v.orderCode !== order.code);
+    const isBlockedDate = isPartnerDateBlocked(partnerName, date);
 
     // 이미 확정된 일정을 뒤엎고 새로 제안하는 경우("일정 변경")와, 처음/재거절 후
     // 새로 제안하는 경우를 구분해서 알림 문구를 다르게 준다 — 고객 입장에서 "확정된
@@ -2200,6 +2277,7 @@ function submitSiteVisitProposal() {
         : `${partnerName}가 실측 방문 일정을 제안했어요: ${date}${note ? ` (${note})` : ''}`);
     showToast(isReschedule ? '실측 방문 일정 변경을 제안했습니다. 고객 재확인을 기다려주세요.' : '실측 방문 일정을 제안했습니다. 고객 확인을 기다려주세요.', 'success');
     if (conflictingVisit) showToast(`이 날짜(${date})에 이미 다른 방문 일정이 있어요: ${conflictingVisit.label} (${conflictingVisit.orderCode})`, 'warning');
+    if (isBlockedDate) showToast(`이 날짜(${date})는 직접 등록한 휴무일이에요. 착오가 아닌지 확인해 주세요.`, 'warning');
 
     closeSiteVisitModal();
     openPartnerOrderDetailModal(order.code);
@@ -5614,6 +5692,7 @@ function proposeRepairVisitDate(orderCode, claimId) {
     if (!date) { showToast('방문 희망일을 선택해주세요.', 'warning'); return; }
 
     const conflictingVisit = getPartnerScheduledVisits(partnerName).find(v => v.date === date && v.orderCode !== order.code);
+    const isBlockedDate = isPartnerDateBlocked(partnerName, date);
     const isReschedule = claim.visitStatus === 'confirmed';
     claim.visitStatus = 'proposed';
     claim.visitDate = date;
@@ -5626,6 +5705,7 @@ function proposeRepairVisitDate(orderCode, claimId) {
         : `하자보수("${claim.title}") 방문 일정을 제안했어요: ${date}`);
     showToast(isReschedule ? '방문 일정 변경을 제안했습니다. 고객 재확인을 기다려주세요.' : '방문 일정을 제안했습니다.', 'success');
     if (conflictingVisit) showToast(`이 날짜(${date})에 이미 다른 방문 일정이 있어요: ${conflictingVisit.label} (${conflictingVisit.orderCode})`, 'warning');
+    if (isBlockedDate) showToast(`이 날짜(${date})는 직접 등록한 휴무일이에요. 착오가 아닌지 확인해 주세요.`, 'warning');
     openPartnerOrderDetailModal(orderCode);
 }
 
@@ -7595,6 +7675,10 @@ window.buildPartnerPaymentMilestonesHtml = buildPartnerPaymentMilestonesHtml;
 window.requestPaymentMilestone = requestPaymentMilestone;
 window.disputeMilestonePaymentReceipt = disputeMilestonePaymentReceipt;
 window.renderPartnerScheduleView = renderPartnerScheduleView;
+window.isPartnerDateBlocked = isPartnerDateBlocked;
+window.addPartnerBlockedDate = addPartnerBlockedDate;
+window.removePartnerBlockedDate = removePartnerBlockedDate;
+window.renderPartnerBlockedDatesList = renderPartnerBlockedDatesList;
 window.openSiteVisitModal = openSiteVisitModal;
 window.closeSiteVisitModal = closeSiteVisitModal;
 window.submitSiteVisitProposal = submitSiteVisitProposal;
