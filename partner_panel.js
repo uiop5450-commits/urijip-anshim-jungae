@@ -2125,6 +2125,15 @@ function addPartnerBlockedDate() {
     partner.blockedDates.sort((a, b) => a.date.localeCompare(b.date));
     if (typeof pushLog === 'function') pushLog('PARTNER', 'BLOCKED_DATE_ADD', `[${partnerName}]가 휴무일(${date})을 등록했습니다.${reason ? ` (사유: ${reason})` : ''}`, 'INFO');
     showToast(`휴무일(${date})을 등록했습니다.`, 'success');
+
+    // isPartnerDateBlocked는 새 방문/착공일이 이미 등록된 휴무일과 겹칠 때만
+    // 경고하는 한쪽 방향 체크였다 — 반대로 이미 확정된 방문/착공일이 있는
+    // 날짜를 휴무일로 등록할 때는 아무 경고가 없었다. 막지는 않되(휴무일이
+    // 먼저고 일정을 조율해야 할 수도 있으므로) 착오가 아닌지 미리 알려준다.
+    const conflictingVisit = getPartnerScheduledVisits(partnerName).find(v => v.date === date);
+    if (conflictingVisit) showToast(`이 날짜(${date})에 이미 확정/제안된 방문 일정이 있어요: ${conflictingVisit.label} (${conflictingVisit.orderCode})`, 'warning');
+    const conflictingOrder = (window.AppState.orders || []).find(o => o.acceptedPartner === partnerName && o.status === 'contracted' && o.preferredDate === date);
+    if (conflictingOrder) showToast(`이 날짜(${date})는 [${conflictingOrder.clientName}] 고객님과 확정된 착공일이에요. 착오가 아닌지 확인해 주세요.`, 'warning');
     safeUpdateValue('partner-blocked-date-input', '');
     safeUpdateValue('partner-blocked-date-reason-input', '');
     renderPartnerBlockedDatesList();
