@@ -3002,7 +3002,8 @@ function renderAdminDashboard() {
     const escalatedNegotiationCount = orders.filter(o =>
         (o.scheduleChangeRequest && o.scheduleChangeRequest.status === 'pending' && o.scheduleChangeRequest.escalated) ||
         (o.priceChangeRequest && o.priceChangeRequest.status === 'pending' && o.priceChangeRequest.escalated) ||
-        (o.changeOrders || []).some(e => e.status === 'pending' && e.escalated)
+        (o.changeOrders || []).some(e => e.status === 'pending' && e.escalated) ||
+        (o.repairClaims || []).some(c => c.visitStatus === 'declined' && c.visitScheduleEscalated)
     ).length;
     // 입점 신청 단계의 블랙리스트 대조(submitPartnerSignup)는 새 신청만 막을 뿐,
     // 그 검증이 생기기 전에 이미 승인되어 활동 중인 파트너까지 소급 확인해주지는
@@ -3289,6 +3290,12 @@ function getAllPendingAppeals() {
                 items.push({
                     typeLabel: '하자보수 방문 완료처리 이의제기', subject: `${o.code} · ${c.title}`, reason: c.visitCompletionDisputeReason, date: c.visitCompletedDate || getLocalDateString(), orderCode: o.code,
                     actionsHtml: rejectBtn('반려(완료 유지)', `openReportReasonPrompt((reason) => adminRejectRepairVisitCompletionDispute('${o.code}', '${c.id}', reason))`) + approveBtn('승인(재방문)', `adminApproveRepairVisitCompletionDispute('${o.code}', '${c.id}')`)
+                });
+            }
+            if (c.visitStatus === 'declined' && c.visitScheduleEscalated) {
+                items.push({
+                    typeLabel: '하자보수 방문 일정 조정 요청', subject: `${o.code} · ${c.title} (제안일 ${c.visitDate})`, reason: c.visitDeclineReason, date: c.visitDate, orderCode: o.code,
+                    actionsHtml: rejectBtn('반려(재제안 필요)', `adminResolveRepairVisitSchedule('${o.code}', '${c.id}', false)`) + approveBtn('승인(일정 확정)', `adminResolveRepairVisitSchedule('${o.code}', '${c.id}', true)`)
                 });
             }
         });
@@ -5910,10 +5917,15 @@ function buildPartnerRepairClaimsHtml(order) {
                         : c.visitStatus === 'completed' ? `<p class="text-[10px] font-black text-ink-500">방문 완료됨: ${c.visitCompletedDate}</p>${!c.visitCompletionDisputed ? '' : (c.visitCompletionDisputeResolution === 'rejected'
                             ? `<p class="text-[9px] font-bold text-ink-400 mt-0.5">고객 이의제기 반려됨(완료 유지)${c.visitCompletionDisputeAdminResponse ? ` — ${escapeHtml(c.visitCompletionDisputeAdminResponse)}` : ''}</p>`
                             : `<p class="text-[9px] font-black text-roseCustom mt-0.5">고객 이의제기 심사중</p>`)}`
-                        : `<div class="flex items-center gap-1.5">
-                            ${c.visitStatus === 'declined' ? `<span class="text-[9px] text-ink-400 font-semibold shrink-0">거절됨${c.visitDeclineReason ? ` — ${escapeHtml(c.visitDeclineReason)}` : ''}. 새로 제안:</span>` : `<span class="text-[9px] text-ink-400 font-semibold shrink-0">방문 일정 제안:</span>`}
-                            <input type="date" id="repair-visit-date-input-${c.id}" class="input text-[10px] py-1 px-1.5 flex-1">
-                            <button type="button" onclick="proposeRepairVisitDate('${order.code}', '${c.id}')" class="btn btn-secondary btn-sm shrink-0">제안</button>
+                        : `<div class="space-y-1">
+                            <div class="flex items-center gap-1.5">
+                                ${c.visitStatus === 'declined' ? `<span class="text-[9px] text-ink-400 font-semibold shrink-0">거절됨${c.visitDeclineReason ? ` — ${escapeHtml(c.visitDeclineReason)}` : ''}. 새로 제안:</span>` : `<span class="text-[9px] text-ink-400 font-semibold shrink-0">방문 일정 제안:</span>`}
+                                <input type="date" id="repair-visit-date-input-${c.id}" class="input text-[10px] py-1 px-1.5 flex-1">
+                                <button type="button" onclick="proposeRepairVisitDate('${order.code}', '${c.id}')" class="btn btn-secondary btn-sm shrink-0">제안</button>
+                            </div>
+                            ${c.visitStatus === 'declined' ? (c.visitScheduleEscalated
+                                ? `<p class="text-[9px] font-bold text-roseCustom">매니저 센터에 조정을 요청했어요. 결과를 기다려 주세요.</p>`
+                                : `<button type="button" onclick="escalateRepairVisitScheduleToAdmin('${order.code}', '${c.id}'); openPartnerOrderDetailModal('${order.code}');" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">협의가 어렵다면 매니저에게 조정 요청</button>`) : ''}
                         </div>`}
                 </div>` : ''}
                 ${(c.status !== 'completed' && c.status !== 'rejected') ? `<div class="flex gap-1.5 mt-1">
@@ -5947,6 +5959,7 @@ function proposeRepairVisitDate(orderCode, claimId) {
     claim.visitDate = date;
     claim.visitDeclineReason = null;
     claim.visitCompletedDate = null;
+    claim.visitScheduleEscalated = false;
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'REPAIR_VISIT_PROPOSE', `[${partnerName}]가 하자보수("${claim.title}") 방문 일정을 ${isReschedule ? '변경 제안' : '제안'}했습니다: ${date}`, 'INFO');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, isReschedule
@@ -5956,6 +5969,29 @@ function proposeRepairVisitDate(orderCode, claimId) {
     if (conflictingVisit) showToast(`이 날짜(${date})에 이미 다른 방문 일정이 있어요: ${conflictingVisit.label} (${conflictingVisit.orderCode})`, 'warning');
     if (isBlockedDate) showToast(`이 날짜(${date})는 직접 등록한 휴무일이에요. 착오가 아닌지 확인해 주세요.`, 'warning');
     openPartnerOrderDetailModal(orderCode);
+}
+
+/* 착공일/계약금액 변경, 추가공사 변경계약 협의와 동일하게, 하자보수 방문 일정
+ * 협의(escalateRepairVisitScheduleToAdmin)도 결렬 시 관리자가 직권으로 처리할
+ * 수 있게 한다. 승인 시 거절 전 마지막으로 제안됐던 날짜(claim.visitDate)로
+ * 그대로 확정하고, 반려 시 파트너가 새 날짜를 다시 제안하도록 escalated
+ * 플래그만 내린다. */
+function adminResolveRepairVisitSchedule(orderCode, claimId, approve) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.visitStatus !== 'declined') return;
+    const visitDate = claim.visitDate;
+    if (approve) claim.visitStatus = 'confirmed';
+    claim.visitScheduleEscalated = false;
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'REPAIR_VISIT_SCHEDULE_FORCE_RESOLVE', `[하자보수 방문 일정 직권 ${approve ? '확정' : '반려'}] 오더 ${order.code}의 하자보수("${claim.title}") 방문 일정을 매니저가 직권으로 ${approve ? `확정 처리했습니다 (${visitDate})` : '반려하여 파트너사가 새로 제안하도록 했습니다'}.`, 'WARNING');
+    const msg = approve
+        ? `하자보수("${claim.title}") 방문 일정이 매니저 센터 직권으로 확정되었습니다: ${visitDate}`
+        : `하자보수("${claim.title}") 방문 일정 조정 요청이 반려되어, 파트너사가 새 일정을 다시 제안해야 합니다.`;
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, msg);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, msg);
+    showToast(`하자보수 방문 일정 조정 요청을 매니저 직권으로 ${approve ? '확정' : '반려'}했습니다.`, 'success');
+    searchOrderLookup();
 }
 
 /* 실측 방문의 completeSiteVisit과 동일하게, 확정(confirmed) 상태에 멈춰 있던
@@ -7947,6 +7983,7 @@ window.adminApproveRepairClaimEscalation = adminApproveRepairClaimEscalation;
 window.adminResolveScheduleChangeRequest = adminResolveScheduleChangeRequest;
 window.adminResolvePriceChangeRequest = adminResolvePriceChangeRequest;
 window.adminResolveChangeOrder = adminResolveChangeOrder;
+window.adminResolveRepairVisitSchedule = adminResolveRepairVisitSchedule;
 window.adminApproveClientReportAppeal = adminApproveClientReportAppeal;
 window.adminApproveClientSuspensionAppeal = adminApproveClientSuspensionAppeal;
 window.adminRejectClientSuspensionAppeal = adminRejectClientSuspensionAppeal;

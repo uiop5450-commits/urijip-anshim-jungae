@@ -403,6 +403,23 @@ function escalatePriceChangeToAdmin(orderCode) {
  * 협의 유형인 추가공사 변경계약(submitChangeOrder/respondChangeOrder)만 이
  * 안전장치가 없었다 — 고객이 응답을 미루거나 서로 합의가 안 돼도 파트너는
  * 자기 제안을 철회하는 것 외엔(retractChangeOrder) 아무 방법이 없었다. */
+/* 하자보수(AS) 방문 일정 조율(proposeRepairVisitDate/confirmRepairVisitDate/
+ * declineRepairVisitDate)도 착공일/계약금액 변경, 추가공사 변경계약과 동일한
+ * 계약 중 협의 유형인데, 거절→재제안을 반복해도 결렬 시 관리자에게 조정을
+ * 요청할 방법이 없었다. */
+function escalateRepairVisitScheduleToAdmin(orderCode, claimId) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || claim.visitStatus !== 'declined') return;
+    if (claim.visitScheduleEscalated) { showToast('이미 관리자에게 조정을 요청했습니다.', 'info'); return; }
+    const isPartnerActor = window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn);
+    claim.visitScheduleEscalated = true;
+    if (typeof pushLog === 'function') pushLog(isPartnerActor ? 'PARTNER' : 'CLIENT', 'REPAIR_VISIT_SCHEDULE_ESCALATE', `오더(${orderCode})의 하자보수("${claim.title}") 방문 일정 협의에 대해 매니저 조정을 요청했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `하자보수("${claim.title}") 방문 일정 협의에 대해 매니저 센터의 조정을 요청했어요. 검토 후 안내드릴게요.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `하자보수("${claim.title}") 방문 일정 협의에 대해 매니저 센터의 조정을 요청했어요. 검토 후 안내드릴게요.`);
+    showToast('매니저 센터에 조정을 요청했습니다.', 'success');
+}
+
 function escalateChangeOrderToAdmin(orderCode, id) {
     const order = (window.AppState.orders || []).find(o => o.code === orderCode);
     const entry = order && order.changeOrders && order.changeOrders.find(e => e.id === id);
@@ -855,6 +872,7 @@ window.sweepMilestoneDueSoonReminders = sweepMilestoneDueSoonReminders;
 window.escalateScheduleChangeToAdmin = escalateScheduleChangeToAdmin;
 window.escalatePriceChangeToAdmin = escalatePriceChangeToAdmin;
 window.escalateChangeOrderToAdmin = escalateChangeOrderToAdmin;
+window.escalateRepairVisitScheduleToAdmin = escalateRepairVisitScheduleToAdmin;
 window.getOrInitOrderMessages = getOrInitOrderMessages;
 window.sendOrderMessage = sendOrderMessage;
 window.reportOrderMessage = reportOrderMessage;
