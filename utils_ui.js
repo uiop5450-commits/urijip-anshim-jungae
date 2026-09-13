@@ -228,6 +228,15 @@ function isConstructionCompleted(order) {
     return !!(finalStage && finalStage.done);
 }
 
+/* 실측(현장 방문 측정)은 시공 범위·자재를 확정하는 필수 선행 단계라고 파트너
+ * 콘솔 코드 주석에도 명시돼 있지만, 정작 시공 단계(진행 스테퍼)를 시작하는
+ * advanceOrderProgressStage에는 실측 완료 여부를 확인하는 코드가 전혀 없어
+ * 실측을 한 번도 안 잡은 오더도 "철거" 완료 처리가 가능했다 — 실측이
+ * completed 상태인지를 별도 헬퍼로 분리해 착공 게이트로 사용한다. */
+function isSiteVisitCompleted(order) {
+    return !!(order.siteVisit && order.siteVisit.status === 'completed');
+}
+
 /* 계약서에 "하자이행 보증기간: 준공일로부터 3년 무상 보증"이라고 명시하면서도
  * (partner_panel.js 계약서 생성부) 정작 하자보수 신청(submitRepairClaim)에는
  * 기간 체크가 전혀 없어 준공 후 10년이 지나도 무한정 신청할 수 있었다 — 마지막
@@ -805,6 +814,7 @@ window.closeFooterInfoModal = closeFooterInfoModal;
 window.getLocalDateString = getLocalDateString;
 window.getOrInitProgressStages = getOrInitProgressStages;
 window.isConstructionCompleted = isConstructionCompleted;
+window.isSiteVisitCompleted = isSiteVisitCompleted;
 window.getWarrantyEndDate = getWarrantyEndDate;
 window.isWarrantyExpired = isWarrantyExpired;
 window.sweepWarrantyExpiryReminders = sweepWarrantyExpiryReminders;

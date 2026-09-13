@@ -2177,6 +2177,7 @@ function buildPartnerProgressStagesHtml(order) {
     if (!order.clientSigned || !order.partnerSigned) return '';
     const stages = getOrInitProgressStages(order);
     const nextStage = stages.find(s => !s.done);
+    const visitBlocked = nextStage && stages.indexOf(nextStage) === 0 && typeof isSiteVisitCompleted === 'function' && !isSiteVisitCompleted(order);
     const disputedStages = stages.filter(s => s.disputed);
     const disputeListHtml = disputedStages.length === 0 ? '' : `<div class="space-y-1">${disputedStages.map(s => {
         const statusText = s.disputeResolution === 'rejected' ? `이의제기 반려됨(완료 유지)${s.disputeAdminResponse ? ` — ${escapeHtml(s.disputeAdminResponse)}` : ''}`
@@ -2189,7 +2190,9 @@ function buildPartnerProgressStagesHtml(order) {
         ${renderPartnerContractProgressStepperHtml(stages)}
         ${disputeListHtml}
         ${nextStage
-            ? `<button type="button" onclick="advanceOrderProgressStage('${order.code}')" class="btn btn-dark btn-sm btn-block">"${escapeHtml(nextStage.label)}" 단계 완료로 표시</button>`
+            ? (visitBlocked
+                ? `<p class="text-[11px] text-ink-400 font-bold text-center">실측 방문 완료 후 "${escapeHtml(nextStage.label)}" 단계를 진행할 수 있어요.</p>`
+                : `<button type="button" onclick="advanceOrderProgressStage('${order.code}')" class="btn btn-dark btn-sm btn-block">"${escapeHtml(nextStage.label)}" 단계 완료로 표시</button>`)
             : `<p class="text-[11px] text-emeraldCustom font-bold text-center">모든 시공 단계가 완료되었습니다.</p>`}
     </div>`;
 }
@@ -2201,6 +2204,10 @@ function advanceOrderProgressStage(orderCode) {
     const stages = getOrInitProgressStages(order);
     const stage = stages.find(s => !s.done);
     if (!stage) return;
+    if (stages.indexOf(stage) === 0 && typeof isSiteVisitCompleted === 'function' && !isSiteVisitCompleted(order)) {
+        showToast('실측 방문 완료 후 착공 단계를 진행할 수 있어요.', 'warning');
+        return;
+    }
     stage.done = true;
     stage.date = getLocalDateString();
     const allDone = stages.every(s => s.done);
