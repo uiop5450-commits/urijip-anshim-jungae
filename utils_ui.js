@@ -270,6 +270,26 @@ function isMilestoneOverdue(m) {
     return !!(m && m.status === 'requested' && m.dueDate && new Date() > new Date(m.dueDate));
 }
 
+/* 지금까지 입찰(bid)엔 유효기간이 전혀 없어서, 몇 주/몇 달 전에 제출된 견적을
+ * 자재비·인건비 변동을 전혀 반영하지 않은 채 그대로 계약 체결할 수 있었다 —
+ * isMilestoneOverdue와 동일한 "렌더 시점에 지연 체크" 패턴을 적용한다. */
+function isBidExpired(bid) {
+    return !!(bid && bid.validUntil && new Date() > new Date(bid.validUntil));
+}
+
+function getBidDaysRemaining(bid) {
+    if (!bid || !bid.validUntil) return null;
+    const diffMs = new Date(bid.validUntil) - new Date(getLocalDateString());
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
+const BID_VALIDITY_DAYS = 14;
+function computeBidValidUntil() {
+    const d = new Date();
+    d.setDate(d.getDate() + BID_VALIDITY_DAYS);
+    return d.toISOString().slice(0, 10);
+}
+
 /* 파트너 인증 만료(sweepExpiredPartnerCertifications)와 동일한 "렌더 시점에
  * 지연 체크" 패턴 — 연체로 갓 넘어간 마일스톤을 발견하면 파트너에게 1회만
  * 알림을 보낸다(매번 렌더할 때마다 알림이 쌓이지 않도록 overdueNotified로 dedup). */
@@ -686,6 +706,9 @@ window.isWarrantyExpired = isWarrantyExpired;
 window.getOrInitPaymentMilestones = getOrInitPaymentMilestones;
 window.getMilestoneAmount = getMilestoneAmount;
 window.isMilestoneOverdue = isMilestoneOverdue;
+window.isBidExpired = isBidExpired;
+window.getBidDaysRemaining = getBidDaysRemaining;
+window.computeBidValidUntil = computeBidValidUntil;
 window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
 window.getOrInitOrderMessages = getOrInitOrderMessages;
 window.sendOrderMessage = sendOrderMessage;

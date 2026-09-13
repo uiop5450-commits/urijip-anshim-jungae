@@ -1680,7 +1680,7 @@ function submitPartnerBid() {
     const desc = (descInput && descInput.value.trim()) || `${partnerName}에서 제안하는 하이엔드 시공 안심 제안입니다.`;
     const costBreakdown = readBidCostBreakdownInputs();
 
-    order.bids.push({ partner: partnerName, price, desc, verified: true, progress: 'bidding', costBreakdown });
+    order.bids.push({ partner: partnerName, price, desc, verified: true, progress: 'bidding', costBreakdown, date: getLocalDateString(), validUntil: computeBidValidUntil() });
 
     selectOrderForAudit(code);
     renderPartnerOrderList();
@@ -1707,13 +1707,19 @@ function editPartnerBid(orderCode) {
     const desc = (descInput && descInput.value.trim()) || bid.desc;
 
     const oldPrice = bid.price;
+    const wasExpired = typeof isBidExpired === 'function' && isBidExpired(bid);
     bid.price = price;
     bid.desc = desc;
     bid.costBreakdown = readBidCostBreakdownInputs();
+    // 견적 내용을 다시 제출하는 행위 자체가 최신 자재·인건비 기준으로 재확인했다는
+    // 뜻이므로, 수정할 때마다 유효기간(validUntil)도 오늘로부터 새로 갱신한다.
+    bid.validUntil = computeBidValidUntil();
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'BID_EDIT', `[${partnerName}]가 오더 ${orderCode}의 입찰 금액을 ₩${oldPrice.toLocaleString()}만원 → ₩${price.toLocaleString()}만원으로 수정했습니다.`, 'INFO');
-    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 입찰 제안 내용을 수정했어요. (의뢰 코드: ${orderCode})`);
-    showToast('입찰 내용을 수정했습니다.', 'success');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, wasExpired
+        ? `${partnerName} 파트너사가 만료됐던 입찰 견적을 최신 기준으로 재확인하여 다시 제출했어요. (의뢰 코드: ${orderCode})`
+        : `${partnerName} 파트너사가 입찰 제안 내용을 수정했어요. (의뢰 코드: ${orderCode})`);
+    showToast(wasExpired ? '만료됐던 견적을 재확인하여 갱신했습니다.' : '입찰 내용을 수정했습니다.', 'success');
     selectOrderForAudit(orderCode);
     recalculateKPIs();
 }
@@ -4678,7 +4684,7 @@ function allocateOrderToPartner(orderCode) {
     if (order.bids.some(b => b.partner === partnerName)) { showToast(`이미 [${partnerName}] 파트너사가 이 오더에 배정되어 있습니다.`, "info"); return; }
     if (order.bids.length >= order.partnerCountLimit) { showToast(`목표 배정 수량(${order.partnerCountLimit}개사)이 이미 차서 더 이상 추가할 수 없습니다.`, "warning"); return; }
 
-    order.bids.push({ partner: partnerName, price: order.budget, desc: `[매니저 센터 직할 수동 배정] ${partnerName}에 프리미엄 전속 오더가 안전하게 할당되었습니다.`, verified: true, progress: 'bidding' });
+    order.bids.push({ partner: partnerName, price: order.budget, desc: `[매니저 센터 직할 수동 배정] ${partnerName}에 프리미엄 전속 오더가 안전하게 할당되었습니다.`, verified: true, progress: 'bidding', date: getLocalDateString(), validUntil: computeBidValidUntil() });
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'ALLOCATE', `[매니저 센터] 고액 오더(${orderCode}, ₩ ${order.budget.toLocaleString()}만원)를 [${partnerName}] 파트너사에 수동 배정완료.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 배정되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
@@ -4723,7 +4729,7 @@ function autoAllocateOrderCore(orderCode) {
     candidates.sort((a, b) => b.rating - a.rating);
     const selectedToAssign = candidates.slice(0, slotsNeeded);
     selectedToAssign.forEach(selected => {
-        order.bids.push({ partner: selected.name, price: order.budget, desc: `[추천 일괄 자동 배정] 우수 평점 인증 파트너사 ${selected.name}에 전속 배정되었습니다.`, verified: true, progress: 'bidding' });
+        order.bids.push({ partner: selected.name, price: order.budget, desc: `[추천 일괄 자동 배정] 우수 평점 인증 파트너사 ${selected.name}에 전속 배정되었습니다.`, verified: true, progress: 'bidding', date: getLocalDateString(), validUntil: computeBidValidUntil() });
     });
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'AUTO_ALLOCATE', `[자동 배정] 오더 ${orderCode} -> [${selectedToAssign.map(s => s.name).join(', ')}] ${selectedToAssign.length}개 인증 파트너사 일괄 자동 배정 완료.`, 'SUCCESS');

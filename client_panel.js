@@ -324,7 +324,8 @@ function completeMatchingSim() {
             partner: partner.name,
             price: Math.floor(newOrder.budget * (0.9 + Math.random() * 0.08)),
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding'
+            verified: true, progress: 'bidding',
+            date: getLocalDateString(), validUntil: computeBidValidUntil()
         }));
         // 매칭 가능한 파트너가 0명이면(활동중단·전원 일시중단 등) 지금까지 "0곳이
         // 매칭되어 견적서를 보냈어요"라는 앞뒤가 안 맞는 성공 알림이 그대로 나갔다 —
@@ -524,7 +525,8 @@ function restoreWithdrawnOrder(orderCode) {
             partner: partner.name,
             price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding'
+            verified: true, progress: 'bidding',
+            date: getLocalDateString(), validUntil: computeBidValidUntil()
         });
     });
 
@@ -1540,6 +1542,14 @@ function clientFinalizeContract(orderCode, partnerName, finalPrice) {
         showToast(`[${partnerName}] 파트너사는 삼진아웃으로 영구 제명되어 계약을 체결할 수 없어요. 매칭취소 후 다른 파트너사를 이용해 주세요.`, 'warning');
         return;
     }
+    // 자재비·인건비 변동을 전혀 반영하지 않은 오래된 견적이 그대로 계약으로
+    // 전환되는 것을 막는다 — 파트너가 재확인(editPartnerBid)해서 유효기간을
+    // 갱신하기 전까지는 체결할 수 없다.
+    const bid = (order.bids || []).find(b => b.partner === partnerName);
+    if (bid && typeof isBidExpired === 'function' && isBidExpired(bid)) {
+        showToast(`이 견적은 유효기간이 지났어요. 파트너사에 최신 가격으로 재확인을 요청해 주세요.`, 'warning');
+        return;
+    }
     order.status = 'contracted';
     order.acceptedPartner = partnerName;
     order.finalPrice = finalPrice;
@@ -1571,6 +1581,18 @@ function clientFinalizeContract(orderCode, partnerName, finalPrice) {
         (order.bids || []).filter(b => b.partner !== partnerName).forEach(b => pushPartnerNotification(b.partner, `오더(${orderCode})가 다른 파트너사와 계약 체결되어 매칭이 마감됐어요.`));
     }
     showToast(`${partnerName}와 시공 계약 합의 체결 완료!`, 'success');
+}
+
+/* 유효기간이 지난 견적은 clientFinalizeContract에서 계약 체결이 막히는데, 그
+ * 상태로 그냥 방치하면 고객이 할 수 있는 게 매칭취소(cancelPartnerBid)뿐이라
+ * 파트너사와의 협의 여지가 사라진다 — 매칭을 끊지 않고도 "최신 가격으로 다시
+ * 제출해 달라"고 알릴 방법을 준다. 실제 갱신은 파트너의 editPartnerBid에서 이뤄진다. */
+function requestBidReconfirmation(orderCode, partnerName) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    if (!order) return;
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'BID_RECONFIRM_REQUEST', `고객님이 [${partnerName}] 파트너사에 오더(${orderCode})의 만료된 견적 재확인을 요청했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `고객님이 만료된 입찰 견적의 재확인을 요청했어요. 최신 가격으로 다시 제출해 주세요. (의뢰 코드: ${orderCode})`);
+    showToast('파트너사에 견적 재확인을 요청했습니다.', 'success');
 }
 
 function sendClientAuthCode() {
@@ -3222,6 +3244,10 @@ function openBidCompareModal(orderCode) {
             { label: '평점', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return `<span class="font-bold text-gold-600">★ ${p ? p.rating.toFixed(1) : '5.0'}</span>`; } },
             { label: '파트너 등급', render: b => (typeof buildPartnerTierBadgeHtml === 'function' && buildPartnerTierBadgeHtml(b.partner)) || '<span class="text-ink-400">-</span>' },
             { label: '안심 인증', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return p && p.isCertified ? `<span class="badge badge-brand">인증</span>` : '-'; } },
+            { label: '견적 유효기간', render: b => {
+                if (!b.validUntil) return '<span class="text-ink-400">-</span>';
+                return typeof isBidExpired === 'function' && isBidExpired(b) ? `<span class="badge badge-rose">만료됨 (${b.validUntil})</span>` : `<span class="text-ink-600">${b.validUntil}까지</span>`;
+            } },
             { label: '제안 내용', render: b => `<span class="text-ink-600">${escapeHtml(b.desc)}</span>`, alignTop: true }
         ];
         container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs text-left border-collapse">
@@ -3341,10 +3367,12 @@ function renderMyPageEstimateDetails(order) {
             // 중개 플랫폼인데 제명된 파트너와 계약을 체결할 수 있으면 블랙리스트 정책이
             // 무의미해지므로, 제명된 파트너의 입찰은 계약 체결을 막고 매칭취소만 유도한다.
             const isBannedBid = partnerInfo && partnerInfo.status === 'banned';
+            const isExpiredBid = !isContracted && !isBannedBid && typeof isBidExpired === 'function' && isBidExpired(bid);
+            const daysRemaining = !isContracted && !isBannedBid && !isExpiredBid && typeof getBidDaysRemaining === 'function' ? getBidDaysRemaining(bid) : null;
 
             const showCompareCheckbox = order.status === 'bidding' && !isBannedBid;
             bidsHtml += `
-                <div class="p-4 rounded-2xl border ${isContracted ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : (isBannedBid ? 'border-rose-200 bg-rose-50/40' : 'border-ink-100 bg-ink-50/70')} text-left space-y-3">
+                <div class="p-4 rounded-2xl border ${isContracted ? 'border-emerald-300 ring-1 ring-emerald-200 bg-emerald-50/40' : (isBannedBid || isExpiredBid ? 'border-rose-200 bg-rose-50/40' : 'border-ink-100 bg-ink-50/70')} text-left space-y-3">
                     <div class="flex justify-between items-center text-xs">
                         <div class="flex items-center gap-2">
                             ${showCompareCheckbox ? `<input type="checkbox" onchange="toggleBidCompareSelection('${order.code}', '${bid.partner}')" ${bidCompareSelection.includes(bid.partner) ? 'checked' : ''} class="w-3.5 h-3.5 shrink-0" aria-label="비교 대상으로 선택">` : ''}
@@ -3352,6 +3380,8 @@ function renderMyPageEstimateDetails(order) {
                             ${typeof buildPartnerTierBadgeHtml === 'function' ? buildPartnerTierBadgeHtml(bid.partner) : ''}
                             <span class="text-gold-500 font-extrabold text-xs">★ ${ratingVal}</span>
                             ${isBannedBid ? `<span class="badge badge-rose">영구 제명</span>` : ''}
+                            ${isExpiredBid ? `<span class="badge badge-rose"><i data-lucide="clock" class="w-2.5 h-2.5"></i> 견적 만료</span>` : ''}
+                            ${daysRemaining !== null && daysRemaining <= 3 ? `<span class="badge badge-amber">D-${daysRemaining}</span>` : ''}
                         </div>
                         <span class="font-black text-ink-950 text-sm">₩ ${bid.price.toLocaleString()} 만원</span>
                     </div>
@@ -3371,13 +3401,19 @@ function renderMyPageEstimateDetails(order) {
                                 <span class="text-[10px] font-bold text-roseCustom">삼진아웃으로 제명되어 계약할 수 없어요</span>
                                 <button type="button" onclick="cancelPartnerBid('${order.code}', '${bid.partner}', '파트너 영구 제명으로 인한 자동 취소')" class="btn btn-secondary btn-sm">매칭취소</button>
                             </div>
+                        ` : (isExpiredBid ? `
+                            <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                                <span class="text-[10px] font-bold text-roseCustom">견적 유효기간이 지났어요</span>
+                                <button type="button" onclick="openReportReasonPrompt((reason) => cancelPartnerBid('${order.code}', '${bid.partner}', reason))" class="btn btn-secondary btn-sm">매칭취소</button>
+                                <button type="button" onclick="requestBidReconfirmation('${order.code}', '${bid.partner}')" class="btn btn-dark btn-sm">견적 재확인 요청</button>
+                            </div>
                         ` : `
                             <div class="flex items-center gap-1.5 flex-wrap justify-end">
                                 <button type="button" onclick="openBidQuestionModal('${order.code}', '${bid.partner}')" class="btn btn-ghost btn-sm px-1.5" title="계약 전 궁금한 점 문의하기"><i data-lucide="message-circle-question" class="w-3.5 h-3.5"></i></button>
                                 <button type="button" onclick="openReportReasonPrompt((reason) => cancelPartnerBid('${order.code}', '${bid.partner}', reason))" class="btn btn-secondary btn-sm">매칭취소</button>
                                 <button type="button" onclick="clientFinalizeContract('${order.code}', '${bid.partner}', ${bid.price})" class="btn btn-dark btn-sm">이 파트너와 계약 체결하기</button>
                             </div>
-                        `)}
+                        `))}
                     </div>
                 </div>`;
         });
@@ -3538,7 +3574,8 @@ function triggerRebidding(orderCode) {
             partner: partner.name,
             price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding'
+            verified: true, progress: 'bidding',
+            date: getLocalDateString(), validUntil: computeBidValidUntil()
         });
     });
 
@@ -3593,7 +3630,8 @@ function reopenCancelledOrder(orderCode) {
             partner: partner.name,
             price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding'
+            verified: true, progress: 'bidding',
+            date: getLocalDateString(), validUntil: computeBidValidUntil()
         });
     });
 
@@ -3636,7 +3674,8 @@ function convertOrderToOpenMatching(orderCode) {
             partner: partner.name,
             price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding'
+            verified: true, progress: 'bidding',
+            date: getLocalDateString(), validUntil: computeBidValidUntil()
         });
     });
 
@@ -4855,6 +4894,7 @@ window.syncFormStateUI = syncFormStateUI;
 window.goToClientStep = goToClientStep;
 window.triggerMatchingSim = triggerMatchingSim;
 window.clientFinalizeContract = clientFinalizeContract;
+window.requestBidReconfirmation = requestBidReconfirmation;
 window.cancelPartnerBid = cancelPartnerBid;
 window.openBidQuestionModal = openBidQuestionModal;
 window.buildClientPreBidQnaHtml = buildClientPreBidQnaHtml;
