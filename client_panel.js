@@ -3365,6 +3365,7 @@ function openBidCompareModal(orderCode) {
             { label: '평점', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return `<span class="font-bold text-gold-600">★ ${p ? p.rating.toFixed(1) : '5.0'}</span>`; } },
             { label: '파트너 등급', render: b => (typeof buildPartnerTierBadgeHtml === 'function' && buildPartnerTierBadgeHtml(b.partner)) || '<span class="text-ink-400">-</span>' },
             { label: '안심 인증', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return p && p.isCertified ? `<span class="badge badge-brand">인증</span>` : '-'; } },
+            { label: '안전 이력', render: b => { const p = window.AppState.partners.find(x => x.name === b.partner); return p && p.strikeCount > 0 ? `<span class="badge badge-rose">옐로카드 ${p.strikeCount}회</span>` : `<span class="text-emeraldCustom font-bold">이력 없음</span>`; } },
             { label: '견적 유효기간', render: b => {
                 if (!b.validUntil) return '<span class="text-ink-400">-</span>';
                 return typeof isBidExpired === 'function' && isBidExpired(b) ? `<span class="badge badge-rose">만료됨 (${b.validUntil})</span>` : `<span class="text-ink-600">${b.validUntil}까지</span>`;
