@@ -398,6 +398,24 @@ function escalatePriceChangeToAdmin(orderCode) {
     showToast('매니저 센터에 조정을 요청했습니다.', 'success');
 }
 
+/* 착공일/계약금액 변경 협의는 결렬 시 관리자 조정을 요청할 수 있게 됐는데
+ * (escalateScheduleChangeToAdmin/escalatePriceChangeToAdmin), 동일한 계약 중
+ * 협의 유형인 추가공사 변경계약(submitChangeOrder/respondChangeOrder)만 이
+ * 안전장치가 없었다 — 고객이 응답을 미루거나 서로 합의가 안 돼도 파트너는
+ * 자기 제안을 철회하는 것 외엔(retractChangeOrder) 아무 방법이 없었다. */
+function escalateChangeOrderToAdmin(orderCode, id) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const entry = order && order.changeOrders && order.changeOrders.find(e => e.id === id);
+    if (!entry || entry.status !== 'pending') return;
+    if (entry.escalated) { showToast('이미 관리자에게 조정을 요청했습니다.', 'info'); return; }
+    const isPartnerActor = window.AppState.partnerLoggedIn && !(window.AppState.clientAuth && window.AppState.clientAuth.loggedIn);
+    entry.escalated = true;
+    if (typeof pushLog === 'function') pushLog(isPartnerActor ? 'PARTNER' : 'CLIENT', 'CHANGE_ORDER_ESCALATE', `오더(${orderCode})의 추가공사 변경계약("${entry.description}") 협의에 대해 매니저 조정을 요청했습니다.`, 'WARNING');
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `추가공사 변경계약("${entry.description}") 협의에 대해 매니저 센터의 조정을 요청했어요. 검토 후 안내드릴게요.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `추가공사 변경계약("${entry.description}") 협의에 대해 매니저 센터의 조정을 요청했어요. 검토 후 안내드릴게요.`);
+    showToast('매니저 센터에 조정을 요청했습니다.', 'success');
+}
+
 const MILESTONE_DUE_SOON_DAYS_BEFORE = 2;
 
 /* isMilestoneOverdue/sweepOverduePaymentMilestones는 기한을 이미 넘긴 뒤 파트너에게만
@@ -836,6 +854,7 @@ window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
 window.sweepMilestoneDueSoonReminders = sweepMilestoneDueSoonReminders;
 window.escalateScheduleChangeToAdmin = escalateScheduleChangeToAdmin;
 window.escalatePriceChangeToAdmin = escalatePriceChangeToAdmin;
+window.escalateChangeOrderToAdmin = escalateChangeOrderToAdmin;
 window.getOrInitOrderMessages = getOrInitOrderMessages;
 window.sendOrderMessage = sendOrderMessage;
 window.reportOrderMessage = reportOrderMessage;

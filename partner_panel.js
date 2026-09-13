@@ -2435,7 +2435,7 @@ function buildPartnerChangeOrdersHtml(order) {
         return `<div class="p-2.5 bg-ink-50 rounded-lg space-y-0.5">
             <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-900">${escapeHtml(e.description)}</span><span class="badge ${meta.cls}">${meta.label}</span></div>
             <p class="text-[10px] text-ink-500 font-semibold">추가 금액 +₩${e.extraAmount.toLocaleString()}만원 · 제안일 ${e.proposedDate}</p>
-            ${e.status === 'pending' ? `<button type="button" onclick="retractChangeOrder('${order.code}', '${e.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">제안 철회</button>` : ''}
+            ${e.status === 'pending' ? `<button type="button" onclick="retractChangeOrder('${order.code}', '${e.id}')" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">제안 철회</button>${e.escalated ? `<p class="text-[9px] font-bold text-roseCustom mt-1">매니저 센터에 조정을 요청했어요. 결과를 기다려 주세요.</p>` : `<button type="button" onclick="escalateChangeOrderToAdmin('${order.code}', '${e.id}'); openPartnerOrderDetailModal('${order.code}');" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">협의가 어렵다면 매니저에게 조정 요청</button>`}` : ''}
         </div>`;
     }).join('');
     return `<div class="surface p-5 space-y-2">
@@ -3001,7 +3001,8 @@ function renderAdminDashboard() {
     // escalatePriceChangeToAdmin)도 통합 대기함에는 노출되지만, 대시보드에선 여전히 안 보였다.
     const escalatedNegotiationCount = orders.filter(o =>
         (o.scheduleChangeRequest && o.scheduleChangeRequest.status === 'pending' && o.scheduleChangeRequest.escalated) ||
-        (o.priceChangeRequest && o.priceChangeRequest.status === 'pending' && o.priceChangeRequest.escalated)
+        (o.priceChangeRequest && o.priceChangeRequest.status === 'pending' && o.priceChangeRequest.escalated) ||
+        (o.changeOrders || []).some(e => e.status === 'pending' && e.escalated)
     ).length;
     // 입점 신청 단계의 블랙리스트 대조(submitPartnerSignup)는 새 신청만 막을 뿐,
     // 그 검증이 생기기 전에 이미 승인되어 활동 중인 파트너까지 소급 확인해주지는
@@ -3197,6 +3198,14 @@ function getAllPendingAppeals() {
                 actionsHtml: rejectBtn('반려(기존 금액 유지)', `adminResolvePriceChangeRequest('${o.code}', false)`) + approveBtn('승인(변경 확정)', `adminResolvePriceChangeRequest('${o.code}', true)`)
             });
         }
+        (o.changeOrders || []).forEach(e => {
+            if (e.status === 'pending' && e.escalated) {
+                items.push({
+                    typeLabel: '추가공사 변경계약 조정 요청', subject: `${o.code} · ${e.description} (+₩${e.extraAmount.toLocaleString()}만원)`, reason: e.description, date: e.proposedDate, orderCode: o.code,
+                    actionsHtml: rejectBtn('반려', `adminResolveChangeOrder('${o.code}', '${e.id}', false)`) + approveBtn('승인(계약 반영)', `adminResolveChangeOrder('${o.code}', '${e.id}', true)`)
+                });
+            }
+        });
     });
     (window.AppState.orders || []).forEach(o => {
         (o.messages || []).forEach((m, idx) => {
@@ -3982,6 +3991,31 @@ function adminResolvePriceChangeRequest(orderCode, approve) {
  * 계약 전 입찰 단계에서 특정 파트너의 제안이 허위·위반 소지가 있어도 관리자가
  * 개별 입찰을 무효화할 방법은 없었다 — cancelPartnerBid(client_panel.js)와 동일한
  * excludedPartners 등록 패턴을 관리자 직권 조치로도 열어준다. */
+/* 착공일/계약금액 변경 협의와 동일하게, 추가공사 변경계약(changeOrders)도
+ * 조정 요청(escalateChangeOrderToAdmin)이 들어오면 관리자가 직권으로 승인/반려할
+ * 수 있게 한다. 승인 시 respondChangeOrder의 수락 로직(계약금액 증액 +
+ * 마일스톤 청구 생성)을 그대로 재사용한다. */
+function adminResolveChangeOrder(orderCode, id, approve) {
+    const order = (window.AppState.orders || []).find(o => o.code === orderCode);
+    const entry = order && order.changeOrders && order.changeOrders.find(e => e.id === id);
+    if (!entry || entry.status !== 'pending') return;
+    entry.status = approve ? 'accepted' : 'rejected';
+    entry.resolvedDate = getLocalDateString();
+
+    if (approve) {
+        order.finalPrice = (order.finalPrice || 0) + entry.extraAmount;
+        const milestones = getOrInitPaymentMilestones(order);
+        milestones.push({ key: `change-${entry.id}`, label: `추가공사비 (${entry.description})`, fixedAmount: entry.extraAmount, status: 'pending', requestedDate: null, paidDate: null, dueDate: null });
+    }
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CHANGE_ORDER_FORCE_RESOLVE', `[추가공사 변경계약 직권 ${approve ? '승인' : '반려'}] 오더 ${order.code}의 변경계약("${entry.description}")을 매니저가 직권으로 ${approve ? `승인 처리했습니다 (+₩${entry.extraAmount.toLocaleString()}만원)` : '반려했습니다'}.`, 'WARNING');
+    const msg = `추가공사 변경계약("${entry.description}")이 매니저 센터 직권으로 ${approve ? `승인되어 계약 금액에 반영되었습니다 (+₩${entry.extraAmount.toLocaleString()}만원)` : '반려되었습니다'}.`;
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, msg);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, msg);
+    showToast(`추가공사 변경계약을 매니저 직권으로 ${approve ? '승인' : '반려'}했습니다.`, 'success');
+    searchOrderLookup();
+}
+
 function adminInvalidateBid(orderCode, partnerName, reason) {
     const order = (window.AppState.orders || []).find(o => o.code === orderCode);
     if (!order || order.status !== 'bidding') { showToast('입찰 심사중 상태의 오더만 개별 입찰을 무효화할 수 있어요.', 'warning'); return; }
@@ -7912,6 +7946,7 @@ window.adminDismissRepairClaimEscalation = adminDismissRepairClaimEscalation;
 window.adminApproveRepairClaimEscalation = adminApproveRepairClaimEscalation;
 window.adminResolveScheduleChangeRequest = adminResolveScheduleChangeRequest;
 window.adminResolvePriceChangeRequest = adminResolvePriceChangeRequest;
+window.adminResolveChangeOrder = adminResolveChangeOrder;
 window.adminApproveClientReportAppeal = adminApproveClientReportAppeal;
 window.adminApproveClientSuspensionAppeal = adminApproveClientSuspensionAppeal;
 window.adminRejectClientSuspensionAppeal = adminRejectClientSuspensionAppeal;

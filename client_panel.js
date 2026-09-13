@@ -1155,7 +1155,7 @@ function buildClientChangeOrdersHtml(order) {
             return `<div class="p-2.5 bg-ink-50 rounded-lg space-y-1">
                 <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-900">${escapeHtml(e.description)}</span><span class="badge ${meta.cls}">${meta.label}</span></div>
                 <p class="text-[10px] text-ink-500 font-semibold">추가 금액 +₩${e.extraAmount.toLocaleString()}만원 · 제안일 ${e.proposedDate}</p>
-                ${e.status === 'pending' ? `<div class="flex gap-1.5 mt-1"><button type="button" onclick="respondChangeOrder('${order.code}', '${e.id}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondChangeOrder('${order.code}', '${e.id}', false)" class="btn btn-secondary btn-sm flex-1">거절</button></div>` : ''}
+                ${e.status === 'pending' ? `<div class="flex gap-1.5 mt-1"><button type="button" onclick="respondChangeOrder('${order.code}', '${e.id}', true)" class="btn btn-dark btn-sm flex-1">수락</button><button type="button" onclick="respondChangeOrder('${order.code}', '${e.id}', false)" class="btn btn-secondary btn-sm flex-1">거절</button></div>${e.escalated ? `<p class="text-[9px] font-bold text-roseCustom mt-1">매니저 센터에 조정을 요청했어요. 결과를 기다려 주세요.</p>` : `<button type="button" onclick="escalateChangeOrderToAdmin('${order.code}', '${e.id}'); selectMyPageEstimate('${order.code}');" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">협의가 어렵다면 매니저에게 조정 요청</button>`}` : ''}
             </div>`;
         }).join('')}</div>
     </div>`;
