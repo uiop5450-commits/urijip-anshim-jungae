@@ -2221,6 +2221,14 @@
             <div class="space-y-3">
                 <p class="text-[11px] text-ink-500 font-medium leading-relaxed">고객에게 전달될 처리 안내 내용을 입력해주세요.</p>
                 <textarea id="repair-claim-response-input" rows="4" placeholder="예: 담당 기사가 2일 내로 방문하여 확인할 예정입니다." class="textarea"></textarea>
+                <div id="repair-claim-response-photo-section" class="hidden space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="field-label mb-0">처리 완료 사진 첨부 (선택, 최대 4장)</label>
+                        <button type="button" onclick="document.getElementById('repair-claim-response-photo-file').click()" class="btn btn-secondary btn-sm"><i data-lucide="image-plus" class="w-3.5 h-3.5"></i> 사진 추가</button>
+                        <input type="file" id="repair-claim-response-photo-file" accept="image/*" multiple class="hidden" onchange="handleRepairClaimResponsePhotoUpload(this)">
+                    </div>
+                    <div id="repair-claim-response-photo-preview-grid" class="grid grid-cols-4 gap-2 pt-1"></div>
+                </div>
                 <button type="button" id="repair-claim-response-submit-btn" onclick="submitRepairClaimResponse()" class="btn btn-primary btn-block">처리 시작으로 등록</button>
             </div>
         </div>

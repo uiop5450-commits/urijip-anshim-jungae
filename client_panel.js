@@ -1205,6 +1205,7 @@ function buildRepairClaimsHtml(order) {
             ${(c.photos || []).length > 0 ? `<div class="flex gap-1.5 pt-0.5">${c.photos.map(src => `<img src="${src}" class="w-12 h-12 object-cover rounded-lg border border-ink-100 cursor-pointer" onclick="window.open('${src}', '_blank')">`).join('')}</div>` : ''}
             <p class="text-[9px] text-ink-400 font-semibold">신청일: ${c.createdDate}</p>
             ${c.partnerResponse ? `<p class="text-[10px] text-brand-600 font-bold leading-relaxed mt-1">파트너 안내: ${escapeHtml(c.partnerResponse)}</p>` : ''}
+            ${(c.responsePhotos || []).length > 0 ? `<div class="flex gap-1.5 pt-0.5">${c.responsePhotos.map(src => `<img src="${src}" class="w-12 h-12 object-cover rounded-lg border border-brand-200 cursor-pointer" onclick="window.open('${src}', '_blank')">`).join('')}</div>` : ''}
             ${c.resolvedDate ? `<p class="text-[9px] text-ink-400 font-semibold">처리 완료일: ${c.resolvedDate}</p>` : ''}
             ${c.visitStatus === 'proposed' ? `<div class="p-2 bg-amber-50 rounded-lg space-y-1 mt-1">
                 <p class="text-[10px] font-black text-amberCustom">파트너가 방문 일정을 제안했어요: ${c.visitDate}</p>

@@ -5747,6 +5747,7 @@ function buildPartnerRepairClaimsHtml(order) {
                 ${(c.photos || []).length > 0 ? `<div class="flex gap-1.5 pt-0.5">${c.photos.map(src => `<img src="${src}" class="w-14 h-14 object-cover rounded-lg border border-ink-100 cursor-pointer" onclick="window.open('${src}', '_blank')">`).join('')}</div>` : ''}
                 <p class="text-[9px] text-ink-400 font-semibold">신청일: ${c.createdDate}</p>
                 ${c.partnerResponse ? `<p class="text-[10px] text-brand-700 font-semibold leading-relaxed pl-3 border-l-2 border-brand-200">${escapeHtml(c.partnerResponse)}</p>` : ''}
+                ${(c.responsePhotos || []).length > 0 ? `<div class="flex gap-1.5 pt-0.5">${c.responsePhotos.map(src => `<img src="${src}" class="w-14 h-14 object-cover rounded-lg border border-brand-200 cursor-pointer" onclick="window.open('${src}', '_blank')">`).join('')}</div>` : ''}
                 ${(c.status !== 'completed' && c.status !== 'rejected') ? `<div class="p-2 bg-white rounded-lg border border-ink-100 space-y-1">
                     ${c.visitStatus === 'proposed' ? `<p class="text-[10px] font-black text-amberCustom">방문 일정 제안함: ${c.visitDate} (고객 확인 대기중)</p>`
                         : c.visitStatus === 'confirmed' ? `<p class="text-[10px] font-black text-emeraldCustom">방문 일정 확정됨: ${c.visitDate}</p><div class="flex items-center gap-2 mt-0.5"><button type="button" onclick="completeRepairVisit('${order.code}', '${c.id}')" class="btn btn-dark btn-sm">방문 완료 처리</button><button type="button" onclick="downloadVisitCalendarFile('하자보수 방문: ${escapeHtml(c.title)} (${order.code})', '${escapeHtml(c.description)}', '${c.visitDate}')" class="text-[9px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0"><i data-lucide="calendar-plus" class="w-3 h-3 inline"></i> 캘린더에 추가</button></div>`
@@ -5844,12 +5845,57 @@ function openRepairClaimResponseModal(orderCode, claimId, newStatus) {
     safeUpdateText('repair-claim-response-modal-title', titleMap[newStatus] || titleMap.in_progress);
     safeUpdateText('repair-claim-response-submit-btn', btnMap[newStatus] || btnMap.in_progress);
     safeUpdateValue('repair-claim-response-input', '');
+    // 완료 처리(completed)일 때만 "처리 완료 사진"이 의미가 있다 — 반려/처리시작
+    // 단계에서는 아직 보여줄 결과물이 없으므로 숨긴다.
+    document.getElementById('repair-claim-response-photo-section')?.classList.toggle('hidden', newStatus !== 'completed');
+    window.AppState.repairClaimResponsePhotoDrafts = [];
+    renderRepairClaimResponsePhotoPreview();
     openModal('repair-claim-response-modal', 'repair-claim-response-modal-card');
 }
 
 function closeRepairClaimResponseModal() {
     _repairClaimResponseTarget = null;
     closeModal('repair-claim-response-modal', 'repair-claim-response-modal-card');
+}
+
+/* 고객은 하자보수 신청 시 사진(하자 증거)을 첨부할 수 있게 됐는데, 파트너가
+ * 처리 완료로 등록할 때는 여전히 텍스트 안내뿐이라 실제로 고치긴 한 건지
+ * 확인할 방법이 없었다 — 완료 처리에 이의제기(disputeCompletedRepairClaim)가
+ * 이미 있는 상황에서, "처리 후" 사진이 있으면 그 이의제기를 훨씬 공정하게
+ * 판단할 수 있다. 동일한 FileReader 첨부 패턴을 그대로 재사용한다. */
+const MAX_REPAIR_CLAIM_RESPONSE_PHOTOS = 4;
+
+function renderRepairClaimResponsePhotoPreview() {
+    const grid = document.getElementById('repair-claim-response-photo-preview-grid');
+    if (!grid) return;
+    const drafts = window.AppState.repairClaimResponsePhotoDrafts || [];
+    grid.innerHTML = drafts.map((src, idx) => `
+        <div class="relative aspect-square rounded-xl overflow-hidden border border-ink-100 bg-ink-50">
+            <img src="${src}" class="w-full h-full object-cover">
+            <button type="button" onclick="removeRepairClaimResponsePhotoDraft(${idx})" class="absolute top-1 right-1 w-5 h-5 bg-ink-950/70 text-white flex items-center justify-center" aria-label="사진 삭제"><i data-lucide="x" class="w-3 h-3"></i></button>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function removeRepairClaimResponsePhotoDraft(idx) {
+    window.AppState.repairClaimResponsePhotoDrafts.splice(idx, 1);
+    renderRepairClaimResponsePhotoPreview();
+}
+
+function handleRepairClaimResponsePhotoUpload(input) {
+    if (!input.files || input.files.length === 0) return;
+    if (!window.AppState.repairClaimResponsePhotoDrafts) window.AppState.repairClaimResponsePhotoDrafts = [];
+    const remaining = MAX_REPAIR_CLAIM_RESPONSE_PHOTOS - window.AppState.repairClaimResponsePhotoDrafts.length;
+    if (input.files.length > remaining) showToast(`사진은 최대 ${MAX_REPAIR_CLAIM_RESPONSE_PHOTOS}장까지 첨부할 수 있어요. (${input.files.length - remaining}장은 담기지 않았어요)`, 'warning');
+    Array.from(input.files).slice(0, remaining).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            window.AppState.repairClaimResponsePhotoDrafts.push(e.target.result);
+            renderRepairClaimResponsePhotoPreview();
+        };
+        reader.readAsDataURL(file);
+    });
+    input.value = '';
 }
 
 function submitRepairClaimResponse() {
@@ -5865,7 +5911,9 @@ function submitRepairClaimResponse() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     claim.status = newStatus;
     claim.partnerResponse = response;
+    if (newStatus === 'completed') claim.responsePhotos = (window.AppState.repairClaimResponsePhotoDrafts || []).slice();
     if (newStatus === 'completed' || newStatus === 'rejected') claim.resolvedDate = getLocalDateString();
+    window.AppState.repairClaimResponsePhotoDrafts = [];
 
     const statusLabel = newStatus === 'completed' ? '처리 완료' : newStatus === 'rejected' ? '반려' : '처리 시작';
     if (typeof pushLog === 'function') pushLog('PARTNER', 'REPAIR_CLAIM_UPDATE', `[${partnerName}]가 하자보수 신청("${claim.title}")을 ${statusLabel} 처리했습니다.`, newStatus === 'rejected' ? 'WARNING' : 'INFO');
@@ -7679,6 +7727,9 @@ window.buildPartnerRepairClaimsHtml = buildPartnerRepairClaimsHtml;
 window.openRepairClaimResponseModal = openRepairClaimResponseModal;
 window.closeRepairClaimResponseModal = closeRepairClaimResponseModal;
 window.submitRepairClaimResponse = submitRepairClaimResponse;
+window.renderRepairClaimResponsePhotoPreview = renderRepairClaimResponsePhotoPreview;
+window.removeRepairClaimResponsePhotoDraft = removeRepairClaimResponsePhotoDraft;
+window.handleRepairClaimResponsePhotoUpload = handleRepairClaimResponsePhotoUpload;
 window.openPartnerScheduleChangeModal = openPartnerScheduleChangeModal;
 window.closePartnerScheduleChangeModal = closePartnerScheduleChangeModal;
 window.submitPartnerScheduleChangeRequest = submitPartnerScheduleChangeRequest;
