@@ -1984,12 +1984,16 @@ function renderPartnerContractsView() {
     const rowsHtml = myOrders.length > 0 ? myOrders.map(o => {
         const myBid = o.bids.find(b => b.partner === partnerName);
         const statusKey = getPartnerOrderStatusKey(o, partnerName);
+        // 지금까지는 고객이 계약을 체결하려다 막혀야만(clientFinalizeContract) 파트너가
+        // 자기 견적의 유효기간이 지난 걸 알 수 있었다 — 고객의 행동을 기다리지 않고
+        // 입찰 심사중 목록에서 바로 확인하고 미리 재확인(editPartnerBid)할 수 있게 한다.
+        const isMyBidExpired = statusKey === 'bidding' && myBid && typeof isBidExpired === 'function' && isBidExpired(myBid);
         const statusBadge = statusKey === 'contracted_mine' ? `<span class="badge badge-emerald">계약 체결</span>`
             : statusKey === 'contracted_other' ? `<span class="badge badge-neutral">타사 계약</span>`
             : statusKey === 'withdrawn' ? `<span class="badge badge-rose">고객 철회</span>`
             : statusKey === 'cancel_requested' ? `<span class="badge badge-amber">계약 취소 심사중</span>`
             : statusKey === 'cancelled' ? `<span class="badge badge-rose">계약 취소됨</span>`
-            : `<span class="badge badge-amber">입찰 심사중</span>`;
+            : `<span class="badge badge-amber">입찰 심사중</span>${isMyBidExpired ? ` <span class="badge badge-rose"><i data-lucide="clock" class="w-2.5 h-2.5"></i> 견적 만료</span>` : ''}`;
         // 이 목록에 뜨는 오더는 전부 우리가 이미 입찰에 참여한 건이므로(이미 안심 잠금해제 대상),
         // selectOrderForAudit()의 "입찰 참여 시 개인정보 잠금해제" 규칙과 동일하게 고객명을 가리지 않는다.
         const unreadCount = typeof getUnreadOrderMessageCount === 'function' ? getUnreadOrderMessageCount(o, 'partner') : 0;
