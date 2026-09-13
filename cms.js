@@ -2121,7 +2121,9 @@ function renderPortfolioQnaSection(partnerName, idx) {
             <div class="flex justify-between items-start gap-2">
                 <p class="text-xs text-ink-700 font-semibold leading-relaxed"><i data-lucide="help-circle" class="w-3 h-3 inline text-ink-400"></i> ${escapeHtml(q.text)} <span class="text-[10px] text-ink-400 font-bold">(${q.date})</span></p>
                 ${isMine && !q.reply
-                    ? `<button type="button" onclick="deleteMyPortfolioQuestion('${escapeHtml(partnerName)}', ${idx}, ${qIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>`
+                    ? ((q.reportedBy || []).length > 0
+                        ? `<span class="text-[10px] font-bold text-roseCustom shrink-0">신고 심사중</span>`
+                        : `<button type="button" onclick="deleteMyPortfolioQuestion('${escapeHtml(partnerName)}', ${idx}, ${qIdx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">삭제</button>`)
                     : (!isMine && myId ? `<button type="button" onclick="${isReported ? `showToast('이미 신고한 문의입니다.', 'info')` : `openReportReasonPrompt((reason) => reportPortfolioQuestion('${escapeHtml(partnerName)}', ${idx}, ${qIdx}, reason))`}" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 shrink-0">${isReported ? '신고됨' : '신고'}</button>` : '')}
             </div>
             ${q.reply
@@ -2196,6 +2198,13 @@ function deleteMyPortfolioQuestion(partnerName, idx, questionIdx) {
     const question = port && port.questions && port.questions[questionIdx];
     if (!question || !auth || question.authorId !== auth.id) return;
     if (question.reply) { showToast('이미 답변이 등록된 문의는 삭제할 수 없어요.', 'warning'); return; }
+    // 후기/커뮤니티 글·댓글·답글과 동일한 이유로, 신고가 접수되어 관리자 심사
+    // 대기 중인 문의를 작성자가 스스로 지워버리면 adminDeletePortfolioQuestion/
+    // dismissPortfolioQuestionReport가 심사할 증거가 사라진다.
+    if ((question.reportedBy || []).length > 0) {
+        showToast('신고가 접수되어 심사 중인 문의는 삭제할 수 없어요.', 'warning');
+        return;
+    }
 
     port.questions.splice(questionIdx, 1);
     showToast('문의를 삭제했습니다.', 'info');
