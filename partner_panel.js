@@ -1451,6 +1451,44 @@ function isClientBlockingPartner(clientPhone, partnerName) {
     return !!(account && account.blockedPartners && account.blockedPartners.includes(partnerName));
 }
 
+/* 고객의 개명(cascadeClientNameChange, client_panel.js)은 orders/clientRatings/
+ * clientReports/supportTickets/communityPosts/partner.reviews/favoriteClients/
+ * blockedClients까지 전부 전파하는데, 파트너는 지금까지 업체명을 스스로 바꿀
+ * 방법 자체가 없었다(updatePartnerName). partner.name은 client.name보다 훨씬
+ * 많은 곳에서 문자열 그대로 외래키처럼 쓰이므로(수급 오더의 acceptedPartner/
+ * bids/excludedPartners, 고객의 관심·차단 목록, 평가·신고·문의·1:1 쪽지 스레드,
+ * 히어로 노출 수동 지정까지) 같은 패턴으로 전체 전파 함수를 둔다. */
+function cascadePartnerNameChange(oldName, newName) {
+    if (oldName === newName) return;
+    (window.AppState.orders || []).forEach(o => {
+        if (o.acceptedPartner === oldName) o.acceptedPartner = newName;
+        (o.bids || []).forEach(b => { if (b.partner === oldName) b.partner = newName; });
+        if (o.excludedPartners) {
+            const idx = o.excludedPartners.indexOf(oldName);
+            if (idx >= 0) o.excludedPartners[idx] = newName;
+        }
+    });
+    (window.AppState.clientAccounts || []).forEach(acc => {
+        if (acc.favoritePartners) {
+            const idx = acc.favoritePartners.indexOf(oldName);
+            if (idx >= 0) acc.favoritePartners[idx] = newName;
+        }
+        if (acc.blockedPartners) {
+            const idx = acc.blockedPartners.indexOf(oldName);
+            if (idx >= 0) acc.blockedPartners[idx] = newName;
+        }
+    });
+    (window.AppState.clientRatings || []).forEach(r => { if (r.partnerName === oldName) r.partnerName = newName; });
+    (window.AppState.partnerNotifications || []).forEach(n => { if (n.partnerName === oldName) n.partnerName = newName; });
+    (window.AppState.clientReports || []).forEach(r => { if (r.reportedByPartner === oldName) r.reportedByPartner = newName; });
+    (window.AppState.supportTickets || []).forEach(t => { if (t.role === 'partner' && t.partnerName === oldName) t.partnerName = newName; });
+    (window.AppState.featuredPartners || []).forEach(item => { if (item.partnerName === oldName) item.partnerName = newName; });
+    (window.AppState.directMessageThreads || []).forEach(t => {
+        if (t.type === 'partner' && t.identifier === oldName) { t.identifier = newName; t.displayName = newName; }
+    });
+    if (window.AppState.partnerName === oldName) window.AppState.partnerName = newName;
+}
+
 /* 고객이 회원 탈퇴(confirmAccountDeletion, client_panel.js — 진행 중인 계약이 있으면
  * 막히지만 아직 계약 전인 입찰 심사중 오더는 막지 않는다)해도, 파트너 쪽 즉시입찰
  * 목록·계약현황엔 아무 표시 없이 그대로 남아 있어 파트너가 시간을 들여 입찰을

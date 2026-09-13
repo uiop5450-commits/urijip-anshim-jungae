@@ -1041,6 +1041,7 @@ function renderPartnerProfileManager() {
     renderPartnerMyReviews(partner);
     if (typeof renderPartnerBlockedCommunityUsersList === 'function') renderPartnerBlockedCommunityUsersList();
     if (typeof renderPartnerStaffAccountsList === 'function') renderPartnerStaffAccountsList();
+    safeUpdateValue('partner-account-edit-name', partner.name || '');
     safeUpdateValue('partner-account-edit-region', partner.region || '');
     safeUpdateValue('partner-account-edit-bizfile', partner.bizFile || '');
     safeUpdateValue('partner-account-edit-phone', partner.phone || '');
@@ -1058,6 +1059,33 @@ function renderPartnerProfileManager() {
  * 신규 가입 파트너는 region이 계속 비어있어 지역별 검색/필터(고객 탐색 페이지,
  * 관리자 모니터링 보드 모두)에 영원히 노출되지 않는 공백이 있었다 — 계정 설정에서
  * 직접 지정/수정할 수 있게 한다. */
+/* 고객은 마이인포에서 이름을 자유롭게 바꿀 수 있고 cascadeClientNameChange가
+ * 전 영역에 전파하는데(client_panel.js), 파트너는 업체명을 스스로 바꿀 방법이
+ * 전혀 없었다 — 상호 변경(법인 전환, 상호 리브랜딩 등) 시 재입점 신청밖에는
+ * 방법이 없는 공백이었다. 사업자등록번호 변경(updatePartnerBizFile)과 동일한
+ * 검증·권한 패턴을 따르고, 실제 전파는 cascadePartnerNameChange(partner_panel.js)에
+ * 맡긴다. */
+function updatePartnerName() {
+    if (blockIfPartnerStaffLogin()) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    const nameVal = document.getElementById('partner-account-edit-name')?.value.trim();
+    if (!nameVal) { showToast('업체명을 입력해 주세요.', 'warning'); return; }
+    if (/['"`<>\\]/.test(nameVal)) { showToast('업체명에는 따옴표(\', "), 백틱(`), 꺾쇠(<, >), 백슬래시(\\)를 사용할 수 없습니다.', 'warning'); return; }
+    if (window.AppState.partners.some(p => p !== partner && p.name === nameVal)) { showToast('이미 사용 중인 업체명입니다.', 'warning'); return; }
+    if (nameVal === partner.name) return;
+
+    const oldName = partner.name;
+    partner.name = nameVal;
+    if (typeof cascadePartnerNameChange === 'function') cascadePartnerNameChange(oldName, nameVal);
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'NAME_UPDATE', `[${oldName}] 파트너사가 업체명을 '${nameVal}'(으)로 변경했습니다.`, 'WARNING');
+    showToast('업체명이 변경되었습니다.', 'success');
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+    if (typeof renderPartnerConsolePortfolios === 'function') renderPartnerConsolePortfolios();
+}
+
 function updatePartnerRegion() {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
@@ -2466,6 +2494,7 @@ window.renderPartnerMyReviews = renderPartnerMyReviews;
 window.updatePartnerPhone = updatePartnerPhone;
 window.updatePartnerRegion = updatePartnerRegion;
 window.updatePartnerBizFile = updatePartnerBizFile;
+window.updatePartnerName = updatePartnerName;
 window.togglePartnerPauseStatus = togglePartnerPauseStatus;
 window.renderPartnerNotificationPrefToggle = renderPartnerNotificationPrefToggle;
 window.openStrikeAppealModal = openStrikeAppealModal;

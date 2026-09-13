@@ -948,7 +948,9 @@
                     <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
                         <div class="space-y-4">
                             <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="map-pin" class="w-4 h-4 text-brand-500"></i> 사업 정보 수정</h4>
-                            <div><label class="field-label">활동 지역 (부산)</label>
+                            <div><label class="field-label">업체명</label><input type="text" id="partner-account-edit-name" placeholder="업체명" class="input"></div>
+                            <button type="button" onclick="updatePartnerName()" class="btn btn-secondary btn-sm">업체명 저장</button>
+                            <div class="pt-2"><label class="field-label">활동 지역 (부산)</label>
                                 <select id="partner-account-edit-region" class="input">
                                     <option value="">지역 선택 안 함</option>
                                     <option value="강서구">강서구</option><option value="금정구">금정구</option><option value="기장군">기장군</option>
