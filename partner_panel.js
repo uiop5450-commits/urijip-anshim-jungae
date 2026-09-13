@@ -2909,6 +2909,9 @@ function exportPartnerListToCsv() {
 /* 파트너 목록 CSV 내보내기와 동일한 패턴으로, 새로 추가된 고객 관리 탭의 목록도
  * 오프라인 검토·보관용으로 내려받을 수 있게 한다. */
 function exportClientListToCsv() {
+    // sweepExpiredManagerRoles가 지금까지 매니저 로그인/직원 관리 탭에서만 호출되어,
+    // 임시 권한이 만료된 계정이 이 내보내기에서 계속 "고객"에서 제외되고 있었다.
+    if (typeof sweepExpiredManagerRoles === 'function') sweepExpiredManagerRoles();
     const clients = (window.AppState.clientAccounts || []).filter(a => !a.managerRole);
     if (clients.length === 0) { showToast('내보낼 고객이 없습니다.', 'warning'); return; }
 
@@ -2957,6 +2960,7 @@ function recalculateKPIs() {
 function renderAdminDashboard() {
     const container = document.getElementById('admin-dashboard-content');
     if (!container) return;
+    if (typeof sweepExpiredManagerRoles === 'function') sweepExpiredManagerRoles();
 
     const orders = window.AppState.orders || [];
     const partners = window.AppState.partners || [];
@@ -4570,6 +4574,7 @@ function setAdminClientStatusFilter(key) {
 function renderAdminClientManager() {
     const container = document.getElementById('admin-client-manager-list');
     if (!container) return;
+    if (typeof sweepExpiredManagerRoles === 'function') sweepExpiredManagerRoles();
     const query = (document.getElementById('admin-client-search-input')?.value || '').trim().toLowerCase();
 
     const allClients = (window.AppState.clientAccounts || []).filter(a => !a.managerRole);
@@ -6434,6 +6439,7 @@ function computePartnerMetrics(partnerName) {
  * toggleFavoriteClient)과는 정반대 방향의 데이터다. 이미 관심을 보인 고객을
  * 바로 단골로 전환할 수 있게 한다. */
 function getPartnerFavoritedByClients(partnerName) {
+    if (typeof sweepExpiredManagerRoles === 'function') sweepExpiredManagerRoles();
     return (window.AppState.clientAccounts || [])
         .filter(a => !a.managerRole && (a.favoritePartners || []).includes(partnerName))
         .map(a => ({ id: a.id, name: a.name, phone: a.phone }));
