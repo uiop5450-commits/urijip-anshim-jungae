@@ -5160,7 +5160,7 @@ function renderAdminPartnerMonitor() {
                     <button type="button" onclick="openAdminDirectMessageModal('partner', '${escapeHtml(p.name)}')" class="btn btn-secondary btn-sm relative"><i data-lucide="send" class="w-3 h-3"></i> 쪽지 보내기${hasUnreadDmReply('partner', p.name) ? `<span class="badge badge-rose absolute -top-2 -right-2 px-1.5">답장</span>` : ''}</button>
                 </div>
                 <div class="flex items-center gap-1.5">
-                    <button type="button" onclick="togglePartnerCertification('${p.name}')" class="btn btn-secondary btn-sm">${p.isCertified ? '인증 해제' : '인증 부여'}</button>
+                    <button type="button" onclick="${p.isCertified ? `openReportReasonPrompt((reason) => togglePartnerCertification('${p.name}', reason))` : `togglePartnerCertification('${p.name}')`}" class="btn btn-secondary btn-sm">${p.isCertified ? '인증 해제' : '인증 부여'}</button>
                     ${isWarning ? `<button type="button" onclick="resetPartnerStrikes('${p.name}')" class="btn btn-secondary btn-sm">경고 리셋</button>` : ''}
                     ${!isBanned && !isClosed ? `<button type="button" onclick="openReportReasonPrompt((reason) => issuePartnerStrike('${p.name}', reason))" class="btn btn-secondary btn-sm">+ 옐로카드</button>` : ''}
                     ${!isBanned && !isClosed ? `<button type="button" onclick="togglePartnerSuspension('${p.name}')" class="btn ${p.isSuspended ? 'btn-dark' : 'btn-secondary'} btn-sm">${p.isSuspended ? '정지 해제' : '일시 정지'}</button>` : ''}
@@ -6788,7 +6788,7 @@ function adminRejectStrikeAppeal(partnerName, reason) {
  * 실제 자격증·면허 갱신 없이도 인증이 평생 유지되는 공백이 있었다 — 매니저 권한
  * 만료(sweepExpiredManagerRoles)와 동일하게 접근 시점에 만료를 검사해 자동
  * 회수하고, 파트너가 직접 갱신을 요청할 수 있게 한다. */
-function togglePartnerCertification(partnerName) {
+function togglePartnerCertification(partnerName, reason) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner) return;
     if (!partner.isCertified) {
@@ -6798,6 +6798,10 @@ function togglePartnerCertification(partnerName) {
     partner.isCertified = false;
     partner.certExpiryDate = null;
     partner.certRenewalRequested = false;
+    partner.certRevocationReason = reason || '사유 미기재';
+    partner.certRevokedDate = getLocalDateString();
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'CERT_REVOKE', `'${partnerName}' 파트너사의 안심 인증을 해제했습니다. 사유: ${partner.certRevocationReason}`, 'WARNING');
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `안심 인증이 해제되었습니다. 사유: ${partner.certRevocationReason}`);
     showToast(`[${partnerName}] 파트너사의 안심 인증이 해제되었습니다.`, "info");
     renderAdminPartnerMonitor();
     if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
@@ -6829,6 +6833,7 @@ function submitPartnerCertGrant() {
     partner.certExpiryDate = expiryDate;
     partner.certRenewalRequested = false;
     partner.certApplicationRequested = false;
+    partner.certRevocationReason = null;
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'CERT_GRANT', `'${partner.name}' 파트너사에 안심 인증을 부여했습니다. (만료일: ${expiryDate})`, 'SUCCESS');
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `안심 인증이 부여되었습니다. (만료일: ${expiryDate})`);

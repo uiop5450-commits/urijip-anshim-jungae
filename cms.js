@@ -931,9 +931,12 @@ function renderPartnerCertStatus(partner) {
         // push하는 방식뿐이었다 — 한 번도 인증받은 적 없는 파트너 본인은 인증을
         // 원해도 신청할 방법이 전혀 없어 관리자가 알아챌 때까지 기다리는 수밖에 없었다.
         // 갱신 요청(requestPartnerCertRenewal)과 동일한 패턴으로 신청 경로를 둔다.
+        const revokedNoticeHtml = partner.certRevocationReason ? `<p class="text-[10px] font-bold text-roseCustom mb-1">안심 인증이 해제되었습니다${partner.certRevokedDate ? ` (${partner.certRevokedDate})` : ''}. 사유: ${escapeHtml(partner.certRevocationReason)}</p>` : '';
+        const rejectedNoticeHtml = partner.certRequestRejection ? `<p class="text-[10px] font-bold text-roseCustom mb-1">인증 신청이 반려되었습니다. 사유: ${escapeHtml(partner.certRequestRejection.reason || '')}</p>` : '';
+        const idleNoticeHtml = (revokedNoticeHtml || rejectedNoticeHtml) ? '' : `<p class="text-[11px] text-ink-400 font-semibold mb-1">현재 안심 인증 대상이 아닙니다.</p>`;
         container.innerHTML = partner.certApplicationRequested
-            ? `<p class="text-[10px] font-bold text-brand-600">인증 신청 접수됨 — 매니저 센터 검토 중입니다.</p>`
-            : `${partner.certRequestRejection ? `<p class="text-[10px] font-bold text-roseCustom mb-1">인증 신청이 반려되었습니다. 사유: ${escapeHtml(partner.certRequestRejection.reason || '')}</p>` : `<p class="text-[11px] text-ink-400 font-semibold mb-1">현재 안심 인증 대상이 아닙니다.</p>`}<button type="button" onclick="requestPartnerCertApplication()" class="btn btn-secondary btn-sm">안심 인증 ${partner.certRequestRejection ? '재신청' : '신청'}</button>`;
+            ? `${revokedNoticeHtml}${rejectedNoticeHtml}<p class="text-[10px] font-bold text-brand-600">인증 신청 접수됨 — 매니저 센터 검토 중입니다.</p>`
+            : `${revokedNoticeHtml}${rejectedNoticeHtml}${idleNoticeHtml}<button type="button" onclick="requestPartnerCertApplication()" class="btn btn-secondary btn-sm">안심 인증 ${(partner.certRequestRejection || partner.certRevocationReason) ? '재신청' : '신청'}</button>`;
         return;
     }
     const today = getLocalDateString();
