@@ -1002,6 +1002,7 @@ function cancelPartnerSupportTicket(ticketId) {
     const ticket = window.AppState.supportTickets[idx];
     if (ticket.partnerName !== partnerName) return;
     if (ticket.status !== 'open' || (ticket.followUps && ticket.followUps.length > 0)) { showToast('이미 답변이 등록된 문의는 취소할 수 없어요.', 'warning'); return; }
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'SUPPORT_CANCEL', `[${partnerName}]가 문의(${ticket.subject})를 취소했습니다.`, 'INFO');
     window.AppState.supportTickets.splice(idx, 1);
     showToast('문의가 취소되었습니다.', 'info');
     renderMyPartnerSupportTickets();
