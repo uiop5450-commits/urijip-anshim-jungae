@@ -1734,7 +1734,9 @@ function submitClientSignup() {
     if (/['"`<>\\]/.test(nameVal)) { showToast("성함에는 따옴표, 백틱, 꺾쇠, 백슬래시를 사용할 수 없습니다.", "warning"); return; }
     if (pwVal !== pw2Val) { showToast("비밀번호가 일치하지 않습니다.", "warning"); return; }
     if (window.AppState.clientAccounts.some(acc => acc.id === idVal)) { showToast("이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.", "warning"); return; }
-    if (window.AppState.clientAccounts.some(acc => acc.phone === phoneVal)) { showToast("이미 가입된 휴대폰 번호입니다. 아이디를 잊으셨다면 고객센터에 문의해 주세요.", "warning"); return; }
+    // 탈퇴(status==='withdrawn')한 계정의 번호까지 영구히 막아버리면, 정당하게
+    // 탈퇴했던 사람이 같은 번호로는 다시는 가입할 수 없는 문제가 생긴다.
+    if (window.AppState.clientAccounts.some(acc => acc.phone === phoneVal && acc.status !== 'withdrawn')) { showToast("이미 가입된 휴대폰 번호입니다. 아이디를 잊으셨다면 고객센터에 문의해 주세요.", "warning"); return; }
 
     // 추천인 아이디는 선택 입력이라, 존재하지 않거나 자기 자신을 적어도 가입 자체를
     // 막지는 않는다 — 조용히 무시하고 정상 가입만 진행한다.

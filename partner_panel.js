@@ -1294,7 +1294,10 @@ function submitPartnerSignup() {
     if (bizNum.replace(/[^0-9]/g, '').length !== 10) { showToast('사업자등록번호 10자리를 올바르게 입력해 주세요. (예: 000-00-00000)', 'warning'); return; }
     if (pwVal !== pw2Val) { showToast('비밀번호가 일치하지 않습니다.', 'warning'); return; }
     if (window.AppState.partners.some(p => p.id === idVal)) { showToast('이미 사용 중인 아이디입니다. 다른 아이디를 입력해 주세요.', 'warning'); return; }
-    if (window.AppState.partners.some(p => p.bizFile === bizNum)) { showToast('이미 등록된 사업자등록번호입니다.', 'warning'); return; }
+    // 자진 입점 해지(status==='closed')한 사업자등록번호까지 영구히 막아버리면,
+    // 정당하게 해지했던 업체가 같은 사업자등록번호로는 다시는 재입점할 수 없는
+    // 문제가 생긴다.
+    if (window.AppState.partners.some(p => p.bizFile === bizNum && p.status !== 'closed')) { showToast('이미 등록된 사업자등록번호입니다.', 'warning'); return; }
     if (!_partnerSignupBizCertDraft) { showToast('사업자등록증 파일을 첨부해 주세요.', 'warning'); return; }
 
     // 고객 회원가입의 추천인 입력(form-signup-referral)과 동일하게, 추천인 아이디는
