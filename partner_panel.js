@@ -4572,6 +4572,9 @@ function renderAdminClientManager() {
     const reportedCount = allClients.filter(a => (window.AppState.clientReports || []).some(r => r.clientPhone === a.phone)).length;
     const suspendedCount = allClients.filter(a => a.isSuspended).length;
     const bannedCount = allClients.filter(a => a.status === 'banned').length;
+    // 파트너 자진 입점 해지엔 '영구 제명'과 나란히 필터가 있는데(관리자 파트너 모니터링),
+    // 고객 회원 탈퇴는 필터 탭이 없어 목록 전체를 훑어야만 탈퇴 회원을 찾을 수 있었다.
+    const withdrawnCount = allClients.filter(a => a.status === 'withdrawn').length;
 
     const tabsEl = document.getElementById('admin-client-status-tabs');
     if (tabsEl) {
@@ -4579,7 +4582,8 @@ function renderAdminClientManager() {
             ['all', '전체', allClients.length],
             ['reported', '신고됨', reportedCount],
             ['suspended', '이용 정지', suspendedCount],
-            ['banned', '영구 제명', bannedCount]
+            ['banned', '영구 제명', bannedCount],
+            ['withdrawn', '탈퇴 회원', withdrawnCount]
         ];
         tabsEl.innerHTML = statusTabs.map(([key, label, count]) =>
             `<button type="button" onclick="setAdminClientStatusFilter('${key}')" class="gnb-tab ${adminClientStatusFilter === key ? 'active' : ''}">${label} (${count})</button>`
@@ -4592,7 +4596,9 @@ function renderAdminClientManager() {
             ? allClients.filter(a => a.isSuspended)
             : adminClientStatusFilter === 'banned'
                 ? allClients.filter(a => a.status === 'banned')
-                : allClients;
+                : adminClientStatusFilter === 'withdrawn'
+                    ? allClients.filter(a => a.status === 'withdrawn')
+                    : allClients;
     const filtered = clients.filter(a =>
         !query || a.name.toLowerCase().includes(query) || a.id.toLowerCase().includes(query) || (a.phone && a.phone.includes(query))
     );
