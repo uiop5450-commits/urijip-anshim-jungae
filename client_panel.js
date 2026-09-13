@@ -2203,7 +2203,9 @@ function renderClientMyPageReviews() {
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <button type="button" onclick="jumpToMyReviewOrder('${order.code}')" class="text-[11px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button>
-                    <button type="button" onclick="deleteMyClientReview('${order.code}'); renderClientMyPageReviews();" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                    ${(review.partnerFlagged || (review.reportedBy || []).length > 0)
+                        ? `<span class="text-[10px] font-bold text-roseCustom">신고 심사중</span>`
+                        : `<button type="button" onclick="deleteMyClientReview('${order.code}'); renderClientMyPageReviews();" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>`}
                 </div>
             </div>
             <p class="text-xs text-ink-600 font-medium leading-relaxed line-clamp-2">${escapeHtml(review.text)}</p>
@@ -3700,10 +3702,15 @@ function renderMyPageEstimateDetails(order) {
                 <span class="font-bold text-ink-500"><i data-lucide="hammer" class="w-3.5 h-3.5 inline"></i> 시공이 아직 준공되지 않았어요. 준공 완료 후 후기를 작성할 수 있어요.</span>
             </div>`;
     } else if (order.reviewWritten) {
+        const reviewPartner = window.AppState.partners.find(p => p.name === order.acceptedPartner);
+        const myReview = reviewPartner && (reviewPartner.reviews || []).find(r => r.orderCode === order.code);
+        const reviewUnderModeration = !!(myReview && (myReview.partnerFlagged || (myReview.reportedBy || []).length > 0));
         reviewBtnHtml = `<div class="p-3 bg-ink-100 rounded-xl flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-ink-600">
             <span class="flex items-center gap-1.5"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 솔직 안심 리뷰 생성이 성공적으로 등록 완료되었습니다.</span>
             <button type="button" onclick="openReviewWriteModal('${order.code}')" class="text-brand-600 hover:underline bg-transparent border-0 cursor-pointer p-0 font-black">수정하기</button>
-            <button type="button" onclick="deleteMyClientReview('${order.code}')" class="text-roseCustom hover:underline bg-transparent border-0 cursor-pointer p-0 font-black">삭제하기</button>
+            ${reviewUnderModeration
+                ? `<span class="text-roseCustom font-black">신고 심사중</span>`
+                : `<button type="button" onclick="deleteMyClientReview('${order.code}')" class="text-roseCustom hover:underline bg-transparent border-0 cursor-pointer p-0 font-black">삭제하기</button>`}
         </div>`;
     }
 
@@ -4084,6 +4091,15 @@ function deleteMyClientReview(orderCode) {
     if (!partner || !partner.reviews) return;
     const idx = partner.reviews.findIndex(r => r.orderCode === orderCode);
     if (idx === -1) return;
+    const rev = partner.reviews[idx];
+    // 파트너의 '허위 후기' 신고(partnerFlagged)나 다른 고객의 신고(reportedBy)가
+    // 걸려있는 후기를 고객이 그냥 삭제해버리면, adminDeleteReview/dismissReviewReport
+    // /dismissPartnerReviewFlag가 심사해야 할 증거가 통째로 사라져 모더레이션
+    // 대기열을 셀프서비스로 무력화하게 된다 — 신고가 처리될 때까지 삭제를 막는다.
+    if (rev.partnerFlagged || (rev.reportedBy || []).length > 0) {
+        showToast('신고가 접수되어 심사 중인 후기는 삭제할 수 없어요. 처리가 끝난 후 다시 시도해주세요.', 'warning');
+        return;
+    }
 
     partner.reviews.splice(idx, 1);
     partner.rating = partner.reviews.length > 0
