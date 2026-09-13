@@ -237,6 +237,24 @@ function isWarrantyExpired(order) {
     return !!(end && new Date() > end);
 }
 
+const WARRANTY_REMINDER_DAYS_BEFORE = 30;
+
+/* 보증 만료 D-day 배지(buildRepairClaimsHtml)는 고객이 그 오더 상세를 우연히
+ * 열어봐야만 보이는 수동적인 표시일 뿐이라, 하루라도 늦게 알아채면 3년 무상
+ * 하자보수 신청권을 영영 잃어도(isWarrantyExpired 가드) 아무도 미리 알려주지
+ * 않았다 — 연체 마일스톤 알림(sweepOverduePaymentMilestones)과 동일한 "렌더
+ * 시점에 지연 체크 + 1회만 알림" 패턴으로, 만료 30일 전에 먼저 알린다. */
+function sweepWarrantyExpiryReminders(order) {
+    const end = getWarrantyEndDate(order);
+    if (!end || isWarrantyExpired(order) || order.warrantyReminderNotified) return;
+    const daysLeft = Math.ceil((end - new Date()) / (1000 * 60 * 60 * 24));
+    if (daysLeft > WARRANTY_REMINDER_DAYS_BEFORE) return;
+    order.warrantyReminderNotified = true;
+    const endStr = end.toISOString().slice(0, 10);
+    if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `3년 무상 하자보수 보증기간이 ${endStr}에 만료돼요 (D-${daysLeft}). 필요한 보수가 있다면 지금 신청해 주세요.`);
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `오더(${order.code}) 하자보수 무상 보증기간이 ${endStr}에 만료돼요 (D-${daysLeft}).`);
+}
+
 /* commissionPaid는 플랫폼 중개 수수료 완납 여부만 표시할 뿐, 정작 고객이 파트너에게
  * 지불하는 공사대금 자체는 finalPrice 총액 하나로만 다뤄졌다 — 실제 인테리어 계약은
  * 항상 계약금/중도금/잔금으로 나눠 단계별로 청구·지급되는데 그 흐름을 추적할
@@ -728,6 +746,7 @@ window.getLocalDateString = getLocalDateString;
 window.getOrInitProgressStages = getOrInitProgressStages;
 window.getWarrantyEndDate = getWarrantyEndDate;
 window.isWarrantyExpired = isWarrantyExpired;
+window.sweepWarrantyExpiryReminders = sweepWarrantyExpiryReminders;
 window.getOrInitPaymentMilestones = getOrInitPaymentMilestones;
 window.getMilestoneAmount = getMilestoneAmount;
 window.isMilestoneOverdue = isMilestoneOverdue;

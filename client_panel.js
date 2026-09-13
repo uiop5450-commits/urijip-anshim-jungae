@@ -1182,6 +1182,7 @@ function buildRepairClaimsHtml(order) {
                 : `<button type="button" onclick="openReportReasonPrompt((note) => disputeCompletedRepairClaim('${order.code}', '${c.id}', note))" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">완료 처리에 이의있어요</button>`) : ''}
         </div>`;
     }).join('')}</div>`;
+    if (typeof sweepWarrantyExpiryReminders === 'function') sweepWarrantyExpiryReminders(order);
     const warrantyEnd = typeof getWarrantyEndDate === 'function' ? getWarrantyEndDate(order) : null;
     const warrantyExpired = typeof isWarrantyExpired === 'function' && isWarrantyExpired(order);
     let warrantyBadgeHtml = '';
