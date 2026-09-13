@@ -3310,6 +3310,76 @@ function adminRejectOrderMessageDeletionAppeal(logId, reason) {
     showToast('이의신청을 반려했습니다.', 'info');
 }
 
+/* 모든 오더는 고객 자기신청(견적 신청 폼) 또는 고객이 직접 지정하는 1:1 요청에서만
+ * 생겨났다 — 실제 중개 플랫폼이라면 흔한 "전화·방문 상담으로 접수된 고객"을 매니저가
+ * 대신 등록할 방법이 전혀 없어, 상담원이 접수한 리드는 고객이 직접 사이트에서 다시
+ * 신청하지 않는 한 그냥 유실됐다. completeMatchingSim(client_panel.js)과 동일한
+ * 오더 생성/자동매칭 로직을 재사용해, 매니저가 대신 등록해도 이후 흐름은 완전히
+ * 동일하게 진행되도록 한다. */
+function openAdminOrderRegistrationModal() {
+    ['admin-order-reg-name', 'admin-order-reg-phone', 'admin-order-reg-address', 'admin-order-reg-pyung', 'admin-order-reg-date', 'admin-order-reg-budget'].forEach(id => safeUpdateValue(id, ''));
+    safeUpdateValue('admin-order-reg-space-type', 'residential');
+    safeUpdateValue('admin-order-reg-work-type', 'all');
+    safeUpdateValue('admin-order-reg-vacancy', 'empty');
+    openModal('admin-order-registration-modal', 'admin-order-registration-modal-card');
+}
+
+function closeAdminOrderRegistrationModal() {
+    closeModal('admin-order-registration-modal', 'admin-order-registration-modal-card');
+}
+
+function submitAdminOrderRegistration() {
+    const name = document.getElementById('admin-order-reg-name')?.value.trim();
+    const phone = document.getElementById('admin-order-reg-phone')?.value.trim();
+    const address = document.getElementById('admin-order-reg-address')?.value.trim();
+    const pyung = parseInt(document.getElementById('admin-order-reg-pyung')?.value, 10);
+    const preferredDate = document.getElementById('admin-order-reg-date')?.value;
+    const budget = parseInt(document.getElementById('admin-order-reg-budget')?.value, 10);
+    const spaceType = document.getElementById('admin-order-reg-space-type')?.value || 'residential';
+    const workType = document.getElementById('admin-order-reg-work-type')?.value || 'all';
+    const vacancy = document.getElementById('admin-order-reg-vacancy')?.value || 'empty';
+
+    if (!name || !phone || !address || !pyung || pyung <= 0 || !preferredDate || !budget || budget <= 0) {
+        showToast('모든 항목을 올바르게 입력해 주세요.', 'warning');
+        return;
+    }
+
+    const code = `WJ-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const isHighBudget = budget >= 7000;
+    const newOrder = {
+        code, clientName: name, clientPhone: phone, clientAddress: address,
+        spaceType, workType, pyung, vacancy, preferredDate, partnerCountLimit: 3, budget,
+        status: 'bidding', contractUploaded: false, clientSigned: false, reviewWritten: false,
+        acceptedPartner: null, finalPrice: 0, excludedPartners: [], bids: [], isRebidding: false,
+        isHighBudgetAdminPending: isHighBudget, commissionPaid: false, contractDoc: null, estimateDoc: null,
+        createdAt: new Date().toISOString(), createdByManager: true
+    };
+
+    if (!isHighBudget) {
+        const availablePartners = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused);
+        const count = Math.min(newOrder.partnerCountLimit, availablePartners.length);
+        const shuffled = [...availablePartners].sort(() => 0.5 - Math.random());
+        newOrder.bids = shuffled.slice(0, count).map(partner => ({
+            partner: partner.name,
+            price: Math.floor(budget * (0.9 + Math.random() * 0.08)),
+            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
+            verified: true, progress: 'bidding',
+            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
+        }));
+    }
+
+    window.AppState.orders.push(newOrder);
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'ADMIN_ORDER_REGISTER', `[매니저 센터] 전화·방문 상담으로 접수된 고객(${name})의 견적을 대신 등록했습니다. (${code})`, 'SUCCESS');
+    if (typeof pushClientNotification === 'function') pushClientNotification(phone, `상담원이 접수해주신 견적 요청이 정상 등록됐어요. (의뢰 코드: ${code})${isHighBudget ? ' 고액 오더는 관리자가 직접 우수 파트너사를 배정해드려요.' : ` 파트너사 ${newOrder.bids.length}곳이 매칭되어 견적서를 보냈어요.`}`);
+
+    showToast('견적이 등록되었습니다.', 'success');
+    closeAdminOrderRegistrationModal();
+    if (typeof recalculateKPIs === 'function') recalculateKPIs();
+    if (typeof renderAdminOrderAllocation === 'function') renderAdminOrderAllocation();
+    if (document.getElementById('admin-order-lookup-input')?.value) searchOrderLookup();
+}
+
 function searchOrderLookup() {
     const input = document.getElementById('admin-order-lookup-input');
     const resultEl = document.getElementById('admin-order-lookup-result');
@@ -7300,6 +7370,9 @@ window.syncAuditLogs = syncAuditLogs;
 window.setAdminLogCategoryFilter = setAdminLogCategoryFilter;
 window.renderAdminPartnerMonitor = renderAdminPartnerMonitor;
 window.searchOrderLookup = searchOrderLookup;
+window.openAdminOrderRegistrationModal = openAdminOrderRegistrationModal;
+window.closeAdminOrderRegistrationModal = closeAdminOrderRegistrationModal;
+window.submitAdminOrderRegistration = submitAdminOrderRegistration;
 window.toggleAdminOrderMessageThread = toggleAdminOrderMessageThread;
 window.adminDismissOrderMessageReport = adminDismissOrderMessageReport;
 window.adminDeleteReportedOrderMessage = adminDeleteReportedOrderMessage;

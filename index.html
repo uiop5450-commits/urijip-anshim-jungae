@@ -1127,7 +1127,10 @@
                 </div>
 
                 <div class="surface p-4 sm:p-5 space-y-3 text-left">
-                    <h5 class="text-xs font-black text-ink-700 flex items-center gap-1.5"><i data-lucide="search" class="w-3.5 h-3.5"></i> 오더 조회 (고객 문의 대응용) — 의뢰코드·고객명·연락처로 어느 탭에서든 즉시 조회</h5>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h5 class="text-xs font-black text-ink-700 flex items-center gap-1.5"><i data-lucide="search" class="w-3.5 h-3.5"></i> 오더 조회 (고객 문의 대응용) — 의뢰코드·고객명·연락처로 어느 탭에서든 즉시 조회</h5>
+                        <button type="button" onclick="openAdminOrderRegistrationModal()" class="btn btn-secondary btn-sm shrink-0"><i data-lucide="clipboard-plus" class="w-3.5 h-3.5"></i> 고객 대신 견적 등록</button>
+                    </div>
                     <div class="flex gap-2">
                         <input type="text" id="admin-order-lookup-input" placeholder="예: WJ-2026-0711L, 박민서, 010-1234-5678" class="input flex-1" onkeydown="if(event.key==='Enter') searchOrderLookup()">
                         <button type="button" onclick="searchOrderLookup()" class="btn btn-dark btn-sm shrink-0">조회</button>
@@ -1759,6 +1762,36 @@
                 <div id="admin-direct-message-thread-history" class="space-y-1.5 max-h-40 overflow-y-auto custom-scroll"></div>
                 <textarea id="admin-direct-message-text" rows="4" maxlength="500" placeholder="전달할 내용을 입력해주세요. (최대 500자)" class="input w-full resize-none"></textarea>
                 <button type="button" onclick="submitAdminDirectMessage()" class="btn btn-dark btn-block"><i data-lucide="send" class="w-4 h-4"></i> 쪽지 발송하기</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-order-registration-modal" class="hidden modal-overlay" style="z-index:220">
+        <div id="admin-order-registration-modal-card" class="modal-card w-full max-w-lg p-6 sm:p-8 space-y-5 text-left">
+            <div class="flex justify-between items-center border-b border-ink-100 pb-4">
+                <div class="space-y-0.5"><span class="badge badge-brand">전화 상담 대리 등록</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1">고객 대신 견적 등록</h3></div>
+                <button type="button" onclick="closeAdminOrderRegistrationModal()" class="btn btn-ghost btn-sm px-1.5" aria-label="닫기"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <p class="text-[11px] text-ink-500 font-medium leading-relaxed">전화·방문 상담으로 접수된 고객을 대신해 견적 의뢰를 등록합니다. 등록 즉시 일반 의뢰와 동일하게 매칭이 진행됩니다.</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="field-label">고객명</label><input type="text" id="admin-order-reg-name" class="input" placeholder="홍길동"></div>
+                    <div><label class="field-label">연락처</label><input type="text" id="admin-order-reg-phone" class="input" placeholder="010-1234-5678"></div>
+                </div>
+                <div><label class="field-label">시공 장소 주소</label><input type="text" id="admin-order-reg-address" class="input" placeholder="부산광역시 ..."></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="field-label">공간 구분</label><select id="admin-order-reg-space-type" class="select"><option value="residential">주거 공간</option><option value="commercial">상업 공간</option></select></div>
+                    <div><label class="field-label">시공 범위</label><select id="admin-order-reg-work-type" class="select"><option value="all">전체 시공</option><option value="partial">부분 시공</option></select></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="field-label">평수</label><input type="number" id="admin-order-reg-pyung" class="input" placeholder="32" min="1"></div>
+                    <div><label class="field-label">거주 여부</label><select id="admin-order-reg-vacancy" class="select"><option value="empty">공실</option><option value="living">거주 중</option></select></div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="field-label">희망 시공일</label><input type="date" id="admin-order-reg-date" class="input"></div>
+                    <div><label class="field-label">예산(만원)</label><input type="number" id="admin-order-reg-budget" class="input" placeholder="3500" min="1"></div>
+                </div>
+                <button type="button" onclick="submitAdminOrderRegistration()" class="btn btn-dark btn-block"><i data-lucide="clipboard-plus" class="w-4 h-4"></i> 견적 등록하기</button>
             </div>
         </div>
     </div>
