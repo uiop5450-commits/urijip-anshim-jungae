@@ -2900,7 +2900,32 @@ function renderAdminDashboard() {
 
     const kpis = window.AppState.kpis || { gmv: 0, escrow: 0, revenue: 0 };
 
+    /* 연체 마일스톤(sweepOverduePaymentMilestones)·만료 견적(isBidExpired)·보증
+     * 만료 임박(sweepWarrantyExpiryReminders)은 각각 해당 오더 상세를 직접 열어야만
+     * 알 수 있는 개별 신호였다 — 관리자가 전체 현황을 파악하려면 오더를 하나하나
+     * 열어보는 수밖에 없었다. 통합 대시보드에 운영 이슈 건수를 집계해 노출한다. */
+    const overdueMilestoneCount = orders.reduce((acc, o) => acc + ((o.paymentMilestones || []).filter(m => typeof isMilestoneOverdue === 'function' && isMilestoneOverdue(m)).length), 0);
+    const expiredBidOrderCount = orders.filter(o => o.status === 'bidding' && (o.bids || []).some(b => typeof isBidExpired === 'function' && isBidExpired(b))).length;
+    const warrantyEndingSoonCount = orders.filter(o => {
+        const end = typeof getWarrantyEndDate === 'function' ? getWarrantyEndDate(o) : null;
+        if (!end || (typeof isWarrantyExpired === 'function' && isWarrantyExpired(o))) return false;
+        const daysLeft = Math.ceil((end - new Date()) / (1000 * 60 * 60 * 24));
+        return daysLeft <= 30;
+    }).length;
+    const hasOperationalIssues = overdueMilestoneCount > 0 || expiredBidOrderCount > 0 || warrantyEndingSoonCount > 0;
+
     container.innerHTML = `
+        <div class="space-y-2.5">
+            <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider">운영 이슈 모니터링</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="article-spec-chip ${overdueMilestoneCount > 0 ? '!border-rose-200' : ''}"><span>연체된 공사대금 마일스톤</span><span class="val ${overdueMilestoneCount > 0 ? 'text-roseCustom' : ''}">${overdueMilestoneCount}건</span></div>
+                <div class="article-spec-chip ${expiredBidOrderCount > 0 ? '!border-rose-200' : ''}"><span>만료 견적 방치 오더</span><span class="val ${expiredBidOrderCount > 0 ? 'text-roseCustom' : ''}">${expiredBidOrderCount}건</span></div>
+                <div class="article-spec-chip ${warrantyEndingSoonCount > 0 ? '!border-amber-200' : ''}"><span>보증 만료 임박(30일 내)</span><span class="val">${warrantyEndingSoonCount}건</span></div>
+            </div>
+            ${!hasOperationalIssues ? '<p class="text-[11px] text-ink-400 font-semibold">현재 확인이 필요한 운영 이슈가 없습니다.</p>' : ''}
+        </div>`;
+
+    container.innerHTML += `
         <div class="space-y-2.5">
             <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider">거래 지표</h4>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
