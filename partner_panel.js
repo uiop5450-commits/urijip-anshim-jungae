@@ -636,6 +636,7 @@ function togglePartnerConsoleVisibility() {
                 titleEl.innerHTML = `
                     <div class="flex flex-wrap items-center gap-2.5">
                         <span class="font-black text-ink-950 text-sm md:text-base leading-none">${partner.name} 콘솔</span>
+                        ${window.AppState.partnerLoggedInStaffLabel ? `<span class="badge badge-neutral"><i data-lucide="user" class="w-2.5 h-2.5"></i> 담당자: ${escapeHtml(window.AppState.partnerLoggedInStaffLabel)}</span>` : ''}
                         ${certifiedBadge}
                         <span onclick="window.openClientPartnerProfile('${partner.name}')" class="cursor-pointer inline-flex items-center gap-1 text-xs hover:opacity-80 transition-all" title="클릭 시 안심 리뷰 및 프로필 확인">
                             <span class="text-gold-500 font-extrabold text-xs leading-none">★</span>
@@ -1056,37 +1057,45 @@ function validatePartnerLogin() {
 
     if (typeof sweepExpiredPartnerCertifications === 'function') sweepExpiredPartnerCertifications();
     document.getElementById('partner-reapply-btn')?.classList.add('hidden');
-    const partner = window.AppState.partners.find(p => p.id === idInput.value.trim() && p.pw === pwInput.value.trim());
+    const idVal = idInput.value.trim();
+    const pwVal = pwInput.value.trim();
+    const partner = window.AppState.partners.find(p => p.id === idVal && p.pw === pwVal);
+    // 부계정(staffAccounts) 로그인 시 어느 담당자로 들어왔는지 감사 로그에 남기기
+    // 위해 매칭된 담당자 라벨을 기억해둔다 — 마스터 계정 로그인이면 null.
+    let matchedStaffLabel = null;
+    const staffMatchedPartner = !partner ? window.AppState.partners.find(p => (p.staffAccounts || []).some(s => s.id === idVal && s.pw === pwVal)) : null;
+    const effectivePartner = partner || staffMatchedPartner;
+    if (staffMatchedPartner) matchedStaffLabel = staffMatchedPartner.staffAccounts.find(s => s.id === idVal && s.pw === pwVal).label;
 
-    if (partner) {
-        if (partner.status === 'banned') {
+    if (effectivePartner) {
+        if (effectivePartner.status === 'banned') {
             showToast("귀사는 삼진아웃 누적 초과(3회 이상 적발)로 인해 영구 제명 처리되었습니다.", "warning");
             showInlineLoginError(errorMsg, "삼진아웃제 규정에 따라 영구 제명 처리된 불량 사업자망 계정입니다.", 'ban');
             return;
         }
-        if (partner.status === 'closed') {
+        if (effectivePartner.status === 'closed') {
             showToast("입점 해지 처리된 계정입니다.", "warning");
             showInlineLoginError(errorMsg, "자진 해지된 입점 계정입니다. 재입점을 원하시면 매니저 센터에 문의해 주세요.", 'store');
             return;
         }
-        if (partner.status === 'pending') {
+        if (effectivePartner.status === 'pending') {
             showToast("아직 매니저 센터의 입점 심사가 진행 중인 계정입니다. 사업자등록증 확인 후 승인되면 로그인하실 수 있어요.", "info");
             showInlineLoginError(errorMsg, "입점 신청 검토 대기 중입니다. 승인 완료 후 로그인해 주세요.", 'clock');
             return;
         }
-        if (partner.status === 'rejected') {
-            showToast(`입점 신청이 반려되었습니다.${partner.rejectReason ? ' 사유: ' + partner.rejectReason : ''}`, "warning");
+        if (effectivePartner.status === 'rejected') {
+            showToast(`입점 신청이 반려되었습니다.${effectivePartner.rejectReason ? ' 사유: ' + effectivePartner.rejectReason : ''}`, "warning");
             showInlineLoginError(errorMsg, "입점 신청이 반려된 계정입니다.", 'x-circle');
             // 지금까지는 반려되면 영구히 재신청할 방법이 없어서 새 아이디로 재가입해야 했다 —
             // 로그인 폼에 재신청 버튼을 노출해 같은 계정으로 다시 심사받을 수 있게 한다.
-            reapplyTargetPartnerId = partner.id;
+            reapplyTargetPartnerId = effectivePartner.id;
             document.getElementById('partner-reapply-btn')?.classList.remove('hidden');
             return;
         }
-        if (partner.status === 'info_requested') {
-            showToast(`입점 심사를 위해 추가 정보가 필요해요.${partner.infoRequestNote ? ' 요청 내용: ' + partner.infoRequestNote : ''}`, "info");
+        if (effectivePartner.status === 'info_requested') {
+            showToast(`입점 심사를 위해 추가 정보가 필요해요.${effectivePartner.infoRequestNote ? ' 요청 내용: ' + effectivePartner.infoRequestNote : ''}`, "info");
             showInlineLoginError(errorMsg, "매니저 센터가 추가 정보를 요청했습니다. 아래에서 보완 후 재신청해 주세요.", 'message-circle-question');
-            reapplyTargetPartnerId = partner.id;
+            reapplyTargetPartnerId = effectivePartner.id;
             document.getElementById('partner-reapply-btn')?.classList.remove('hidden');
             return;
         }
@@ -1096,16 +1105,17 @@ function validatePartnerLogin() {
         // 고객의 계정 정지에는 로그인 화면에서 바로 소명할 수 있는 이의신청
         // (openSuspensionAppealModal)이 있는데 파트너 정지는 그마저도 없었으므로
         // 동일하게 이의신청 모달을 띄운다.
-        if (partner.isSuspended) {
-            openPartnerSuspensionAppealModal(partner.id);
+        if (effectivePartner.isSuspended) {
+            openPartnerSuspensionAppealModal(effectivePartner.id);
             return;
         }
         window.AppState.partnerLoggedIn = true;
-        window.AppState.partnerName = partner.name;
+        window.AppState.partnerName = effectivePartner.name;
+        window.AppState.partnerLoggedInStaffLabel = matchedStaffLabel;
         errorMsg?.classList.add('hidden');
         togglePartnerConsoleVisibility();
         updateB2BNavButton();
-        pushLog('PARTNER', 'AUTH', `'${partner.name}' 마스터 로그인 완료.`, 'SUCCESS');
+        pushLog('PARTNER', 'AUTH', matchedStaffLabel ? `'${effectivePartner.name}' 담당자(${matchedStaffLabel}) 로그인 완료.` : `'${effectivePartner.name}' 마스터 로그인 완료.`, 'SUCCESS');
         if (typeof switchPartnerMode === 'function') switchPartnerMode('orders');
     } else if (errorMsg) {
         showInlineLoginError(errorMsg, "아이디 또는 비밀번호가 일치하지 않습니다.");
@@ -1115,6 +1125,7 @@ function validatePartnerLogin() {
 function partnerLogout() {
     window.AppState.partnerLoggedIn = false;
     window.AppState.partnerName = '';
+    window.AppState.partnerLoggedInStaffLabel = null;
     togglePartnerConsoleVisibility();
     document.getElementById('partner-audit-empty')?.classList.remove('hidden');
     document.getElementById('partner-audit-details')?.classList.add('hidden');

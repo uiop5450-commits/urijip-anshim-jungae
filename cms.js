@@ -1021,6 +1021,7 @@ function renderPartnerProfileManager() {
 
     renderPartnerMyReviews(partner);
     if (typeof renderPartnerBlockedCommunityUsersList === 'function') renderPartnerBlockedCommunityUsersList();
+    if (typeof renderPartnerStaffAccountsList === 'function') renderPartnerStaffAccountsList();
     safeUpdateValue('partner-account-edit-region', partner.region || '');
     safeUpdateValue('partner-account-edit-bizfile', partner.bizFile || '');
     safeUpdateValue('partner-account-edit-phone', partner.phone || '');
@@ -1093,6 +1094,61 @@ function updatePartnerPassword() {
     safeUpdateValue('partner-account-edit-current-pw', '');
     safeUpdateValue('partner-account-edit-new-pw', '');
     safeUpdateValue('partner-account-edit-new-pw2', '');
+}
+
+/* 관리자 콘솔은 매니저 권한을 여러 계정에 나눠 위임할 수 있는데(grantManagerRole),
+ * 파트너사(업체)는 partner.id/pw 단 하나만 있어서 사장님·현장소장·사무 직원이
+ * 업무를 나눠 맡으려면 계정을 공유하는 수밖에 없었다 — 담당자별 부계정을 두어
+ * 각자 아이디로 로그인해 같은 콘솔을 쓸 수 있게 한다. */
+function renderPartnerStaffAccountsList() {
+    const container = document.getElementById('partner-staff-accounts-list');
+    if (!container) return;
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const staffAccounts = (partner && partner.staffAccounts) || [];
+
+    if (staffAccounts.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-ink-400 font-bold text-center py-3">등록된 담당자 계정이 없습니다.</p>`;
+        return;
+    }
+    container.innerHTML = staffAccounts.map(s => `
+        <div class="flex items-center justify-between p-3 bg-ink-50 rounded-xl">
+            <span class="text-xs font-bold text-ink-800">${escapeHtml(s.label)} <span class="text-ink-400 font-mono text-[10px]">(${escapeHtml(s.id)})</span></span>
+            <button type="button" onclick="removePartnerStaffAccount('${escapeHtml(s.id)}')" class="text-[11px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+        </div>`).join('');
+}
+
+function addPartnerStaffAccount() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner) return;
+    const label = document.getElementById('partner-staff-label-input')?.value.trim();
+    const id = document.getElementById('partner-staff-id-input')?.value.trim();
+    const pw = document.getElementById('partner-staff-pw-input')?.value.trim();
+    if (!label || !id || !pw) { showToast('담당자 이름·아이디·비밀번호를 모두 입력해 주세요.', 'warning'); return; }
+    if (!partner.staffAccounts) partner.staffAccounts = [];
+    if (id === partner.id || partner.staffAccounts.some(s => s.id === id)) { showToast('이미 사용 중인 아이디입니다.', 'warning'); return; }
+
+    partner.staffAccounts.push({ id, pw, label });
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'STAFF_ACCOUNT_ADD', `[${partnerName}]가 담당자 계정('${label}', ${id})을 추가했습니다.`, 'INFO');
+    showToast(`담당자 계정 '${label}'을(를) 추가했습니다.`, 'success');
+    safeUpdateValue('partner-staff-label-input', '');
+    safeUpdateValue('partner-staff-id-input', '');
+    safeUpdateValue('partner-staff-pw-input', '');
+    renderPartnerStaffAccountsList();
+}
+
+function removePartnerStaffAccount(staffId) {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || !partner.staffAccounts) return;
+    const idx = partner.staffAccounts.findIndex(s => s.id === staffId);
+    if (idx === -1) return;
+    const label = partner.staffAccounts[idx].label;
+    partner.staffAccounts.splice(idx, 1);
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'STAFF_ACCOUNT_REMOVE', `[${partnerName}]가 담당자 계정('${label}', ${staffId})을 삭제했습니다.`, 'WARNING');
+    showToast(`담당자 계정 '${label}'을(를) 삭제했습니다.`, 'info');
+    renderPartnerStaffAccountsList();
 }
 
 /* 지금까지 사업자등록증은 입점 신청 때 딱 한 번 첨부하면 다시는 바꿀 방법이
@@ -2291,6 +2347,9 @@ window.claimPartnerBenefit = claimPartnerBenefit;
 window.togglePartnerNotificationPref = togglePartnerNotificationPref;
 window.togglePartnerNotificationCategory = togglePartnerNotificationCategory;
 window.updatePartnerPassword = updatePartnerPassword;
+window.renderPartnerStaffAccountsList = renderPartnerStaffAccountsList;
+window.addPartnerStaffAccount = addPartnerStaffAccount;
+window.removePartnerStaffAccount = removePartnerStaffAccount;
 window.handlePartnerBizCertReupload = handlePartnerBizCertReupload;
 window.openPartnerAccountCloseModal = openPartnerAccountCloseModal;
 window.closePartnerAccountCloseModal = closePartnerAccountCloseModal;

@@ -968,6 +968,17 @@
                             <button type="button" onclick="updatePartnerPhone()" class="btn btn-primary">연락처 저장</button>
                         </div>
                         <div class="space-y-4 pt-2">
+                            <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="users" class="w-4 h-4 text-brand-500"></i> 담당자 계정 관리</h4>
+                            <p class="text-[11px] text-ink-500 font-medium leading-relaxed">사장님 계정을 공유하지 않고도 직원이 각자 아이디로 로그인해 오더 응대·시공 진행 관리를 나눠 맡을 수 있어요.</p>
+                            <div id="partner-staff-accounts-list" class="space-y-2"></div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                                <input type="text" id="partner-staff-label-input" placeholder="담당자 이름" class="input">
+                                <input type="text" id="partner-staff-id-input" placeholder="아이디" class="input">
+                                <input type="password" id="partner-staff-pw-input" placeholder="비밀번호" class="input">
+                            </div>
+                            <button type="button" onclick="addPartnerStaffAccount()" class="btn btn-secondary btn-sm"><i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 담당자 계정 추가</button>
+                        </div>
+                        <div class="space-y-4 pt-2">
                             <h4 class="text-xs font-black text-ink-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="lock" class="w-4 h-4 text-brand-500"></i> 비밀번호 변경</h4>
                             <div><label class="field-label">현재 비밀번호</label><input type="password" id="partner-account-edit-current-pw" class="input"></div>
                             <div><label class="field-label">새 비밀번호</label><input type="password" id="partner-account-edit-new-pw" class="input"></div>
