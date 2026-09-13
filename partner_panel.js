@@ -5292,7 +5292,7 @@ function renderAdminPartnerMonitor() {
             <div class="space-y-3">
                 <div class="flex justify-between items-start gap-2">
                     <div class="space-y-1">
-                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증${p.certExpiryDate ? ` (~${p.certExpiryDate})` : ''}</span>` : ''}${p.isPaused ? `<span class="badge badge-amber"><i data-lucide="pause-circle" class="w-2.5 h-2.5"></i> 매칭 일시중단</span>` : ''}${myPartnerReports.length > 0 ? `<span class="badge badge-rose">고객 신고 ${myPartnerReports.length}건</span>` : ''}${p.certRenewalRequested ? `<span class="badge badge-amber">인증 갱신 요청</span>` : ''}</div>
+                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증${p.certExpiryDate ? ` (~${p.certExpiryDate})` : ''}</span>` : ''}${p.isPaused ? `<span class="badge badge-amber"><i data-lucide="pause-circle" class="w-2.5 h-2.5"></i> 매칭 일시중단</span>` : ''}${myPartnerReports.length > 0 ? `<span class="badge badge-rose">고객 신고 ${myPartnerReports.length}건</span>` : ''}${p.certRenewalRequested ? `<span class="badge badge-amber">인증 갱신 요청</span>` : ''}${p.certApplicationRequested ? `<span class="badge badge-amber">인증 신청</span>` : ''}</div>
                         <h4 class="text-sm font-black text-ink-950">${p.name}</h4>
                         <p class="text-[10px] text-ink-400 font-mono">사업자 번호: ${p.bizFile || '미등록'}</p>
                     </div>
@@ -6977,6 +6977,7 @@ function submitPartnerCertGrant() {
     partner.isCertified = true;
     partner.certExpiryDate = expiryDate;
     partner.certRenewalRequested = false;
+    partner.certApplicationRequested = false;
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'CERT_GRANT', `'${partner.name}' 파트너사에 안심 인증을 부여했습니다. (만료일: ${expiryDate})`, 'SUCCESS');
     if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partner.name, `안심 인증이 부여되었습니다. (만료일: ${expiryDate})`);
@@ -7009,6 +7010,21 @@ function requestPartnerCertRenewal() {
 
     if (typeof pushLog === 'function') pushLog('PARTNER', 'CERT_RENEWAL_REQUEST', `[${partnerName}]가 안심 인증 갱신을 요청했습니다.`, 'WARNING');
     showToast('인증 갱신을 요청했습니다. 매니저 센터에서 검토 후 재인증해드릴게요.', 'success');
+    if (typeof renderPartnerCertStatus === 'function') renderPartnerCertStatus(partner);
+    if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
+}
+
+/* 한 번도 인증받은 적 없는 파트너는 renderPartnerCertStatus(cms.js)의 갱신
+ * 요청과 달리 신청할 방법이 전혀 없어, 관리자가 먼저 알아챌 때까지 기다려야
+ * 했다 — requestPartnerCertRenewal과 동일한 패턴으로 최초 신청 경로를 둔다. */
+function requestPartnerCertApplication() {
+    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (!partner || partner.isCertified || partner.certApplicationRequested) return;
+    partner.certApplicationRequested = true;
+
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'CERT_APPLICATION_REQUEST', `[${partnerName}]가 안심 인증 신청을 접수했습니다.`, 'INFO');
+    showToast('인증 신청을 접수했습니다. 매니저 센터에서 검토 후 안내해드릴게요.', 'success');
     if (typeof renderPartnerCertStatus === 'function') renderPartnerCertStatus(partner);
     if (typeof renderAdminPartnerMonitor === 'function') renderAdminPartnerMonitor();
 }
@@ -7921,6 +7937,7 @@ window.closePartnerCertGrantModal = closePartnerCertGrantModal;
 window.submitPartnerCertGrant = submitPartnerCertGrant;
 window.sweepExpiredPartnerCertifications = sweepExpiredPartnerCertifications;
 window.requestPartnerCertRenewal = requestPartnerCertRenewal;
+window.requestPartnerCertApplication = requestPartnerCertApplication;
 window.renderAdminStrikeAppeals = renderAdminStrikeAppeals;
 window.adminApproveStrikeAppeal = adminApproveStrikeAppeal;
 window.adminRejectStrikeAppeal = adminRejectStrikeAppeal;

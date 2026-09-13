@@ -921,7 +921,13 @@ function renderPartnerCertStatus(partner) {
     if (!container) return;
 
     if (!partner.isCertified && !partner.certExpiryDate) {
-        container.innerHTML = `<p class="text-[11px] text-ink-400 font-semibold">현재 안심 인증 대상이 아닙니다.</p>`;
+        // 인증 부여(openPartnerCertGrantModal)는 전부 관리자가 먼저 눈에 띈 파트너에게
+        // push하는 방식뿐이었다 — 한 번도 인증받은 적 없는 파트너 본인은 인증을
+        // 원해도 신청할 방법이 전혀 없어 관리자가 알아챌 때까지 기다리는 수밖에 없었다.
+        // 갱신 요청(requestPartnerCertRenewal)과 동일한 패턴으로 신청 경로를 둔다.
+        container.innerHTML = partner.certApplicationRequested
+            ? `<p class="text-[10px] font-bold text-brand-600">인증 신청 접수됨 — 매니저 센터 검토 중입니다.</p>`
+            : `<p class="text-[11px] text-ink-400 font-semibold mb-1">현재 안심 인증 대상이 아닙니다.</p><button type="button" onclick="requestPartnerCertApplication()" class="btn btn-secondary btn-sm">안심 인증 신청</button>`;
         return;
     }
     const today = getLocalDateString();
