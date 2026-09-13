@@ -564,7 +564,7 @@ function switchAdminMode(mode) {
     else if (mode === 'community' && typeof renderAdminCommunityModeration === 'function') renderAdminCommunityModeration();
     else if (mode === 'support' && typeof renderAdminSupportTickets === 'function') renderAdminSupportTickets();
     else if (mode === 'clients') renderAdminClientManager();
-    else if (mode === 'cancellations') { renderAdminContractCancellations(); renderAdminRefundPendingList(); renderAdminStrikeAppeals(); }
+    else if (mode === 'cancellations') { renderAdminContractCancellations(); renderAdminRefundPendingList(); renderAdminStrikeAppeals(); renderAdminBenefitClaimsList(); }
     else if (mode === 'broadcast') { if (typeof updateAdminBroadcastSegmentUI === 'function') updateAdminBroadcastSegmentUI(); if (typeof renderAdminNoticeHistory === 'function') renderAdminNoticeHistory(); }
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -4837,6 +4837,71 @@ function processCommissionRefund(orderCode) {
     renderAdminRefundPendingList();
 }
 
+/* 홈 화면 이벤트 배너가 광고하는 상품권/할인 혜택(grantClientBenefit/
+ * grantPartnerBenefit, utils_ui.js)을 고객/파트너가 "수령 신청"하면 그 즉시
+ * status가 'claimed'로 바뀌며 화면에는 "수령완료"로 표시됐지만, 실제로는 상품권
+ * 발송이나 커미션 할인 적용을 아무도 처리하지 않은 상태였다 — 관리자 콘솔 어디에도
+ * .benefits를 참조하는 코드가 없어 실제 지급 여부를 확인할 방법이 전혀 없었다.
+ * claimed(수령 신청됨, 지급 대기)와 paid_out(실제 지급 완료)을 분리해 관리자가
+ * 지급을 확인 처리하는 대기열을 둔다. */
+function renderAdminBenefitClaimsList() {
+    const container = document.getElementById('admin-benefit-claims-list');
+    if (!container) return;
+    const entries = [];
+    (window.AppState.clientAccounts || []).forEach(acc => {
+        (acc.benefits || []).forEach(b => { if (b.status === 'claimed') entries.push({ ownerType: 'client', ownerId: acc.id, ownerName: acc.name, benefit: b }); });
+    });
+    (window.AppState.partners || []).forEach(p => {
+        (p.benefits || []).forEach(b => { if (b.status === 'claimed') entries.push({ ownerType: 'partner', ownerId: p.name, ownerName: p.name, benefit: b }); });
+    });
+    entries.sort((a, b) => (a.benefit.claimedDate || '').localeCompare(b.benefit.claimedDate || ''));
+
+    if (entries.length === 0) {
+        container.innerHTML = `<div class="empty-state surface surface-lg col-span-full"><span class="icon-wrap" style="background:var(--emerald-50);color:var(--emerald-600)"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">지급 대기 중인 혜택이 없습니다.</p></div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    container.innerHTML = entries.map(e => `
+        <div class="surface p-5 space-y-3 text-left">
+            <div class="flex justify-between items-start gap-2">
+                <div class="space-y-1">
+                    <span class="badge badge-amber">${e.ownerType === 'client' ? '고객' : '파트너'}</span>
+                    <h4 class="text-sm font-black text-ink-950">${escapeHtml(e.ownerName)} · ${escapeHtml(e.benefit.label)}</h4>
+                    <p class="text-[11px] text-ink-500 font-bold">${escapeHtml(String(e.benefit.amount))} · 신청일 ${e.benefit.claimedDate}</p>
+                </div>
+                <button type="button" onclick="adminConfirmBenefitPayout('${e.ownerType}', '${escapeHtml(e.ownerId)}', '${e.benefit.id}')" class="btn btn-dark btn-sm">지급 완료 처리</button>
+            </div>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function adminConfirmBenefitPayout(ownerType, ownerId, benefitId) {
+    let benefit, ownerName, notifyFn, notifyTarget;
+    if (ownerType === 'client') {
+        const acc = (window.AppState.clientAccounts || []).find(a => a.id === ownerId);
+        benefit = acc && acc.benefits && acc.benefits.find(b => b.id === benefitId);
+        ownerName = acc && acc.name;
+        notifyFn = typeof pushClientNotification === 'function' ? pushClientNotification : null;
+        notifyTarget = acc && acc.phone;
+    } else {
+        const partner = (window.AppState.partners || []).find(p => p.name === ownerId);
+        benefit = partner && partner.benefits && partner.benefits.find(b => b.id === benefitId);
+        ownerName = partner && partner.name;
+        notifyFn = typeof pushPartnerNotification === 'function' ? pushPartnerNotification : null;
+        notifyTarget = partner && partner.name;
+    }
+    if (!benefit || benefit.status !== 'claimed') return;
+
+    benefit.status = 'paid_out';
+    benefit.paidOutDate = getLocalDateString();
+
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'BENEFIT_PAYOUT', `[${ownerName}]의 혜택 "${benefit.label}" 지급을 완료 처리했습니다.`, 'SUCCESS');
+    if (notifyFn && notifyTarget) notifyFn(notifyTarget, `신청하신 혜택 "${benefit.label}" 지급이 완료되었습니다.`);
+    showToast(`[${ownerName}] 혜택 지급을 완료 처리했습니다.`, 'success');
+    renderAdminBenefitClaimsList();
+}
+
 function rejectContractCancellation(orderCode) {
     const order = (window.AppState.orders || []).find(o => o.code === orderCode);
     if (!order || order.status !== 'cancel_requested') return;
@@ -7719,6 +7784,8 @@ window.sendPartnerPasswordResetCode = sendPartnerPasswordResetCode;
 window.resetPartnerPassword = resetPartnerPassword;
 window.renderAdminRefundPendingList = renderAdminRefundPendingList;
 window.processCommissionRefund = processCommissionRefund;
+window.renderAdminBenefitClaimsList = renderAdminBenefitClaimsList;
+window.adminConfirmBenefitPayout = adminConfirmBenefitPayout;
 window.togglePartnerConsoleVisibility = togglePartnerConsoleVisibility;
 window.renderPartnerOnboardingBanner = renderPartnerOnboardingBanner;
 window.dismissPartnerOnboardingBanner = dismissPartnerOnboardingBanner;

@@ -978,9 +978,11 @@ function renderPartnerBenefitsStatus(partner) {
                 <p class="text-[11px] font-black text-ink-900">${escapeHtml(b.label)}</p>
                 <p class="text-[10px] text-ink-500 font-semibold">${escapeHtml(b.amount)} · 적립일 ${b.earnedDate}${b.claimedDate ? ` · 수령일 ${b.claimedDate}` : ''}</p>
             </div>
-            ${b.status === 'claimed'
-                ? `<span class="badge badge-emerald shrink-0">수령완료</span>`
-                : `<button type="button" onclick="claimPartnerBenefit('${b.id}')" class="btn btn-dark btn-sm shrink-0">수령 신청</button>`}
+            ${b.status === 'paid_out'
+                ? `<span class="badge badge-emerald shrink-0">지급완료</span>`
+                : b.status === 'claimed'
+                    ? `<span class="badge badge-amber shrink-0">지급 대기중</span>`
+                    : `<button type="button" onclick="claimPartnerBenefit('${b.id}')" class="btn btn-dark btn-sm shrink-0">수령 신청</button>`}
         </div>`).join('');
 }
 
@@ -988,7 +990,7 @@ function claimPartnerBenefit(benefitId) {
     const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     const benefit = partner && partner.benefits && partner.benefits.find(b => b.id === benefitId);
-    if (!benefit || benefit.status === 'claimed') return;
+    if (!benefit || benefit.status === 'claimed' || benefit.status === 'paid_out') return;
 
     benefit.status = 'claimed';
     benefit.claimedDate = getLocalDateString();
@@ -996,6 +998,7 @@ function claimPartnerBenefit(benefitId) {
     if (typeof pushLog === 'function') pushLog('PARTNER', 'PARTNER_BENEFIT_CLAIM', `[${partnerName}]가 혜택 "${benefit.label}" 수령을 신청했습니다.`, 'INFO');
     showToast(`"${benefit.label}" 수령 신청이 접수되었습니다.`, 'success');
     renderPartnerBenefitsStatus(partner);
+    if (typeof renderAdminBenefitClaimsList === 'function') renderAdminBenefitClaimsList();
 }
 
 function renderPartnerProfileManager() {
