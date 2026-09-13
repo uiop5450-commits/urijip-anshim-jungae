@@ -1133,6 +1133,83 @@ function partnerLogout() {
     showToast('안전하게 로그아웃 되었습니다.', 'info');
 }
 
+/* updatePartnerPassword는 이미 로그인된 파트너만 쓸 수 있어서, 아이디/비밀번호를
+ * 잊은 파트너는 매니저 센터에 별도로 문의하는 수밖에 없었다 — 고객 쪽 계정 찾기
+ * (findClientId/sendClientPasswordResetCode, client_panel.js)와 동일한 가상 SMS
+ * 패턴으로, 업체명+사업자등록번호 본인 확인 후 아이디 조회·비밀번호 재설정을
+ * 할 수 있게 한다. */
+let partnerRecoverySentCode = null;
+
+function openPartnerAccountRecoveryModal() {
+    ['partner-recovery-findid-company', 'partner-recovery-findid-biznum', 'partner-recovery-resetpw-id', 'partner-recovery-resetpw-company', 'partner-recovery-resetpw-biznum', 'partner-recovery-resetpw-code', 'partner-recovery-resetpw-newpw', 'partner-recovery-resetpw-newpw2'].forEach(id => safeUpdateValue(id, ''));
+    document.getElementById('partner-recovery-findid-result')?.classList.add('hidden');
+    document.getElementById('partner-recovery-resetpw-verified-fields')?.classList.add('hidden');
+    partnerRecoverySentCode = null;
+    switchPartnerRecoveryTab('findId');
+    openModal('partner-account-recovery-modal', 'partner-account-recovery-modal-card');
+}
+
+function closePartnerAccountRecoveryModal() {
+    closeModal('partner-account-recovery-modal', 'partner-account-recovery-modal-card');
+}
+
+function switchPartnerRecoveryTab(mode) {
+    document.getElementById('partner-recovery-tab-findid')?.classList.toggle('active', mode === 'findId');
+    document.getElementById('partner-recovery-tab-resetpw')?.classList.toggle('active', mode === 'resetPw');
+    document.getElementById('partner-recovery-findid-pane')?.classList.toggle('hidden', mode !== 'findId');
+    document.getElementById('partner-recovery-resetpw-pane')?.classList.toggle('hidden', mode !== 'resetPw');
+}
+
+function findPartnerId() {
+    const company = document.getElementById('partner-recovery-findid-company')?.value.trim();
+    const bizNum = document.getElementById('partner-recovery-findid-biznum')?.value.trim();
+    const resultEl = document.getElementById('partner-recovery-findid-result');
+    if (!company || !bizNum) { showToast('업체명과 사업자등록번호를 입력해 주세요.', 'warning'); return; }
+    const partner = window.AppState.partners.find(p => p.name === company && p.bizFile === bizNum);
+    if (!resultEl) return;
+    resultEl.classList.remove('hidden');
+    if (!partner) {
+        resultEl.className = 'text-xs font-bold text-center p-3 bg-rose-50 rounded-xl text-roseCustom';
+        resultEl.textContent = '일치하는 계정을 찾을 수 없습니다.';
+        return;
+    }
+    resultEl.className = 'text-xs font-bold text-center p-3 bg-emerald-50 rounded-xl text-emeraldCustom';
+    resultEl.textContent = `귀사의 아이디는 [${partner.id}] 입니다.`;
+}
+
+function sendPartnerPasswordResetCode() {
+    const id = document.getElementById('partner-recovery-resetpw-id')?.value.trim();
+    const company = document.getElementById('partner-recovery-resetpw-company')?.value.trim();
+    const bizNum = document.getElementById('partner-recovery-resetpw-biznum')?.value.trim();
+    if (!id || !company || !bizNum) { showToast('아이디·업체명·사업자등록번호를 모두 입력해 주세요.', 'warning'); return; }
+    const partner = window.AppState.partners.find(p => p.id === id && p.name === company && p.bizFile === bizNum);
+    if (!partner) { showToast('입력하신 정보와 일치하는 계정을 찾을 수 없습니다.', 'warning'); return; }
+
+    partnerRecoverySentCode = String(Math.floor(1000 + Math.random() * 9000));
+    document.getElementById('partner-recovery-resetpw-verified-fields')?.classList.remove('hidden');
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PASSWORD_RESET_SMS', `'${id}' 계정의 비밀번호 재설정 가상 SMS [${partnerRecoverySentCode}] 전송.`, 'INFO');
+    showToast(`가상 SMS 인증코드 [${partnerRecoverySentCode}]가 발송되었습니다.`, 'info');
+}
+
+function resetPartnerPassword() {
+    const id = document.getElementById('partner-recovery-resetpw-id')?.value.trim();
+    const code = document.getElementById('partner-recovery-resetpw-code')?.value.trim();
+    const newPw = document.getElementById('partner-recovery-resetpw-newpw')?.value;
+    const newPw2 = document.getElementById('partner-recovery-resetpw-newpw2')?.value;
+    if (!partnerRecoverySentCode) { showToast('먼저 인증코드를 발송해 주세요.', 'warning'); return; }
+    if (!code || code !== partnerRecoverySentCode) { showToast('인증코드가 일치하지 않습니다.', 'warning'); return; }
+    if (!newPw || !newPw2) { showToast('새 비밀번호를 입력해 주세요.', 'warning'); return; }
+    if (newPw !== newPw2) { showToast('새 비밀번호가 일치하지 않습니다.', 'warning'); return; }
+    const partner = window.AppState.partners.find(p => p.id === id);
+    if (!partner) { showToast('계정을 찾을 수 없습니다.', 'warning'); return; }
+
+    partner.pw = newPw;
+    partnerRecoverySentCode = null;
+    if (typeof pushLog === 'function') pushLog('PARTNER', 'PASSWORD_RESET', `'${id}' 계정이 본인 확인 후 비밀번호를 재설정했습니다.`, 'WARNING');
+    showToast('비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해 주세요.', 'success');
+    closePartnerAccountRecoveryModal();
+}
+
 /* ----------------------------------------------------------------
  * 파트너 입점 신청 (회원가입) — 사업자등록증 업로드 후 매니저 승인 대기(status: 'pending')
  * 상태로 등록되며, 매니저 콘솔 > 파트너 가입 심사 탭에서 승인/거절 처리한다.
@@ -7436,6 +7513,12 @@ window.openPartnerReapplyModal = openPartnerReapplyModal;
 window.closePartnerReapplyModal = closePartnerReapplyModal;
 window.submitPartnerReapplication = submitPartnerReapplication;
 window.partnerLogout = partnerLogout;
+window.openPartnerAccountRecoveryModal = openPartnerAccountRecoveryModal;
+window.closePartnerAccountRecoveryModal = closePartnerAccountRecoveryModal;
+window.switchPartnerRecoveryTab = switchPartnerRecoveryTab;
+window.findPartnerId = findPartnerId;
+window.sendPartnerPasswordResetCode = sendPartnerPasswordResetCode;
+window.resetPartnerPassword = resetPartnerPassword;
 window.submitPartnerBid = submitPartnerBid;
 window.editPartnerBid = editPartnerBid;
 window.renderAdminRefundPendingList = renderAdminRefundPendingList;

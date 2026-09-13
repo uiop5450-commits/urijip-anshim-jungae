@@ -3078,6 +3078,82 @@ function updateClientPassword() {
     renderClientAccountSettings();
 }
 
+/* updateClientPassword는 이미 로그인된 사람만 쓸 수 있어서, 아이디/비밀번호를
+ * 잊은 사람은 "고객센터에 문의해 주세요"(회원가입 화면 안내)가 유일한 방법이었다
+ * — 회원가입 인증(sendClientAuthCode)과 동일한 가상 SMS 패턴으로, 로그아웃 상태에서도
+ * 본인(이름+휴대폰) 확인 후 아이디 조회·비밀번호 재설정을 할 수 있게 한다. */
+let clientRecoverySentCode = null;
+
+function openClientAccountRecoveryModal() {
+    ['client-recovery-findid-name', 'client-recovery-findid-phone', 'client-recovery-resetpw-id', 'client-recovery-resetpw-name', 'client-recovery-resetpw-phone', 'client-recovery-resetpw-code', 'client-recovery-resetpw-newpw', 'client-recovery-resetpw-newpw2'].forEach(id => safeUpdateValue(id, ''));
+    document.getElementById('client-recovery-findid-result')?.classList.add('hidden');
+    document.getElementById('client-recovery-resetpw-verified-fields')?.classList.add('hidden');
+    clientRecoverySentCode = null;
+    switchClientRecoveryTab('findId');
+    openModal('client-account-recovery-modal', 'client-account-recovery-modal-card');
+}
+
+function closeClientAccountRecoveryModal() {
+    closeModal('client-account-recovery-modal', 'client-account-recovery-modal-card');
+}
+
+function switchClientRecoveryTab(mode) {
+    document.getElementById('client-recovery-tab-findid')?.classList.toggle('active', mode === 'findId');
+    document.getElementById('client-recovery-tab-resetpw')?.classList.toggle('active', mode === 'resetPw');
+    document.getElementById('client-recovery-findid-pane')?.classList.toggle('hidden', mode !== 'findId');
+    document.getElementById('client-recovery-resetpw-pane')?.classList.toggle('hidden', mode !== 'resetPw');
+}
+
+function findClientId() {
+    const name = document.getElementById('client-recovery-findid-name')?.value.trim();
+    const phone = document.getElementById('client-recovery-findid-phone')?.value.trim();
+    const resultEl = document.getElementById('client-recovery-findid-result');
+    if (!name || !phone) { showToast('이름과 휴대폰 번호를 입력해 주세요.', 'warning'); return; }
+    const account = (window.AppState.clientAccounts || []).find(a => a.name === name && a.phone === phone);
+    if (!resultEl) return;
+    resultEl.classList.remove('hidden');
+    if (!account) {
+        resultEl.className = 'text-xs font-bold text-center p-3 bg-rose-50 rounded-xl text-roseCustom';
+        resultEl.textContent = '일치하는 계정을 찾을 수 없습니다.';
+        return;
+    }
+    resultEl.className = 'text-xs font-bold text-center p-3 bg-emerald-50 rounded-xl text-emeraldCustom';
+    resultEl.textContent = `회원님의 아이디는 [${account.id}] 입니다.`;
+}
+
+function sendClientPasswordResetCode() {
+    const id = document.getElementById('client-recovery-resetpw-id')?.value.trim();
+    const name = document.getElementById('client-recovery-resetpw-name')?.value.trim();
+    const phone = document.getElementById('client-recovery-resetpw-phone')?.value.trim();
+    if (!id || !name || !phone) { showToast('아이디·이름·휴대폰 번호를 모두 입력해 주세요.', 'warning'); return; }
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === id && a.name === name && a.phone === phone);
+    if (!account) { showToast('입력하신 정보와 일치하는 계정을 찾을 수 없습니다.', 'warning'); return; }
+
+    clientRecoverySentCode = String(Math.floor(1000 + Math.random() * 9000));
+    document.getElementById('client-recovery-resetpw-verified-fields')?.classList.remove('hidden');
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PASSWORD_RESET_SMS', `'${id}' 계정의 비밀번호 재설정 가상 SMS [${clientRecoverySentCode}] 전송.`, 'INFO');
+    showToast(`가상 SMS 인증코드 [${clientRecoverySentCode}]가 발송되었습니다.`, 'info');
+}
+
+function resetClientPassword() {
+    const id = document.getElementById('client-recovery-resetpw-id')?.value.trim();
+    const code = document.getElementById('client-recovery-resetpw-code')?.value.trim();
+    const newPw = document.getElementById('client-recovery-resetpw-newpw')?.value;
+    const newPw2 = document.getElementById('client-recovery-resetpw-newpw2')?.value;
+    if (!clientRecoverySentCode) { showToast('먼저 인증코드를 발송해 주세요.', 'warning'); return; }
+    if (!code || code !== clientRecoverySentCode) { showToast('인증코드가 일치하지 않습니다.', 'warning'); return; }
+    if (!newPw || !newPw2) { showToast('새 비밀번호를 입력해 주세요.', 'warning'); return; }
+    if (newPw !== newPw2) { showToast('새 비밀번호가 일치하지 않습니다.', 'warning'); return; }
+    const account = (window.AppState.clientAccounts || []).find(a => a.id === id);
+    if (!account) { showToast('계정을 찾을 수 없습니다.', 'warning'); return; }
+
+    account.pw = newPw;
+    clientRecoverySentCode = null;
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PASSWORD_RESET', `'${id}' 계정이 본인 확인 후 비밀번호를 재설정했습니다.`, 'WARNING');
+    showToast('비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해 주세요.', 'success');
+    closeClientAccountRecoveryModal();
+}
+
 /* 계정 정보 수정/비밀번호 변경은 있는데 탈퇴할 방법이 전혀 없었던 공백 — 파트너의
  * status: 'banned'/isSuspended와 동일하게 배열에서 지우지 않고 status 플래그만
  * 남기는 소프트 삭제로 처리한다(과거 의뢰·후기 기록은 그대로 보존). */
@@ -5068,6 +5144,12 @@ window.toggleClientNotificationPref = toggleClientNotificationPref;
 window.toggleClientNotificationCategory = toggleClientNotificationCategory;
 window.updateClientProfileInfo = updateClientProfileInfo;
 window.updateClientPassword = updateClientPassword;
+window.openClientAccountRecoveryModal = openClientAccountRecoveryModal;
+window.closeClientAccountRecoveryModal = closeClientAccountRecoveryModal;
+window.switchClientRecoveryTab = switchClientRecoveryTab;
+window.findClientId = findClientId;
+window.sendClientPasswordResetCode = sendClientPasswordResetCode;
+window.resetClientPassword = resetClientPassword;
 window.openAccountDeleteModal = openAccountDeleteModal;
 window.closeAccountDeleteModal = closeAccountDeleteModal;
 window.confirmAccountDeletion = confirmAccountDeletion;
