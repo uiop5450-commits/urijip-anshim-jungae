@@ -294,7 +294,8 @@ function completeMatchingSim() {
     const code = `WJ-2026-${Math.floor(1000 + Math.random() * 9000)}`;
     const fd = window.AppState.formData;
     const auth = window.AppState.clientAuth;
-    const isHighBudget = fd.budget >= 7000;
+    const threshold = (window.CONFIG && window.CONFIG.HIGH_BUDGET_THRESHOLD) || 5000;
+    const isHighBudget = fd.budget >= threshold;
 
     const newOrder = {
         code: code, clientName: auth.name, clientPhone: auth.phone, clientAddress: fd.clientAddress,
@@ -306,39 +307,19 @@ function completeMatchingSim() {
         createdAt: new Date().toISOString()
     };
 
-    if (isHighBudget) {
-        if (typeof pushLog === 'function') {
-            pushLog('ADMIN', 'HIGH_BUDGET', `[7천만원 이상 고액 오더 접수] '${auth.name}' 고객님의 프리미엄 오더(${code}, 예산: ₩ ${fd.budget.toLocaleString()}만원)가 본사 관리자 수동 배정관에 등록되었습니다.`, 'WARNING');
-        }
-        if (typeof pushClientNotification === 'function') {
-            pushClientNotification(auth.phone, `고액 오더(${code})가 접수되어, 관리자가 최상위 인증 파트너사를 직접 배정하고 있어요.`);
-        }
-    } else {
-        // 심사 대기(pending)·반려(rejected)·삼진아웃 제명(banned) 파트너는 '안심' 매칭
-        // 대상에서 제외한다 — 이 필터가 없으면 이제 막 접수된 첫 견적 신청에서부터
-        // 아직 검증되지 않았거나 이미 제명된 파트너가 무작위로 뽑힐 수 있었다.
-        const availablePartners = window.AppState.partners.filter(p => p.status === 'active' && !p.isPaused && !isPartnerBlockedByClient(p.name));
-        const count = Math.min(newOrder.partnerCountLimit, availablePartners.length);
-        const shuffled = [...availablePartners].sort(() => 0.5 - Math.random());
-        const selected = shuffled.slice(0, count);
-        newOrder.bids = selected.map(partner => ({
-            partner: partner.name,
-            price: Math.floor(newOrder.budget * (0.9 + Math.random() * 0.08)),
-            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
-        }));
-        // 매칭 가능한 파트너가 0명이면(활동중단·전원 일시중단 등) 지금까지 "0곳이
-        // 매칭되어 견적서를 보냈어요"라는 앞뒤가 안 맞는 성공 알림이 그대로 나갔다 —
-        // 실패를 솔직하게 알리고 재매칭 버튼(triggerRebidding)으로 안내한다.
-        if (typeof pushClientNotification === 'function') {
-            pushClientNotification(auth.phone, newOrder.bids.length > 0
-                ? `안심 견적(${code})에 파트너사 ${newOrder.bids.length}곳이 자동 매칭되어 견적서를 보냈어요.`
-                : `안심 견적(${code})에 지금 매칭 가능한 파트너사가 없어요. 잠시 후 마이페이지에서 재매칭을 시도해 주세요.`);
-        }
-        if (typeof pushPartnerNotification === 'function') {
-            selected.forEach(partner => pushPartnerNotification(partner.name, `새 오더(${code})에 매칭되었어요. 고객: ${maskName(newOrder.clientName)}님, ${newOrder.pyung}평형.`));
-        }
+    // 예전에는 예산이 기준액 미만이면 여기서 파트너를 무작위로 뽑아 즉시 가짜
+    // 견적서를 채워 넣었다 — 파트너가 스스로 골라 입찰하는 구조였다. 이제는
+    // 금액과 무관하게 모든 신규 오더를 매니저 센터의 '수동 오더 배정관'
+    // 대기열에만 올리고, 실제 파트너 배정은 관리자가 직접 한다.
+    if (typeof pushLog === 'function') {
+        pushLog('ADMIN', isHighBudget ? 'HIGH_BUDGET' : 'ALLOCATION_PENDING', isHighBudget
+            ? `[${threshold.toLocaleString()}만원 이상 고액 오더 접수] '${auth.name}' 고객님의 프리미엄 오더(${code}, 예산: ₩ ${fd.budget.toLocaleString()}만원)가 본사 관리자 수동 배정관에 등록되었습니다.`
+            : `[오더 접수] '${auth.name}' 고객님의 오더(${code}, 예산: ₩ ${fd.budget.toLocaleString()}만원)가 본사 관리자 수동 배정관에 등록되었습니다.`, isHighBudget ? 'WARNING' : 'INFO');
+    }
+    if (typeof pushClientNotification === 'function') {
+        pushClientNotification(auth.phone, isHighBudget
+            ? `고액 오더(${code})가 접수되어, 관리자가 최상위 인증 파트너사를 직접 배정하고 있어요.`
+            : `안심 견적(${code})이 접수되어, 관리자가 적합한 파트너사를 선별해 배정하고 있어요.`);
     }
 
     window.AppState.orders.unshift(newOrder);
@@ -369,9 +350,9 @@ function completeMatchingSim() {
     if (auth.loggedIn) {
         renderClientMyPage();
         if (isHighBudget) {
-            showToast(`7,000만원 이상 고액 오더로 지정되어,\n본사 최고 관리자가 최상위 '우리집 인증 파트너사'를 직접 전속 심사 후 나눠 배정합니다!\n(의뢰 코드: ${code})`, 'info');
+            showToast(`${threshold.toLocaleString()}만원 이상 고액 오더로 지정되어,\n본사 최고 관리자가 최상위 '우리집 인증 파트너사'를 직접 전속 심사 후 나눠 배정합니다!\n(의뢰 코드: ${code})`, 'info');
         } else {
-            showToast(`안심 견적이 성실히 접수되었습니다!\n(의뢰 코드: ${code})`, 'success');
+            showToast(`안심 견적이 접수되었습니다!\n관리자가 적합한 파트너사를 선별해 배정해드려요.\n(의뢰 코드: ${code})`, 'success');
         }
         setTimeout(() => {
             if (typeof switchPanel === 'function') switchPanel('client-mypage-panel');
@@ -2116,9 +2097,10 @@ function renderClientMyPage() {
         else if (order.status === 'cancelled') statusBadge = `<span class="badge badge-rose"><span class="badge-dot bg-roseCustom"></span> 계약 취소됨</span>`;
         else if (order.is1on1) statusBadge = `<span class="badge badge-neutral"><span class="badge-dot bg-ink-950"></span> 1:1 지정 [${order.targetPartner}]</span>`;
         else if (order.status === 'bidding') {
+            const threshold = (window.CONFIG && window.CONFIG.HIGH_BUDGET_THRESHOLD) || 5000;
             statusBadge = order.isHighBudgetAdminPending
-                ? `<span class="badge badge-gold"><span class="badge-dot bg-gold-500"></span> 7천만+ 본사 배정 대기</span>`
-                : `<span class="badge badge-amber"><span class="badge-dot bg-amberCustom"></span> 입찰 심사 중 (${order.bids.length}개사)</span>`;
+                ? `<span class="badge badge-gold"><span class="badge-dot bg-gold-500"></span> ${threshold.toLocaleString()}만+ 본사 배정 대기</span>`
+                : `<span class="badge badge-amber"><span class="badge-dot bg-amberCustom"></span> 본사 배정중 (${order.bids.length}/${order.partnerCountLimit}개사)</span>`;
         } else if (order.status === 'contracted') {
             statusBadge = (order.contractUploaded && order.clientSigned)
                 ? `<span class="badge badge-emerald"><span class="badge-dot bg-emeraldCustom"></span> 안심 보증 활성 완료</span>`

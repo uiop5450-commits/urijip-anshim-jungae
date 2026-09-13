@@ -1,7 +1,7 @@
 /**
  * ====================================================================
  * [partner_panel.js] 전역 패널 전환, 홈 이벤트 슬라이더, 파트너 탐색,
- * 파트너 콘솔(수급오더), 매니저 콘솔(고액배정/모니터링/블랙리스트/로그)
+ * 파트너 콘솔(수급오더), 매니저 콘솔(오더배정/모니터링/블랙리스트/로그)
  * ====================================================================
  */
 
@@ -491,7 +491,7 @@ const ALL_ADMIN_TABS = [
     ['cancellations', 'ban', '계약 취소 심사']
 ];
 
-// 'super_admin'은 전체 탭에 접근 가능. 'partner_manager'는 고액 오더 배정(재무),
+// 'super_admin'은 전체 탭에 접근 가능. 'partner_manager'는 오더 배정(재무),
 // 시스템 로그, 마케팅 노출 관리, 직원 권한 부여처럼 상위 권한이 필요한 영역은
 // 제외하고 파트너 관리 업무(모니터링/가입 심사/블랙리스트)만 접근할 수 있다.
 const ROLE_TAB_ACCESS = {
@@ -1624,52 +1624,21 @@ function buildPartnerClientRatingHtml(order) {
     </div>`;
 }
 
+/* 예전에는 예산이 기준액 미만인 오더가 여기 '선착순 즉시입찰' 목록에 올라와
+ * 파트너가 스스로 골라 입찰했다. 이제는 금액과 무관하게 모든 신규 오더를
+ * 매니저 센터가 직접 배정하므로(renderAdminOrderAllocation), 파트너가 자율로
+ * 입찰할 수 있는 오더는 더 이상 발생하지 않는다 — 안내 문구만 보여준다. */
 function renderPartnerOrderList() {
     const streamList = document.getElementById('partner-order-stream-list');
     const liveOrderBadge = document.getElementById('partner-live-order-badge');
     if (!streamList) return;
 
-    const currentPartner = window.AppState.partnerName || '오륙도 디자인 실내건축';
-    const allOrders = window.AppState.orders;
-    let filteredOrders = allOrders.filter(o => o.status === 'bidding' && o.budget < 7000 && !o.is1on1 && o.bids.length < o.partnerCountLimit && !o.bids.some(b => b.partner === currentPartner) && (!o.excludedPartners || !o.excludedPartners.includes(currentPartner)) && !isClientBlockedByPartner(o.clientPhone) && !isClientAccountWithdrawn(o.clientPhone));
-    if (partnerFavoriteOrdersOnly) filteredOrders = filteredOrders.filter(o => isFavoriteOrder(o.code));
-
-    if (liveOrderBadge) liveOrderBadge.innerText = `${filteredOrders.length}개 선착순 즉시입찰 참여 가능 오더`;
-
-    if (filteredOrders.length === 0) {
-        streamList.innerHTML = partnerFavoriteOrdersOnly
-            ? `<div class="empty-state !py-16 surface"><p class="text-xs text-ink-800 font-extrabold leading-relaxed">찜한 오더가 없습니다.<br><span class="text-[10px] text-ink-500 font-semibold mt-1 inline-block">오더 카드의 북마크 아이콘을 눌러 찜해보세요.</span></p></div>`
-            : `<div class="empty-state !py-16 surface"><p class="text-xs text-ink-800 font-extrabold leading-relaxed">지금 참여 가능한 새로운 안심 입찰 오더가 존재하지 않습니다.<br><span class="text-[10px] text-ink-500 font-semibold mt-1 inline-block">(신청 완료한 건은 상단 '안심계약' 확인)</span></p></div>`;
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        return;
-    }
-
-    streamList.innerHTML = '';
-    filteredOrders.forEach(order => {
-        const item = document.createElement('div');
-        const isSelected = order.code === window.AppState.selectedOrderCode;
-        const favorited = isFavoriteOrder(order.code);
-        item.className = `p-4 rounded-2xl border ${isSelected ? 'border-2 border-ink-950 bg-ink-50' : 'border-ink-100 bg-white hover:border-ink-300'} transition-all cursor-pointer space-y-2 text-left`;
-        item.style.boxShadow = 'var(--shadow-1)';
-        item.onclick = () => selectOrderForAudit(order.code);
-
-        const slotsLeft = order.partnerCountLimit - order.bids.length;
-        const clientAvgRating = typeof getClientAverageRating === 'function' ? getClientAverageRating(order.clientPhone) : null;
-        const clientTierBadge = typeof buildClientTierBadgeHtml === 'function' ? buildClientTierBadgeHtml(order.clientPhone) : '';
-        item.innerHTML = `
-            <div class="flex justify-between items-center text-[10px] font-bold">
-                <span class="font-mono text-ink-600 bg-ink-100 px-2 py-0.5 rounded-md border border-ink-200 font-extrabold">${order.code}</span>
-                <div class="flex items-center gap-1.5">
-                    <span class="badge badge-neutral"><span class="badge-dot ${slotsLeft === 1 ? 'bg-amberCustom' : 'bg-ink-400'}"></span>선착순 ${slotsLeft}개사 남음</span>
-                    <button type="button" class="btn btn-ghost btn-sm px-1.5" aria-label="관심 오더 찜하기"><i data-lucide="bookmark" class="w-3.5 h-3.5 ${favorited ? 'text-brand-600' : 'text-ink-300'}" ${favorited ? 'fill="currentColor"' : ''}></i></button>
-                </div>
-            </div>
-            <h5 class="text-xs font-black text-ink-950 flex items-center gap-1.5 flex-wrap">${maskName(order.clientName)} 고객님 (${order.pyung}평형) ${clientTierBadge}${clientAvgRating ? `<span class="text-[10px] font-bold text-ink-500"><span class="text-gold-500">★</span> ${clientAvgRating.avg} (${clientAvgRating.count}건)</span>` : ''}</h5>
-            <p class="text-[10px] text-ink-500 font-medium truncate">${maskAddress(order.clientAddress)}</p>
-            <span class="badge badge-brand">희망예산 ₩ ${order.budget.toLocaleString()}만원</span>`;
-        item.querySelector('button[aria-label="관심 오더 찜하기"]').onclick = (e) => toggleFavoriteOrder(order.code, e);
-        streamList.appendChild(item);
-    });
+    if (liveOrderBadge) liveOrderBadge.innerText = `매니저 직접 배정 체제로 전환됨`;
+    // 즐겨찾기 필터는 즉시입찰 오더가 있을 때만 의미가 있었다 — 더 이상 뜰 오더가
+    // 없으므로 눌러도 아무 효과 없는 죽은 버튼을 남겨두지 않고 숨긴다.
+    const favoriteToggleBtn = document.getElementById('btn-partner-favorite-orders-toggle');
+    if (favoriteToggleBtn) favoriteToggleBtn.style.display = 'none';
+    streamList.innerHTML = `<div class="empty-state !py-16 surface"><p class="text-xs text-ink-800 font-extrabold leading-relaxed">이제 모든 오더는 매니저 센터가 직접 배정합니다.<br><span class="text-[10px] text-ink-500 font-semibold mt-1 inline-block">배정받은 오더는 상단 '안심계약'에서 확인해 주세요.</span></p></div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
@@ -3608,7 +3577,8 @@ function submitAdminOrderRegistration() {
     }
 
     const code = `WJ-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const isHighBudget = budget >= 7000;
+    const threshold = (window.CONFIG && window.CONFIG.HIGH_BUDGET_THRESHOLD) || 5000;
+    const isHighBudget = budget >= threshold;
     const newOrder = {
         code, clientName: name, clientPhone: phone, clientAddress: address,
         spaceType, workType, pyung, vacancy, preferredDate, partnerCountLimit: 3, budget,
@@ -3618,23 +3588,12 @@ function submitAdminOrderRegistration() {
         createdAt: new Date().toISOString(), createdByManager: true
     };
 
-    if (!isHighBudget) {
-        const availablePartners = (window.AppState.partners || []).filter(p => p.status === 'active' && !p.isPaused);
-        const count = Math.min(newOrder.partnerCountLimit, availablePartners.length);
-        const shuffled = [...availablePartners].sort(() => 0.5 - Math.random());
-        newOrder.bids = shuffled.slice(0, count).map(partner => ({
-            partner: partner.name,
-            price: Math.floor(budget * (0.9 + Math.random() * 0.08)),
-            desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
-            verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
-        }));
-    }
-
+    // 상담원 대신 등록도 금액과 무관하게 매니저 센터의 수동 오더 배정관 대기열로
+    // 들어간다 — 더 이상 예산 미달 시 파트너를 무작위로 미리 채워주지 않는다.
     window.AppState.orders.push(newOrder);
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'ADMIN_ORDER_REGISTER', `[매니저 센터] 전화·방문 상담으로 접수된 고객(${name})의 견적을 대신 등록했습니다. (${code})`, 'SUCCESS');
-    if (typeof pushClientNotification === 'function') pushClientNotification(phone, `상담원이 접수해주신 견적 요청이 정상 등록됐어요. (의뢰 코드: ${code})${isHighBudget ? ' 고액 오더는 관리자가 직접 우수 파트너사를 배정해드려요.' : ` 파트너사 ${newOrder.bids.length}곳이 매칭되어 견적서를 보냈어요.`}`);
+    if (typeof pushClientNotification === 'function') pushClientNotification(phone, `상담원이 접수해주신 견적 요청이 정상 등록됐어요. (의뢰 코드: ${code}) 관리자가 적합한 파트너사를 선별해 배정해드려요.`);
 
     showToast('견적이 등록되었습니다.', 'success');
     closeAdminOrderRegistrationModal();
@@ -4948,16 +4907,83 @@ function jumpToClientOrderLookup(phone) {
     input.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+/* 예전에는 예산 7천만원 이상인 오더만 이 배정관에 올라오고, 그 미만은
+ * completeMatchingSim에서 파트너를 무작위로 미리 채워 넣었다. 이제는 금액과
+ * 무관하게 모든 일반 오더(1:1 지정 제외)가 이 배정관을 거치므로, 목표 배정
+ * 인원이 다 찬 오더와 아직 남은 오더를 뒤섞어 보여주면 관리자가 처리할 건을
+ * 찾기 어렵다 — '대기오더'/'배정완료' 탭으로 나눠 다 채운 건은 자동으로
+ * 배정완료 탭으로 넘어가게 한다. */
+let adminOrderAllocationTab = 'pending';
+
+function switchAdminOrderAllocationTab(tab) {
+    adminOrderAllocationTab = tab;
+    renderAdminOrderAllocation();
+}
+
+function isOrderAllocationComplete(o) {
+    const matched = o.bids ? o.bids.length : 0;
+    return matched >= (o.partnerCountLimit || 3);
+}
+
+function buildOrderAllocationCardHtml(o, certifiedPartners, isComplete) {
+    const threshold = (window.CONFIG && window.CONFIG.HIGH_BUDGET_THRESHOLD) || 5000;
+    const partnerOptions = certifiedPartners.length > 0 ? certifiedPartners.map(p => `<option value="${p.name}">${p.name} (★ ${p.rating.toFixed(1)} / 인증)</option>`).join('') : `<option value="">인증 보유 파트너사가 없습니다</option>`;
+    const currentMatchedCount = o.bids ? o.bids.length : 0;
+    const totalSlotLimit = o.partnerCountLimit || 3;
+
+    let assignedListHtml = `<div class="pt-2.5 border-t border-ink-100 space-y-2"><div class="flex justify-between items-center text-[10px] font-bold"><span class="text-ink-500 flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5 text-ink-400"></i> 현재 배정 현황:</span><span class="badge ${isComplete ? 'badge-emerald' : 'badge-neutral'}">${currentMatchedCount} / ${totalSlotLimit} 개사 배정 완료</span></div>`;
+    assignedListHtml += currentMatchedCount > 0
+        ? `<div class="flex flex-wrap gap-1.5">${o.bids.map(b => `<span class="badge badge-neutral">${escapeHtml(b.partner)}<button type="button" onclick="unassignOrderFromPartner('${o.code}', '${b.partner}')" class="bg-transparent border-0 cursor-pointer p-0 ml-1 text-ink-400 hover:text-roseCustom" aria-label="배정 취소" title="배정 취소"><i data-lucide="x" class="w-2.5 h-2.5"></i></button></span>`).join('')}</div>`
+        : `<div class="p-2.5 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center"><p class="text-[10px] text-ink-400 font-bold">아직 배정된 파트너사가 없습니다. (인증 파트너 전속 수동 배정 또는 일괄 자동 배정 가능)</p></div>`;
+    assignedListHtml += `</div>`;
+
+    return `
+        <div class="surface-flat p-5 space-y-3.5 hover:border-ink-300 transition-all text-left flex flex-col justify-between">
+            <div class="space-y-2">
+                <div class="flex justify-between items-center text-xs">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        ${isComplete ? '' : `<input type="checkbox" class="admin-order-select-checkbox w-4 h-4" data-order-code="${o.code}" onchange="syncSelectAllOrdersCheckbox()">`}
+                        <span class="font-mono text-[11px] font-black text-ink-500 bg-white px-2 py-0.5 rounded border border-ink-200">${o.code}</span>
+                    </label>
+                    <div class="flex items-center gap-1.5">
+                        ${o.isHighBudgetAdminPending ? `<span class="badge badge-gold">${threshold.toLocaleString()}만+ 고액</span>` : ''}
+                        <span class="badge badge-brand">₩ ${o.budget.toLocaleString()} 만원</span>
+                    </div>
+                </div>
+                <div class="space-y-1"><h4 class="text-sm font-black text-ink-950">${o.clientName} 고객님 (${o.pyung}평형 / ${o.spaceType === 'residential' ? '주거' : '상업'})</h4><p class="text-xs text-ink-600 font-bold leading-relaxed line-clamp-1"><i data-lucide="map-pin" class="w-3.5 h-3.5 inline text-ink-400"></i> ${o.clientAddress}</p></div>
+                <div class="grid grid-cols-2 gap-2 text-[10px] font-bold text-ink-500 bg-white p-2.5 rounded-xl border border-ink-100"><span>착공예정: ${o.preferredDate || '미정'}</span><span>공실여부: ${o.vacancy === 'empty' ? '공실' : '거주중'}</span></div>
+                ${assignedListHtml}
+            </div>
+            ${isComplete ? '' : `
+            <div class="pt-3 border-t border-ink-200 flex items-center gap-2">
+                <select id="select-partner-${o.code}" class="select flex-1">
+                    <option value="">인증 파트너 수동 선택...</option>${partnerOptions}
+                </select>
+                <button type="button" onclick="allocateOrderToPartner('${o.code}')" class="btn btn-dark btn-sm whitespace-nowrap">전속 배정</button>
+                <button type="button" onclick="autoAllocateOrder('${o.code}')" class="btn btn-primary btn-sm whitespace-nowrap" title="남은 슬롯 개수만큼 우수 인증 파트너 일괄 자동 배정"><i data-lucide="zap" class="w-3.5 h-3.5"></i> 일괄 자동</button>
+            </div>`}
+        </div>`;
+}
+
 function renderAdminOrderAllocation() {
     const container = document.getElementById('admin-order-allocation-container');
     if (!container) return;
 
     const orders = window.AppState.orders || [];
     const certifiedPartners = (window.AppState.partners || []).filter(p => p.status !== 'banned' && p.isCertified);
-    const targetOrders = orders.filter(o => o.status === 'bidding' && o.budget >= 7000 && !o.is1on1);
+    const allTargetOrders = orders.filter(o => o.status === 'bidding' && !o.is1on1);
+    const pendingOrders = allTargetOrders.filter(o => !isOrderAllocationComplete(o));
+    const completedOrders = allTargetOrders.filter(o => isOrderAllocationComplete(o));
+    const activeOrders = adminOrderAllocationTab === 'completed' ? completedOrders : pendingOrders;
 
-    if (targetOrders.length === 0) {
-        container.innerHTML = `<div class="empty-state surface surface-lg"><span class="icon-wrap" style="background:var(--emerald-50);color:var(--emerald-600)"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">배정 대기 중인 7천만원 이상 고액 일반 오더가 존재하지 않습니다.</p></div>`;
+    const tabsHtml = `
+        <div class="flex items-center flex-wrap bg-ink-50 p-1 rounded-xl gap-1 border border-ink-100 w-fit">
+            <button type="button" onclick="switchAdminOrderAllocationTab('pending')" class="gnb-tab ${adminOrderAllocationTab === 'pending' ? 'active' : ''}">대기오더 (${pendingOrders.length})</button>
+            <button type="button" onclick="switchAdminOrderAllocationTab('completed')" class="gnb-tab ${adminOrderAllocationTab === 'completed' ? 'active' : ''}">배정완료 (${completedOrders.length})</button>
+        </div>`;
+
+    if (allTargetOrders.length === 0) {
+        container.innerHTML = `<div class="empty-state surface surface-lg"><span class="icon-wrap" style="background:var(--emerald-50);color:var(--emerald-600)"><i data-lucide="check-circle-2" class="w-5 h-5"></i></span><p class="text-xs font-extrabold text-ink-600">배정 대기 중인 오더가 존재하지 않습니다.</p></div>`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
@@ -4965,54 +4991,35 @@ function renderAdminOrderAllocation() {
     let html = `
         <div class="surface surface-lg p-6 space-y-5 text-left">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-4">
-                <div><span class="badge badge-amber">High-Value Direct Allocation</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1 flex items-center gap-2"><span>7,000만원 이상 고액 오더 수동 배정관</span><span class="badge badge-brand">${targetOrders.length}건 대기 중</span></h3></div>
-                <div class="text-xs font-bold text-ink-500">실시간 보증 매칭 잔여 유치액: <span class="font-black text-ink-950">₩ ${(targetOrders.reduce((acc, cur) => acc + cur.budget, 0)).toLocaleString()}만원</span></div>
+                <div><span class="badge badge-amber">Manual Order Allocation</span><h3 class="text-base font-black text-ink-950 tracking-tight mt-1 flex items-center gap-2"><span>오더 수동 배정관</span><span class="badge badge-brand">${allTargetOrders.length}건 관리 중</span></h3></div>
+                <div class="text-xs font-bold text-ink-500">실시간 보증 매칭 잔여 유치액: <span class="font-black text-ink-950">₩ ${(allTargetOrders.reduce((acc, cur) => acc + cur.budget, 0)).toLocaleString()}만원</span></div>
             </div>
+            ${tabsHtml}`;
+
+    if (activeOrders.length === 0) {
+        html += `<div class="empty-state surface !py-16"><p class="text-xs font-extrabold text-ink-600">${adminOrderAllocationTab === 'completed' ? '아직 배정을 완료한 오더가 없습니다.' : '대기 중인 오더가 없습니다. 모두 배정을 완료했어요!'}</p></div></div>`;
+        container.innerHTML = html;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    if (adminOrderAllocationTab === 'pending') {
+        html += `
             <div class="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-ink-50 rounded-xl border border-ink-100">
                 <label class="flex items-center gap-2 text-xs font-black text-ink-700 cursor-pointer">
                     <input type="checkbox" id="admin-order-select-all" onchange="toggleSelectAllOrders(this)" class="w-4 h-4">
                     전체 오더 선택
                 </label>
                 <button type="button" onclick="bulkAutoAllocateSelectedOrders()" class="btn btn-primary btn-sm whitespace-nowrap"><i data-lucide="zap" class="w-3.5 h-3.5"></i> 선택 오더 일괄 자동배정</button>
-            </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">`;
-
-    targetOrders.forEach(o => {
-        const partnerOptions = certifiedPartners.length > 0 ? certifiedPartners.map(p => `<option value="${p.name}">${p.name} (★ ${p.rating.toFixed(1)} / 인증)</option>`).join('') : `<option value="">인증 보유 파트너사가 없습니다</option>`;
-        const currentMatchedCount = o.bids ? o.bids.length : 0;
-        const totalSlotLimit = o.partnerCountLimit || 3;
-
-        let assignedListHtml = `<div class="pt-2.5 border-t border-ink-100 space-y-2"><div class="flex justify-between items-center text-[10px] font-bold"><span class="text-ink-500 flex items-center gap-1"><i data-lucide="users" class="w-3.5 h-3.5 text-ink-400"></i> 현재 배정 현황:</span><span class="badge ${currentMatchedCount === totalSlotLimit ? 'badge-emerald' : 'badge-neutral'}">${currentMatchedCount} / ${totalSlotLimit} 개사 배정 완료</span></div>`;
-        assignedListHtml += currentMatchedCount > 0
-            ? `<div class="flex flex-wrap gap-1.5">${o.bids.map(b => `<span class="badge badge-neutral">${escapeHtml(b.partner)}<button type="button" onclick="unassignOrderFromPartner('${o.code}', '${b.partner}')" class="bg-transparent border-0 cursor-pointer p-0 ml-1 text-ink-400 hover:text-roseCustom" aria-label="배정 취소" title="배정 취소"><i data-lucide="x" class="w-2.5 h-2.5"></i></button></span>`).join('')}</div>`
-            : `<div class="p-2.5 bg-ink-50 rounded-xl border border-dashed border-ink-200 text-center"><p class="text-[10px] text-ink-400 font-bold">아직 배정된 파트너사가 없습니다. (인증 파트너 전속 수동 배정 또는 일괄 자동 배정 가능)</p></div>`;
-        assignedListHtml += `</div>`;
-
-        html += `
-            <div class="surface-flat p-5 space-y-3.5 hover:border-ink-300 transition-all text-left flex flex-col justify-between">
-                <div class="space-y-2">
-                    <div class="flex justify-between items-center text-xs">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" class="admin-order-select-checkbox w-4 h-4" data-order-code="${o.code}" onchange="syncSelectAllOrdersCheckbox()">
-                            <span class="font-mono text-[11px] font-black text-ink-500 bg-white px-2 py-0.5 rounded border border-ink-200">${o.code}</span>
-                        </label>
-                        <span class="badge badge-brand">₩ ${o.budget.toLocaleString()} 만원</span>
-                    </div>
-                    <div class="space-y-1"><h4 class="text-sm font-black text-ink-950">${o.clientName} 고객님 (${o.pyung}평형 / ${o.spaceType === 'residential' ? '주거' : '상업'})</h4><p class="text-xs text-ink-600 font-bold leading-relaxed line-clamp-1"><i data-lucide="map-pin" class="w-3.5 h-3.5 inline text-ink-400"></i> ${o.clientAddress}</p></div>
-                    <div class="grid grid-cols-2 gap-2 text-[10px] font-bold text-ink-500 bg-white p-2.5 rounded-xl border border-ink-100"><span>착공예정: ${o.preferredDate || '미정'}</span><span>공실여부: ${o.vacancy === 'empty' ? '공실' : '거주중'}</span></div>
-                    ${assignedListHtml}
-                </div>
-                <div class="pt-3 border-t border-ink-200 flex items-center gap-2">
-                    <select id="select-partner-${o.code}" class="select flex-1">
-                        <option value="">인증 파트너 수동 선택...</option>${partnerOptions}
-                    </select>
-                    <button type="button" onclick="allocateOrderToPartner('${o.code}')" class="btn btn-dark btn-sm whitespace-nowrap">전속 배정</button>
-                    <button type="button" onclick="autoAllocateOrder('${o.code}')" class="btn btn-primary btn-sm whitespace-nowrap" title="남은 슬롯 개수만큼 우수 인증 파트너 일괄 자동 배정"><i data-lucide="zap" class="w-3.5 h-3.5"></i> 일괄 자동</button>
-                </div>
             </div>`;
-    });
+    }
 
+    html += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">`;
+    activeOrders.forEach(o => {
+        html += buildOrderAllocationCardHtml(o, certifiedPartners, adminOrderAllocationTab === 'completed');
+    });
     html += `</div></div>`;
+
     container.innerHTML = html;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -5058,11 +5065,12 @@ function allocateOrderToPartner(orderCode) {
 
     order.bids.push({ partner: partnerName, price: order.budget, desc: `[매니저 센터 직할 수동 배정] ${partnerName}에 프리미엄 전속 오더가 안전하게 할당되었습니다.`, verified: true, progress: 'bidding', date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString() });
 
-    if (typeof pushLog === 'function') pushLog('MANAGER', 'ALLOCATE', `[매니저 센터] 고액 오더(${orderCode}, ₩ ${order.budget.toLocaleString()}만원)를 [${partnerName}] 파트너사에 수동 배정완료.`, 'SUCCESS');
+    const orderLabel = order.isHighBudgetAdminPending ? '고액 오더' : '오더';
+    if (typeof pushLog === 'function') pushLog('MANAGER', 'ALLOCATE', `[매니저 센터] ${orderLabel}(${orderCode}, ₩ ${order.budget.toLocaleString()}만원)를 [${partnerName}] 파트너사에 수동 배정완료.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 배정되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
-    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `매니저 센터가 고액 오더(${orderCode})를 전속 배정했어요. (예산 ₩ ${order.budget.toLocaleString()}만원)`);
+    if (typeof pushPartnerNotification === 'function') pushPartnerNotification(partnerName, `매니저 센터가 ${orderLabel}(${orderCode})를 전속 배정했어요. (예산 ₩ ${order.budget.toLocaleString()}만원)`);
     renderAdminOrderAllocation(); recalculateKPIs();
-    showToast(`[${partnerName}] 파트너사에 고액 오더 배정이 완료되었습니다!`, "success");
+    showToast(`[${partnerName}] 파트너사에 배정이 완료되었습니다!`, "success");
 }
 
 /* 배정 실수를 되돌릴 방법이 전혀 없었다 — 수동/자동 배정 모두 order.bids에 한 번
@@ -7853,6 +7861,7 @@ window.syncSelectAllOrdersCheckbox = syncSelectAllOrdersCheckbox;
 window.bulkAutoAllocateSelectedOrders = bulkAutoAllocateSelectedOrders;
 window.allocateOrderToPartner = allocateOrderToPartner;
 window.unassignOrderFromPartner = unassignOrderFromPartner;
+window.switchAdminOrderAllocationTab = switchAdminOrderAllocationTab;
 window.renderHomeEventSlider = renderHomeEventSlider;
 window.openPamphletDetail = openPamphletDetail;
 window.closePamphletDetail = closePamphletDetail;

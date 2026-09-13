@@ -5,6 +5,9 @@
  */
 
 const CONFIG = {
+    // 이 금액(만원 단위) 이상인 오더는 파트너 자율 입찰 없이 매니저 센터가 직접
+    // 파트너사를 전속 배정한다. 여러 파일에 숫자가 흩어져 있던 것을 하나로 모음.
+    HIGH_BUDGET_THRESHOLD: 5000,
     imageMoodPresets: {
         living: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&auto=format&fit=crop&q=60',
         kitchen: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=60',
