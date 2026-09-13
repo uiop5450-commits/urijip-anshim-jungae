@@ -2306,6 +2306,7 @@ function deleteMyPortfolioQuestion(partnerName, idx, questionIdx) {
         return;
     }
 
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'PORTFOLIO_QUESTION_DELETE', `'${auth.name}' 고객님이 [${partnerName}]의 시공사례(${port.title || '-'}) 문의를 삭제했습니다.`, 'INFO');
     port.questions.splice(questionIdx, 1);
     showToast('문의를 삭제했습니다.', 'info');
     renderPortfolioQnaSection(partnerName, idx);
