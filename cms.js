@@ -1216,6 +1216,36 @@ function confirmPartnerAccountClosure() {
  * 자기 후기에 답글을 남길 방법이 전혀 없었다(네이버지도/구글리뷰의 '사장님 답글'과
  * 같은 기능 공백). 답글은 rev.reply = {text, date}로 저장되고, 고객이 보는
  * openClientPartnerProfile/openReviewDetailModal에도 그대로 노출된다. */
+// 답글에 오타가 있거나 표현을 바꾸고 싶을 때, 지금까지는 removeReviewReply로
+// 통째로 지우고 처음부터 다시 입력하는 방법뿐이었다 — 커뮤니티 댓글/답글
+// (client_panel.js toggleReplyEdit/saveCommunityReplyEdit)과 동일한 인라인
+// 수정 패턴을 답글에도 적용해, 원래 등록일을 유지한 채 내용만 고칠 수 있게 한다.
+let openReviewReplyEditKeys = new Set();
+
+function toggleReviewReplyEdit(partnerName, reviewIdx) {
+    const key = `${partnerName}-${reviewIdx}`;
+    if (openReviewReplyEditKeys.has(key)) openReviewReplyEditKeys.delete(key);
+    else openReviewReplyEditKeys.add(key);
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    if (partner) renderPartnerMyReviews(partner);
+}
+
+function saveReviewReplyEdit(partnerName, reviewIdx) {
+    const partner = window.AppState.partners.find(p => p.name === partnerName);
+    const rev = partner && partner.reviews && partner.reviews[reviewIdx];
+    if (!rev || !rev.reply) return;
+
+    const input = document.getElementById(`review-reply-edit-input-${reviewIdx}`);
+    const text = input ? input.value.trim() : '';
+    if (!text) { showToast('답글 내용을 입력해 주세요.', 'warning'); return; }
+
+    rev.reply.text = text;
+    rev.reply.edited = true;
+    openReviewReplyEditKeys.delete(`${partnerName}-${reviewIdx}`);
+    showToast('답글을 수정했습니다.', 'success');
+    renderPartnerMyReviews(partner);
+}
+
 function renderPartnerMyReviews(partner) {
     const container = document.getElementById('partner-myinfo-reviews-list');
     if (!container) return;
@@ -1235,12 +1265,21 @@ function renderPartnerMyReviews(partner) {
                 <button type="button" onclick="${rev.partnerFlagged ? `showToast('이미 신고 접수된 후기입니다.', 'info')` : `openReportReasonPrompt((reason) => flagReviewAsPartner('${partner.name}', ${idx}, reason))`}" class="flex items-center gap-1 bg-transparent border-0 cursor-pointer p-0 text-[10px] font-bold text-ink-400 hover:text-roseCustom"><i data-lucide="flag" class="w-3 h-3"></i> ${rev.partnerFlagged ? '허위·부적절 후기 신고 완료' : '허위·부적절 후기로 신고'}</button>
             </div>
             ${rev.reply && rev.reply.text ? `
-                <div class="p-3 rounded-lg space-y-1" style="background:var(--brand-50)">
+                <div class="p-3 rounded-lg space-y-1.5" style="background:var(--brand-50)">
                     <div class="flex justify-between items-center">
-                        <span class="text-[10px] font-black text-brand-700 flex items-center gap-1"><i data-lucide="reply" class="w-3 h-3"></i> 사장님 답글</span>
-                        <button type="button" onclick="removeReviewReply('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                        <span class="text-[10px] font-black text-brand-700 flex items-center gap-1"><i data-lucide="reply" class="w-3 h-3"></i> 사장님 답글${rev.reply.edited ? ' <span class="text-ink-400 font-bold">(수정됨)</span>' : ''}</span>
+                        ${openReviewReplyEditKeys.has(`${partner.name}-${idx}`) ? '' : `
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="toggleReviewReplyEdit('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-brand-600 bg-transparent border-0 cursor-pointer p-0">수정</button>
+                            <button type="button" onclick="removeReviewReply('${partner.name}', ${idx})" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">삭제</button>
+                        </div>`}
                     </div>
-                    <p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(rev.reply.text)}</p>
+                    ${openReviewReplyEditKeys.has(`${partner.name}-${idx}`) ? `
+                        <div class="flex gap-2">
+                            <input type="text" id="review-reply-edit-input-${idx}" value="${escapeHtml(rev.reply.text)}" class="input flex-1 text-xs">
+                            <button type="button" onclick="saveReviewReplyEdit('${partner.name}', ${idx})" class="btn btn-secondary btn-sm shrink-0">저장</button>
+                        </div>
+                    ` : `<p class="text-xs text-ink-700 font-semibold leading-relaxed">${escapeHtml(rev.reply.text)}</p>`}
                 </div>
             ` : `
                 <div class="flex gap-2 pt-1">
@@ -1277,6 +1316,7 @@ function removeReviewReply(partnerName, reviewIdx) {
     const partner = window.AppState.partners.find(p => p.name === partnerName);
     if (!partner || !partner.reviews || !partner.reviews[reviewIdx]) return;
     delete partner.reviews[reviewIdx].reply;
+    openReviewReplyEditKeys.delete(`${partnerName}-${reviewIdx}`);
     showToast('답글을 삭제했습니다.', 'info');
     renderPartnerMyReviews(partner);
 }
@@ -2366,6 +2406,8 @@ window.closePartnerAccountCloseModal = closePartnerAccountCloseModal;
 window.confirmPartnerAccountClosure = confirmPartnerAccountClosure;
 window.submitReviewReply = submitReviewReply;
 window.removeReviewReply = removeReviewReply;
+window.toggleReviewReplyEdit = toggleReviewReplyEdit;
+window.saveReviewReplyEdit = saveReviewReplyEdit;
 window.buildPortfolioCardMediaHtml = buildPortfolioCardMediaHtml;
 window.triggerPortfolioImageInsert = triggerPortfolioImageInsert;
 window.handlePortfolioBodyImageInsert = handlePortfolioBodyImageInsert;
