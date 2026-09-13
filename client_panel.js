@@ -3202,9 +3202,16 @@ function resetClientPassword() {
 /* 계정 정보 수정/비밀번호 변경은 있는데 탈퇴할 방법이 전혀 없었던 공백 — 파트너의
  * status: 'banned'/isSuspended와 동일하게 배열에서 지우지 않고 status 플래그만
  * 남기는 소프트 삭제로 처리한다(과거 의뢰·후기 기록은 그대로 보존). */
+/* 파트너의 자진 입점 해지(openPartnerAccountCloseModal, cms.js)는 진행 중인
+ * 계약이 있으면 막아서 시공 중인 고객을 방치한 채 나갈 수 없게 하는데, 정작
+ * 고객 쪽 회원 탈퇴는 그런 확인이 전혀 없었다 — 계약 진행 중에 탈퇴하면
+ * 계정 없이는 마일스톤 납부·하자보수 신청·일정 협의에 응할 방법이 없어져
+ * 오히려 파트너가 피해를 본다. 동일한 안전장치를 그대로 적용한다. */
 function openAccountDeleteModal() {
     const auth = window.AppState.clientAuth;
     if (!auth.loggedIn) return;
+    const activeContract = (window.AppState.orders || []).some(o => o.status === 'contracted' && o.clientPhone === auth.phone);
+    if (activeContract) { showToast('진행 중인 계약이 있어 회원 탈퇴할 수 없어요. 계약을 모두 마친 후 다시 시도해주세요.', 'warning'); return; }
     safeUpdateValue('account-delete-confirm-pw', '');
     openModal('client-account-delete-modal', 'client-account-delete-modal-card');
 }
@@ -3218,6 +3225,9 @@ function confirmAccountDeletion() {
     if (!auth.loggedIn) return;
     const account = window.AppState.clientAccounts.find(acc => acc.id === auth.id);
     if (!account) return;
+
+    const activeContract = (window.AppState.orders || []).some(o => o.status === 'contracted' && o.clientPhone === auth.phone);
+    if (activeContract) { showToast('진행 중인 계약이 있어 회원 탈퇴할 수 없어요.', 'warning'); closeAccountDeleteModal(); return; }
 
     const pw = document.getElementById('account-delete-confirm-pw')?.value || '';
     if (!pw) { showToast('비밀번호를 입력해 주세요.', 'warning'); return; }
