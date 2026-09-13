@@ -1020,14 +1020,18 @@ function renderPartnerProfileManager() {
     const img = document.getElementById('partner-hero-slide-img');
     if (img) img.src = partner.heroImages[partner.heroSlideIndex];
     safeUpdateText('partner-hero-slide-counter', `${partner.heroSlideIndex + 1} / ${partner.heroImages.length}`);
+    const setCoverBtn = document.getElementById('partner-hero-set-cover-btn');
+    if (setCoverBtn) setCoverBtn.style.display = partner.heroSlideIndex === 0 ? 'none' : '';
 
     /* 화살표+카운터만으로는 전체 중 몇 장인지, 어떤 사진들인지 한눈에 안 보여서
-     * 클릭 가능한 썸네일 스트립을 추가한다. */
+     * 클릭 가능한 썸네일 스트립을 추가한다. 맨 앞(index 0)이 곧 대표 사진이므로
+     * "지금 보고 있는 사진"과는 별개로 어떤 사진이 대표인지 작은 별 표시로 구분한다. */
     const strip = document.getElementById('partner-hero-thumbnail-strip');
     if (strip) {
         strip.innerHTML = partner.heroImages.map((src, idx) => `
-            <button type="button" onclick="jumpToPartnerHeroSlide(${idx})" class="w-12 h-12 rounded-lg overflow-hidden shrink-0 border-2 ${idx === partner.heroSlideIndex ? 'border-brand-500' : 'border-transparent'} p-0 cursor-pointer bg-ink-100">
+            <button type="button" onclick="jumpToPartnerHeroSlide(${idx})" class="w-12 h-12 rounded-lg overflow-hidden shrink-0 border-2 ${idx === partner.heroSlideIndex ? 'border-brand-500' : 'border-transparent'} p-0 cursor-pointer bg-ink-100 relative">
                 <img src="${src}" class="w-full h-full object-cover">
+                ${idx === 0 ? `<span class="absolute top-0 left-0 bg-gold-500 text-white rounded-br-md" style="font-size:8px;line-height:1;padding:1px 3px;"><i data-lucide="star" class="w-2 h-2"></i></span>` : ''}
             </button>`).join('');
     }
 
@@ -1430,6 +1434,21 @@ function deleteCurrentPartnerHeroSlide() {
     partner.heroSlideIndex = 0;
     renderPartnerProfileManager();
     showToast("삭제되었습니다.", "info");
+}
+
+/* 고객 검색 카드(renderPartnerSearchGrid)의 대표 사진은 항상 heroImages[0]
+ * 고정이라, 나중에 더 좋은 사진을 올려도 그걸 대표로 쓰려면 앞선 사진들을
+ * 전부 삭제하는 파괴적인 방법뿐이었다 — 지금 보고 있는 사진을 맨 앞으로
+ * 옮겨 대표 사진으로 지정하는 비파괴적인 방법을 추가한다. */
+function setCurrentPartnerHeroSlideCover() {
+    const partner = window.AppState.partners.find(p => p.name === (window.AppState.partnerName || '오륙도 디자인 실내건축'));
+    if (!partner || !partner.heroImages || !partner.heroSlideIndex) return;
+    const [chosen] = partner.heroImages.splice(partner.heroSlideIndex, 1);
+    partner.heroImages.unshift(chosen);
+    partner.heroSlideIndex = 0;
+    renderPartnerProfileManager();
+    if (typeof renderPartnerSearchGrid === 'function') renderPartnerSearchGrid();
+    showToast('대표 사진으로 지정되었습니다.', 'success');
 }
 
 function renderPartnerConsolePortfolios() {
@@ -2420,6 +2439,7 @@ window.nextPartnerHeroSlide = nextPartnerHeroSlide;
 window.prevPartnerHeroSlide = prevPartnerHeroSlide;
 window.jumpToPartnerHeroSlide = jumpToPartnerHeroSlide;
 window.deleteCurrentPartnerHeroSlide = deleteCurrentPartnerHeroSlide;
+window.setCurrentPartnerHeroSlideCover = setCurrentPartnerHeroSlideCover;
 window.openReviewDetailModal = openReviewDetailModal;
 window.toggleReviewHelpful = toggleReviewHelpful;
 window.isReviewHelpfulByMe = isReviewHelpfulByMe;
