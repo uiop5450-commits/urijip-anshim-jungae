@@ -4909,11 +4909,11 @@ function jumpToClientOrderLookup(phone) {
 
 /* 예전에는 예산 7천만원 이상인 오더만 이 배정관에 올라오고, 그 미만은
  * completeMatchingSim에서 파트너를 무작위로 미리 채워 넣었다. 이제는 금액과
- * 무관하게 모든 일반 오더(1:1 지정 제외)가 이 배정관을 거치므로, 목표 배정
- * 인원이 다 찬 오더와 아직 남은 오더를 뒤섞어 보여주면 관리자가 처리할 건을
- * 찾기 어렵다 — '대기오더'/'배정완료' 탭으로 나눠 다 채운 건은 자동으로
- * 배정완료 탭으로 넘어가게 한다. */
-let adminOrderAllocationTab = 'pending';
+ * 무관하게 모든 일반 오더(1:1 지정 제외)가 이 배정관을 거치므로, 일반/고액을
+ * 뒤섞어 보여주면 관리자가 처리할 건을 찾기 어렵다 — '일반오더'/'고액오더'/
+ * '배정완료' 세 탭으로 나누고, 목표 배정 인원이 다 찬 오더는 금액과 무관하게
+ * 자동으로 배정완료 탭으로 넘어가게 한다. */
+let adminOrderAllocationTab = 'normal';
 
 function switchAdminOrderAllocationTab(tab) {
     adminOrderAllocationTab = tab;
@@ -4926,7 +4926,6 @@ function isOrderAllocationComplete(o) {
 }
 
 function buildOrderAllocationCardHtml(o, certifiedPartners, isComplete) {
-    const threshold = (window.CONFIG && window.CONFIG.HIGH_BUDGET_THRESHOLD) || 5000;
     const partnerOptions = certifiedPartners.length > 0 ? certifiedPartners.map(p => `<option value="${p.name}">${p.name} (★ ${p.rating.toFixed(1)} / 인증)</option>`).join('') : `<option value="">인증 보유 파트너사가 없습니다</option>`;
     const currentMatchedCount = o.bids ? o.bids.length : 0;
     const totalSlotLimit = o.partnerCountLimit || 3;
@@ -4946,8 +4945,8 @@ function buildOrderAllocationCardHtml(o, certifiedPartners, isComplete) {
                         <span class="font-mono text-[11px] font-black text-ink-500 bg-white px-2 py-0.5 rounded border border-ink-200">${o.code}</span>
                     </label>
                     <div class="flex items-center gap-1.5">
-                        ${o.isHighBudgetAdminPending ? `<span class="badge badge-gold">${threshold.toLocaleString()}만+ 고액</span>` : ''}
-                        <span class="badge badge-brand">₩ ${o.budget.toLocaleString()} 만원</span>
+                        ${o.isHighBudgetAdminPending ? `<span class="badge badge-gold" style="font-size:14px;font-weight:900;padding:7px 14px;">프리미엄 오더</span>` : ''}
+                        <span class="badge badge-brand" style="font-size:14px;font-weight:900;padding:7px 14px;">₩ ${o.budget.toLocaleString()} 만원</span>
                     </div>
                 </div>
                 <div class="space-y-1"><h4 class="text-sm font-black text-ink-950">${o.clientName} 고객님 (${o.pyung}평형 / ${o.spaceType === 'residential' ? '주거' : '상업'})</h4><p class="text-xs text-ink-600 font-bold leading-relaxed line-clamp-1"><i data-lucide="map-pin" class="w-3.5 h-3.5 inline text-ink-400"></i> ${o.clientAddress}</p></div>
@@ -4972,13 +4971,15 @@ function renderAdminOrderAllocation() {
     const orders = window.AppState.orders || [];
     const certifiedPartners = (window.AppState.partners || []).filter(p => p.status !== 'banned' && p.isCertified);
     const allTargetOrders = orders.filter(o => o.status === 'bidding' && !o.is1on1);
-    const pendingOrders = allTargetOrders.filter(o => !isOrderAllocationComplete(o));
+    const normalPendingOrders = allTargetOrders.filter(o => !isOrderAllocationComplete(o) && !o.isHighBudgetAdminPending);
+    const highPendingOrders = allTargetOrders.filter(o => !isOrderAllocationComplete(o) && o.isHighBudgetAdminPending);
     const completedOrders = allTargetOrders.filter(o => isOrderAllocationComplete(o));
-    const activeOrders = adminOrderAllocationTab === 'completed' ? completedOrders : pendingOrders;
+    const activeOrders = adminOrderAllocationTab === 'completed' ? completedOrders : adminOrderAllocationTab === 'high' ? highPendingOrders : normalPendingOrders;
 
     const tabsHtml = `
         <div class="flex items-center flex-wrap bg-ink-50 p-1 rounded-xl gap-1 border border-ink-100 w-fit">
-            <button type="button" onclick="switchAdminOrderAllocationTab('pending')" class="gnb-tab ${adminOrderAllocationTab === 'pending' ? 'active' : ''}">대기오더 (${pendingOrders.length})</button>
+            <button type="button" onclick="switchAdminOrderAllocationTab('normal')" class="gnb-tab ${adminOrderAllocationTab === 'normal' ? 'active' : ''}">일반오더 (${normalPendingOrders.length})</button>
+            <button type="button" onclick="switchAdminOrderAllocationTab('high')" class="gnb-tab ${adminOrderAllocationTab === 'high' ? 'active' : ''}">고액오더 (${highPendingOrders.length})</button>
             <button type="button" onclick="switchAdminOrderAllocationTab('completed')" class="gnb-tab ${adminOrderAllocationTab === 'completed' ? 'active' : ''}">배정완료 (${completedOrders.length})</button>
         </div>`;
 
@@ -4996,14 +4997,20 @@ function renderAdminOrderAllocation() {
             </div>
             ${tabsHtml}`;
 
+    const emptyMessages = {
+        normal: '대기 중인 일반오더가 없습니다.',
+        high: '대기 중인 고액오더가 없습니다.',
+        completed: '아직 배정을 완료한 오더가 없습니다.'
+    };
+
     if (activeOrders.length === 0) {
-        html += `<div class="empty-state surface !py-16"><p class="text-xs font-extrabold text-ink-600">${adminOrderAllocationTab === 'completed' ? '아직 배정을 완료한 오더가 없습니다.' : '대기 중인 오더가 없습니다. 모두 배정을 완료했어요!'}</p></div></div>`;
+        html += `<div class="empty-state surface !py-16"><p class="text-xs font-extrabold text-ink-600">${emptyMessages[adminOrderAllocationTab]}</p></div></div>`;
         container.innerHTML = html;
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
     }
 
-    if (adminOrderAllocationTab === 'pending') {
+    if (adminOrderAllocationTab !== 'completed') {
         html += `
             <div class="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-ink-50 rounded-xl border border-ink-100">
                 <label class="flex items-center gap-2 text-xs font-black text-ink-700 cursor-pointer">
