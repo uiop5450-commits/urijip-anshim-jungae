@@ -3116,6 +3116,20 @@ function cascadeClientPhoneChange(oldPhone, newPhone) {
     (window.AppState.clientNotifications || []).forEach(n => { if (n.clientPhone === oldPhone) n.clientPhone = newPhone; });
     (window.AppState.clientRatings || []).forEach(r => { if (r.clientPhone === oldPhone) r.clientPhone = newPhone; });
     (window.AppState.clientReports || []).forEach(r => { if (r.clientPhone === oldPhone) r.clientPhone = newPhone; });
+    (window.AppState.supportTickets || []).forEach(t => { if (t.clientPhone === oldPhone) t.clientPhone = newPhone; });
+}
+
+/* 연락처 변경은 cascadeClientPhoneChange로 관련 기록에 반영되는데, 이름 변경은
+ * account.name/auth.name만 바뀌고 order.clientName 등 생성 시점에 찍어둔 스냅샷은
+ * 그대로 남아 있었다 — 파트너 콘솔·관리자 검색/CSV·평가·신고 전반에서 order.clientName을
+ * 그대로 읽으므로, 고객이 개명해도 파트너·관리자 화면엔 옛 이름이 영구히 남는다.
+ * clientPhone(오더·평가·신고)과 clientId(문의 티켓)로 각각 안정적으로 조인해 갱신한다. */
+function cascadeClientNameChange(clientPhone, clientId, oldName, newName) {
+    if (oldName === newName) return;
+    (window.AppState.orders || []).forEach(o => { if (o.clientPhone === clientPhone) o.clientName = newName; });
+    (window.AppState.clientRatings || []).forEach(r => { if (r.clientPhone === clientPhone) r.clientName = newName; });
+    (window.AppState.clientReports || []).forEach(r => { if (r.clientPhone === clientPhone) r.clientName = newName; });
+    (window.AppState.supportTickets || []).forEach(t => { if (t.clientId === clientId) t.clientName = newName; });
 }
 
 function updateClientProfileInfo() {
@@ -3128,6 +3142,7 @@ function updateClientProfileInfo() {
     if (!/^0\d{1,2}-\d{3,4}-\d{4}$/.test(phoneVal)) { showToast('휴대폰 연락처를 올바른 형식으로 입력해 주세요. (예: 010-0000-0000)', 'warning'); return; }
     if (window.AppState.clientAccounts.some(acc => acc.id !== auth.id && acc.phone === phoneVal)) { showToast('이미 다른 계정에서 사용 중인 휴대폰 번호입니다.', 'warning'); return; }
     const oldPhone = auth.phone;
+    const oldName = auth.name;
     if (oldPhone !== phoneVal && (window.AppState.orders || []).some(o => o.status === 'contracted' && o.clientPhone === oldPhone)) {
         showToast('진행 중인 계약이 있어 연락처를 변경할 수 없어요. 계약을 모두 마친 후 다시 시도해주세요.', 'warning');
         return;
@@ -3137,6 +3152,7 @@ function updateClientProfileInfo() {
     if (account) { account.name = nameVal; account.phone = phoneVal; }
     auth.name = nameVal; auth.phone = phoneVal;
     cascadeClientPhoneChange(oldPhone, phoneVal);
+    cascadeClientNameChange(phoneVal, auth.id, oldName, nameVal);
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'PROFILE_UPDATE', `'${auth.id}' 고객님이 회원 정보를 수정했습니다.`, 'INFO');
     showToast('회원 정보가 저장되었습니다.', 'success');
