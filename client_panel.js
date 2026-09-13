@@ -882,6 +882,26 @@ function disputeCompletedRepairClaim(orderCode, claimId, note) {
     selectMyPageEstimate(order.code);
 }
 
+/* retractProgressStageDispute와 동일한 이유로, 하자보수 완료 처리 이의제기도
+ * 관리자가 처리하기 전(completionDisputeResolution === null)까지는 신청자가
+ * 직접 철회할 수 있게 한다. */
+function retractRepairClaimCompletionDispute(orderCode, claimId) {
+    const order = window.AppState.orders.find(o => o.code === orderCode);
+    const claim = order && order.repairClaims && order.repairClaims.find(c => c.id === claimId);
+    if (!claim || !claim.completionDisputed || claim.completionDisputeResolution) return;
+
+    claim.completionDisputed = false;
+    claim.completionDisputeNote = null;
+    claim.completionDisputeResolution = null;
+    claim.completionDisputeAdminResponse = null;
+
+    if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_CLAIM_COMPLETION_DISPUTE_RETRACT', `[${order.clientName}] 고객님이 하자보수("${claim.title}") 완료 처리 이의제기를 철회했습니다.`, 'INFO');
+    if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 하자보수("${claim.title}") 완료 처리 이의제기를 철회했어요.`);
+    showToast('이의제기를 철회했습니다.', 'info');
+
+    selectMyPageEstimate(order.code);
+}
+
 /* 계약 체결 후 고객이 확인할 수 있는 건 서명·서류·수수료 결제 상태뿐이라, 실제
  * 시공이 지금 어느 단계인지는 전혀 알 방법이 없었다 — 파트너가 진행 표시하는
  * 단계(advanceOrderProgressStage, partner_panel.js)를 읽기 전용 스테퍼로 보여준다. */
@@ -1219,7 +1239,7 @@ function buildRepairClaimsHtml(order) {
             ${c.status === 'completed' ? (c.completionDisputed
                 ? (c.completionDisputeResolution === 'rejected'
                     ? `<p class="text-[10px] font-bold text-ink-400 mt-1">이의제기 반려됨${c.completionDisputeAdminResponse ? ` — ${escapeHtml(c.completionDisputeAdminResponse)}` : ''}</p>`
-                    : `<p class="text-[10px] font-bold text-amberCustom mt-1">완료 처리 이의제기 심사 대기중</p>`)
+                    : `<span class="flex items-center gap-1.5 mt-1"><p class="text-[10px] font-bold text-amberCustom">완료 처리 이의제기 심사 대기중</p><button type="button" onclick="retractRepairClaimCompletionDispute('${order.code}', '${c.id}')" class="text-[9px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0">철회</button></span>`)
                 : `<button type="button" onclick="openReportReasonPrompt((note) => disputeCompletedRepairClaim('${order.code}', '${c.id}', note))" class="text-[10px] font-bold text-ink-400 hover:text-roseCustom bg-transparent border-0 cursor-pointer p-0 mt-1">완료 처리에 이의있어요</button>`) : ''}
         </div>`;
     }).join('')}</div>`;
@@ -5385,6 +5405,7 @@ window.confirmRepairVisitDate = confirmRepairVisitDate;
 window.disputeRepairVisitCompletion = disputeRepairVisitCompletion;
 window.respondChangeOrder = respondChangeOrder;
 window.disputeCompletedRepairClaim = disputeCompletedRepairClaim;
+window.retractRepairClaimCompletionDispute = retractRepairClaimCompletionDispute;
 window.toggleCommunityAcceptedAnswer = toggleCommunityAcceptedAnswer;
 window.reopenCancelledOrder = reopenCancelledOrder;
 window.isPartnerBlockedByClient = isPartnerBlockedByClient;
