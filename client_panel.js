@@ -1947,6 +1947,7 @@ function renderClientMyPage() {
 
     const auth = window.AppState.clientAuth;
     if (!auth.loggedIn) return;
+    if (typeof renderClientNavUnreadBadge === 'function') renderClientNavUnreadBadge();
 
     const tierBadgeEl = document.getElementById('client-mypage-tier-badge');
     if (tierBadgeEl) tierBadgeEl.innerHTML = buildClientTierBadgeHtml(auth.phone);
@@ -2463,6 +2464,22 @@ function renderClientRegularOfPartners() {
             <span class="badge badge-amber shrink-0"><i data-lucide="star" class="w-2.5 h-2.5"></i> 단골 등록</span>
         </div>`).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+/* 안 읽은 알림 개수는 지금까지 마이페이지 > 알림 탭 라벨에서만 보여서, 정작 그
+ * 탭을 열기 전까지는 새 소식이 있는지 전혀 알 수 없었다 — 전역 GNB의 "마이페이지"
+ * 탭에 배지를 달아, 어느 화면에 있든 놓친 알림이 있으면 바로 보이게 한다. */
+function renderClientNavUnreadBadge() {
+    const auth = window.AppState.clientAuth;
+    const badges = [document.getElementById('nav-client-unread-badge'), document.getElementById('nav-client-unread-badge-m')];
+    const unreadCount = (auth && auth.loggedIn)
+        ? (window.AppState.clientNotifications || []).filter(n => n.clientPhone === auth.phone && !n.read).length
+        : 0;
+    badges.forEach(badge => {
+        if (!badge) return;
+        badge.classList.toggle('hidden', unreadCount === 0);
+        badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+    });
 }
 
 /* 마이페이지 > 알림 탭 — 매칭 완료/파트너 배정/계약 체결 시 pushClientNotification()으로 쌓인
@@ -5024,6 +5041,7 @@ window.renderClientStrikeAppealStatus = renderClientStrikeAppealStatus;
 window.closeSuspensionAppealModal = closeSuspensionAppealModal;
 window.submitSuspensionAppeal = submitSuspensionAppeal;
 window.renderClientMyPageNotifications = renderClientMyPageNotifications;
+window.renderClientNavUnreadBadge = renderClientNavUnreadBadge;
 window.replyToManagerDirectMessage = replyToManagerDirectMessage;
 window.markAllClientNotificationsRead = markAllClientNotificationsRead;
 window.markClientNotificationRead = markClientNotificationRead;

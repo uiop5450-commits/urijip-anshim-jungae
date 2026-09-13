@@ -66,6 +66,7 @@ function switchPanel(panelId) {
         panelId = 'client-login-panel';
     }
     window.AppState.currentPanel = panelId;
+    if (typeof renderClientNavUnreadBadge === 'function') renderClientNavUnreadBadge();
     const panels = ['home-panel', 'client-panel', 'partner-search-panel', 'community-panel', 'client-login-panel', 'client-mypage-panel', 'partner-panel', 'admin-panel'];
 
     panels.forEach(p => {

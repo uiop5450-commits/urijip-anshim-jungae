@@ -58,7 +58,7 @@
                     <button type="button" id="tab-client-panel" onclick="switchPanel('client-panel')" class="gnb-tab"><i data-lucide="edit-3" class="w-3.5 h-3.5"></i> 간편 견적 신청</button>
                     <button type="button" id="tab-partner-search-panel" onclick="switchPanel('partner-search-panel')" class="gnb-tab"><i data-lucide="search" class="w-3.5 h-3.5"></i> 인증 파트너 탐색</button>
                     <button type="button" id="tab-community-panel" onclick="switchPanel('community-panel')" class="gnb-tab"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i> 커뮤니티</button>
-                    <button type="button" id="tab-client-mypage-panel" onclick="switchPanel('client-mypage-panel')" class="gnb-tab"><i data-lucide="user" class="w-3.5 h-3.5"></i> 마이페이지</button>
+                    <button type="button" id="tab-client-mypage-panel" onclick="switchPanel('client-mypage-panel')" class="gnb-tab relative"><i data-lucide="user" class="w-3.5 h-3.5"></i> 마이페이지<span id="nav-client-unread-badge" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-roseCustom text-white text-[9px] font-black flex items-center justify-center leading-none"></span></button>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -79,7 +79,7 @@
                 <button type="button" onclick="switchPanel('client-panel')" class="gnb-tab shrink-0">견적 신청</button>
                 <button type="button" onclick="switchPanel('partner-search-panel')" class="gnb-tab shrink-0">파트너 탐색</button>
                 <button type="button" onclick="switchPanel('community-panel')" class="gnb-tab shrink-0">커뮤니티</button>
-                <button type="button" onclick="switchPanel('client-mypage-panel')" class="gnb-tab shrink-0">마이페이지</button>
+                <button type="button" onclick="switchPanel('client-mypage-panel')" class="gnb-tab shrink-0 relative">마이페이지<span id="nav-client-unread-badge-m" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-roseCustom text-white text-[9px] font-black flex items-center justify-center leading-none"></span></button>
             </div>
         </div>
     </nav>
