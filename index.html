@@ -2199,6 +2199,14 @@
                 <p class="text-[11px] text-ink-500 font-medium leading-relaxed">계약 파트너사가 신청 내용을 확인 후 처리 현황을 안내해드려요.</p>
                 <div><label class="field-label">하자 부위/제목</label><input type="text" id="repair-claim-title" placeholder="예: 거실 마루 들뜸" class="input w-full"></div>
                 <div><label class="field-label">상세 내용</label><textarea id="repair-claim-desc" rows="4" placeholder="어떤 부분에 하자가 있는지 자세히 적어주세요." class="textarea"></textarea></div>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="field-label mb-0">하자 사진 첨부 (선택, 최대 4장)</label>
+                        <button type="button" onclick="document.getElementById('repair-claim-photo-file').click()" class="btn btn-secondary btn-sm"><i data-lucide="image-plus" class="w-3.5 h-3.5"></i> 사진 추가</button>
+                        <input type="file" id="repair-claim-photo-file" accept="image/*" multiple class="hidden" onchange="handleRepairClaimPhotoUpload(this)">
+                    </div>
+                    <div id="repair-claim-photo-preview-grid" class="grid grid-cols-4 gap-2 pt-1"></div>
+                </div>
                 <button type="button" onclick="submitRepairClaim()" class="btn btn-primary btn-block">하자보수 신청하기</button>
             </div>
         </div>

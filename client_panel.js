@@ -792,12 +792,53 @@ function openRepairClaimModal(orderCode) {
     repairClaimTargetCode = orderCode;
     safeUpdateValue('repair-claim-title', '');
     safeUpdateValue('repair-claim-desc', '');
+    window.AppState.repairClaimPhotoDrafts = [];
+    renderRepairClaimPhotoPreview();
     openModal('repair-claim-modal', 'repair-claim-modal-card');
 }
 
 function closeRepairClaimModal() {
     repairClaimTargetCode = null;
     closeModal('repair-claim-modal', 'repair-claim-modal-card');
+}
+
+/* 후기(reviewPhotoDrafts)·커뮤니티 글은 사진을 첨부할 수 있는데, 정작 시각적
+ * 증거가 가장 필요한 하자보수 신청은 텍스트(제목+설명)만 받아서 파트너·관리자가
+ * 실제 하자 상태를 보지 못한 채 판단해야 했다 — 동일한 FileReader 첨부 패턴을
+ * 재사용한다. */
+const MAX_REPAIR_CLAIM_PHOTOS = 4;
+
+function renderRepairClaimPhotoPreview() {
+    const grid = document.getElementById('repair-claim-photo-preview-grid');
+    if (!grid) return;
+    const drafts = window.AppState.repairClaimPhotoDrafts || [];
+    grid.innerHTML = drafts.map((src, idx) => `
+        <div class="relative aspect-square rounded-xl overflow-hidden border border-ink-100 bg-ink-50">
+            <img src="${src}" class="w-full h-full object-cover">
+            <button type="button" onclick="removeRepairClaimPhotoDraft(${idx})" class="absolute top-1 right-1 w-5 h-5 bg-ink-950/70 text-white flex items-center justify-center" aria-label="사진 삭제"><i data-lucide="x" class="w-3 h-3"></i></button>
+        </div>`).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function removeRepairClaimPhotoDraft(idx) {
+    window.AppState.repairClaimPhotoDrafts.splice(idx, 1);
+    renderRepairClaimPhotoPreview();
+}
+
+function handleRepairClaimPhotoUpload(input) {
+    if (!input.files || input.files.length === 0) return;
+    if (!window.AppState.repairClaimPhotoDrafts) window.AppState.repairClaimPhotoDrafts = [];
+    const remaining = MAX_REPAIR_CLAIM_PHOTOS - window.AppState.repairClaimPhotoDrafts.length;
+    if (input.files.length > remaining) showToast(`사진은 최대 ${MAX_REPAIR_CLAIM_PHOTOS}장까지 첨부할 수 있어요. (${input.files.length - remaining}장은 담기지 않았어요)`, 'warning');
+    Array.from(input.files).slice(0, remaining).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            window.AppState.repairClaimPhotoDrafts.push(e.target.result);
+            renderRepairClaimPhotoPreview();
+        };
+        reader.readAsDataURL(file);
+    });
+    input.value = '';
 }
 
 function submitRepairClaim() {
@@ -815,8 +856,10 @@ function submitRepairClaim() {
         status: 'submitted',
         createdDate: getLocalDateString(),
         partnerResponse: null,
-        resolvedDate: null
+        resolvedDate: null,
+        photos: (window.AppState.repairClaimPhotoDrafts || []).slice()
     });
+    window.AppState.repairClaimPhotoDrafts = [];
 
     if (typeof pushLog === 'function') pushLog('CLIENT', 'REPAIR_CLAIM_SUBMIT', `[${order.clientName}] 고객님이 계약(${order.code})에 하자보수를 신청했습니다: ${title}`, 'INFO');
     if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, `고객님이 하자보수를 신청했어요: ${title}`);
@@ -1159,6 +1202,7 @@ function buildRepairClaimsHtml(order) {
         return `<div class="p-3 bg-ink-50 rounded-xl space-y-1 text-left">
             <div class="flex items-center justify-between"><span class="text-[11px] font-black text-ink-950">${escapeHtml(c.title)}</span><span class="badge ${meta.cls}">${meta.label}</span></div>
             <p class="text-[10px] text-ink-500 font-semibold leading-relaxed">${escapeHtml(c.description)}</p>
+            ${(c.photos || []).length > 0 ? `<div class="flex gap-1.5 pt-0.5">${c.photos.map(src => `<img src="${src}" class="w-12 h-12 object-cover rounded-lg border border-ink-100 cursor-pointer" onclick="window.open('${src}', '_blank')">`).join('')}</div>` : ''}
             <p class="text-[9px] text-ink-400 font-semibold">신청일: ${c.createdDate}</p>
             ${c.partnerResponse ? `<p class="text-[10px] text-brand-600 font-bold leading-relaxed mt-1">파트너 안내: ${escapeHtml(c.partnerResponse)}</p>` : ''}
             ${c.resolvedDate ? `<p class="text-[9px] text-ink-400 font-semibold">처리 완료일: ${c.resolvedDate}</p>` : ''}
@@ -5190,6 +5234,9 @@ window.showToast = showToast;
 window.openReviewWriteModal = openReviewWriteModal;
 window.closeReviewWriteModal = closeReviewWriteModal;
 window.handleReviewPhotoUpload = handleReviewPhotoUpload;
+window.renderRepairClaimPhotoPreview = renderRepairClaimPhotoPreview;
+window.removeRepairClaimPhotoDraft = removeRepairClaimPhotoDraft;
+window.handleRepairClaimPhotoUpload = handleRepairClaimPhotoUpload;
 window.removeReviewPhotoDraft = removeReviewPhotoDraft;
 window.setReviewRating = setReviewRating;
 window.submitClientReview = submitClientReview;

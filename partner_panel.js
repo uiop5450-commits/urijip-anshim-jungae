@@ -5744,6 +5744,7 @@ function buildPartnerRepairClaimsHtml(order) {
             return `<div class="p-3 bg-ink-50 rounded-xl space-y-1.5">
                 <div class="flex items-center justify-between"><span class="text-xs font-black text-ink-900">${escapeHtml(c.title)}</span><span class="badge ${meta.cls}">${meta.label}</span></div>
                 <p class="text-[11px] text-ink-600 font-semibold leading-relaxed">${escapeHtml(c.description)}</p>
+                ${(c.photos || []).length > 0 ? `<div class="flex gap-1.5 pt-0.5">${c.photos.map(src => `<img src="${src}" class="w-14 h-14 object-cover rounded-lg border border-ink-100 cursor-pointer" onclick="window.open('${src}', '_blank')">`).join('')}</div>` : ''}
                 <p class="text-[9px] text-ink-400 font-semibold">신청일: ${c.createdDate}</p>
                 ${c.partnerResponse ? `<p class="text-[10px] text-brand-700 font-semibold leading-relaxed pl-3 border-l-2 border-brand-200">${escapeHtml(c.partnerResponse)}</p>` : ''}
                 ${(c.status !== 'completed' && c.status !== 'rejected') ? `<div class="p-2 bg-white rounded-lg border border-ink-100 space-y-1">
