@@ -1298,11 +1298,16 @@ function submitScheduleChangeRequest() {
     if (newDate === order.preferredDate) { showToast('현재 착공일과 동일해요.', 'warning'); return; }
 
     const isCounter = order.scheduleChangeRequest && order.scheduleChangeRequest.status === 'pending' && order.scheduleChangeRequest.requestedBy === 'partner';
+    // 파트너가 스스로 등록한 휴무일(blockedDates, partner_panel.js)이 있는데, 정작
+    // 고객이 착공일 변경을 요청할 땐 그 날짜가 파트너의 휴무일인지 전혀 알 수 없어
+    // 반려될 게 뻔한 날짜로 요청했다가 다시 조율해야 하는 경우가 있었다.
+    const isBlockedDate = order.acceptedPartner && typeof isPartnerDateBlocked === 'function' && isPartnerDateBlocked(order.acceptedPartner, newDate);
     order.scheduleChangeRequest = { requestedBy: 'client', newDate, reason, status: 'pending', date: getLocalDateString() };
 
     if (typeof pushLog === 'function') pushLog('CLIENT', isCounter ? 'SCHEDULE_CHANGE_COUNTER' : 'SCHEDULE_CHANGE_REQUEST', `[${order.clientName}] 고객님이 계약(${order.code}) 착공일 변경을 ${isCounter ? '역제안했습니다' : '요청했습니다'}: ${order.preferredDate} → ${newDate}`, 'INFO');
     if (typeof pushPartnerNotification === 'function' && order.acceptedPartner) pushPartnerNotification(order.acceptedPartner, isCounter ? `고객님이 착공일을 ${newDate}로 역제안했어요.` : `고객님이 착공일 변경을 요청했어요: ${order.preferredDate} → ${newDate}`);
     showToast(isCounter ? '역제안을 보냈습니다. 파트너사 확인을 기다려주세요.' : '착공일 변경 요청을 보냈습니다. 파트너사 확인을 기다려주세요.', 'success');
+    if (isBlockedDate) showToast(`이 날짜(${newDate})는 파트너사가 휴무일로 등록해둔 날짜예요. 반려될 수 있어요.`, 'warning');
 
     closeScheduleChangeModal();
     selectMyPageEstimate(order.code);
