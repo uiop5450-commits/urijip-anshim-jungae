@@ -504,6 +504,23 @@ function getAdminAllowedTabs() {
     return ROLE_TAB_ACCESS[role] || ROLE_TAB_ACCESS.super_admin;
 }
 
+/* getAdminAllowedTabs로 '직원 권한 관리' 탭 자체를 partner_manager에게 숨기는
+ * 것은 UI 차단일 뿐, grantManagerRole/revokeManagerRole 함수 자체는 호출자의
+ * 권한을 전혀 검사하지 않았다 — partner_manager로 로그인한 계정이 개발자
+ * 도구에서 grantManagerRole(자기id, 'super_admin')을 직접 호출하면 스스로
+ * 최고관리자로 권한을 상승시킬 수 있었다. cms.js의 blockIfPartnerStaffLogin과
+ * 동일한 패턴으로, 권한 부여/회수라는 가장 민감한 조작만큼은 함수 내부에서도
+ * super_admin 여부를 직접 확인한다. */
+function blockIfNotSuperAdmin() {
+    // getAdminAllowedTabs와 달리 미로그인/알 수 없는 role을 super_admin으로
+    // 간주하지 않는다 — 보안 게이트는 기본값이 '거부'여야 한다(fail-closed).
+    if (window.AppState.managerRole !== 'super_admin') {
+        showToast('최고관리자만 이용할 수 있어요.', 'warning');
+        return true;
+    }
+    return false;
+}
+
 function switchAdminMode(mode) {
     const allowedTabs = getAdminAllowedTabs();
     if (!allowedTabs.includes(mode)) {
@@ -7237,6 +7254,7 @@ function searchClientForManagerGrant() {
 }
 
 function grantManagerRole(clientId, role) {
+    if (blockIfNotSuperAdmin()) return;
     const account = (window.AppState.clientAccounts || []).find(a => a.id === clientId);
     if (!account) return;
     const expiryInput = document.getElementById(`staff-grant-expiry-${clientId}`);
@@ -7253,6 +7271,7 @@ function grantManagerRole(clientId, role) {
 }
 
 function revokeManagerRole(clientId) {
+    if (blockIfNotSuperAdmin()) return;
     const account = (window.AppState.clientAccounts || []).find(a => a.id === clientId);
     if (!account) return;
     const roleLabel = account.managerRole === 'super_admin' ? '최고관리자' : '파트너 매니저';
