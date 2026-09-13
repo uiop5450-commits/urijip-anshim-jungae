@@ -1351,43 +1351,6 @@ function submitPartnerSignup() {
     switchPartnerAuthTab('login');
 }
 
-/* 고객의 "관심 파트너" 찜하기(toggleFavoritePartner, client_panel.js)와 대칭되는
- * 파트너용 기능 — 즉시입찰 스트림이 실시간으로 계속 흘러가기 때문에, 당장 입찰할지
- * 판단이 안 서는 오더를 놓치지 않게 찜해두고 나중에 모아볼 수 있게 한다.
- * 고객측과 달리 별도 개수 상한은 두지 않는다(파트너 본인의 업무 도구 성격). */
-let partnerFavoriteOrdersOnly = false;
-
-function isFavoriteOrder(orderCode) {
-    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
-    const partner = window.AppState.partners.find(p => p.name === partnerName);
-    return !!(partner && partner.favoriteOrders && partner.favoriteOrders.includes(orderCode));
-}
-
-const MAX_FAVORITE_ORDERS = 20;
-
-function toggleFavoriteOrder(orderCode, event) {
-    if (event) event.stopPropagation();
-    const partnerName = window.AppState.partnerName || '오륙도 디자인 실내건축';
-    const partner = window.AppState.partners.find(p => p.name === partnerName);
-    if (!partner) return;
-    if (!partner.favoriteOrders) partner.favoriteOrders = [];
-    const idx = partner.favoriteOrders.indexOf(orderCode);
-    if (idx >= 0) { partner.favoriteOrders.splice(idx, 1); showToast(`오더 ${orderCode}를 관심 오더에서 제거했습니다.`, 'info'); }
-    else {
-        // 고객측 관심 파트너(MAX_FAVORITE_PARTNERS)와 동일하게, 상한 없이 계속 쌓이면
-        // '관심'이라는 기능 취지가 무색해지므로 동일한 상한을 둔다.
-        if (partner.favoriteOrders.length >= MAX_FAVORITE_ORDERS) { showToast(`관심 오더는 최대 ${MAX_FAVORITE_ORDERS}건까지 저장할 수 있어요. 기존 항목을 해제한 후 다시 시도해주세요.`, 'warning'); return; }
-        partner.favoriteOrders.push(orderCode); showToast(`오더 ${orderCode}를 관심 오더로 저장했습니다!`, 'success');
-    }
-    renderPartnerOrderList();
-}
-
-function togglePartnerFavoriteOrdersFilter() {
-    partnerFavoriteOrdersOnly = !partnerFavoriteOrdersOnly;
-    const btn = document.getElementById('btn-partner-favorite-orders-toggle');
-    if (btn) btn.classList.toggle('btn-dark', partnerFavoriteOrdersOnly);
-    renderPartnerOrderList();
-}
 
 /* 고객은 파트너를 관심 등록할 수 있는데(toggleFavoritePartner, client_panel.js),
  * 반대로 파트너가 재구매 가능성이 높은 단골/유망 고객을 기억해둘 방법이 없었다 —
@@ -1662,10 +1625,6 @@ function renderPartnerOrderList() {
     if (!streamList) return;
 
     if (liveOrderBadge) liveOrderBadge.innerText = `매니저 직접 배정 체제로 전환됨`;
-    // 즐겨찾기 필터는 즉시입찰 오더가 있을 때만 의미가 있었다 — 더 이상 뜰 오더가
-    // 없으므로 눌러도 아무 효과 없는 죽은 버튼을 남겨두지 않고 숨긴다.
-    const favoriteToggleBtn = document.getElementById('btn-partner-favorite-orders-toggle');
-    if (favoriteToggleBtn) favoriteToggleBtn.style.display = 'none';
     streamList.innerHTML = `<div class="empty-state !py-16 surface"><p class="text-xs text-ink-800 font-extrabold leading-relaxed">이제 모든 오더는 매니저 센터가 직접 배정합니다.<br><span class="text-[10px] text-ink-500 font-semibold mt-1 inline-block">배정받은 오더는 상단 '안심계약'에서 확인해 주세요.</span></p></div>`;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -7785,9 +7744,6 @@ window.submitPartnerSupportInquiry = submitPartnerSupportInquiry;
 window.renderMyPartnerSupportTickets = renderMyPartnerSupportTickets;
 window.submitPartnerSupportFollowUp = submitPartnerSupportFollowUp;
 window.cancelPartnerSupportTicket = cancelPartnerSupportTicket;
-window.isFavoriteOrder = isFavoriteOrder;
-window.toggleFavoriteOrder = toggleFavoriteOrder;
-window.togglePartnerFavoriteOrdersFilter = togglePartnerFavoriteOrdersFilter;
 window.isOrderReportedByMe = isOrderReportedByMe;
 window.retractClientReport = retractClientReport;
 window.openReportClientModal = openReportClientModal;
