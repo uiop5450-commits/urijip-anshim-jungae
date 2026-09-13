@@ -120,12 +120,22 @@ function restoreQuoteDraftFromStorage() {
     try { draft = JSON.parse(localStorage.getItem(QUOTE_DRAFT_STORAGE_KEY) || 'null'); } catch (e) { return; }
     if (!draft || (!draft.clientAddress && !(draft.pyung > 0))) return;
 
+    // localStorage에 저장된 착공 희망일이 재방문 시점엔 이미 지난 날짜일 수 있다 —
+    // 그대로 복원하면 달력에서 선택 표시도 안 되는(과거 날짜 셀은 비활성) 채로
+    // 값만 남아있어, 사용자가 눈치채지 못하고 지난 날짜로 그대로 제출할 수 있었다.
+    let staleDate = false;
+    if (draft.preferredDate && draft.preferredDate < getLocalDateString()) {
+        staleDate = true;
+        delete draft.preferredDate;
+    }
     Object.assign(fd, draft);
     safeUpdateValue('client-address', draft.clientAddress || '');
     safeUpdateValue('client-pyung', draft.pyung || '');
     safeUpdateValue('client-vacancy', draft.vacancy || 'empty');
     syncFormStateUI();
-    showToast('이전에 작성 중이던 견적 신청 내용을 불러왔어요.', 'info');
+    showToast(staleDate
+        ? '이전에 작성 중이던 견적 신청 내용을 불러왔어요. 저장된 착공 희망일은 이미 지나 다시 선택해 주세요.'
+        : '이전에 작성 중이던 견적 신청 내용을 불러왔어요.', 'info');
 }
 
 function updateFormState(key, value) {
@@ -257,17 +267,22 @@ function triggerMatchingSim() {
         if (typeof goToLoginPanel === 'function') goToLoginPanel('client-panel');
         return;
     }
-    if (!fd.clientAddress || fd.pyung <= 0 || !fd.preferredDate) {
+    // localStorage 초안 복원 시점엔 지난 날짜를 걸러내지만(restoreQuoteDraftFromStorage),
+    // 폼을 열어둔 채 자정을 넘기는 등 입력 이후에도 날짜가 지나버릴 수 있다 —
+    // 제출 시점에도 한 번 더 확인해 과거 날짜로 오더가 생성되는 것을 막는다.
+    const isPastPreferredDate = fd.preferredDate && fd.preferredDate < getLocalDateString();
+    if (!fd.clientAddress || fd.pyung <= 0 || !fd.preferredDate || isPastPreferredDate) {
         ['field-error-address', 'field-error-pyung', 'field-error-date'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
         if (!fd.clientAddress || fd.pyung <= 0) {
             goToClientStep(2);
             if (!fd.clientAddress) { document.getElementById('field-error-address')?.classList.remove('hidden'); document.getElementById('client-address')?.focus(); }
             else { document.getElementById('field-error-pyung')?.classList.remove('hidden'); document.getElementById('client-pyung')?.focus(); }
         } else {
+            if (isPastPreferredDate) fd.preferredDate = null;
             goToClientStep(3);
             document.getElementById('field-error-date')?.classList.remove('hidden');
         }
-        showToast('필수 항목을 입력해 주세요.', 'warning');
+        showToast(isPastPreferredDate ? '착공 희망일이 이미 지났어요. 새 날짜를 선택해 주세요.' : '필수 항목을 입력해 주세요.', 'warning');
         return;
     }
 
