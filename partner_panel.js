@@ -2924,15 +2924,22 @@ function renderAdminDashboard() {
         const daysLeft = Math.ceil((end - new Date()) / (1000 * 60 * 60 * 24));
         return daysLeft <= 30;
     }).length;
-    const hasOperationalIssues = overdueMilestoneCount > 0 || expiredBidOrderCount > 0 || warrantyEndingSoonCount > 0;
+    // 착공일/계약금액 변경 협의가 결렬되어 관리자에게 조정을 요청한 건(escalateScheduleChangeToAdmin/
+    // escalatePriceChangeToAdmin)도 통합 대기함에는 노출되지만, 대시보드에선 여전히 안 보였다.
+    const escalatedNegotiationCount = orders.filter(o =>
+        (o.scheduleChangeRequest && o.scheduleChangeRequest.status === 'pending' && o.scheduleChangeRequest.escalated) ||
+        (o.priceChangeRequest && o.priceChangeRequest.status === 'pending' && o.priceChangeRequest.escalated)
+    ).length;
+    const hasOperationalIssues = overdueMilestoneCount > 0 || expiredBidOrderCount > 0 || warrantyEndingSoonCount > 0 || escalatedNegotiationCount > 0;
 
     container.innerHTML = `
         <div class="space-y-2.5">
             <h4 class="text-xs font-black text-ink-800 uppercase tracking-wider">운영 이슈 모니터링</h4>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div class="article-spec-chip ${overdueMilestoneCount > 0 ? '!border-rose-200' : ''}"><span>연체된 공사대금 마일스톤</span><span class="val ${overdueMilestoneCount > 0 ? 'text-roseCustom' : ''}">${overdueMilestoneCount}건</span></div>
                 <div class="article-spec-chip ${expiredBidOrderCount > 0 ? '!border-rose-200' : ''}"><span>만료 견적 방치 오더</span><span class="val ${expiredBidOrderCount > 0 ? 'text-roseCustom' : ''}">${expiredBidOrderCount}건</span></div>
                 <div class="article-spec-chip ${warrantyEndingSoonCount > 0 ? '!border-amber-200' : ''}"><span>보증 만료 임박(30일 내)</span><span class="val">${warrantyEndingSoonCount}건</span></div>
+                <div class="article-spec-chip ${escalatedNegotiationCount > 0 ? '!border-rose-200' : ''}"><span>협의 조정 요청 대기</span><span class="val ${escalatedNegotiationCount > 0 ? 'text-roseCustom' : ''}">${escalatedNegotiationCount}건</span></div>
             </div>
             ${!hasOperationalIssues ? '<p class="text-[11px] text-ink-400 font-semibold">현재 확인이 필요한 운영 이슈가 없습니다.</p>' : ''}
         </div>`;
