@@ -302,7 +302,8 @@ function completeMatchingSim() {
         preferredDate: fd.preferredDate, partnerCountLimit: fd.partnerCountLimit, budget: fd.budget,
         status: 'bidding', contractUploaded: false, clientSigned: false, reviewWritten: false,
         acceptedPartner: null, finalPrice: 0, excludedPartners: [], bids: [], isRebidding: false,
-        isHighBudgetAdminPending: isHighBudget, commissionPaid: false, contractDoc: null, estimateDoc: null
+        isHighBudgetAdminPending: isHighBudget, commissionPaid: false, contractDoc: null, estimateDoc: null,
+        createdAt: new Date().toISOString()
     };
 
     if (isHighBudget) {
@@ -325,7 +326,7 @@ function completeMatchingSim() {
             price: Math.floor(newOrder.budget * (0.9 + Math.random() * 0.08)),
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
             verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil()
+            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
         }));
         // 매칭 가능한 파트너가 0명이면(활동중단·전원 일시중단 등) 지금까지 "0곳이
         // 매칭되어 견적서를 보냈어요"라는 앞뒤가 안 맞는 성공 알림이 그대로 나갔다 —
@@ -526,7 +527,7 @@ function restoreWithdrawnOrder(orderCode) {
             price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
             verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil()
+            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
         });
     });
 
@@ -3248,6 +3249,10 @@ function openBidCompareModal(orderCode) {
                 if (!b.validUntil) return '<span class="text-ink-400">-</span>';
                 return typeof isBidExpired === 'function' && isBidExpired(b) ? `<span class="badge badge-rose">만료됨 (${b.validUntil})</span>` : `<span class="text-ink-600">${b.validUntil}까지</span>`;
             } },
+            { label: '평균 응답 속도', render: b => {
+                const hours = typeof computePartnerAvgResponseHours === 'function' ? computePartnerAvgResponseHours(b.partner) : null;
+                return `<span class="text-ink-600">${typeof formatResponseHours === 'function' ? formatResponseHours(hours) : '-'}</span>`;
+            } },
             { label: '제안 내용', render: b => `<span class="text-ink-600">${escapeHtml(b.desc)}</span>`, alignTop: true }
         ];
         container.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-xs text-left border-collapse">
@@ -3575,7 +3580,7 @@ function triggerRebidding(orderCode) {
             price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
             verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil()
+            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
         });
     });
 
@@ -3631,7 +3636,7 @@ function reopenCancelledOrder(orderCode) {
             price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
             verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil()
+            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
         });
     });
 
@@ -3675,7 +3680,7 @@ function convertOrderToOpenMatching(orderCode) {
             price: Math.floor(order.budget * (0.9 + Math.random() * 0.08)),
             desc: `${partner.name}에서 제안하는 맞춤 견적서입니다. 최고급 친환경 마감 자재와 철저한 하자보증 무상 적용.`,
             verified: true, progress: 'bidding',
-            date: getLocalDateString(), validUntil: computeBidValidUntil()
+            date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString()
         });
     });
 

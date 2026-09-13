@@ -290,6 +290,31 @@ function computeBidValidUntil() {
     return d.toISOString().slice(0, 10);
 }
 
+/* 견적 비교표엔 가격·평점·인증·유효기간까지 있는데, 정작 "이 파트너가 견적을
+ * 얼마나 빨리 보내주는지"는 어디서도 알 수 없었다 — 파트너 성과 화면엔 참여율·
+ * 계약률·GMV 같은 사후 지표만 있고 응답 속도는 없다. 오더 접수(createdAt)와
+ * 각 입찰의 응답 시각(respondedAt)의 차이를 평균 내어 계산한다. */
+function computePartnerAvgResponseHours(partnerName) {
+    const diffsMs = [];
+    (window.AppState.orders || []).forEach(order => {
+        if (!order.createdAt) return;
+        const bid = (order.bids || []).find(b => b.partner === partnerName);
+        if (!bid || !bid.respondedAt) return;
+        const diff = new Date(bid.respondedAt) - new Date(order.createdAt);
+        if (diff >= 0) diffsMs.push(diff);
+    });
+    if (diffsMs.length === 0) return null;
+    const avgMs = diffsMs.reduce((a, b) => a + b, 0) / diffsMs.length;
+    return avgMs / (1000 * 60 * 60);
+}
+
+function formatResponseHours(hours) {
+    if (hours === null || hours === undefined) return '집계 전';
+    if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}분`;
+    if (hours < 24) return `${Math.round(hours * 10) / 10}시간`;
+    return `${Math.round(hours / 24 * 10) / 10}일`;
+}
+
 /* 파트너 인증 만료(sweepExpiredPartnerCertifications)와 동일한 "렌더 시점에
  * 지연 체크" 패턴 — 연체로 갓 넘어간 마일스톤을 발견하면 파트너에게 1회만
  * 알림을 보낸다(매번 렌더할 때마다 알림이 쌓이지 않도록 overdueNotified로 dedup). */
@@ -709,6 +734,8 @@ window.isMilestoneOverdue = isMilestoneOverdue;
 window.isBidExpired = isBidExpired;
 window.getBidDaysRemaining = getBidDaysRemaining;
 window.computeBidValidUntil = computeBidValidUntil;
+window.computePartnerAvgResponseHours = computePartnerAvgResponseHours;
+window.formatResponseHours = formatResponseHours;
 window.sweepOverduePaymentMilestones = sweepOverduePaymentMilestones;
 window.getOrInitOrderMessages = getOrInitOrderMessages;
 window.sendOrderMessage = sendOrderMessage;

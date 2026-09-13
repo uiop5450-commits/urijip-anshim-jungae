@@ -1680,7 +1680,7 @@ function submitPartnerBid() {
     const desc = (descInput && descInput.value.trim()) || `${partnerName}에서 제안하는 하이엔드 시공 안심 제안입니다.`;
     const costBreakdown = readBidCostBreakdownInputs();
 
-    order.bids.push({ partner: partnerName, price, desc, verified: true, progress: 'bidding', costBreakdown, date: getLocalDateString(), validUntil: computeBidValidUntil() });
+    order.bids.push({ partner: partnerName, price, desc, verified: true, progress: 'bidding', costBreakdown, date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString() });
 
     selectOrderForAudit(code);
     renderPartnerOrderList();
@@ -4688,7 +4688,7 @@ function allocateOrderToPartner(orderCode) {
     if (order.bids.some(b => b.partner === partnerName)) { showToast(`이미 [${partnerName}] 파트너사가 이 오더에 배정되어 있습니다.`, "info"); return; }
     if (order.bids.length >= order.partnerCountLimit) { showToast(`목표 배정 수량(${order.partnerCountLimit}개사)이 이미 차서 더 이상 추가할 수 없습니다.`, "warning"); return; }
 
-    order.bids.push({ partner: partnerName, price: order.budget, desc: `[매니저 센터 직할 수동 배정] ${partnerName}에 프리미엄 전속 오더가 안전하게 할당되었습니다.`, verified: true, progress: 'bidding', date: getLocalDateString(), validUntil: computeBidValidUntil() });
+    order.bids.push({ partner: partnerName, price: order.budget, desc: `[매니저 센터 직할 수동 배정] ${partnerName}에 프리미엄 전속 오더가 안전하게 할당되었습니다.`, verified: true, progress: 'bidding', date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString() });
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'ALLOCATE', `[매니저 센터] 고액 오더(${orderCode}, ₩ ${order.budget.toLocaleString()}만원)를 [${partnerName}] 파트너사에 수동 배정완료.`, 'SUCCESS');
     if (typeof pushClientNotification === 'function') pushClientNotification(order.clientPhone, `${partnerName} 파트너사가 배정되어 견적서를 보냈어요. (의뢰 코드: ${orderCode})`);
@@ -4733,7 +4733,7 @@ function autoAllocateOrderCore(orderCode) {
     candidates.sort((a, b) => b.rating - a.rating);
     const selectedToAssign = candidates.slice(0, slotsNeeded);
     selectedToAssign.forEach(selected => {
-        order.bids.push({ partner: selected.name, price: order.budget, desc: `[추천 일괄 자동 배정] 우수 평점 인증 파트너사 ${selected.name}에 전속 배정되었습니다.`, verified: true, progress: 'bidding', date: getLocalDateString(), validUntil: computeBidValidUntil() });
+        order.bids.push({ partner: selected.name, price: order.budget, desc: `[추천 일괄 자동 배정] 우수 평점 인증 파트너사 ${selected.name}에 전속 배정되었습니다.`, verified: true, progress: 'bidding', date: getLocalDateString(), validUntil: computeBidValidUntil(), respondedAt: new Date().toISOString() });
     });
 
     if (typeof pushLog === 'function') pushLog('MANAGER', 'AUTO_ALLOCATE', `[자동 배정] 오더 ${orderCode} -> [${selectedToAssign.map(s => s.name).join(', ')}] ${selectedToAssign.length}개 인증 파트너사 일괄 자동 배정 완료.`, 'SUCCESS');
@@ -5914,6 +5914,7 @@ function openPartnerMetricsModal(partnerName) {
 
     const { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders, favoriteClientCount } = computePartnerMetrics(partnerName);
     const contractedListHtml = buildPartnerContractedOrdersListHtml(contractedOrders, partnerName);
+    const avgResponseHours = typeof computePartnerAvgResponseHours === 'function' ? computePartnerAvgResponseHours(partnerName) : null;
 
     const isBanned = partner.status === 'banned';
     const isWarning = partner.strikeCount > 0;
@@ -5940,6 +5941,7 @@ function openPartnerMetricsModal(partnerName) {
                     <div class="article-spec-chip"><span>수수료 지불완료</span><span class="val">₩ ${totalCommissionPaid.toLocaleString()} 만원</span></div>
                     <div class="article-spec-chip"><span>보증 에스크로 잔액</span><span class="val">₩ ${pendingEscrow.toLocaleString()} 만원</span></div>
                     <div class="article-spec-chip"><span>관심 고객 수</span><span class="val">${favoriteClientCount} 명</span></div>
+                    <div class="article-spec-chip"><span>평균 응답 속도</span><span class="val">${typeof formatResponseHours === 'function' ? formatResponseHours(avgResponseHours) : '-'}</span></div>
                 </div>
                 <div class="space-y-2.5 pt-2">
                     <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="heart" class="w-4 h-4 text-roseCustom"></i> 나를 관심 등록한 고객 (${favoriteClientCount}명)</h4>
@@ -5992,6 +5994,7 @@ function renderPartnerPerformanceView() {
 
     const { participatedCount, contractedCount, contractRate, totalGmv, totalCommissionPaid, pendingEscrow, contractedOrders, favoriteClientCount } = computePartnerMetrics(partnerName);
     const contractedListHtml = buildPartnerContractedOrdersListHtml(contractedOrders, partnerName);
+    const avgResponseHours = typeof computePartnerAvgResponseHours === 'function' ? computePartnerAvgResponseHours(partnerName) : null;
 
     container.innerHTML = `
         <div class="surface surface-lg p-6 sm:p-8 space-y-5 text-left">
@@ -6008,6 +6011,7 @@ function renderPartnerPerformanceView() {
                 <div class="article-spec-chip"><span>수수료 지불완료</span><span class="val">₩ ${totalCommissionPaid.toLocaleString()} 만원</span></div>
                 <div class="article-spec-chip"><span>보증 에스크로 잔액</span><span class="val">₩ ${pendingEscrow.toLocaleString()} 만원</span></div>
                 <div class="article-spec-chip"><span>관심 고객 수</span><span class="val">${favoriteClientCount} 명</span></div>
+                <div class="article-spec-chip"><span>평균 응답 속도</span><span class="val">${typeof formatResponseHours === 'function' ? formatResponseHours(avgResponseHours) : '-'}</span></div>
             </div>
             <div class="space-y-2.5 pt-2">
                 <h4 class="text-xs font-black text-ink-800 flex items-center gap-1.5 uppercase tracking-wider"><i data-lucide="heart" class="w-4 h-4 text-roseCustom"></i> 나를 관심 등록한 고객 (${favoriteClientCount}명)</h4>
