@@ -3114,6 +3114,11 @@ function renderAdminDashboard() {
     const pendingPartners = partners.filter(p => p.status === 'pending' || p.status === 'info_requested').length;
     const bannedPartners = partners.filter(p => p.status === 'banned').length;
     const certifiedPartners = partners.filter(p => p.isCertified).length;
+    // 파트너 쪽은 활동/심사대기/제명으로 상태별로 쪼개 보여주는데, '가입 고객'은
+    // 자진 탈퇴(status==='withdrawn') 계정까지 그냥 합산해 실제 활성 고객 수보다
+    // 항상 부풀려져 있었다 — 파트너와 동일하게 활동/탈퇴로 나눈다.
+    const activeClients = clients.filter(a => a.status !== 'withdrawn').length;
+    const withdrawnClients = clients.filter(a => a.status === 'withdrawn').length;
 
     const topPartners = partners
         .filter(p => p.status !== 'banned')
@@ -3190,7 +3195,8 @@ function renderAdminDashboard() {
                 <div class="article-spec-chip"><span>가입 심사 대기</span><span class="val">${pendingPartners}곳</span></div>
                 <div class="article-spec-chip"><span>영구 제명</span><span class="val">${bannedPartners}곳</span></div>
                 <div class="article-spec-chip"><span>안심 인증</span><span class="val">${certifiedPartners}곳</span></div>
-                <div class="article-spec-chip"><span>가입 고객</span><span class="val">${clients.length}명</span></div>
+                <div class="article-spec-chip"><span>가입 고객</span><span class="val">${activeClients}명</span></div>
+                <div class="article-spec-chip"><span>탈퇴 고객</span><span class="val">${withdrawnClients}명</span></div>
                 <div class="article-spec-chip"><span>취소된 계약</span><span class="val">${cancelledOrders.length}건</span></div>
             </div>
         </div>
