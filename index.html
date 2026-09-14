@@ -39,7 +39,7 @@
 <body class="h-full text-ink-900 flex flex-col font-sans antialiased">
 
     <!-- ================= 상단 네비게이션 (GNB) ================= -->
-    <nav class="bg-white/90 backdrop-blur-md sticky top-0 z-50">
+    <nav id="site-gnb" class="bg-white/90 backdrop-blur-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center gap-2.5 sm:gap-3 cursor-pointer wj-focusable" onclick="switchPanel('home-panel')" role="button" tabindex="0" aria-label="홈으로 이동">
@@ -87,17 +87,34 @@
 
         <!-- ================================================================ 1. HOME PANEL ================================================================ -->
         <section id="home-panel" class="space-y-6 transition-all duration-300">
-            <!-- 상단 히어로(전체 배경형): 실제 시공사례 슬라이더(renderHeroPortfolioSlider, 최대 5개)를
-                 전체 배경으로 깔고 헤드라인 + 검색바를 오버레이 -->
+            <!-- 상단 히어로(전체 배경형, 풀블리드): SpaceLink 레퍼런스 사진을 그대로 배경으로 사용.
+                 이 자리에 있던 실제 시공사례 회전 슬라이더는 레퍼런스처럼 정적 사진 한 장으로
+                 바꾸면서 뺐다 — 다시 넣고 싶으면 renderHeroPortfolioSlider(partner_panel.js)를
+                 참고해 별도 섹션으로 되살릴 수 있다. -->
             <div class="home-hero-b">
-                <div id="hero-portfolio-slider-container" class="hero-a-right home-hero-b-bg" onmouseenter="pauseHeroAutoplay()" onmouseleave="resumeHeroAutoplay()"></div>
+                <div class="home-hero-nav" role="navigation" aria-label="주요 메뉴">
+                    <div class="home-hero-nav-top">
+                        <div class="home-hero-nav-logo wj-focusable" onclick="switchPanel('home-panel')" role="button" tabindex="0">우리집 <span>안심중개</span></div>
+                        <div class="home-hero-nav-actions">
+                            <button type="button" onclick="handleClientLoginNavClick()" class="home-hero-nav-login">고객 로그인</button>
+                            <button type="button" onclick="handleB2BNavClick()" class="home-hero-nav-cta" aria-haspopup="dialog">파트너·매니저</button>
+                        </div>
+                    </div>
+                    <div class="home-hero-nav-links">
+                        <button type="button" onclick="switchPanel('client-panel')">견적 신청</button>
+                        <button type="button" onclick="switchPanel('partner-search-panel')">파트너 탐색</button>
+                        <button type="button" onclick="switchPanel('community-panel')">커뮤니티</button>
+                        <button type="button" onclick="switchPanel('client-mypage-panel')">마이페이지</button>
+                    </div>
+                </div>
+                <div class="home-hero-b-bg" style="background-image:url('assets/images/home-hero-living-room.png')" aria-hidden="true"></div>
                 <div class="home-hero-b-scrim" aria-hidden="true"></div>
                 <div class="home-hero-b-content">
                     <h1 class="home-hero-b-head">좋은 공간이<br>좋은 하루를 만듭니다.</h1>
-                    <p class="home-hero-b-sub">공간을 찾는 사람과, 공간을 만드는 전문가를 연결했어요.</p>
+                    <p class="home-hero-b-sub">공간을 찾는 사람과, 공간을 만드는 전문가를 연결합니다.</p>
                     <div class="home-hero-b-search">
                         <select id="home-search-region" class="home-hero-b-select" aria-label="지역 선택">
-                            <option value="">지역을 선택해주세요</option>
+                            <option value="">지역을 선택하세요</option>
                             <option>강서구</option><option>금정구</option><option>기장군</option>
                             <option>남구</option><option>동구</option><option>동래구</option>
                             <option>부산진구</option><option>북구</option><option>사상구</option>
@@ -116,13 +133,8 @@
                             <option>3,000~5,000만원</option><option>5,000만원 이상</option>
                         </select>
                         <button type="button" onclick="handleHomeHeroSearch()" class="home-hero-b-search-btn" aria-label="검색">
-                            <i data-lucide="search" class="w-4 h-4"></i>
+                            <i data-lucide="search" class="w-4 h-4"></i> 검색
                         </button>
-                    </div>
-                    <div class="home-hero-b-stats">
-                        <div><b id="hero-a-stat-orders">-</b><span>누적 매칭</span></div>
-                        <div><b id="hero-a-stat-partners">-</b><span>인증 파트너</span></div>
-                        <div><b id="hero-a-stat-rating">-</b><span>평균 평점</span></div>
                     </div>
                 </div>
             </div>
@@ -140,23 +152,23 @@
                 </div>
                 <div class="home-category-grid">
                     <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('아파트')" role="button" tabindex="0">
-                        <img src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=500&auto=format&fit=crop&q=70" alt="아파트">
+                        <img src="assets/images/home-category-apartment.png" alt="아파트">
                         <span>아파트</span>
                     </div>
                     <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('빌라/주택')" role="button" tabindex="0">
-                        <img src="https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=500&auto=format&fit=crop&q=70" alt="빌라/주택">
+                        <img src="assets/images/home-category-villa.png" alt="빌라/주택">
                         <span>빌라/주택</span>
                     </div>
                     <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('오피스텔')" role="button" tabindex="0">
-                        <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=500&auto=format&fit=crop&q=70" alt="오피스텔">
+                        <img src="assets/images/home-category-officetel.png" alt="오피스텔">
                         <span>오피스텔</span>
                     </div>
                     <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('상가/사무실')" role="button" tabindex="0">
-                        <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&auto=format&fit=crop&q=70" alt="상가/사무실">
+                        <img src="assets/images/home-category-commercial.png" alt="상가/사무실">
                         <span>상가/사무실</span>
                     </div>
                     <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('리모델링')" role="button" tabindex="0">
-                        <img src="https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=500&auto=format&fit=crop&q=70" alt="리모델링">
+                        <img src="assets/images/home-category-remodel.png" alt="리모델링">
                         <span>리모델링</span>
                     </div>
                 </div>
@@ -239,15 +251,17 @@
                 </div>
             </div>
 
-            <!-- 하단 상담 신청 CTA: 좌측 실사진 + 우측 카피/버튼 스플릿 배너 -->
+            <!-- 하단 상담 신청 CTA: 풀블리드 식물 사진 + 좌하단 카피 / 우측 버튼 오버레이 -->
             <div class="home-cta-banner">
-                <div class="home-cta-banner-img" role="img" aria-label="따뜻한 채광이 드는 인테리어 공간 사진"></div>
-                <div class="home-cta-banner-content">
-                    <h2>당신이 꿈꾸는 공간,<br>지금 시작해보세요.</h2>
-                    <button type="button" onclick="handleHome1on1Click()" class="btn btn-dark btn-lg" style="align-self:flex-start">
-                        무료 상담하기 <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                    </button>
+                <div class="home-cta-banner-img" role="img" aria-label="식물이 우거진 채광 좋은 공간 사진"></div>
+                <div class="home-cta-banner-scrim" aria-hidden="true"></div>
+                <div class="home-cta-banner-copy">
+                    <h2>공간이<br>사람을 바꿉니다.</h2>
+                    <p>지금, 당신의 공간을 시작해보세요.</p>
                 </div>
+                <button type="button" onclick="handleHome1on1Click()" class="home-cta-banner-btn">
+                    무료 상담 신청하기 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
             </div>
         </section>
 
