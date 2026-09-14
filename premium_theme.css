@@ -9,27 +9,28 @@
  * 1. 디자인 토큰
  * --------------------------------------------------------------- */
 :root {
-    /* 브랜드 */
-    --ink-950: #0b1220;
-    --ink-900: #10182a;
-    --ink-800: #1b2436;
-    --ink-700: #2a3448;
-    --ink-500: #5b657a;
-    --ink-400: #7c869a;
-    --ink-300: #a2acbe;
-    --ink-200: #cbd2e0;
-    --ink-100: #e4e8f0;
-    --ink-50:  #f4f6fa;
-    --paper:   #fbfbfd;
+    /* 브랜드 — 웜 크림 인테리어 무드(SpaceLink 레퍼런스): 차가운 블루 계열 대신
+       따뜻한 그레이지/브라운 톤으로 전면 교체 */
+    --ink-950: #211d18;
+    --ink-900: #2f2a23;
+    --ink-800: #423b31;
+    --ink-700: #5c5346;
+    --ink-500: #8a7f70;
+    --ink-400: #ab9f8d;
+    --ink-300: #c9beac;
+    --ink-200: #ddd3c2;
+    --ink-100: #ede4d3;
+    --ink-50:  #f7f1e6;
+    --paper:   #faf6ee;
 
-    --brand-50:  #eef3ff;
-    --brand-100: #dde7ff;
-    --brand-200: #b9cdff;
-    --brand-400: #4c7bff;
-    --brand-500: #2f6fed;
-    --brand-600: #2158c9;
-    --brand-700: #1a459e;
-    --brand-900: #122c66;
+    --brand-50:  #f8f0e6;
+    --brand-100: #f0dfc7;
+    --brand-200: #dfc09a;
+    --brand-400: #bb8452;
+    --brand-500: #a9754b;
+    --brand-600: #8c5f3c;
+    --brand-700: #6d4a2f;
+    --brand-900: #3d2a1c;
 
     --gold-50:  #fbf3e2;
     --gold-100: #f6e6c2;
@@ -48,21 +49,21 @@
     --rose-500: #e04553;
     --rose-600: #c1303d;
 
-    /* 라운드 — 전부 직각(0)으로 통일 */
-    --r-xs: 0px;
-    --r-sm: 0px;
-    --r-md: 0px;
-    --r-lg: 0px;
-    --r-xl: 0px;
-    --r-2xl: 0px;
-    --r-pill: 0px;
+    /* 라운드 — SpaceLink 레퍼런스처럼 부드러운 둥근 모서리로 전환 */
+    --r-xs: 8px;
+    --r-sm: 10px;
+    --r-md: 14px;
+    --r-lg: 18px;
+    --r-xl: 22px;
+    --r-2xl: 28px;
+    --r-pill: 999px;
 
-    /* 그림자 */
-    --shadow-1: 0 1px 2px rgba(11,18,32,.04), 0 1px 1px rgba(11,18,32,.03);
-    --shadow-2: 0 6px 20px rgba(11,18,32,.06), 0 2px 6px rgba(11,18,32,.04);
-    --shadow-3: 0 18px 48px rgba(11,18,32,.12), 0 6px 18px rgba(11,18,32,.06);
-    --shadow-brand: 0 14px 32px -8px rgba(47,111,237,.38);
-    --shadow-dark: 0 14px 32px -8px rgba(11,18,32,.35);
+    /* 그림자 — 새 ink-950(33,29,24)/brand-500(169,117,75) 기준 */
+    --shadow-1: 0 1px 2px rgba(33,29,24,.05), 0 1px 1px rgba(33,29,24,.04);
+    --shadow-2: 0 6px 20px rgba(33,29,24,.08), 0 2px 6px rgba(33,29,24,.05);
+    --shadow-3: 0 18px 48px rgba(33,29,24,.14), 0 6px 18px rgba(33,29,24,.07);
+    --shadow-brand: 0 14px 32px -8px rgba(169,117,75,.38);
+    --shadow-dark: 0 14px 32px -8px rgba(33,29,24,.35);
 
     /* 모션 */
     --ease-out: cubic-bezier(.16,1,.3,1);
@@ -77,12 +78,6 @@
  * --------------------------------------------------------------- */
 * { box-sizing: border-box; }
 
-/* 전체 디자인: 라운드 코너 전면 제거 — Tailwind rounded-* 유틸리티, JS로 동적 삽입되는
-   요소, 하드코딩된 50%/99px 값 등 출처와 무관하게 모든 모서리를 직각으로 강제 통일 */
-*, *::before, *::after {
-    border-radius: 0 !important;
-}
-
 html { -webkit-tap-highlight-color: transparent; }
 
 body {
@@ -94,9 +89,9 @@ body {
     text-rendering: optimizeLegibility;
 }
 
-/* 홈 화면일 때만 배경을 흰색으로 — 다른 패널(견적신청/파트너탐색/마이페이지 등)은 기존 배경 유지 */
+/* 홈 화면일 때만 배경을 크림 톤으로 — 다른 패널(견적신청/파트너탐색/마이페이지 등)은 기존 배경 유지 */
 body:has(#home-panel:not(.hidden)) {
-    background-color: #fff !important;
+    background-color: var(--paper) !important;
 }
 
 ::selection { background: var(--brand-200); color: var(--ink-950); }
@@ -184,7 +179,7 @@ textarea:focus-visible {
 .wj-dark-card::after {
     content: '';
     position: absolute; inset: 0;
-    background: radial-gradient(120% 100% at 100% 0%, rgba(47,111,237,.25) 0%, rgba(47,111,237,0) 55%);
+    background: radial-gradient(120% 100% at 100% 0%, rgba(169,117,75,.25) 0%, rgba(169,117,75,0) 55%);
     pointer-events: none;
 }
 
@@ -379,7 +374,7 @@ textarea:focus-visible {
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
     background: rgba(255,255,255,.94); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    border-top: 1px solid rgba(11,18,32,.06); cursor: pointer;
+    border-top: 1px solid rgba(33,29,24,.06); cursor: pointer;
 }
 .hero-a-plate-title { font-size: 12.5px; font-weight: 800; color: var(--ink-950); }
 .hero-a-plate-sub { font-size: 10.5px; font-weight: 700; color: var(--ink-500); margin-top: 1px; }
@@ -393,11 +388,11 @@ textarea:focus-visible {
     position: absolute; top: 50%; transform: translateY(-50%);
     width: 40px; height: 40px; border-radius: 999px; z-index: 20;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(11,18,32,.38); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    background: rgba(33,29,24,.38); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     color: #fff; border: 1px solid rgba(255,255,255,.22);
     cursor: pointer; transition: background var(--dur-slow) var(--ease-out), opacity var(--dur-slow) var(--ease-out);
 }
-.hero-nav-btn:hover { background: rgba(11,18,32,.62); }
+.hero-nav-btn:hover { background: rgba(33,29,24,.62); }
 .hero-nav-btn.left { left: 12px; }
 .hero-nav-btn.right { right: 12px; }
 @media (min-width: 640px) {
@@ -418,12 +413,12 @@ textarea:focus-visible {
  * 얹는 매거진형 배너로 교체 — 슬라이더 자체의 렌더/자동재생 로직(renderHeroPortfolioSlider
  * 등)은 그대로 재사용하고 감싸는 레이아웃만 바꾼다.
  * --------------------------------------------------------------- */
-.home-hero-b { position: relative; height: 520px; overflow: hidden; background: var(--ink-950); box-shadow: var(--shadow-2); }
+.home-hero-b { position: relative; height: 520px; overflow: hidden; background: var(--ink-950); box-shadow: var(--shadow-2); border-radius: var(--r-2xl); }
 @media (max-width: 640px) { .home-hero-b { height: 640px; } }
 .home-hero-b-bg { position: absolute; inset: 0; z-index: 0; }
 .home-hero-b-scrim {
     position: absolute; inset: 0; z-index: 1; pointer-events: none;
-    background: linear-gradient(100deg, rgba(11,18,32,.88) 0%, rgba(11,18,32,.62) 38%, rgba(11,18,32,.22) 68%, rgba(11,18,32,.05) 100%);
+    background: linear-gradient(100deg, rgba(33,29,24,.88) 0%, rgba(33,29,24,.62) 38%, rgba(33,29,24,.22) 68%, rgba(33,29,24,.05) 100%);
 }
 .home-hero-b-content {
     position: relative; z-index: 2; height: 100%;
@@ -435,7 +430,7 @@ textarea:focus-visible {
 @media (min-width: 640px) { .home-hero-b-head { font-size: 36px; } }
 .home-hero-b-sub { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.82); line-height: 1.6; }
 @media (min-width: 640px) { .home-hero-b-sub { font-size: 14.5px; } }
-.home-hero-b-search { display: flex; align-items: stretch; background: #fff; box-shadow: var(--shadow-3); margin-top: 4px; }
+.home-hero-b-search { display: flex; align-items: stretch; background: #fff; box-shadow: var(--shadow-3); margin-top: 4px; border-radius: var(--r-pill); overflow: hidden; }
 .home-hero-b-select {
     flex: 1 1 0; min-width: 0; border: none; border-right: 1px solid var(--ink-100);
     background: transparent; padding: 14px 12px; font-size: 12px; font-weight: 700; color: var(--ink-800);
@@ -449,7 +444,7 @@ textarea:focus-visible {
 }
 .home-hero-b-search-btn:hover { background: var(--brand-600); }
 @media (max-width: 640px) {
-    .home-hero-b-search { flex-wrap: wrap; }
+    .home-hero-b-search { flex-wrap: wrap; border-radius: var(--r-xl); }
     .home-hero-b-select { flex: 1 1 50%; border-bottom: 1px solid var(--ink-100); }
     .home-hero-b-search-btn { width: 100%; height: 46px; }
 }
@@ -465,14 +460,14 @@ textarea:focus-visible {
 @media (min-width: 640px) { .home-category-grid { grid-template-columns: repeat(5, 1fr); gap: 14px; } }
 .home-category-card {
     position: relative; aspect-ratio: 3 / 4; overflow: hidden; cursor: pointer;
-    background: var(--ink-100); box-shadow: var(--shadow-1);
+    background: var(--ink-100); box-shadow: var(--shadow-1); border-radius: var(--r-xl);
     transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
 }
 .home-category-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-3); }
 .home-category-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .home-category-card::after {
     content: ''; position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(11,18,32,0) 45%, rgba(11,18,32,.72) 100%);
+    background: linear-gradient(180deg, rgba(33,29,24,0) 45%, rgba(33,29,24,.72) 100%);
 }
 .home-category-card span { position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 1; color: #fff; font-size: 12.5px; font-weight: 800; }
 
@@ -482,19 +477,19 @@ textarea:focus-visible {
 .home-expert-item {
     display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
     padding: 22px 12px; background: #fff; border: 1px solid var(--ink-100); cursor: pointer;
-    transition: all var(--dur-base) var(--ease-out);
+    border-radius: var(--r-xl); transition: all var(--dur-base) var(--ease-out);
 }
 .home-expert-item:hover { border-color: var(--brand-200); box-shadow: var(--shadow-2); transform: translateY(-2px); }
 .home-expert-icon {
     width: 50px; height: 50px; background: var(--brand-50); color: var(--brand-600);
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: var(--r-pill);
     transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
 }
 .home-expert-item:hover .home-expert-icon { background: var(--ink-950); color: #fff; }
 .home-expert-item p { font-size: 12.5px; font-weight: 800; color: var(--ink-800); }
 
 /* 하단 상담 신청 CTA — 좌측 실사진(우거진 식물 인테리어 컷) + 우측 카피/버튼 스플릿 배너 */
-.home-cta-banner { display: grid; grid-template-columns: 1fr; min-height: 300px; overflow: hidden; box-shadow: var(--shadow-2); }
+.home-cta-banner { display: grid; grid-template-columns: 1fr; min-height: 300px; overflow: hidden; box-shadow: var(--shadow-2); border-radius: var(--r-2xl); }
 @media (min-width: 640px) { .home-cta-banner { grid-template-columns: 0.85fr 1fr; min-height: 340px; } }
 .home-cta-banner-img { background-image: url('assets/images/home-cta-plant-bg.png'); background-size: cover; background-position: center; min-height: 180px; }
 .home-cta-banner-content { background: var(--ink-50); display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: 32px 26px; }
