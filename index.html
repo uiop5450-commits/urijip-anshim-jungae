@@ -88,33 +88,105 @@
 
         <!-- ================================================================ 1. HOME PANEL ================================================================ -->
         <section id="home-panel" class="space-y-6 transition-all duration-300">
-            <div class="space-y-4 text-left">
-                <h1 class="type-display">
-                    우리 집이 궁금한 모습으로<br class="hidden sm:inline">
-                    <span class="text-brand-600">완공되는 순간까지</span>
-                </h1>
-                <p class="text-sm text-ink-500 font-medium leading-relaxed max-w-xl">
-                    검증된 부산 1군 인테리어 시공사의 투명한 비교 견적과 전속 1:1 지정 상담을 한 곳에서. 시공 전 과정을 안심하고 맡기세요.
-                </p>
-            </div>
-
-            <!-- 상단 히어로(전체 폭): 좌측 신뢰지표 패널(정적) + 우측 업체 광고 슬라이더(renderHeroPortfolioSlider, 최대 5개, 현재는 평점순 자동 선정) -->
-            <div class="hero-a-card">
-                <div class="hero-a-left">
-                    <p class="hero-a-eyebrow">부산 인테리어 안심중개</p>
-                    <h2 class="hero-a-head">검증된 파트너와,<br>안심하고 시작하세요</h2>
-                    <div class="hero-a-stats">
-                        <div class="hero-a-stat"><b id="hero-a-stat-orders">-</b><span>누적 매칭</span></div>
-                        <div class="hero-a-stat"><b id="hero-a-stat-partners">-</b><span>인증 파트너</span></div>
-                        <div class="hero-a-stat"><b id="hero-a-stat-rating">-</b><span>평균 평점</span></div>
+            <!-- 상단 히어로(전체 배경형): 실제 시공사례 슬라이더(renderHeroPortfolioSlider, 최대 5개)를
+                 전체 배경으로 깔고 헤드라인 + 검색바를 오버레이 -->
+            <div class="home-hero-b">
+                <div id="hero-portfolio-slider-container" class="hero-a-right home-hero-b-bg" onmouseenter="pauseHeroAutoplay()" onmouseleave="resumeHeroAutoplay()"></div>
+                <div class="home-hero-b-scrim" aria-hidden="true"></div>
+                <div class="home-hero-b-content">
+                    <h1 class="home-hero-b-head">좋은 공간이<br>좋은 하루를 만듭니다.</h1>
+                    <p class="home-hero-b-sub">공간을 찾는 사람과, 공간을 만드는 전문가를 연결했어요.</p>
+                    <div class="home-hero-b-search">
+                        <select id="home-search-region" class="home-hero-b-select" aria-label="지역 선택">
+                            <option value="">지역을 선택해주세요</option>
+                            <option>강서구</option><option>금정구</option><option>기장군</option>
+                            <option>남구</option><option>동구</option><option>동래구</option>
+                            <option>부산진구</option><option>북구</option><option>사상구</option>
+                            <option>사하구</option><option>서구</option><option>수영구</option>
+                            <option>연제구</option><option>영도구</option><option>중구</option>
+                            <option>해운대구</option>
+                        </select>
+                        <select id="home-search-space" class="home-hero-b-select" aria-label="공간 유형 선택">
+                            <option value="">공간 유형</option>
+                            <option>아파트</option><option>빌라/주택</option><option>오피스텔</option>
+                            <option>상가/사무실</option><option>리모델링</option>
+                        </select>
+                        <select id="home-search-budget" class="home-hero-b-select" aria-label="예산 선택">
+                            <option value="">예산</option>
+                            <option>1,000만원 이하</option><option>1,000~3,000만원</option>
+                            <option>3,000~5,000만원</option><option>5,000만원 이상</option>
+                        </select>
+                        <button type="button" onclick="handleHomeHeroSearch()" class="home-hero-b-search-btn" aria-label="검색">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div class="home-hero-b-stats">
+                        <div><b id="hero-a-stat-orders">-</b><span>누적 매칭</span></div>
+                        <div><b id="hero-a-stat-partners">-</b><span>인증 파트너</span></div>
+                        <div><b id="hero-a-stat-rating">-</b><span>평균 평점</span></div>
                     </div>
                 </div>
-                <div id="hero-portfolio-slider-container" class="hero-a-right" onmouseenter="pauseHeroAutoplay()" onmouseleave="resumeHeroAutoplay()"></div>
             </div>
 
             <!-- 이벤트 배너(센터 카드형): 히어로보다 시선 비중을 낮춰 가운데 좁은 카드로 노출 -->
             <div class="event-banner-row">
                 <div id="home-event-slider-container" class="hero-ad-card event-card-d" onmouseenter="pauseHomeEventAutoplay()" onmouseleave="resumeHomeEventAutoplay()"></div>
+            </div>
+
+            <!-- 지금, 이런 공간이 인기예요 -->
+            <div class="space-y-4">
+                <div class="flex items-end justify-between">
+                    <h2 class="text-lg sm:text-xl font-black text-ink-950">지금, 이런 공간이 인기예요</h2>
+                    <button type="button" onclick="switchPanel('partner-search-panel')" class="text-xs font-bold text-ink-500 hover:text-brand-600 shrink-0">더보기 →</button>
+                </div>
+                <div class="home-category-grid">
+                    <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('아파트')" role="button" tabindex="0">
+                        <img src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=500&auto=format&fit=crop&q=70" alt="아파트">
+                        <span>아파트</span>
+                    </div>
+                    <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('빌라/주택')" role="button" tabindex="0">
+                        <img src="https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=500&auto=format&fit=crop&q=70" alt="빌라/주택">
+                        <span>빌라/주택</span>
+                    </div>
+                    <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('오피스텔')" role="button" tabindex="0">
+                        <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=500&auto=format&fit=crop&q=70" alt="오피스텔">
+                        <span>오피스텔</span>
+                    </div>
+                    <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('상가/사무실')" role="button" tabindex="0">
+                        <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&auto=format&fit=crop&q=70" alt="상가/사무실">
+                        <span>상가/사무실</span>
+                    </div>
+                    <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('리모델링')" role="button" tabindex="0">
+                        <img src="https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?w=500&auto=format&fit=crop&q=70" alt="리모델링">
+                        <span>리모델링</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 전문가와 함께, 당신의 공간을 새롭게 -->
+            <div class="space-y-4">
+                <div class="flex items-end justify-between">
+                    <h2 class="text-lg sm:text-xl font-black text-ink-950">전문가와 함께, 당신의 공간을 새롭게</h2>
+                    <button type="button" onclick="switchPanel('partner-search-panel')" class="text-xs font-bold text-ink-500 hover:text-brand-600 shrink-0">전문가 둘러보기 →</button>
+                </div>
+                <div class="home-expert-grid">
+                    <div class="home-expert-item wj-focusable" onclick="switchPanel('client-panel')" role="button" tabindex="0">
+                        <span class="home-expert-icon"><i data-lucide="palette" class="w-5 h-5"></i></span>
+                        <p>인테리어 디자이너</p>
+                    </div>
+                    <div class="home-expert-item wj-focusable" onclick="switchPanel('partner-search-panel')" role="button" tabindex="0">
+                        <span class="home-expert-icon"><i data-lucide="hammer" class="w-5 h-5"></i></span>
+                        <p>시공업체</p>
+                    </div>
+                    <div class="home-expert-item wj-focusable" onclick="switchPanel('client-panel')" role="button" tabindex="0">
+                        <span class="home-expert-icon"><i data-lucide="armchair" class="w-5 h-5"></i></span>
+                        <p>가구·소품 전문가</p>
+                    </div>
+                    <div class="home-expert-item wj-focusable" onclick="handleHome1on1Click()" role="button" tabindex="0">
+                        <span class="home-expert-icon"><i data-lucide="compass" class="w-5 h-5"></i></span>
+                        <p>공간 컨설턴트</p>
+                    </div>
+                </div>
             </div>
 
             <div class="space-y-5 text-left pt-1">
@@ -165,6 +237,17 @@
                     <p class="text-[13px] sm:text-sm font-bold text-ink-800 leading-relaxed flex-1">
                         <span class="text-brand-700 font-black">TIP.</span> 2단계 자동 매칭이 끝난 뒤에도 끝이 아니에요 — 비교 견적 중 마음에 쏙 드는 파트너가 있다면 <span class="text-brand-700 font-black">1:1 지정 상담</span>을 추가로 신청해서 그 파트너와 전속으로 진행할 수 있어요.
                     </p>
+                </div>
+            </div>
+
+            <!-- 하단 상담 신청 CTA: 좌측 실사진 + 우측 카피/버튼 스플릿 배너 -->
+            <div class="home-cta-banner">
+                <div class="home-cta-banner-img" role="img" aria-label="따뜻한 채광이 드는 인테리어 공간 사진"></div>
+                <div class="home-cta-banner-content">
+                    <h2>당신이 꿈꾸는 공간,<br>지금 시작해보세요.</h2>
+                    <button type="button" onclick="handleHome1on1Click()" class="btn btn-dark btn-lg" style="align-self:flex-start">
+                        무료 상담하기 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
                 </div>
             </div>
         </section>

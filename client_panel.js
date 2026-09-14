@@ -4057,6 +4057,35 @@ function handleHome1on1Click() {
     if (typeof switchPanel === 'function') switchPanel('partner-search-panel');
 }
 
+/* 홈 히어로 검색바 — 실제 매물 검색 기능은 없으므로(이 플랫폼은 리스팅이 아니라 견적
+ * 매칭 서비스), 선택한 공간 유형만 안심 견적 신청서의 공간 구분(주거/상업)에 미리
+ * 반영해 주고 신청서로 안내한다. 지역/예산은 신청서에 대응하는 정확한 필드가 없어
+ * (지역은 주소 자유입력, 예산은 숫자 입력) 상태에 억지로 끼워 넣지 않고 안내 문구로만 전달. */
+const HOME_CATEGORY_TO_SPACE_TYPE = {
+    '아파트': 'residential', '빌라/주택': 'residential', '리모델링': 'residential',
+    '오피스텔': 'commercial', '상가/사무실': 'commercial'
+};
+
+function handleHomeCategoryClick(label) {
+    const mapped = HOME_CATEGORY_TO_SPACE_TYPE[label];
+    if (mapped && typeof updateFormState === 'function') updateFormState('spaceType', mapped);
+    showToast(`${label} 카테고리로 안심 견적 신청을 시작할게요.`, "info");
+    if (typeof switchPanel === 'function') switchPanel('client-panel');
+}
+
+function handleHomeHeroSearch() {
+    const region = document.getElementById('home-search-region')?.value || '';
+    const space = document.getElementById('home-search-space')?.value || '';
+    const budget = document.getElementById('home-search-budget')?.value || '';
+
+    const mapped = HOME_CATEGORY_TO_SPACE_TYPE[space];
+    if (mapped && typeof updateFormState === 'function') updateFormState('spaceType', mapped);
+
+    const parts = [region, space, budget].filter(Boolean);
+    showToast(parts.length ? `${parts.join(' · ')} 조건으로 안심 견적 신청을 도와드릴게요.` : "안심 견적 신청 페이지로 이동합니다.", "info");
+    if (typeof switchPanel === 'function') switchPanel('client-panel');
+}
+
 /* ----------------------------------------------------------------
  * 리뷰 작성 모달
  * ---------------------------------------------------------------- */
@@ -5529,6 +5558,8 @@ window.renderMyPageEstimateDetails = renderMyPageEstimateDetails;
 window.triggerRebidding = triggerRebidding;
 window.convertOrderToOpenMatching = convertOrderToOpenMatching;
 window.handleHome1on1Click = handleHome1on1Click;
+window.handleHomeCategoryClick = handleHomeCategoryClick;
+window.handleHomeHeroSearch = handleHomeHeroSearch;
 window.showToast = showToast;
 
 window.openReviewWriteModal = openReviewWriteModal;
