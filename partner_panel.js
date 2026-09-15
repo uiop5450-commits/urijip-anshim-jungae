@@ -84,6 +84,8 @@ function switchPanel(panelId) {
     if (panelId === 'home-panel') { renderHeroPortfolioSlider(); renderHomeEventSlider(); renderHeroTrustStats(); startHomeAutoplay(); }
     else { stopHomeAutoplay(); }
     if (panelId === 'client-panel' && typeof restoreQuoteDraftFromStorage === 'function') restoreQuoteDraftFromStorage();
+    if (typeof applyHomeQuoteIntent === 'function') applyHomeQuoteIntent();
+    if (typeof syncHomeAccount === 'function') syncHomeAccount();
     if (panelId === 'partner-search-panel') renderPartnerSearchGrid();
     if (panelId === 'community-panel' && typeof renderCommunityList === 'function') renderCommunityList();
     if (panelId === 'client-mypage-panel') {
@@ -434,6 +436,8 @@ function renderPartnerSearchGrid() {
             ? (b.reviews ? b.reviews.length : 0) - (a.reviews ? a.reviews.length : 0)
             : b.rating - a.rating);
 
+    const countEl = document.getElementById('partner-search-count');
+    if (countEl) countEl.textContent = '전문가 ' + filtered.length + '곳' + (query ? ' · 검색 결과' : '');
     if (filtered.length === 0) {
         container.innerHTML = '<p class="text-xs text-ink-400 font-bold py-12 text-center col-span-full">검색된 파트너사가 없습니다.</p>';
         return;
@@ -457,12 +461,17 @@ function renderPartnerSearchGrid() {
 
         const card = document.createElement('div');
         card.className = "portfolio-card flex flex-col justify-between group";
+        card.tabIndex = 0;
+        card.setAttribute('aria-label', p.name + ' 포트폴리오 보기');
+        card.onkeydown = (e) => {
+            if (e.target === card && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); card.click(); }
+        };
         card.onclick = (e) => { e.preventDefault(); if (typeof window.openClientPartnerProfile === 'function') window.openClientPartnerProfile(p.name); };
         card.innerHTML = `
             <div>
                 <div class="portfolio-img relative">
                     <img src="${repImg}" alt="${safePName}">
-                    <button type="button" onclick="event.stopPropagation(); toggleFavoritePartner('${p.name}')" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center border-0 cursor-pointer shadow-sm" aria-label="관심 파트너로 저장"><i data-lucide="heart" class="w-4 h-4 ${isFavorited ? 'text-roseCustom' : 'text-ink-300'}" ${isFavorited ? 'fill="currentColor"' : ''}></i></button>
+                    <button type="button" onclick="event.stopPropagation(); toggleFavoritePartner('${p.name}')" aria-pressed="${isFavorited}" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center border-0 cursor-pointer shadow-sm" aria-label="관심 파트너로 저장"><i data-lucide="heart" class="w-4 h-4 ${isFavorited ? 'text-roseCustom' : 'text-ink-300'}" ${isFavorited ? 'fill="currentColor"' : ''}></i></button>
                 </div>
                 <div class="p-5 space-y-2">
                     <div class="flex justify-between items-center gap-2">
@@ -653,7 +662,7 @@ function togglePartnerConsoleVisibility() {
         if (partner) {
             const strikeText = partner.strikeCount > 0 ? `${partner.strikeCount}진 아웃` : '정상';
             const strikeDotColor = partner.strikeCount > 0 ? 'bg-amberCustom' : 'bg-emeraldCustom';
-            const certifiedBadge = partner.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증 파트너</span>` : '';
+            const certifiedBadge = partner.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> SpaceLink 인증 파트너</span>` : '';
 
             const titleEl = document.getElementById('partner-header-title');
             if (titleEl) {
@@ -2639,7 +2648,7 @@ function openPartnerOrderDetailModal(orderCode) {
         <div id="partner-order-detail-modal-card" class="modal-card w-full max-w-2xl p-6 sm:p-8 space-y-6 text-left">
             <div class="flex justify-between items-start border-b border-ink-100 pb-4">
                 <div class="space-y-1.5">
-                    <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot bg-ink-500"></span> 우리집 안심 중개보증</span><span class="text-xs font-mono font-bold text-ink-500 tracking-wider">${order.code}</span>${statusBadge}</div>
+                    <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot bg-ink-500"></span> SpaceLink보증</span><span class="text-xs font-mono font-bold text-ink-500 tracking-wider">${order.code}</span>${statusBadge}</div>
                     <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight flex items-center gap-1.5">${escapeHtml(order.clientName)} 고객님 (${order.clientPhone}) ${typeof buildClientTierBadgeHtml === 'function' ? buildClientTierBadgeHtml(order.clientPhone) : ''}
                         <button type="button" onclick="toggleFavoriteClient('${escapeHtml(order.clientPhone)}', '${escapeHtml(order.clientName)}', '${order.code}')" class="btn btn-ghost btn-sm px-1.5" aria-label="단골 고객으로 저장"><i data-lucide="star" class="w-4 h-4 ${isClientFavorited(order.clientPhone) ? 'text-gold-500' : 'text-ink-300'}" ${isClientFavorited(order.clientPhone) ? 'fill="currentColor"' : ''}></i></button>
                         <button type="button" onclick="togglePartnerBlockClient('${escapeHtml(order.clientPhone)}', '${escapeHtml(order.clientName)}', '${order.code}')" class="btn btn-ghost btn-sm px-1.5" aria-label="고객 차단"><i data-lucide="user-x" class="w-4 h-4 ${isClientBlockedByPartner(order.clientPhone) ? 'text-roseCustom' : 'text-ink-300'}"></i></button>
@@ -2873,7 +2882,7 @@ function exportLogsToCsv() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `우리집안심중개_관제로그_${getLocalDateString()}.csv`;
+    a.href = url; a.download = `SpaceLink_관제로그_${getLocalDateString()}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
@@ -2899,7 +2908,7 @@ function exportPartnerListToCsv() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `우리집안심중개_파트너목록_${getLocalDateString()}.csv`;
+    a.href = url; a.download = `SpaceLink_파트너목록_${getLocalDateString()}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
@@ -2929,7 +2938,7 @@ function exportClientListToCsv() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `우리집안심중개_고객목록_${getLocalDateString()}.csv`;
+    a.href = url; a.download = `SpaceLink_고객목록_${getLocalDateString()}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
@@ -4240,7 +4249,7 @@ function exportOrderLookupResultsToCsv() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `우리집안심중개_오더조회_${getLocalDateString()}.csv`;
+    a.href = url; a.download = `SpaceLink_오더조회_${getLocalDateString()}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
@@ -5333,7 +5342,7 @@ function renderAdminPartnerMonitor() {
             <div class="space-y-3">
                 <div class="flex justify-between items-start gap-2">
                     <div class="space-y-1">
-                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증${p.certExpiryDate ? ` (~${p.certExpiryDate})` : ''}</span>` : ''}${p.isPaused ? `<span class="badge badge-amber"><i data-lucide="pause-circle" class="w-2.5 h-2.5"></i> 매칭 일시중단</span>` : ''}${myPartnerReports.length > 0 ? `<span class="badge badge-rose">고객 신고 ${myPartnerReports.length}건</span>` : ''}${p.certRenewalRequested ? `<span class="badge badge-amber">인증 갱신 요청</span>` : ''}${p.certApplicationRequested ? `<span class="badge badge-amber">인증 신청</span>` : ''}</div>
+                        <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotClass}"></span>${statusText}</span>${p.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> SpaceLink 인증${p.certExpiryDate ? ` (~${p.certExpiryDate})` : ''}</span>` : ''}${p.isPaused ? `<span class="badge badge-amber"><i data-lucide="pause-circle" class="w-2.5 h-2.5"></i> 매칭 일시중단</span>` : ''}${myPartnerReports.length > 0 ? `<span class="badge badge-rose">고객 신고 ${myPartnerReports.length}건</span>` : ''}${p.certRenewalRequested ? `<span class="badge badge-amber">인증 갱신 요청</span>` : ''}${p.certApplicationRequested ? `<span class="badge badge-amber">인증 신청</span>` : ''}</div>
                         <h4 class="text-sm font-black text-ink-950">${p.name}</h4>
                         <p class="text-[10px] text-ink-400 font-mono">사업자 번호: ${p.bizFile || '미등록'}</p>
                     </div>
@@ -6509,7 +6518,7 @@ function openPartnerMetricsModal(partnerName) {
         <div id="admin-partner-metrics-modal-card" class="modal-card w-full max-w-2xl p-6 sm:p-8 space-y-6 text-left">
             <div class="flex justify-between items-center border-b border-ink-100 pb-4">
                 <div class="space-y-1">
-                    <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotColor}"></span>${statusText}</span>${partner.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> 우리집 인증</span>` : ''}</div>
+                    <div class="flex items-center gap-2"><span class="badge badge-neutral"><span class="badge-dot ${statusDotColor}"></span>${statusText}</span>${partner.isCertified ? `<span class="chip-cert"><i data-lucide="verified" class="w-2.5 h-2.5"></i> SpaceLink 인증</span>` : ''}</div>
                     <h3 class="text-base sm:text-lg font-black text-ink-950 tracking-tight mt-1">${partner.name} - 경영 및 안심 거래 지표 분석</h3>
                     <p class="text-xs text-ink-500 font-medium">사업자 등록번호: ${partner.bizFile || '미등록'} | 누적 평점: ★ ${partner.rating ? partner.rating.toFixed(1) : '5.0'}</p>
                 </div>
@@ -6642,7 +6651,7 @@ function exportPartnerPerformanceCsv() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `우리집안심중개_내실적_${partnerName}_${getLocalDateString()}.csv`;
+    a.href = url; a.download = `SpaceLink_내실적_${partnerName}_${getLocalDateString()}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
@@ -6750,8 +6759,8 @@ function downloadPartnerSettlementReceipt(orderCode) {
     const price = order.finalPrice || order.budget;
     const commission = Math.floor(price * PLATFORM_COMMISSION_RATE);
     const payout = price - commission;
-    const content = `====================================================\n[우리집 안심 중개] 파트너 정산 확인서\n====================================================\n\n1. 거래 정보\n   - 의뢰 코드: ${order.code}\n   - 시공 장소: ${order.clientAddress}\n   - 고객명: ${order.clientName} 고객님\n   - 파트너사: ${partnerName}\n\n2. 정산 내역 (단위: 만원)\n   --------------------------------------------------\n   - 최종 계약 금액: ₩ ${price.toLocaleString()} 만원\n   - 플랫폼 중개 수수료 (${(PLATFORM_COMMISSION_RATE * 100).toFixed(0)}%): - ₩ ${commission.toLocaleString()} 만원\n   - 실지급액: ₩ ${payout.toLocaleString()} 만원\n   - 수수료 납부 상태: 납부 완료\n\n발급일자: ${getLocalDateString()}\n본 확인서는 우리집 안심 중개 플랫폼에서 자동 발급되었습니다.\n====================================================`;
-    buildDocFile(content, `[우리집안심중개]_파트너정산확인서_${order.code}.txt`);
+    const content = `====================================================\n[SpaceLink] 파트너 정산 확인서\n====================================================\n\n1. 거래 정보\n   - 의뢰 코드: ${order.code}\n   - 시공 장소: ${order.clientAddress}\n   - 고객명: ${order.clientName} 고객님\n   - 파트너사: ${partnerName}\n\n2. 정산 내역 (단위: 만원)\n   --------------------------------------------------\n   - 최종 계약 금액: ₩ ${price.toLocaleString()} 만원\n   - 플랫폼 중개 수수료 (${(PLATFORM_COMMISSION_RATE * 100).toFixed(0)}%): - ₩ ${commission.toLocaleString()} 만원\n   - 실지급액: ₩ ${payout.toLocaleString()} 만원\n   - 수수료 납부 상태: 납부 완료\n\n발급일자: ${getLocalDateString()}\n본 확인서는 SpaceLink 플랫폼에서 자동 발급되었습니다.\n====================================================`;
+    buildDocFile(content, `[SpaceLink]_파트너정산확인서_${order.code}.txt`);
     showToast('정산 확인서 다운로드가 시작되었습니다.', 'success');
 }
 
@@ -6760,8 +6769,8 @@ function downloadContractDoc(orderCode, partnerName) {
     const clientName = order ? order.clientName : "고객";
     const address = order ? order.clientAddress : "부산광역시";
     const price = order ? (order.finalPrice || order.budget) : 0;
-    const content = `====================================================\n[우리집 안심 중개] 실내건축 표준 안심 공사계약서\n====================================================\n\n1. 프로젝트 정보\n   - 의뢰 코드: ${orderCode}\n   - 시공 장소: ${address}\n   - 의뢰 고객: ${clientName} 고객님\n   - 담당 시공사: ${partnerName}\n\n2. 계약 금액 및 정산 조건\n   - 총 시공 계약 금액: ₩ ${price.toLocaleString()} 만원 (VAT 포함)\n   - 안심 에스크로 결제 보증: 100% 본사 이행보증 가입 완료\n   - 하자이행 보증기간: 준공일로부터 3년 무상 보증\n\n3. 특약 사항\n   - 본 계약은 '우리집 안심 중개' 플랫폼 표준 약관에 따라\n     하자보증보험 및 공정별 시공 감리 규정을 준수합니다.\n   - 당사자 간 이면 계약 및 수수료 우회 직거래 시 삼진아웃 규정이 적용됩니다.\n\n발행일자: ${getLocalDateString()}\n플랫폼 인증 검증 완료: (주)우리집안심중개 관제센터\n====================================================`;
-    buildDocFile(content, `[우리집안심중개]_표준계약서_${orderCode}_${partnerName}.txt`);
+    const content = `====================================================\n[SpaceLink] 실내건축 표준 안심 공사계약서\n====================================================\n\n1. 프로젝트 정보\n   - 의뢰 코드: ${orderCode}\n   - 시공 장소: ${address}\n   - 의뢰 고객: ${clientName} 고객님\n   - 담당 시공사: ${partnerName}\n\n2. 계약 금액 및 정산 조건\n   - 총 시공 계약 금액: ₩ ${price.toLocaleString()} 만원 (VAT 포함)\n   - 안심 에스크로 결제 보증: 100% 본사 이행보증 가입 완료\n   - 하자이행 보증기간: 준공일로부터 3년 무상 보증\n\n3. 특약 사항\n   - 본 계약은 'SpaceLink' 플랫폼 표준 약관에 따라\n     하자보증보험 및 공정별 시공 감리 규정을 준수합니다.\n   - 당사자 간 이면 계약 및 수수료 우회 직거래 시 삼진아웃 규정이 적용됩니다.\n\n발행일자: ${getLocalDateString()}\n플랫폼 인증 검증 완료: (주)SpaceLink 관제센터\n====================================================`;
+    buildDocFile(content, `[SpaceLink]_표준계약서_${orderCode}_${partnerName}.txt`);
     if (typeof showToast === 'function') showToast(`[${orderCode}] 안심 표준 계약서 다운로드가 시작되었습니다.`, "success");
 }
 
@@ -6770,8 +6779,8 @@ function downloadEstimateDoc(orderCode, partnerName) {
     const clientName = order ? order.clientName : "고객";
     const pyung = order ? order.pyung : 0;
     const price = order ? (order.finalPrice || order.budget) : 0;
-    const content = `====================================================\n[우리집 안심 중개] 공종별 세부 정밀 견적 내역서\n====================================================\n\n1. 견적 개요\n   - 오더 번호: ${orderCode}\n   - 고객명: ${clientName} 고객님\n   - 시공 면적: ${pyung}평형\n   - 시공사: ${partnerName}\n\n2. 공종별 가견적 세부 산출 내역 (단위: 만원)\n   --------------------------------------------------\n   [01] 철거 및 폐기물 처리 공사: ₩ ${Math.floor(price * 0.12).toLocaleString()} 만원\n   [02] 창호 및 단열 보강 공사: ₩ ${Math.floor(price * 0.22).toLocaleString()} 만원\n   [03] 목공 및 문선/몰딩 공사: ₩ ${Math.floor(price * 0.18).toLocaleString()} 만원\n   [04] 타일 및 욕실 수전 공사: ₩ ${Math.floor(price * 0.20).toLocaleString()} 만원\n   [05] 도배 및 친환경 마루 공사: ₩ ${Math.floor(price * 0.15).toLocaleString()} 만원\n   [06] 조도 및 전기/라인조명 공사: ₩ ${Math.floor(price * 0.13).toLocaleString()} 만원\n   --------------------------------------------------\n   - 총 합계 금액: ₩ ${price.toLocaleString()} 만원 (VAT 포함)\n\n3. 특이사항\n   - 자재 스펙: E0 등급 친환경 합판, 수입 포셀린 타일, 무몰딩 마감\n   - 본 견적서는 우리집 안심 중개 보증 심사를 통과한 정식 서류입니다.\n\n발행일자: ${getLocalDateString()}\n====================================================`;
-    buildDocFile(content, `[우리집안심중개]_정밀견적서_${orderCode}_${partnerName}.txt`);
+    const content = `====================================================\n[SpaceLink] 공종별 세부 정밀 견적 내역서\n====================================================\n\n1. 견적 개요\n   - 오더 번호: ${orderCode}\n   - 고객명: ${clientName} 고객님\n   - 시공 면적: ${pyung}평형\n   - 시공사: ${partnerName}\n\n2. 공종별 가견적 세부 산출 내역 (단위: 만원)\n   --------------------------------------------------\n   [01] 철거 및 폐기물 처리 공사: ₩ ${Math.floor(price * 0.12).toLocaleString()} 만원\n   [02] 창호 및 단열 보강 공사: ₩ ${Math.floor(price * 0.22).toLocaleString()} 만원\n   [03] 목공 및 문선/몰딩 공사: ₩ ${Math.floor(price * 0.18).toLocaleString()} 만원\n   [04] 타일 및 욕실 수전 공사: ₩ ${Math.floor(price * 0.20).toLocaleString()} 만원\n   [05] 도배 및 친환경 마루 공사: ₩ ${Math.floor(price * 0.15).toLocaleString()} 만원\n   [06] 조도 및 전기/라인조명 공사: ₩ ${Math.floor(price * 0.13).toLocaleString()} 만원\n   --------------------------------------------------\n   - 총 합계 금액: ₩ ${price.toLocaleString()} 만원 (VAT 포함)\n\n3. 특이사항\n   - 자재 스펙: E0 등급 친환경 합판, 수입 포셀린 타일, 무몰딩 마감\n   - 본 견적서는 SpaceLink 보증 심사를 통과한 정식 서류입니다.\n\n발행일자: ${getLocalDateString()}\n====================================================`;
+    buildDocFile(content, `[SpaceLink]_정밀견적서_${orderCode}_${partnerName}.txt`);
     if (typeof showToast === 'function') showToast(`[${orderCode}] 공종별 정밀 견적서 다운로드가 시작되었습니다.`, "success");
 }
 
@@ -7517,7 +7526,7 @@ function exportBlacklistDbToCsv() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `우리집안심중개_블랙리스트DB_${getLocalDateString()}.csv`;
+    a.href = url; a.download = `SpaceLink_블랙리스트DB_${getLocalDateString()}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**우리집 안심 중개** — a B2B2C brokerage platform prototype matching interior-renovation
+**SpaceLink** (formerly "우리집 안심중개") — a B2B2C brokerage platform prototype matching interior-renovation
 contractors ("partners") in Busan with homeowners ("clients"). Core flow: client submits a
 quote request → matching → partners bid → contract. Includes a partner console
 (portfolio/bids) and an admin/manager console (KPIs, order allocation, blacklist/strike

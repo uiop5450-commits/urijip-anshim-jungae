@@ -271,7 +271,7 @@ window.AppState = {
 
     kpis: { gmv: 3400, escrow: 0, revenue: 102 },
     logs: [
-        { time: '09:00:00', category: 'SYSTEM', target: 'ENGINE', message: '우리집 안심 중개 및 매니저 관제 시스템 구동 완료.', status: 'SUCCESS' }
+        { time: '09:00:00', category: 'SYSTEM', target: 'ENGINE', message: 'SpaceLink 및 매니저 관제 시스템 구동 완료.', status: 'SUCCESS' }
     ],
 
     // 고객 마이페이지 > 알림 탭에 쌓이는 개인 알림. clientPhone으로 소유자를 구분한다

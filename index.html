@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>우리집 안심중개 — 부산 인테리어 안심 매칭 플랫폼</title>
+    <title>SpaceLink — 부산 인테리어 안심 매칭 플랫폼</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23a9754b' d='M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4Z'/%3E%3Cpath fill='%23fff' d='m10.6 14.8-2.4-2.4-1.4 1.4 3.8 3.8 7-7-1.4-1.4-5.6 5.6Z'/%3E%3C/svg%3E">
     <!-- Gowun Sans(구운 산스) 웹폰트: 따뜻하고 둥근 느낌의 인테리어 무드에 맞춰 Pretendard에서 교체.
          Google Fonts는 비차단(non-blocking)으로 로딩 → 요청이 느리거나 막혀도 즉시 대체 폰트로 표시됨 -->
@@ -35,6 +35,9 @@
     </script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="premium_theme.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif:wght@400&display=swap">
+    <link rel="stylesheet" href="spacelink-home.css">
+    <link rel="stylesheet" href="spacelink-interior.css">
 </head>
 <body class="h-full text-ink-900 flex flex-col font-sans antialiased">
 
@@ -43,13 +46,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div class="flex items-center gap-2.5 sm:gap-3 cursor-pointer wj-focusable" onclick="switchPanel('home-panel')" role="button" tabindex="0" aria-label="홈으로 이동">
-                    <span class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-brand-500 text-white flex items-center justify-center shrink-0" style="box-shadow:var(--shadow-brand)">
-                        <i data-lucide="shield-check" class="w-5 h-5"></i>
-                    </span>
-                    <div class="leading-none">
-                        <span class="text-[15px] sm:text-lg font-black tracking-tight text-ink-950">우리집 <span class="text-brand-500">안심중개</span></span>
-                        <p class="hidden sm:block text-[9px] text-ink-400 font-extrabold uppercase tracking-widest mt-1">Busan Safety Matching Platform</p>
-                    </div>
+                    <div><span class="sl-interior-wordmark">SpaceLink</span><p class="sl-interior-brand-note">공간을 찾고, 전문가를 만나다</p></div>
                 </div>
 
                 <div class="hidden md:flex items-center bg-white p-1.5 rounded-2xl gap-0.5">
@@ -86,34 +83,24 @@
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
 
         <!-- ================================================================ 1. HOME PANEL ================================================================ -->
-        <section id="home-panel" class="space-y-6 transition-all duration-300">
-            <!-- 상단 히어로(전체 배경형, 풀블리드): SpaceLink 레퍼런스 사진을 그대로 배경으로 사용.
-                 이 자리에 있던 실제 시공사례 회전 슬라이더는 레퍼런스처럼 정적 사진 한 장으로
-                 바꾸면서 뺐다 — 다시 넣고 싶으면 renderHeroPortfolioSlider(partner_panel.js)를
-                 참고해 별도 섹션으로 되살릴 수 있다. -->
-            <div class="home-hero-b">
-                <div class="home-hero-nav" role="navigation" aria-label="주요 메뉴">
-                    <div class="home-hero-nav-top">
-                        <div class="home-hero-nav-logo wj-focusable" onclick="switchPanel('home-panel')" role="button" tabindex="0">우리집 <span>안심중개</span></div>
-                        <div class="home-hero-nav-actions">
-                            <button type="button" onclick="handleClientLoginNavClick()" class="home-hero-nav-login">고객 로그인</button>
-                            <button type="button" onclick="handleB2BNavClick()" class="home-hero-nav-cta" aria-haspopup="dialog">파트너·매니저</button>
-                        </div>
-                    </div>
-                    <div class="home-hero-nav-links">
-                        <button type="button" onclick="switchPanel('client-panel')">견적 신청</button>
-                        <button type="button" onclick="switchPanel('partner-search-panel')">파트너 탐색</button>
-                        <button type="button" onclick="switchPanel('community-panel')">커뮤니티</button>
-                        <button type="button" onclick="switchPanel('client-mypage-panel')">마이페이지</button>
-                    </div>
-                </div>
-                <div class="home-hero-b-bg" style="background-image:url('assets/images/home-hero-living-room.png')" aria-hidden="true"></div>
-                <div class="home-hero-b-scrim" aria-hidden="true"></div>
-                <div class="home-hero-b-content">
-                    <h1 class="home-hero-b-head">좋은 공간이<br>좋은 하루를 만듭니다.</h1>
-                    <p class="home-hero-b-sub">공간을 찾는 사람과, 공간을 만드는 전문가를 연결합니다.</p>
-                    <div class="home-hero-b-search">
-                        <select id="home-search-region" class="home-hero-b-select" aria-label="지역 선택">
+        <section id="home-panel" class="sl-home">
+  <div class="sl-hero sl-photo sl-photo--hero">
+    <nav class="sl-nav" aria-label="주요 메뉴">
+      <button class="sl-logo" onclick="switchPanel('home-panel')">SpaceLink</button>
+      <div class="sl-nav-links">
+        <button onclick="startHomeQuote()">견적 신청</button>
+        <button onclick="switchPanel('partner-search-panel')">전문가찾기</button>
+        <button onclick="openHomeCases()">시공사례</button>
+        <button onclick="openHomeCommunity('tip')">인테리어 팁</button>
+        <button onclick="openHomeCommunity('all')">커뮤니티</button>
+      </div>
+      <div class="sl-account"><button id="home-account-primary" onclick="handleClientLoginNavClick()">로그인</button><button id="home-account-secondary" class="sl-signup" onclick="switchPanel('client-login-panel');switchClientAuthTab('signup')">회원가입</button></div>
+    </nav>
+    <div class="sl-hero-content">
+      <h1>좋은 공간이<br>좋은 하루를 만듭니다.</h1>
+      <p>부산 인테리어 전문가를 비교하고, 내 공간에 맞는 견적을 받아보세요.</p>
+      <div class="sl-search" role="group" aria-label="맞춤 견적 조건">
+        <div class="sl-select-wrap"><select id="home-search-region" class="sl-select" aria-label="지역 선택">
                             <option value="">지역을 선택하세요</option>
                             <option>강서구</option><option>금정구</option><option>기장군</option>
                             <option>남구</option><option>동구</option><option>동래구</option>
@@ -121,154 +108,50 @@
                             <option>사하구</option><option>서구</option><option>수영구</option>
                             <option>연제구</option><option>영도구</option><option>중구</option>
                             <option>해운대구</option>
-                        </select>
-                        <select id="home-search-space" class="home-hero-b-select" aria-label="공간 유형 선택">
+                        </select><i data-lucide="chevron-down" aria-hidden="true"></i></div><div class="sl-select-wrap"><select id="home-search-space" class="sl-select" aria-label="공간 유형 선택">
                             <option value="">공간 유형</option>
                             <option>아파트</option><option>빌라/주택</option><option>오피스텔</option>
                             <option>상가/사무실</option><option>리모델링</option>
-                        </select>
-                        <select id="home-search-budget" class="home-hero-b-select" aria-label="예산 선택">
+                        </select><i data-lucide="chevron-down" aria-hidden="true"></i></div><div class="sl-select-wrap"><select id="home-search-budget" class="sl-select" aria-label="예산 선택">
                             <option value="">예산</option>
                             <option>1,000만원 이하</option><option>1,000~3,000만원</option>
                             <option>3,000~5,000만원</option><option>5,000만원 이상</option>
-                        </select>
-                        <button type="button" onclick="handleHomeHeroSearch()" class="home-hero-b-search-btn" aria-label="검색">
-                            <i data-lucide="search" class="w-4 h-4"></i> 검색
-                        </button>
-                    </div>
-                </div>
-            </div>
+                        </select><i data-lucide="chevron-down" aria-hidden="true"></i></div>
+        <button onclick="startHomeQuote()" class="sl-search-button"><i data-lucide="search" aria-hidden="true"></i><span>맞춤 견적 받기</span></button>
+      </div>
+    </div>
+  </div>
+  <div id="home-cases" class="sl-popular sl-container" aria-labelledby="home-cases-title">
+    <div class="sl-section-heading"><h2 id="home-cases-title">지금, 이런 공간이 인기예요</h2><button onclick="switchPanel('partner-search-panel')">더보기 <i data-lucide="chevron-right" aria-hidden="true"></i></button></div>
+    <div class="sl-cards"><button class="sl-card" onclick="openHomeCasePreview('아파트')"><span class="sl-card-photo sl-photo sl-photo--apartment" role="img" aria-label="아파트 인테리어"></span><span>아파트</span></button><button class="sl-card" onclick="openHomeCasePreview('빌라/주택')"><span class="sl-card-photo sl-photo sl-photo--villa" role="img" aria-label="빌라/주택 인테리어"></span><span>빌라/주택</span></button><button class="sl-card" onclick="openHomeCasePreview('오피스텔')"><span class="sl-card-photo sl-photo sl-photo--officetel" role="img" aria-label="오피스텔 인테리어"></span><span>오피스텔</span></button><button class="sl-card" onclick="openHomeCasePreview('상가/사무실')"><span class="sl-card-photo sl-photo sl-photo--commercial" role="img" aria-label="상가/사무실 인테리어"></span><span>상가/사무실</span></button><button class="sl-card" onclick="openHomeCasePreview('리모델링')"><span class="sl-card-photo sl-photo sl-photo--remodel" role="img" aria-label="리모델링 인테리어"></span><span>리모델링</span></button></div>
+  </div>
+  <div class="sl-experts sl-container">
+    <div class="sl-section-heading"><h2>전문가와 함께,<br>당신의 공간을 새롭게</h2><button onclick="switchPanel('partner-search-panel')">전문가 둘러보기 <i data-lucide="chevron-right" aria-hidden="true"></i></button></div>
+    <div class="sl-services"><button class="sl-service" onclick="switchPanel('client-panel')"><span class="sl-service-icon"><i data-lucide="pencil-ruler" aria-hidden="true"></i></span><span>인테리어 디자이너</span></button><button class="sl-service" onclick="switchPanel('partner-search-panel')"><span class="sl-service-icon"><i data-lucide="drafting-compass" aria-hidden="true"></i></span><span>시공업체</span></button><button class="sl-service" onclick="switchPanel('client-panel')"><span class="sl-service-icon"><i data-lucide="armchair" aria-hidden="true"></i></span><span>가구·소품 전문가</span></button><button class="sl-service" onclick="handleHome1on1Click()"><span class="sl-service-icon"><i data-lucide="sprout" aria-hidden="true"></i></span><span>공간 컨설턴트</span></button></div>
+  </div>
+  <div class="sl-home-guide sl-container"><div><span>01</span><h3>공간과 예산 선택</h3><p>원하는 지역과 공간, 예산 범위를 알려주세요.</p></div><div><span>02</span><h3>상세 견적 신청</h3><p>로그인 후 주소와 공사 일정 등 상세 조건을 입력해요.</p></div><div><span>03</span><h3>전문가 비교·상담</h3><p>시공사례와 제안 내용을 비교해 상담을 이어가세요.</p></div></div>
 
-            <!-- 이벤트 배너(센터 카드형): 히어로보다 시선 비중을 낮춰 가운데 좁은 카드로 노출 -->
-            <div class="event-banner-row">
-                <div id="home-event-slider-container" class="hero-ad-card event-card-d" onmouseenter="pauseHomeEventAutoplay()" onmouseleave="resumeHomeEventAutoplay()"></div>
-            </div>
-
-            <!-- 지금, 이런 공간이 인기예요 -->
-            <div class="space-y-4">
-                <div class="flex items-end justify-between">
-                    <h2 class="text-lg sm:text-xl font-black text-ink-950">지금, 이런 공간이 인기예요</h2>
-                    <button type="button" onclick="switchPanel('partner-search-panel')" class="text-xs font-bold text-ink-500 hover:text-brand-600 shrink-0">더보기 →</button>
-                </div>
-                <div class="home-category-grid">
-                    <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('아파트')" role="button" tabindex="0">
-                        <img src="assets/images/home-category-apartment.png" alt="아파트">
-                        <span>아파트</span>
-                    </div>
-                    <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('빌라/주택')" role="button" tabindex="0">
-                        <img src="assets/images/home-category-villa.png" alt="빌라/주택">
-                        <span>빌라/주택</span>
-                    </div>
-                    <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('오피스텔')" role="button" tabindex="0">
-                        <img src="assets/images/home-category-officetel.png" alt="오피스텔">
-                        <span>오피스텔</span>
-                    </div>
-                    <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('상가/사무실')" role="button" tabindex="0">
-                        <img src="assets/images/home-category-commercial.png" alt="상가/사무실">
-                        <span>상가/사무실</span>
-                    </div>
-                    <div class="home-category-card wj-focusable" onclick="handleHomeCategoryClick('리모델링')" role="button" tabindex="0">
-                        <img src="assets/images/home-category-remodel.png" alt="리모델링">
-                        <span>리모델링</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 전문가와 함께, 당신의 공간을 새롭게 -->
-            <div class="space-y-4">
-                <div class="flex items-end justify-between">
-                    <h2 class="text-lg sm:text-xl font-black text-ink-950">전문가와 함께, 당신의 공간을 새롭게</h2>
-                    <button type="button" onclick="switchPanel('partner-search-panel')" class="text-xs font-bold text-ink-500 hover:text-brand-600 shrink-0">전문가 둘러보기 →</button>
-                </div>
-                <div class="home-expert-grid">
-                    <div class="home-expert-item wj-focusable" onclick="switchPanel('client-panel')" role="button" tabindex="0">
-                        <span class="home-expert-icon"><i data-lucide="palette" class="w-5 h-5"></i></span>
-                        <p>인테리어 디자이너</p>
-                    </div>
-                    <div class="home-expert-item wj-focusable" onclick="switchPanel('partner-search-panel')" role="button" tabindex="0">
-                        <span class="home-expert-icon"><i data-lucide="hammer" class="w-5 h-5"></i></span>
-                        <p>시공업체</p>
-                    </div>
-                    <div class="home-expert-item wj-focusable" onclick="switchPanel('client-panel')" role="button" tabindex="0">
-                        <span class="home-expert-icon"><i data-lucide="armchair" class="w-5 h-5"></i></span>
-                        <p>가구·소품 전문가</p>
-                    </div>
-                    <div class="home-expert-item wj-focusable" onclick="handleHome1on1Click()" role="button" tabindex="0">
-                        <span class="home-expert-icon"><i data-lucide="compass" class="w-5 h-5"></i></span>
-                        <p>공간 컨설턴트</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="space-y-5 text-left pt-1">
-                <div class="text-center max-w-xl mx-auto space-y-1.5">
-                    <span class="type-eyebrow text-brand-600">HOW IT WORKS</span>
-                    <h2 class="text-lg sm:text-xl font-black text-ink-950">어떻게 진행되나요?</h2>
-                    <p class="text-[13px] text-ink-500 font-medium leading-relaxed">견적 신청부터 계약까지, 딱 3단계면 끝나요.</p>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 sm:gap-4 items-stretch">
-                    <div class="surface surface-flush p-5 space-y-3 relative overflow-hidden">
-                        <h3 class="text-sm font-black text-ink-950">안심 견적 신청</h3>
-                        <p class="text-[13px] text-ink-500 font-medium leading-relaxed">로그인 후 공간 정보와 일정·예산만 입력하면 견적 신청이 완료돼요.</p>
-                    </div>
-                    <div class="flex items-center justify-center text-ink-300 font-black text-lg rotate-90 sm:rotate-0" aria-hidden="true">→</div>
-                    <div class="surface surface-flush p-5 space-y-3 relative overflow-hidden">
-                        <h3 class="text-sm font-black text-ink-950">자동 매칭</h3>
-                        <p class="text-[13px] text-ink-500 font-medium leading-relaxed">공간 정보와 일정·예산만 입력하면, 부산 1군 인증 파트너 3~5개사가 자동으로 입찰 비교돼요.</p>
-                    </div>
-                    <div class="flex items-center justify-center text-ink-300 font-black text-lg rotate-90 sm:rotate-0" aria-hidden="true">→</div>
-                    <div class="surface surface-flush p-5 space-y-3 relative overflow-hidden">
-                        <h3 class="text-sm font-black text-ink-950">안심 계약</h3>
-                        <p class="text-[13px] text-ink-500 font-medium leading-relaxed">비교 견적 중 마음에 드는 파트너와 계약하고, 3년 무상 하자보증까지 받아요.</p>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div onclick="switchPanel('client-panel')" class="surface surface-flush p-4 hover:bg-ink-50 transition-all cursor-pointer group flex items-center justify-between wj-focusable" role="button" tabindex="0">
-                        <div class="space-y-1 text-left">
-                            <span class="type-eyebrow text-brand-600">선착순 안심 매칭</span>
-                            <h3 class="text-sm font-black text-ink-950">간편 안심 견적 신청하기 →</h3>
-                            <p class="text-[12px] text-ink-500 font-medium">3~5개사 자동 입찰 비교 &amp; 3년 하자보증</p>
-                        </div>
-                        <div class="w-9 h-9 rounded-xl bg-brand-50 group-hover:bg-brand-500 text-brand-600 group-hover:text-white flex items-center justify-center transition-all shrink-0 ml-2">
-                            <i data-lucide="edit-3" class="w-4 h-4"></i>
-                        </div>
-                    </div>
-                    <div onclick="handleHome1on1Click()" class="surface surface-flush p-4 hover:bg-ink-50 transition-all cursor-pointer group flex items-center justify-between wj-focusable" role="button" tabindex="0">
-                        <div class="space-y-1 text-left">
-                            <span class="type-eyebrow text-ink-500">전속 1:1 지정 상담</span>
-                            <h3 class="text-sm font-black text-ink-950">우수 파트너 1:1 지정하기 →</h3>
-                            <p class="text-[12px] text-ink-500 font-medium">자동 매칭 완료 후 우수 시공사 단독 지정</p>
-                        </div>
-                        <div class="w-9 h-9 rounded-xl bg-ink-100 group-hover:bg-ink-950 text-ink-700 group-hover:text-white flex items-center justify-center transition-all shrink-0 ml-2">
-                            <i data-lucide="building" class="w-4 h-4"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="surface-flat surface-flush p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4" style="background:var(--brand-50)">
-                    <p class="text-[13px] sm:text-sm font-bold text-ink-800 leading-relaxed flex-1">
-                        <span class="text-brand-700 font-black">TIP.</span> 2단계 자동 매칭이 끝난 뒤에도 끝이 아니에요 — 비교 견적 중 마음에 쏙 드는 파트너가 있다면 <span class="text-brand-700 font-black">1:1 지정 상담</span>을 추가로 신청해서 그 파트너와 전속으로 진행할 수 있어요.
-                    </p>
-                </div>
-            </div>
-
-            <!-- 하단 상담 신청 CTA: 풀블리드 식물 사진 + 좌하단 카피 / 우측 버튼 오버레이 -->
-            <div class="home-cta-banner">
-                <div class="home-cta-banner-img" role="img" aria-label="식물이 우거진 채광 좋은 공간 사진"></div>
-                <div class="home-cta-banner-scrim" aria-hidden="true"></div>
-                <div class="home-cta-banner-copy">
-                    <h2>공간이<br>사람을 바꿉니다.</h2>
-                    <p>지금, 당신의 공간을 시작해보세요.</p>
-                </div>
-                <button type="button" onclick="handleHome1on1Click()" class="home-cta-banner-btn">
-                    무료 상담 신청하기 <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                </button>
-            </div>
-        </section>
+  <section class="sl-preparation sl-container" aria-labelledby="home-preparation-title">
+    <div class="sl-preparation-intro"><span class="sl-eyebrow">BEFORE YOU START</span><h2 id="home-preparation-title">좋은 견적은,<br>작은 준비에서 시작해요.</h2><p>세 가지만 미리 생각해 두면<br>원하는 공간을 더 구체적으로 이야기할 수 있어요.</p><button onclick="startHomeQuote()">내 공간 견적 시작하기 <span aria-hidden="true">→</span></button></div>
+    <ul class="sl-preparation-list"><li><span>01</span><div><h3>바꾸고 싶은 공간</h3><p>전체 공사인지, 주방·욕실 등 부분 공사인지 정리해 보세요.</p></div></li><li><span>02</span><div><h3>생각해 둔 예산과 일정</h3><p>예산 범위와 희망 시작일을 정하고, 조정 가능한 부분도 생각해 보세요.</p></div></li><li><span>03</span><div><h3>좋아하는 분위기의 사진</h3><p>마음에 드는 시공사례와 현재 공간 사진을 준비하면 상담에 도움이 돼요.</p></div></li></ul>
+  </section>
+  <section class="sl-faq sl-container" aria-labelledby="home-faq-title"><div class="sl-section-heading"><h2 id="home-faq-title">시작하기 전, 궁금한 점</h2><button onclick="openSupportInquiryModal()">직접 문의하기 <span aria-hidden="true">→</span></button></div>
+    <details><summary>어디서부터 시작하면 되나요?</summary><p>마음에 드는 시공사례를 살펴본 후 홈 상단에서 지역, 공간 유형, 예산 범위를 선택해 주세요. ‘맞춤 견적 받기’를 누르면 로그인 후 상세 조건을 입력할 수 있어요.</p></details>
+    <details><summary>예산이나 공사 범위를 아직 정하지 못했어요.</summary><p>먼저 전체 공사와 부분 공사 중 필요한 범위를 생각해 보세요. 희망하는 분위기와 꼭 바꾸고 싶은 부분을 정리하고, 전문가와 상담하면서 세부 범위를 조율할 수 있어요.</p></details>
+    <details><summary>전문가는 어떤 기준으로 비교하면 좋을까요?</summary><p>비슷한 공간의 시공사례, 공사 범위와 자재, 일정, 추가 비용 조건을 함께 확인해 보세요. 총금액뿐 아니라 견적에 포함된 항목을 같은 기준으로 비교하는 것이 좋아요.</p></details>
+    <details><summary>견적을 신청하려면 회원가입이 필요한가요?</summary><p>시공사례와 전문가 목록은 로그인 없이 살펴볼 수 있어요. 견적 신청과 마이페이지 이용에는 고객 로그인이 필요해요.</p></details>
+  </section>
+  <dialog id="home-case-preview" class="sl-case-preview" aria-labelledby="home-case-preview-title"><button class="sl-preview-close" type="button" onclick="document.getElementById('home-case-preview').close()" aria-label="사진 닫기">×</button><div id="home-case-preview-photo" class="sl-preview-photo sl-photo" role="img"></div><div class="sl-preview-content"><span class="sl-eyebrow">SPACE INSPIRATION</span><h2 id="home-case-preview-title"></h2><p>원하는 공간의 분위기를 살펴보세요. 이 사진은 디자인 참고 이미지이며 실제 업체의 시공 실적은 전문가 포트폴리오에서 확인할 수 있어요.</p><div class="sl-preview-actions"><button type="button" onclick="document.getElementById('home-case-preview').close();switchPanel('partner-search-panel')">전문가 포트폴리오 보기</button><button id="home-case-preview-quote" type="button">이 공간으로 견적 시작</button></div></div></dialog>
+  <div class="sl-cta sl-photo sl-photo--garden"><div class="sl-container sl-cta-inner"><div><h2>공간이<br>사람을 바꿉니다.</h2><p>지금, 당신의 공간을 시작해보세요.</p></div><button onclick="startHomeQuote()">무료 상담 신청하기 <i data-lucide="arrow-right" aria-hidden="true"></i></button></div></div>
+  <footer class="sl-footer"><div class="sl-footer-brand"><span class="sl-logo">SpaceLink</span><span>좋은 공간이 더 좋은 일상을 만듭니다.</span></div><div class="sl-footer-links"><button onclick="openFooterInfoModal('terms')">이용약관</button><button onclick="openFooterInfoModal('privacy')">개인정보처리방침</button><button onclick="openSupportInquiryModal()">고객센터</button><button onclick="handleB2BNavClick()">파트너·매니저</button></div><small>© 2026 SpaceLink. All rights reserved.</small></footer>
+  <div hidden aria-hidden="true"><div id="home-event-slider-container"></div></div>
+</section>
 
         <!-- ================================================================ 2. CLIENT PANEL ================================================================ -->
         <!-- ================================================================ 2. CLIENT LOGIN PANEL (견적 신청/마이페이지 등 로그인 필요 시 공통 진입점) ================================================================ -->
         <section id="client-login-panel" class="hidden transition-all duration-300">
             <div class="max-w-md mx-auto my-12 text-left">
+                <p id="home-login-intent" class="sl-intent" hidden></p>
                 <div id="form-auth-card" class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
                     <div class="space-y-2 text-center">
                         <span class="w-12 h-12 rounded-2xl bg-brand-500 text-white flex items-center justify-center mx-auto" style="box-shadow:var(--shadow-brand)"><i data-lucide="user" class="w-6 h-6"></i></span>
@@ -361,6 +244,7 @@
                     </div>
                 </div>
 
+                <p id="home-quote-intent" class="sl-intent" hidden></p>
                 <form id="matching-form" class="space-y-6 text-left" onsubmit="event.preventDefault();">
                 <div id="form-details-section" class="space-y-6">
                     <div id="qstep-1" class="qstep space-y-6">
@@ -565,15 +449,15 @@
         <!-- ================================================================ 3. PARTNER SEARCH PANEL ================================================================ -->
         <section id="partner-search-panel" class="hidden space-y-6 transition-all duration-300">
             <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-5">
+                <div class="sl-interior-heading flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-5">
                     <div class="space-y-1">
-                        <span class="badge badge-brand">우리집 안심 중개 우수 파트너스</span>
+                        <span class="badge badge-brand">공간을 함께 완성할 전문가</span>
                         <h3 class="text-base sm:text-lg font-black text-ink-950 flex items-center gap-2 mt-1">
                             <i data-lucide="building" class="w-5 h-5 text-brand-500"></i>
-                            <span>부산 우수 안심 파트너사 포트폴리오 및 1:1 상담</span>
-                        </h3>
+                            <span>당신의 공간에 맞는 전문가</span>
+                        </h3><p class="sl-interior-description">시공 사진과 후기를 살펴보고, 나에게 맞는 전문가와 상담해 보세요.</p>
                     </div>
-                    <div class="relative w-full sm:w-64">
+                    <div class="sl-partner-searchbox relative w-full sm:w-64">
                         <i data-lucide="search" class="w-3.5 h-3.5 text-ink-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
                         <input type="text" id="partner-search-input" oninput="renderPartnerSearchGrid(); toggleSearchClearBtn('partner-search-input','partner-search-input-clear')" placeholder="시공사 이름 또는 지역 검색..." class="input pl-8 pr-8">
                         <button type="button" id="partner-search-input-clear" onclick="clearSearchInput('partner-search-input','partner-search-input-clear','renderPartnerSearchGrid')" class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-ink-300 hover:text-ink-600 bg-transparent border-0 cursor-pointer p-0.5" aria-label="검색어 지우기"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
@@ -587,6 +471,7 @@
                     </select>
                 </div>
                 <div id="partner-search-category-chips" class="flex items-center flex-wrap gap-1.5"></div>
+                <p id="partner-search-count" class="sl-results-count" role="status" aria-live="polite"></p>
                 <div id="partner-search-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2"></div>
             </div>
         </section>
@@ -595,13 +480,13 @@
         <section id="community-panel" class="hidden space-y-6 transition-all duration-300">
             <div id="community-list-subview" class="space-y-6">
                 <div class="surface surface-lg p-6 sm:p-8 space-y-6 text-left">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-5">
+                    <div class="sl-interior-heading flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-ink-100 pb-5">
                         <div class="space-y-1">
                             <span class="badge badge-brand">이웃과 나누는 이야기</span>
                             <h3 class="text-base sm:text-lg font-black text-ink-950 flex items-center gap-2 mt-1">
                                 <i data-lucide="message-circle" class="w-5 h-5 text-brand-500"></i>
-                                <span>인테리어 커뮤니티 · 팁 공유</span>
-                            </h3>
+                                <span>더 좋은 공간을 위한 이야기</span>
+                            </h3><p class="sl-interior-description">집들이부터 인테리어 팁까지, 공간에 대한 경험을 함께 나눠요.</p>
                         </div>
                         <button type="button" onclick="openCommunityWrite()" class="btn btn-primary"><i data-lucide="pencil" class="w-3.5 h-3.5"></i> 글쓰기</button>
                     </div>
@@ -981,7 +866,7 @@
                     <div class="surface surface-lg p-6 sm:p-8 space-y-3 text-left">
                         <div>
                             <h4 class="text-sm font-black text-ink-950 tracking-tight flex items-center gap-1.5"><i data-lucide="verified" class="w-4 h-4 text-brand-500"></i> 안심 인증 상태</h4>
-                            <p class="text-[11px] text-ink-500 font-medium">우리집 안심 인증 만료 임박 또는 만료 시 갱신을 요청할 수 있어요.</p>
+                            <p class="text-[11px] text-ink-500 font-medium">SpaceLink 인증 만료 임박 또는 만료 시 갱신을 요청할 수 있어요.</p>
                         </div>
                         <div id="partner-cert-status"></div>
                     </div>
@@ -1094,7 +979,7 @@
                         </div>
                         <div class="space-y-3 pt-2">
                             <h4 class="text-xs font-black text-roseCustom uppercase tracking-widest flex items-center gap-1.5 border-b border-ink-100 pb-3.5"><i data-lucide="store" class="w-4 h-4 text-roseCustom"></i> 입점 해지</h4>
-                            <p class="text-[11px] text-ink-500 font-medium">더 이상 우리집 안심중개에서 영업하지 않으신다면 입점을 해지할 수 있어요. 진행 중인 계약이 있으면 해지할 수 없습니다.</p>
+                            <p class="text-[11px] text-ink-500 font-medium">더 이상 SpaceLink에서 영업하지 않으신다면 입점을 해지할 수 있어요. 진행 중인 계약이 있으면 해지할 수 없습니다.</p>
                             <button type="button" onclick="openPartnerAccountCloseModal()" class="btn btn-secondary btn-sm text-roseCustom">입점 해지 신청</button>
                         </div>
                     </div>
@@ -1570,7 +1455,7 @@
             <div class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 bg-ink-50 custom-scroll">
                 <div class="surface p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
                     <div class="space-y-2 max-w-2xl">
-                        <span class="badge badge-brand">우리집 안심 추천 우수사</span>
+                        <span class="badge badge-brand">SpaceLink 추천 우수사</span>
                         <h2 id="profile-partner-name-hero" class="text-2xl font-black text-ink-950 tracking-tight">파트너 상호명</h2>
                         <p id="profile-partner-slogan-hero" class="text-xs font-extrabold text-brand-600">부산 최고의 하이엔드 전문 시공 브랜드</p>
                         <p id="profile-partner-promo-hero" class="text-xs text-ink-500 font-semibold leading-relaxed">검증된 종합건설 실내건축 종합면허사로, 3억 원 규모 하자이행보증 무상 가동 혜택 적용 대상지입니다.</p>
@@ -2471,8 +2356,8 @@
         <div class="max-w-7xl mx-auto px-4 space-y-5 text-left">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div class="space-y-1.5">
-                    <p class="font-bold text-ink-600">우리집 안심 중개 — 부산 지역 하이엔드 실내건축 가이드</p>
-                    <p class="text-[11px] leading-relaxed">상호 (주)우리집안심중개 · 대표 박서준 · 사업자등록번호 000-00-00000<br>부산광역시 해운대구 센텀중앙로 90, 8층 · 고객센터 1588-0000 (평일 09:00~18:00)</p>
+                    <p class="font-bold text-ink-600">SpaceLink — 부산 지역 하이엔드 실내건축 가이드</p>
+                    <p class="text-[11px] leading-relaxed">상호 (주)SpaceLink · 대표 박서준 · 사업자등록번호 000-00-00000<br>부산광역시 해운대구 센텀중앙로 90, 8층 · 고객센터 1588-0000 (평일 09:00~18:00)</p>
                 </div>
                 <div class="flex items-center flex-wrap gap-x-4 gap-y-1.5 text-[11px] font-bold shrink-0">
                     <button type="button" onclick="openFooterInfoModal('terms')" class="bg-transparent border-0 p-0 cursor-pointer text-ink-500 hover:text-ink-900">이용약관</button>
@@ -2490,5 +2375,6 @@
     <script src="cms.js"></script>
     <script src="partner_panel.js"></script>
     <script src="client_panel.js"></script>
+    <script src="home-flow.js"></script>
 </body>
 </html>

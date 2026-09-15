@@ -634,7 +634,7 @@ function downloadVisitCalendarFile(title, description, dateStr) {
     const ics = [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
-        'PRODID:-//우리집 안심중개//KO',
+        'PRODID:-//SpaceLink//KO',
         'BEGIN:VEVENT',
         `UID:${uid}`,
         `DTSTAMP:${stamp}`,
@@ -697,7 +697,7 @@ const FOOTER_INFO_CONTENT = {
     terms: {
         title: '이용약관',
         body: `제1조 (목적)
-이 약관은 (주)우리집안심중개(이하 "회사")가 제공하는 인테리어 중개 서비스의
+이 약관은 (주)SpaceLink(이하 "회사")가 제공하는 인테리어 중개 서비스의
 이용조건 및 절차, 회사와 이용자의 권리·의무 및 책임사항을 규정합니다.
 
 제2조 (서비스의 제공)
@@ -714,7 +714,7 @@ const FOOTER_INFO_CONTENT = {
     },
     privacy: {
         title: '개인정보처리방침',
-        body: `(주)우리집안심중개는 이용자의 개인정보를 중요시하며, 관련 법령을 준수합니다.
+        body: `(주)SpaceLink는 이용자의 개인정보를 중요시하며, 관련 법령을 준수합니다.
 
 1. 수집하는 개인정보
 성명, 휴대폰 번호, 시공 희망 주소, 예산 등 견적 신청 시 입력하는 정보를
@@ -732,7 +732,7 @@ const FOOTER_INFO_CONTENT = {
     },
     bizinfo: {
         title: '사업자정보확인',
-        body: `상호: (주)우리집안심중개
+        body: `상호: (주)SpaceLink
 대표자: 박서준
 사업자등록번호: 000-00-00000
 주소: 부산광역시 해운대구 센텀중앙로 90, 8층
