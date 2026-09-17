@@ -118,3 +118,40 @@ body:has(#home-panel.hidden)>footer{background:#fff;border-color:#eae6df;margin-
 .sl-auth-note{border-top:1px solid #eae6df;padding-top:19px;color:#716b63;font-size:12px;line-height:1.8;margin-top:26px}
 @media(max-width:1000px){#client-login-panel>.sl-auth-layout{gap:44px;margin-top:20px}.sl-auth-story h2{font-size:34px}}
 @media(max-width:767px){#client-login-panel>.sl-auth-layout{grid-template-columns:1fr;gap:32px;margin:0 auto 32px;max-width:480px;padding:0}.sl-auth-story{padding:0}.sl-auth-story h2{font-size:29px;margin:10px 0 14px}.sl-auth-story>p{font-size:14px}.sl-auth-photo{height:auto;aspect-ratio:auto;margin-top:22px}.sl-auth-form-column{max-width:none}#form-auth-card .sl-auth-heading h3{font-size:24px}#form-auth-card .grid{grid-template-columns:1fr}}
+
+/* Partner profile modal: editorial header + photo-toned hero, matching the home page's
+   calm serif/warm-neutral language instead of the generic dashboard card it had before. */
+#client-partner-profile-modal-card>.p-6:first-child{background:#faf9f7;padding:22px 32px;flex-wrap:wrap;row-gap:10px}
+#client-partner-profile-modal-card>.p-6:first-child>.flex>.w-10.h-10{display:none}
+#client-partner-profile-modal-card>.p-6:first-child>.flex:first-child{min-width:0}
+#client-partner-profile-modal-card>.p-6:first-child h3{flex-wrap:wrap;row-gap:4px}
+#client-partner-profile-modal-card #profile-partner-name{font-family:'Noto Serif',Georgia,serif;font-weight:400;font-size:21px;letter-spacing:-.03em;color:#292824;min-width:0}
+#client-partner-profile-modal-card>.p-6:first-child p{color:#82684e}
+#client-partner-profile-modal-card .flex-1.overflow-y-auto{background:#faf9f7}
+#client-partner-profile-modal-card .flex-1.overflow-y-auto>.surface:first-child{background:linear-gradient(135deg,#2c2822 0%,#4a4038 100%);border:0;border-radius:20px;padding:44px 36px;color:#fff;box-shadow:none}
+#client-partner-profile-modal-card #profile-partner-name-hero{font-family:'Noto Serif',Georgia,serif;font-weight:400;font-size:32px;letter-spacing:-.03em;color:#fff}
+#client-partner-profile-modal-card #profile-partner-slogan-hero{color:#e2d2b4;font-size:13px;font-weight:500}
+#client-partner-profile-modal-card #profile-partner-promo-hero{color:#c9beac}
+#client-partner-profile-modal-card .badge.badge-brand{background:rgba(255,255,255,.14);color:#f0dfc7}
+#client-partner-profile-modal-card .surface-flat{background:rgba(255,255,255,.09);border:0}
+#client-partner-profile-modal-card #profile-rating-avg{color:#fff}
+#client-partner-profile-modal-card .surface-flat span:last-child{color:rgba(255,255,255,.62)}
+#client-partner-profile-modal-card #profile-hero-1on1-btn{background:#fff;color:#292824;box-shadow:none}
+#client-partner-profile-modal-card #profile-hero-1on1-btn:hover{background:#f3efe9}
+#client-partner-profile-modal-card h4{font-family:'Noto Sans KR',sans-serif;font-weight:500;font-size:16px;color:#292824}
+#client-partner-profile-modal-card h4 svg{display:none}
+#profile-portfolios-grid{gap:18px}
+#profile-portfolios-grid .portfolio-card{border:1px solid #eae6df;border-radius:16px;overflow:hidden;box-shadow:none;transition:box-shadow .2s,transform .2s}
+#profile-portfolios-grid .portfolio-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px #2928240d}
+#profile-portfolios-grid .portfolio-img{aspect-ratio:4/3;overflow:hidden}
+#profile-portfolios-grid .portfolio-card h5{font-size:14px;font-weight:500;white-space:normal;color:#292824}
+#profile-portfolios-grid .portfolio-card>.p-4{padding:16px}
+#profile-portfolios-grid .portfolio-card p{font-size:12.5px;color:#716b63}
+@media(max-width:767px){#client-partner-profile-modal-card .flex-1.overflow-y-auto>.surface:first-child{padding:28px 22px}#client-partner-profile-modal-card #profile-partner-name-hero{font-size:26px}#client-partner-profile-modal-card>.p-6:first-child{padding:16px 18px}#client-partner-profile-modal-card #profile-partner-name{font-size:17px}}
+
+/* Portfolio case-study (blog) modal: same serif headline treatment as the rest of the site. */
+#portfolio-blog-modal-card>.p-6:first-child{background:#faf9f7}
+#portfolio-blog-modal-card .article-header-badge{background:#f3efe9;color:#82684e;border-radius:24px}
+#portfolio-blog-modal-card #blog-modal-title{font-family:'Noto Serif',Georgia,serif;font-weight:400;font-size:30px;letter-spacing:-.03em;line-height:1.4}
+#portfolio-blog-modal-card .blog-lead-text{color:#716b63;font-size:15px;font-weight:400}
+@media(max-width:767px){#portfolio-blog-modal-card #blog-modal-title{font-size:23px}}
