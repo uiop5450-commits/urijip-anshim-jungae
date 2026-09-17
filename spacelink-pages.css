@@ -1,0 +1,89 @@
+/* Approved home palette and type hierarchy across the four content pages. */
+:is(#partner-search-panel,#cases-panel,#community-panel,#client-mypage-panel){font-family:'Noto Sans KR',sans-serif;letter-spacing:-.035em;color:#292824}
+body:has(:is(#partner-search-panel,#cases-panel,#community-panel,#client-mypage-panel):not(.hidden)){background:#fff!important}
+body:has(:is(#partner-search-panel,#cases-panel,#community-panel,#client-mypage-panel):not(.hidden)) main{max-width:1300px;padding-top:52px}
+:is(#partner-search-panel,#community-panel,#client-mypage-panel) :is(.btn,.select,.input){font-family:inherit;font-size:14px;font-weight:400}
+:is(#partner-search-panel,#community-panel,#client-mypage-panel) .btn{border-radius:24px;box-shadow:none}
+:is(#partner-search-panel,#community-panel,#client-mypage-panel) :is(.btn-primary,.btn-dark){background:#292824!important;color:#fff!important;border-color:#292824;box-shadow:none}
+:is(#partner-search-panel,#community-panel,#client-mypage-panel) .btn-secondary{background:#f3efe9!important;color:#51483d!important;border:1px solid #e4ddd3}
+:is(#partner-search-panel,#community-panel,#client-mypage-panel) :is(.input,.select){min-height:48px;border-color:#e4ddd3;border-radius:12px;background:#faf9f7!important}
+.sl-page-eyebrow{display:block;font-size:11px;font-weight:500;letter-spacing:.16em;color:#82684e}
+:is(#partner-search-panel,#community-panel) .sl-interior-heading{padding:6px 0 30px!important;border-bottom:1px solid #eae6df!important;margin-bottom:26px}
+:is(#partner-search-panel,#community-panel) .sl-interior-heading h3{font-size:35px!important;font-weight:700;line-height:1.4;letter-spacing:-.055em}
+:is(#partner-search-panel,#community-panel) .sl-interior-heading .badge{background:transparent!important;border:0;padding:0;border-radius:0;color:#82684e;font-size:12px;font-weight:400}
+:is(#partner-search-panel,#community-panel) .sl-interior-description{font-size:15px;line-height:1.8;margin-top:14px}
+/* Partners: calm filters, larger images, fewer nested boxes. */
+#partner-search-panel .sl-partner-searchbox{width:300px!important}
+#partner-search-region-chips{gap:8px;padding-bottom:4px}
+#partner-search-panel .region-chip{font-size:13px;min-height:40px;padding:9px 16px;border-radius:24px;background:#faf9f7;border-color:#eae6df;font-weight:400}
+#partner-search-panel .region-chip.active{background:#292824!important;color:white!important;border-color:#292824}
+#partner-search-grid{gap:32px 24px}
+#partner-search-grid .portfolio-card{border:0;border-radius:14px;box-shadow:none;background:#faf9f7}
+#partner-search-grid .portfolio-card:hover{box-shadow:0 8px 24px #2928240a;transform:translateY(-2px)}
+#partner-search-grid .portfolio-img{aspect-ratio:4/3;border-radius:14px}
+#partner-search-grid .portfolio-card h4{font-size:19px;font-weight:500;letter-spacing:-.035em}
+#partner-search-grid .portfolio-card .p-5{padding:22px 22px 18px}
+#partner-search-grid .portfolio-card>div:last-child{background:transparent;border-color:#e4ddd3;padding:15px 22px}
+/* Cases: editorial title, image-led two-column gallery, distinct saved state. */
+#cases-panel .cases-heading{position:relative;min-height:210px;padding:38px 42px;margin:0 0 30px;background:#f3efe9;border-radius:20px;gap:32px}
+#cases-panel .cases-heading h1{font-size:38px;line-height:1.35;letter-spacing:-.055em;margin:12px 0 16px;font-weight:500}
+#cases-panel .cases-heading p{max-width:640px;font-size:15px;line-height:1.8;color:#716b63}
+#cases-panel #cases-upload{flex-shrink:0;padding:14px 24px;border-radius:28px;font-size:14px;box-shadow:none}
+#cases-panel .cases-filters{background:#fff;border:1px solid #eae6df;padding:22px 24px;gap:16px;border-radius:16px;align-items:end}
+#cases-panel .cases-filters label{font-size:12px;color:#716b63;gap:9px;min-width:0}
+#cases-panel .cases-filters :is(input,select){background:#faf9f7;min-height:48px;border-color:#e4ddd3;font-size:14px;border-radius:10px}
+#cases-panel .cases-filters button{height:48px;white-space:nowrap;font-size:13px;border-radius:10px}
+#cases-panel #cases-saved[aria-pressed=true]{background:#292824;color:#fff;border-color:#292824}
+#cases-panel #cases-reset{border-color:transparent;color:#716b63;padding-inline:8px}
+#cases-panel .cases-local-note{font-size:12px;line-height:1.7;color:#82796c;margin:16px 2px 0}
+#cases-panel #cases-status{font-size:14px;font-weight:500;margin:30px 0 20px}
+#cases-panel #cases-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:38px 28px}
+#cases-panel .case-card{background:white;border:0;border-radius:0;overflow:visible}
+#cases-panel .case-card .case-open{border:0;background:transparent;box-shadow:none;overflow:hidden;border-radius:0}
+#cases-panel .case-open>img{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:14px;transition:filter .2s}
+#cases-panel .case-open:hover>img{filter:brightness(.95)}
+#cases-panel .case-meta{font-size:12px;line-height:1.6;color:#82684e;padding:19px 0 8px}
+#cases-panel .case-open h2{font-size:23px;font-weight:500;line-height:1.5;letter-spacing:-.045em;margin:0 0 9px;word-break:keep-all;overflow-wrap:anywhere}
+#cases-panel .case-partner{font-size:14px;color:#716b63;margin:0 0 18px}
+#cases-panel .case-actions{padding:14px 0 0;gap:10px;border-top:1px solid #eae6df}
+#cases-panel .case-actions button{font-size:13px;padding:9px 17px;border-color:#e4ddd3;background:#faf9f7;color:#716b63}
+#cases-panel .case-actions button[aria-pressed=true]{color:#6b5038;border-color:#82684e;background:#f3efe9}
+#cases-panel .cases-empty{border:1px dashed #ded9d1;background:#faf9f7;border-radius:16px;padding:70px 24px}
+#cases-panel .cases-empty h2{font-size:23px;font-weight:500;margin-bottom:12px}
+#cases-detail{width:min(1000px,94vw);padding:36px 44px;border-radius:20px}
+#cases-detail h2{font-size:32px;line-height:1.45;letter-spacing:-.045em;margin:15px 0}
+#cases-detail-content>p:not(.case-description){color:#716b63;font-size:14px;line-height:1.7}
+#cases-detail .case-actions{padding:18px 0;border-bottom:1px solid #eae6df;margin-top:24px}
+#cases-detail .case-description{font-size:16px;line-height:1.9;margin:28px 0;max-width:760px}
+#cases-detail .case-gallery figure{margin:24px 0}
+#cases-detail .case-gallery img{border-radius:12px;width:100%;height:auto;object-fit:contain}
+#cases-detail .cases-close{position:sticky;top:0;background:white;z-index:2}
+#cases-editor{padding:32px;max-width:740px}#cases-editor h2{font-size:28px;line-height:1.4}
+/* Community: readable feed with understated category controls. */
+#community-category-tabs{gap:8px;padding:5px 0}
+#community-category-tabs button{border-radius:24px!important;padding:10px 18px!important;min-height:42px;font-size:14px!important;font-weight:400!important;box-shadow:none!important}
+#community-search-input{min-width:200px}
+#community-post-list{gap:16px;padding-top:8px}
+#community-post-list>div{border:1px solid #eae6df;border-radius:16px;padding:26px;background:#fff;box-shadow:none}
+#community-post-list>div:hover{background:#faf9f7;border-color:#ded9d1}
+#community-post-list :is(h3,h4){font-size:21px;line-height:1.5;font-weight:500;letter-spacing:-.04em}
+#community-post-list p{font-size:14px;line-height:1.8;font-weight:400}
+#community-write-subview>.surface,#community-detail-subview>.surface{padding:32px;border:1px solid #eae6df;box-shadow:none;background:#fff;border-radius:18px}
+#community-write-subview .textarea{font-size:15px;line-height:1.8}
+/* My page: title above full-width tabs and softly separated workspaces. */
+#client-mypage-dashboard>div:first-child{background:transparent;border:0;box-shadow:none;padding:0 0 28px;border-bottom:1px solid #eae6df;border-radius:0;gap:26px}
+#client-mypage-dashboard>div:first-child>div:first-child{width:100%}
+#client-mypage-dashboard>div:first-child h4{font-size:35px;font-weight:700;line-height:1.4;letter-spacing:-.055em;margin:12px 0}
+#client-mypage-dashboard .sl-mypage-description{font-size:15px;font-weight:400;line-height:1.8;color:#716b63}
+#client-mypage-main-tabs{width:100%;padding:6px;background:#f3efe9;border:0;border-radius:14px;gap:4px}
+#client-mypage-main-tabs button{min-height:44px;border-radius:10px;font-size:14px;font-weight:400;box-shadow:none}
+#client-mypage-dashboard :is(.surface,.surface-flat){border-color:#eae6df;border-radius:16px;box-shadow:none}
+#client-mypage-subtab-history-view>div:first-child{background:#faf9f7;padding:24px}
+#client-mypage-history-tabs button{border-radius:20px;font-weight:400;font-size:13px}
+#client-mypage-dashboard h4{font-weight:500;letter-spacing:-.035em}
+#client-mypage-detail-empty{padding:64px 28px;background:#faf9f7;border-style:dashed}
+#client-mypage-detail-empty h5{font-size:15px;font-weight:400;color:#716b63;line-height:1.8}
+#client-mypage-dashboard .field-label{font-size:14px;font-weight:500}
+@media(max-width:1000px){#cases-panel .cases-heading{padding:30px}#cases-panel .cases-heading h1{font-size:32px}#cases-panel .cases-filters{flex-wrap:wrap}#cases-panel .cases-filters label:first-child{flex-basis:100%}#partner-search-panel .sl-partner-searchbox{width:260px!important}#client-mypage-main-tabs{gap:6px}}
+@media(max-width:767px){body:has(:is(#partner-search-panel,#cases-panel,#community-panel,#client-mypage-panel):not(.hidden)) main{padding:28px 18px 44px}:is(#partner-search-panel,#community-panel) .sl-interior-heading h3,#client-mypage-dashboard>div:first-child h4{font-size:28px!important}#partner-search-panel .sl-partner-searchbox{width:100%!important}#cases-panel .cases-heading{min-height:0;padding:28px 24px;gap:22px;border-radius:16px}#cases-panel .cases-heading h1{font-size:29px}#cases-panel .cases-heading p{font-size:14px}#cases-panel #cases-upload{width:100%}#cases-panel .cases-filters{padding:16px;gap:12px}#cases-panel .cases-filters label{flex:1 1 40%}#cases-panel #cases-grid{grid-template-columns:1fr;gap:32px}#cases-panel .case-open h2{font-size:21px}#cases-detail,#cases-editor{padding:22px;max-height:92vh}#cases-detail h2{font-size:25px}#cases-detail .case-description{font-size:14px}#community-post-list>div{padding:20px}#community-post-list :is(h3,h4){font-size:19px}#community-search-input{min-width:0}#community-write-subview>.surface,#community-detail-subview>.surface{padding:22px}#client-mypage-main-tabs{flex-wrap:nowrap;overflow-x:auto}#client-mypage-main-tabs button{flex-shrink:0;font-size:13px}#client-mypage-dashboard .sl-mypage-description{font-size:14px}}
+@media(prefers-reduced-motion:reduce){#cases-panel .case-open>img{transition:none}}

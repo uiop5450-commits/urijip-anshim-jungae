@@ -1,0 +1,46 @@
+/* Quote flow: SpaceLink home typography, warm surfaces, clear form hierarchy. */
+#client-panel{font-family:'Noto Sans KR',sans-serif;color:#292824;letter-spacing:-.035em;gap:40px;align-items:start}
+#client-panel>div:first-child{background:#fff;border:1px solid #eae6df;border-radius:20px;padding:36px;box-shadow:none}
+#client-panel>div:last-child{position:sticky;top:106px}
+#client-panel>div:last-child>.surface{background:#f3efe9;border:0;border-radius:18px;padding:28px;box-shadow:none}
+#client-panel .type-eyebrow{font-size:11px;font-weight:500;letter-spacing:.16em;color:#82684e}
+#client-panel .type-display{font-family:inherit;font-size:34px;font-weight:700;line-height:1.4;letter-spacing:-.055em;margin-top:12px}
+#client-panel>div:first-child>div:first-child>p{font-size:15px;font-weight:400;color:#716b63;line-height:1.8;margin-top:14px}
+#client-panel .step-indicator{margin-top:28px;gap:8px}
+#client-panel .step-dot{height:4px;border-radius:4px;background:#eae6df;box-shadow:none}
+#client-panel .step-dot.active,#client-panel .step-dot.done{background:#806347;box-shadow:none}
+#client-panel .step-label{font-size:12px;font-weight:400;color:#82796c}
+#client-panel .step-label.current{color:#292824;font-weight:500}
+#client-panel #form-details-section{padding-top:8px}
+#client-panel .surface-flat{background:#faf9f7;border:1px solid #eae6df;border-radius:14px;box-shadow:none}
+#client-panel #qstep-1 .surface-flat{padding:24px}
+#client-panel #qstep-1 h3{font-size:20px;font-weight:500;line-height:1.5;letter-spacing:-.035em}
+#client-panel #qstep-1 h4{font-size:15px;font-weight:500;line-height:1.6}
+#client-panel #qstep-1 p{font-size:13px;font-weight:400;line-height:1.8;color:#716b63}
+#client-panel #qstep-1 .rounded-full{background:#eae2d6;color:#6b5038;font-weight:500;box-shadow:none}
+#client-panel .field-label{font-size:14px;font-weight:500;color:#45413b;margin-bottom:10px}
+#client-panel :is(.input,.select){height:50px;min-height:50px;border:1px solid #ded9d1;border-radius:10px;background:#fff;font-size:15px;font-weight:400}
+#client-panel .input::placeholder{color:#8b847a;font-weight:400;font-size:14px}
+#client-panel .btn{font-weight:400;box-shadow:none;border-radius:26px}
+#client-panel :is(.btn-dark,.btn-primary){background:#292824!important;color:#fff!important;border:1px solid #292824}
+#client-panel .btn-secondary{background:#f3efe9!important;color:#51483d!important;border:1px solid #e4ddd3}
+#client-panel .btn-lg{min-height:50px;font-size:15px}
+#client-panel .segmented{background:#f3efe9;border:0;padding:5px;border-radius:12px}
+#client-panel .segmented button{font-size:14px;font-weight:400;min-height:42px;border:0!important;border-radius:9px;background:transparent!important;box-shadow:none!important;color:#716b63}
+#client-panel .segmented button.active{background:#fff!important;color:#6b5038!important}
+#client-panel #calendar-title{font-size:16px;font-weight:500}
+#client-panel #calendar-days>button{font-size:14px;min-height:36px}
+#client-panel #client-budget-slider{accent-color:#806347}
+#client-panel #budget-text{font-size:17px;font-weight:500;color:#6b5038}
+#client-panel #m2-indicator{font-size:11px;font-weight:400;background:#f3efe9;border:0;color:#716b63}
+#client-panel>div:last-child h3{font-size:21px;font-weight:500;color:#292824;letter-spacing:-.035em}
+#client-panel #matching-success-area>div:first-child{border-top:1px solid #ded6cb;padding-top:22px}
+#client-panel #matching-success-area .text-xs{font-size:14px;line-height:1.7}
+#client-panel #matching-success-area :is(.font-bold,.font-extrabold){font-weight:400}
+#client-panel #matching-success-area .text-ink-400{color:#716b63}
+#client-panel #report-client-address{white-space:normal;overflow-wrap:anywhere;max-width:62%}
+#client-panel #report-budget{font-size:20px;font-weight:500;color:#6b5038}
+#client-panel :is(input,select,button):focus-visible{outline:2px solid #a9754b;outline-offset:3px}
+@media(max-width:1100px){#client-panel{gap:24px}#client-panel>div:first-child{padding:26px}#client-panel .type-display{font-size:29px}}
+@media(max-width:1023px){#client-panel>div:last-child{position:static}}
+@media(max-width:767px){#client-panel>div:first-child{padding:24px 18px;border-radius:16px}#client-panel>div:last-child>.surface{padding:24px 20px}#client-panel .type-display{font-size:27px}#client-panel #qstep-1 .surface-flat{padding:20px 16px}#client-panel #qstep-1 h3{font-size:18px}#client-panel .btn-lg{font-size:14px;padding:12px 16px}}

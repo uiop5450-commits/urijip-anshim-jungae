@@ -2018,6 +2018,7 @@ function completePostLoginRedirect() {
 }
 
 function toggleClientAuthUI() {
+    if (typeof syncHomeAccount === 'function') syncHomeAccount();
     const auth = window.AppState.clientAuth;
     const unverifiedCard = document.getElementById('form-auth-unverified');
     const verifiedCard = document.getElementById('form-auth-verified');

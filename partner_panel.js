@@ -67,7 +67,7 @@ function switchPanel(panelId) {
     }
     window.AppState.currentPanel = panelId;
     if (typeof renderClientNavUnreadBadge === 'function') renderClientNavUnreadBadge();
-    const panels = ['home-panel', 'client-panel', 'partner-search-panel', 'community-panel', 'client-login-panel', 'client-mypage-panel', 'partner-panel', 'admin-panel'];
+    const panels = ['cases-panel', 'home-panel', 'client-panel', 'partner-search-panel', 'community-panel', 'client-login-panel', 'client-mypage-panel', 'partner-panel', 'admin-panel'];
 
     panels.forEach(p => {
         const el = document.getElementById(p);
@@ -84,7 +84,10 @@ function switchPanel(panelId) {
     if (panelId === 'home-panel') { renderHeroPortfolioSlider(); renderHomeEventSlider(); renderHeroTrustStats(); startHomeAutoplay(); }
     else { stopHomeAutoplay(); }
     if (panelId === 'client-panel' && typeof restoreQuoteDraftFromStorage === 'function') restoreQuoteDraftFromStorage();
+    if (typeof applyHomeQuoteIntent === 'function') applyHomeQuoteIntent();
+    if (typeof syncHomeAccount === 'function') syncHomeAccount();
     if (panelId === 'partner-search-panel') renderPartnerSearchGrid();
+    if (panelId === 'cases-panel' && window.renderCasesPage) window.renderCasesPage();
     if (panelId === 'community-panel' && typeof renderCommunityList === 'function') renderCommunityList();
     if (panelId === 'client-mypage-panel') {
         if (typeof toggleClientAuthUI === 'function') toggleClientAuthUI();
@@ -434,6 +437,8 @@ function renderPartnerSearchGrid() {
             ? (b.reviews ? b.reviews.length : 0) - (a.reviews ? a.reviews.length : 0)
             : b.rating - a.rating);
 
+    const countEl = document.getElementById('partner-search-count');
+    if (countEl) countEl.textContent = '전문가 ' + filtered.length + '곳' + (query ? ' · 검색 결과' : '');
     if (filtered.length === 0) {
         container.innerHTML = '<p class="text-xs text-ink-400 font-bold py-12 text-center col-span-full">검색된 파트너사가 없습니다.</p>';
         return;
@@ -457,12 +462,17 @@ function renderPartnerSearchGrid() {
 
         const card = document.createElement('div');
         card.className = "portfolio-card flex flex-col justify-between group";
+        card.tabIndex = 0;
+        card.setAttribute('aria-label', p.name + ' 포트폴리오 보기');
+        card.onkeydown = (e) => {
+            if (e.target === card && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); card.click(); }
+        };
         card.onclick = (e) => { e.preventDefault(); if (typeof window.openClientPartnerProfile === 'function') window.openClientPartnerProfile(p.name); };
         card.innerHTML = `
             <div>
                 <div class="portfolio-img relative">
                     <img src="${repImg}" alt="${safePName}">
-                    <button type="button" onclick="event.stopPropagation(); toggleFavoritePartner('${p.name}')" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center border-0 cursor-pointer shadow-sm" aria-label="관심 파트너로 저장"><i data-lucide="heart" class="w-4 h-4 ${isFavorited ? 'text-roseCustom' : 'text-ink-300'}" ${isFavorited ? 'fill="currentColor"' : ''}></i></button>
+                    <button type="button" onclick="event.stopPropagation(); toggleFavoritePartner('${p.name}')" aria-pressed="${isFavorited}" class="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center border-0 cursor-pointer shadow-sm" aria-label="관심 파트너로 저장"><i data-lucide="heart" class="w-4 h-4 ${isFavorited ? 'text-roseCustom' : 'text-ink-300'}" ${isFavorited ? 'fill="currentColor"' : ''}></i></button>
                 </div>
                 <div class="p-5 space-y-2">
                     <div class="flex justify-between items-center gap-2">
