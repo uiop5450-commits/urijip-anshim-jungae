@@ -365,7 +365,7 @@ function completeMatchingSim() {
     if (auth.loggedIn) {
         renderClientMyPage();
         if (isHighBudget) {
-            showToast(`${threshold.toLocaleString()}만원 이상 고액 오더로 지정되어,\n본사 최고 관리자가 최상위 '우리집 인증 파트너사'를 직접 전속 심사 후 나눠 배정합니다!\n(의뢰 코드: ${code})`, 'info');
+            showToast(`${threshold.toLocaleString()}만원 이상 고액 오더로 지정되어,\n본사 최고 관리자가 최상위 'SpaceLink 인증 파트너사'를 직접 전속 심사 후 나눠 배정합니다!\n(의뢰 코드: ${code})`, 'info');
         } else {
             showToast(`안심 견적이 접수되었습니다!\n관리자가 적합한 파트너사를 선별해 배정해드려요.\n(의뢰 코드: ${code})`, 'success');
         }
@@ -577,8 +577,8 @@ function downloadTransactionReceipt(orderCode) {
 
     const price = order.finalPrice || order.budget;
     const commission = Math.floor(price * PLATFORM_COMMISSION_RATE);
-    const content = `====================================================\n[우리집 안심 중개] 거래 완료 확인서\n====================================================\n\n1. 거래 정보\n   - 의뢰 코드: ${order.code}\n   - 시공 장소: ${order.clientAddress}\n   - 고객명: ${order.clientName} 고객님\n   - 계약 파트너사: ${order.acceptedPartner || '-'}\n   - 착공 예정일: ${order.preferredDate || '미정'}\n\n2. 정산 내역 (단위: 만원)\n   --------------------------------------------------\n   - 최종 계약 금액: ₩ ${price.toLocaleString()} 만원\n   - 플랫폼 중개 수수료 (${(PLATFORM_COMMISSION_RATE * 100).toFixed(0)}%): ₩ ${commission.toLocaleString()} 만원\n   - 수수료 납부 상태: ${order.commissionPaid ? '납부 완료' : '납부 대기중 (안심 에스크로 보관)'}\n\n3. 서류 현황\n   - 계약서: ${order.contractDoc ? '업로드 완료' : '미업로드'}\n   - 견적서: ${order.estimateDoc ? '업로드 완료' : '미업로드'}\n\n발급일자: ${getLocalDateString()}\n본 확인서는 우리집 안심 중개 플랫폼에서 자동 발급되었습니다.\n====================================================`;
-    buildDocFile(content, `[우리집안심중개]_거래확인서_${order.code}.txt`);
+    const content = `====================================================\n[SpaceLink] 거래 완료 확인서\n====================================================\n\n1. 거래 정보\n   - 의뢰 코드: ${order.code}\n   - 시공 장소: ${order.clientAddress}\n   - 고객명: ${order.clientName} 고객님\n   - 계약 파트너사: ${order.acceptedPartner || '-'}\n   - 착공 예정일: ${order.preferredDate || '미정'}\n\n2. 정산 내역 (단위: 만원)\n   --------------------------------------------------\n   - 최종 계약 금액: ₩ ${price.toLocaleString()} 만원\n   - 플랫폼 중개 수수료 (${(PLATFORM_COMMISSION_RATE * 100).toFixed(0)}%): ₩ ${commission.toLocaleString()} 만원\n   - 수수료 납부 상태: ${order.commissionPaid ? '납부 완료' : '납부 대기중 (안심 에스크로 보관)'}\n\n3. 서류 현황\n   - 계약서: ${order.contractDoc ? '업로드 완료' : '미업로드'}\n   - 견적서: ${order.estimateDoc ? '업로드 완료' : '미업로드'}\n\n발급일자: ${getLocalDateString()}\n본 확인서는 SpaceLink 플랫폼에서 자동 발급되었습니다.\n====================================================`;
+    buildDocFile(content, `[SpaceLink]_거래확인서_${order.code}.txt`);
     showToast('거래 확인서 다운로드가 시작되었습니다.', 'success');
 }
 
@@ -616,7 +616,7 @@ function exportClientOrderHistoryToCsv() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = `우리집안심중개_내의뢰내역_${auth.name}_${getLocalDateString()}.csv`;
+    a.href = url; a.download = `SpaceLink_내의뢰내역_${auth.name}_${getLocalDateString()}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
